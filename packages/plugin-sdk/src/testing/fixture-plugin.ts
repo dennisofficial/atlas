@@ -7,7 +7,7 @@ import {
   ToolDefinition,
   type ToolInvocation,
   type ToolOutcome,
-  type V2Event,
+  type RecordEvent,
 } from '@dltech/atlas-core'
 import type { DaemonEventFrame } from '@dltech/atlas-protocol'
 import { z } from 'zod'
@@ -43,7 +43,7 @@ export const probeObservedSchema: z.ZodType<ProbeObserved> = z.object({
 export const probeLabelsView = {
   name: PROBE_LABELS_VIEW,
   initial: [] as readonly string[],
-  fold: (state: readonly string[], event: V2Event): readonly string[] =>
+  fold: (state: readonly string[], event: RecordEvent): readonly string[] =>
     event.type === 'probe-observed' ? [...state, event.label] : state,
 }
 

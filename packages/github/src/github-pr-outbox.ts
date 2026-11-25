@@ -11,7 +11,7 @@ import {
   type PrOutboxKindScope,
 } from './github-pr-outbox-lease'
 import { failPrOutboxRow } from './github-pr-outbox-failure'
-import { noticeV2Sessions } from './github-v2-notice'
+import { noticeSessions } from './github-notice'
 import type { GithubPrEventDto, GithubPrStateDto } from './github-realtime.types'
 
 export const PR_OUTBOX_BATCH = 32
@@ -202,7 +202,7 @@ export class GithubPrOutboxDispatcher {
         id: (row.payload as { eventId: string }).eventId,
       }).first()
       if (event === null) return
-      await db.transaction((tx) => noticeV2Sessions({ tx, event }))
+      await db.transaction((tx) => noticeSessions({ tx, event }))
 
       return
     }

@@ -1,10 +1,10 @@
 import { describe, expect, it } from 'bun:test'
 
-import type { V2Event } from '../event'
+import type { RecordEvent } from '../event'
 import { firedLatchLevelOf, latchFactOf, latchStepOf } from '../latch'
 
-const factEvent = (args: { name: string; level: number; seq: number }): V2Event =>
-  ({ ...latchFactOf(args), id: `e${args.seq}`, seq: args.seq }) as unknown as V2Event
+const factEvent = (args: { name: string; level: number; seq: number }): RecordEvent =>
+  ({ ...latchFactOf(args), id: `e${args.seq}`, seq: args.seq }) as unknown as RecordEvent
 
 describe('latchStepOf', () => {
   it('fires once when the level first rises above zero', () => {

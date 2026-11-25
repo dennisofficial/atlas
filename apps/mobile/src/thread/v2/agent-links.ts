@@ -1,4 +1,4 @@
-import type { V2Event } from '@dltech/atlas-core'
+import type { RecordEvent } from '@dltech/atlas-core'
 import { z } from 'zod'
 
 export type AgentLinks = {
@@ -18,7 +18,7 @@ export const agentIdOfToolOutput = (output: unknown): string | undefined => {
 export const agentIdOfSpawnCall = (call: { name: string; output: unknown }): string | undefined =>
   call.name === SPAWN_TOOL ? agentIdOfToolOutput(call.output) : undefined
 
-export const agentLinksOf = (args: { events: readonly V2Event[] }): AgentLinks => {
+export const agentLinksOf = (args: { events: readonly RecordEvent[] }): AgentLinks => {
   const byEventId = new Map<string, string>()
   const byCallId = new Map<string, string>()
 

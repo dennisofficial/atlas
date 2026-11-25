@@ -7,7 +7,7 @@ import {
   type SandboxListing,
   type SandboxTarget,
 } from '../sandbox/sandbox-provider'
-import type { V2PodFence, V2PodSweepScope } from './v2-pod-sweep'
+import type { PodFence, PodSweepScope } from './pod-sweep'
 
 export const NOW = new Date('2026-11-10T06:00:00Z')
 export const hoursAgo = (hours: number): number => NOW.getTime() - hours * 60 * 60 * 1_000
@@ -72,7 +72,7 @@ export class FakeSandboxProvider extends SandboxProvider {
   }
 }
 
-export const scope = (sandbox: SandboxProvider): V2PodSweepScope => ({
+export const scope = (sandbox: SandboxProvider): PodSweepScope => ({
   label: 'platform/agent37',
   credentials: AGENT37_CREDENTIALS,
   sandbox,
@@ -80,7 +80,7 @@ export const scope = (sandbox: SandboxProvider): V2PodSweepScope => ({
 
 export const noPods = { live: new Set<string>(), retirable: new Map<string, number>() }
 
-export const actDirectly: V2PodFence = async ({ act }) => {
+export const actDirectly: PodFence = async ({ act }) => {
   await act()
   return 'acted'
 }

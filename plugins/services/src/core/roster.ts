@@ -1,4 +1,9 @@
-import { EServiceStatus, type Event, type PluginViewFold, type V2Event } from '@dltech/atlas-core'
+import {
+  EServiceStatus,
+  type Event,
+  type PluginViewFold,
+  type RecordEvent,
+} from '@dltech/atlas-core'
 import { z } from 'zod'
 
 import './ready-event'
@@ -55,7 +60,7 @@ const placementOf = (event: {
 
 export const foldServices = (
   state: ServicesViewState,
-  event: Event | V2Event,
+  event: Event | RecordEvent,
 ): ServicesViewState => {
   if (event.type === 'service-started') {
     return upsert(state, {
@@ -104,5 +109,5 @@ export const servicesView: PluginViewFold<ServicesViewState> = {
   fold: foldServices,
 }
 
-export const servicesOfEvents = (events: readonly (Event | V2Event)[]): ServicesViewState =>
+export const servicesOfEvents = (events: readonly (Event | RecordEvent)[]): ServicesViewState =>
   events.reduce(foldServices, servicesView.initial)

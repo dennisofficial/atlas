@@ -1,21 +1,21 @@
 import { describe, expect, it } from 'bun:test'
 
-import { EServiceStatus, type V2Event } from '@dltech/atlas-core'
+import { EServiceStatus, type RecordEvent } from '@dltech/atlas-core'
 
 import { foldServices, serviceReadySchema, servicesOfEvents, type ServicesViewState } from '..'
 
 const at = (n: number): string => `2026-11-08T10:00:0${n}.000Z`
 
-const stamp = (body: Record<string, unknown>, n: number): V2Event =>
-  ({ ...body, seq: n, at: at(n), threadId: 't1', id: `e${n}` }) as unknown as V2Event
+const stamp = (body: Record<string, unknown>, n: number): RecordEvent =>
+  ({ ...body, seq: n, at: at(n), threadId: 't1', id: `e${n}` }) as unknown as RecordEvent
 
-const started = (n: number, extra: Record<string, unknown> = {}): V2Event =>
+const started = (n: number, extra: Record<string, unknown> = {}): RecordEvent =>
   stamp({ type: 'service-started', serviceId: 'svc-a', command: 'bun dev', ...extra }, n)
 
-const ready = (n: number, serviceId = 'svc-a'): V2Event =>
+const ready = (n: number, serviceId = 'svc-a'): RecordEvent =>
   stamp({ type: 'service-ready', serviceId }, n)
 
-const ended = (n: number, status = EServiceStatus.Killed): V2Event =>
+const ended = (n: number, status = EServiceStatus.Killed): RecordEvent =>
   stamp({ type: 'service-ended', serviceId: 'svc-a', command: 'bun dev', status, tail: '' }, n)
 
 describe('services view', () => {

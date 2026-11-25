@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'bun:test'
 
-import { chainEvents, toRunId, toThreadId, type V2Body } from '@dltech/atlas-core'
+import { chainEvents, toRunId, toThreadId, type RecordEventBody } from '@dltech/atlas-core'
 
 import { ControlPlane } from '../src/control-plane'
 import { InMemoryControlStore } from '../src/testing/memory'
@@ -33,7 +33,7 @@ const appendOn = async (args: {
   plane: ControlPlane
   threadId: string
   epoch: number
-  bodies: readonly V2Body[]
+  bodies: readonly RecordEventBody[]
 }) => {
   const head = await args.plane.head({ threadId: args.threadId })
   const outcome = await args.plane.append({

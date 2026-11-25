@@ -1,5 +1,5 @@
 import type { ContextPart } from '../assembly/context-breakdown'
-import type { V2Event } from './event'
+import type { RecordEvent } from './event'
 import { visibleEvents } from './visibility'
 import { stepReadingOf } from './views/step-reading'
 
@@ -10,9 +10,9 @@ export type ContextMeter = {
   breakdown: readonly ContextPart[] | null
 }
 
-const lastWindowIn = (events: readonly V2Event[]): number | null => {
+const lastWindowIn = (events: readonly RecordEvent[]): number | null => {
   for (let index = events.length - 1; index >= 0; index -= 1) {
-    const window = stepReadingOf(events[index] as V2Event)?.contextWindow
+    const window = stepReadingOf(events[index] as RecordEvent)?.contextWindow
     if (window !== undefined) return window
   }
   return null
@@ -24,13 +24,13 @@ const lastWindowIn = (events: readonly V2Event[]): number | null => {
  * measures the shrunk context. The window is the last call's, hidden or not: hiding history does not
  * change which model ran.
  */
-export function contextMeterOf(events: readonly V2Event[]): ContextMeter {
+export function contextMeterOf(events: readonly RecordEvent[]): ContextMeter {
   const visible = visibleEvents(events)
   const window = lastWindowIn(events)
   const readingAt = visible.findLastIndex((event) => stepReadingOf(event) !== undefined)
   const summarisedAt = visible.findLastIndex((event) => event.type === 'history-summarised')
 
-  const reading = readingAt < 0 ? undefined : stepReadingOf(visible[readingAt] as V2Event)
+  const reading = readingAt < 0 ? undefined : stepReadingOf(visible[readingAt] as RecordEvent)
   if (reading === undefined || summarisedAt > readingAt) {
     return { used: null, window, measuredThroughSeq: null, breakdown: null }
   }
@@ -38,7 +38,7 @@ export function contextMeterOf(events: readonly V2Event[]): ContextMeter {
   return {
     used: Math.max(0, reading.inputTokens) + Math.max(0, reading.outputTokens),
     window,
-    measuredThroughSeq: (visible[readingAt] as V2Event).seq,
+    measuredThroughSeq: (visible[readingAt] as RecordEvent).seq,
     breakdown: reading.breakdown ?? null,
   }
 }

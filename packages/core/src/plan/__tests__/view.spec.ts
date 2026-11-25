@@ -2,15 +2,15 @@ import { describe, expect, it } from 'bun:test'
 
 import { toCallId } from '../../events/ids'
 import { chainEvents } from '../../record/chain-events'
-import type { V2Body, V2Event } from '../../record/event'
+import type { RecordEventBody, RecordEvent } from '../../record/event'
 import { NOW, runId, threadId, userSaid } from '../../record/__tests__/support'
 import { EPlanStatus, PLAN_TOOL_NAME } from '../plan'
 import { planView, type PlanViewState } from '../view'
 
-const chain = (bodies: readonly V2Body[]): V2Event[] =>
+const chain = (bodies: readonly RecordEventBody[]): RecordEvent[] =>
   chainEvents({ threadId, runId, epoch: 1, at: NOW, bodies })
 
-const wrote = (args: { callId: string; tasks: readonly unknown[] }): V2Body => ({
+const wrote = (args: { callId: string; tasks: readonly unknown[] }): RecordEventBody => ({
   type: 'tool-called',
   callId: toCallId(args.callId),
   name: PLAN_TOOL_NAME,
@@ -22,7 +22,7 @@ const settled = (args: {
   callId: string
   error?: { message: string }
   interrupted?: boolean
-}): V2Body => ({
+}): RecordEventBody => ({
   type: 'tool-result',
   callId: toCallId(args.callId),
   name: PLAN_TOOL_NAME,
@@ -30,14 +30,14 @@ const settled = (args: {
   ...(args.interrupted === undefined ? {} : { interrupted: args.interrupted }),
 })
 
-const denied = (callId: string): V2Body => ({
+const denied = (callId: string): RecordEventBody => ({
   type: 'tool-denied',
   callId: toCallId(callId),
   name: PLAN_TOOL_NAME,
   reason: 'no',
 })
 
-const foldOf = (events: readonly V2Event[]): PlanViewState =>
+const foldOf = (events: readonly RecordEvent[]): PlanViewState =>
   events.reduce(planView.fold, planView.initial)
 
 const textsOf = (state: PlanViewState): string[] => state.tasks.map((task) => task.text)
@@ -50,7 +50,7 @@ describe('the plan view fold', () => {
       settled({ callId: 'call-1' }),
     ])
 
-    expect(planView.fold(planView.initial, events[1] as V2Event)).toEqual({
+    expect(planView.fold(planView.initial, events[1] as RecordEvent)).toEqual({
       tasks: [],
       pending: { 'call-1': [{ ordinal: 1, text: 'read the code', status: EPlanStatus.Pending }] },
     })
@@ -148,7 +148,9 @@ describe('the plan view fold', () => {
     ])
     const folded = foldOf(events)
 
-    expect(planView.fold(folded, chain([settled({ callId: 'call-9' })])[0] as V2Event)).toBe(folded)
+    expect(planView.fold(folded, chain([settled({ callId: 'call-9' })])[0] as RecordEvent)).toBe(
+      folded,
+    )
   })
 
   it('folds in pages exactly as in one pass', () => {

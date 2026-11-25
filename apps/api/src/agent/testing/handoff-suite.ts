@@ -6,7 +6,7 @@ import {
   EWorkspaceStep,
   workspaceStepsOf,
   type SpawnFile,
-  type V2Event,
+  type RecordEvent,
   type WorkspaceStepStatus,
 } from '@dltech/atlas-core'
 import { describe, expect, it } from 'bun:test'
@@ -156,7 +156,8 @@ const contextFor = (args: {
     },
     events: () => readAll({ plane: args.rig.plane, threadId: args.threadId, visible: true }),
     record: () => readAll({ plane: args.rig.plane, threadId: args.threadId, visible: false }),
-    steps: async () => workspaceStepsOf((await ctx.record()).map((row) => row.event as V2Event)),
+    steps: async () =>
+      workspaceStepsOf((await ctx.record()).map((row) => row.event as RecordEvent)),
   }
   return ctx
 }

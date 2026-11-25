@@ -10,13 +10,13 @@ import {
   EWorkspaceStepState,
   toRunId,
   toThreadId,
-  type V2Body,
+  type RecordEventBody,
 } from '@dltech/atlas-core'
 import { EBootStepState } from '@dltech/atlas-wire/web'
 
 import { sessionBootViewOf } from '../session-boot-view'
 
-const step = (name: EWorkspaceStep, state: EWorkspaceStepState): V2Body => ({
+const step = (name: EWorkspaceStep, state: EWorkspaceStepState): RecordEventBody => ({
   type: 'workspace-step',
   step: name,
   state,

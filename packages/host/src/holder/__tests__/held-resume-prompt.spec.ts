@@ -17,8 +17,8 @@ import {
   toRunId,
   toThreadId,
   visibleLoopEvents,
-  type V2Body,
-  type V2Event,
+  type RecordEventBody,
+  type RecordEvent,
 } from '@dltech/atlas-core'
 
 import { stopSettledPromptOf } from '../held-inbox'
@@ -27,10 +27,10 @@ const threadId = toThreadId('thread-1')
 const runId = toRunId('run-1')
 const at = '2026-01-01T00:00:00.000Z'
 
-const eventsOf = (bodies: readonly V2Body[]): V2Event[] =>
+const eventsOf = (bodies: readonly RecordEventBody[]): RecordEvent[] =>
   chainEvents({ threadId, runId, epoch: 1, at, bodies })
 
-const stopped: readonly V2Body[] = [
+const stopped: readonly RecordEventBody[] = [
   { type: 'user-said', text: 'run the suite' },
   { type: 'turn-started', turnId: 'turn-1', cause: ETurnCause.Input },
   {
@@ -48,7 +48,7 @@ const stopped: readonly V2Body[] = [
   },
 ]
 
-const marker: V2Body = {
+const marker: RecordEventBody = {
   type: 'resume-marked',
   point: EResumePoint.Clean,
   discards: [{ fromSeq: 3, throughSeq: 3 }],
@@ -56,11 +56,11 @@ const marker: V2Body = {
   inboxId: 4,
 }
 
-const resumableOf = (events: readonly V2Event[]): boolean =>
+const resumableOf = (events: readonly RecordEvent[]): boolean =>
   !stopSettledPromptOf(events) &&
   isResumablePlan(resumePlanOf(loopStateOf({ events: visibleLoopEvents(events) })))
 
-const decidedOf = (events: readonly V2Event[]): EHeldAction =>
+const decidedOf = (events: readonly RecordEvent[]): EHeldAction =>
   decideHeldAction({
     draining: false,
     turn: 'idle',

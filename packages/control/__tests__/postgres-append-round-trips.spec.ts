@@ -1,7 +1,12 @@
 import { afterAll, beforeAll, describe, expect, it } from 'bun:test'
 import pg from 'pg'
 
-import { GENESIS_HASH, SESSION_VIEW_VERSION, type LogHead, type V2Body } from '@dltech/atlas-core'
+import {
+  GENESIS_HASH,
+  SESSION_VIEW_VERSION,
+  type LogHead,
+  type RecordEventBody,
+} from '@dltech/atlas-core'
 import { countQueries, useTestDatabase } from '@dltech/atlas-db/testing'
 import { PG_CHANGE_CHANNEL, sessionChangeSchema, type SessionChange } from '@dltech/atlas-protocol'
 
@@ -38,7 +43,7 @@ const store = (): PostgresControlStore => new PostgresControlStore(testDb().db)
 const appendBodies = async (params: {
   plane: ControlPlane
   epoch: number
-  bodies: readonly V2Body[]
+  bodies: readonly RecordEventBody[]
 }): Promise<{ head: LogHead; statements: string[] }> => {
   const head = await params.plane.head({ threadId: THREAD })
   const events = mint({ bodies: params.bodies, epoch: params.epoch, from: head })

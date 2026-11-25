@@ -2,7 +2,7 @@ import type {
   FailureMessageState,
   PendingInputsState,
   SessionViewState,
-  V2Event,
+  RecordEvent,
   VisibilityState,
 } from '@dltech/atlas-core'
 
@@ -18,8 +18,8 @@ export type SessionLogSnapshot = {
   pending: PendingInputsState
   view: SessionViewState
   failureMessage: FailureMessageState
-  durable: readonly V2Event[]
-  commandLog: readonly V2Event[]
+  durable: readonly RecordEvent[]
+  commandLog: readonly RecordEvent[]
   quickStops?: QuickStopState | undefined
   throughSeq: number
 }
@@ -27,16 +27,20 @@ export type SessionLogSnapshot = {
 export type SessionLog = {
   appendPage(args: {
     sessionId: string
-    events: readonly V2Event[]
+    events: readonly RecordEvent[]
     head: SessionCursor
   }): Promise<void>
   readRange(args: {
     sessionId: string
     fromSeq: number
     toSeq: number
-  }): Promise<readonly V2Event[]>
-  readTail(args: { sessionId: string; count: number }): Promise<readonly V2Event[]>
-  readBefore(args: { sessionId: string; seq: number; count: number }): Promise<readonly V2Event[]>
+  }): Promise<readonly RecordEvent[]>
+  readTail(args: { sessionId: string; count: number }): Promise<readonly RecordEvent[]>
+  readBefore(args: {
+    sessionId: string
+    seq: number
+    count: number
+  }): Promise<readonly RecordEvent[]>
   loadSnapshot(sessionId: string): Promise<SessionLogSnapshot | undefined>
   saveSnapshot(args: { sessionId: string; snapshot: SessionLogSnapshot }): Promise<void>
   deleteSession(sessionId: string): Promise<void>
@@ -44,7 +48,7 @@ export type SessionLog = {
   clear(): Promise<void>
 }
 
-type Held = { events: Map<number, V2Event>; snapshot: SessionLogSnapshot | undefined }
+type Held = { events: Map<number, RecordEvent>; snapshot: SessionLogSnapshot | undefined }
 
 export const memorySessionLog = (): SessionLog & { saveCount: () => number } => {
   const held = new Map<string, Held>()
@@ -58,7 +62,7 @@ export const memorySessionLog = (): SessionLog & { saveCount: () => number } => 
   }
   const seqs = (sessionId: string): number[] =>
     [...of(sessionId).events.keys()].sort((a, b) => a - b)
-  const pick = (sessionId: string, seqsAt: readonly number[]): readonly V2Event[] =>
+  const pick = (sessionId: string, seqsAt: readonly number[]): readonly RecordEvent[] =>
     seqsAt.flatMap((seq) => {
       const event = held.get(sessionId)?.events.get(seq)
       return event === undefined ? [] : [event]

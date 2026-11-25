@@ -1,5 +1,5 @@
 import { skillEntryOf, type CommandEntry } from '@dltech/atlas-commands'
-import type { CommandSpec, V2Event } from '@dltech/atlas-core'
+import type { CommandSpec, RecordEvent } from '@dltech/atlas-core'
 import { repoSkillsOf } from '@dltech/atlas-plugin-skills/client'
 import type { CommandSkillWire } from '@dltech/atlas-wire/web'
 
@@ -17,7 +17,7 @@ export const skillEntryOfSpec = (spec: CommandSpec): CommandEntry =>
     argumentHint: spec.argumentHint ?? null,
   })
 
-export const repoSkillEntriesOf = (events: readonly V2Event[]): readonly CommandEntry[] =>
+export const repoSkillEntriesOf = (events: readonly RecordEvent[]): readonly CommandEntry[] =>
   repoSkillsOf(events).map(skillEntryOf)
 
 export const mergeSkillEntries = (args: {
@@ -30,6 +30,6 @@ export const mergeSkillEntries = (args: {
 
 export const skillMenuEntries = (args: {
   catalogue: readonly CommandEntry[]
-  events: readonly V2Event[]
+  events: readonly RecordEvent[]
 }): readonly CommandEntry[] =>
   mergeSkillEntries({ catalogue: args.catalogue, sandbox: repoSkillEntriesOf(args.events) })

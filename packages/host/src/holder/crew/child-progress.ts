@@ -5,7 +5,7 @@ import {
   type Event,
   type RunFailure,
   type ThreadId,
-  type V2Event,
+  type RecordEvent,
 } from '@dltech/atlas-core'
 import { ETurnStatus, type TurnOutcome } from '@dltech/atlas-agent'
 import type {
@@ -28,7 +28,7 @@ const spokenText = (parts: readonly AssistantPart[]): string =>
     .join('\n')
     .trim()
 
-export const progressOf = (events: readonly V2Event[]): Progress => {
+export const progressOf = (events: readonly RecordEvent[]): Progress => {
   let turns = 0
   let toolCalls = 0
   let prose = ''
@@ -70,7 +70,7 @@ export const failureOf = (outcome: TurnOutcome): string | undefined =>
 export const runFailureOf = (outcome: TurnOutcome): RunFailure | undefined =>
   outcome.status === ETurnStatus.Failed ? outcome.failure : undefined
 
-export const recordedFailureOf = (events: readonly V2Event[]): RunFailure | undefined => {
+export const recordedFailureOf = (events: readonly RecordEvent[]): RunFailure | undefined => {
   let started = false
   let failure: RunFailure | undefined
   for (const event of events) {
@@ -113,7 +113,7 @@ export const snapshotOf = (args: {
   agentType: string
   intent: string
   startedAt: string
-  events: readonly V2Event[]
+  events: readonly RecordEvent[]
   status: EAgentStatus
   endedAt: string | undefined
   worktree: SubagentWorktree | undefined

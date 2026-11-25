@@ -1,7 +1,12 @@
-import { ESessionStatus, openTurnOf, type SessionStatus, type V2Event } from '@dltech/atlas-core'
+import {
+  ESessionStatus,
+  openTurnOf,
+  type SessionStatus,
+  type RecordEvent,
+} from '@dltech/atlas-core'
 
 export const turnStartedAtOf = (args: {
-  events: readonly V2Event[]
+  events: readonly RecordEvent[]
   status?: SessionStatus | undefined
 }): string | undefined => {
   const open = openTurnOf(args.events.filter((event) => event.depth === 0))?.startedAt

@@ -1,4 +1,4 @@
-import { foldableOf, type PluginViewFold, type V2Event } from '@dltech/atlas-core'
+import { foldableOf, type PluginViewFold, type RecordEvent } from '@dltech/atlas-core'
 import type { z } from 'zod'
 import { isSetupOutputCallId, type StreamServerMessage } from '@dltech/atlas-protocol'
 
@@ -48,7 +48,7 @@ export type SessionFollowerArgs = {
   log: SessionLog
   scheduler: StreamScheduler
   onResnap(): void
-  eventSchema?: z.ZodType<V2Event> | undefined
+  eventSchema?: z.ZodType<RecordEvent> | undefined
   knownEventTypes?: ReadonlySet<string> | undefined
   renderLimit?: number | undefined
   views?: readonly PluginViewFold[] | undefined

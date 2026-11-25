@@ -1,7 +1,7 @@
 import type { ObservedBranch, ObservedWorktree } from '../branches'
-import type { V2Event } from '../event'
+import type { RecordEvent } from '../event'
 
-type BranchesObservedEvent = Extract<V2Event, { type: 'branches-observed' }>
+type BranchesObservedEvent = Extract<RecordEvent, { type: 'branches-observed' }>
 
 export type RepoObservation = {
   repo: string

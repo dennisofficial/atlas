@@ -1,12 +1,12 @@
 import { describe, expect, it } from 'bun:test'
 
-import { chainHash, type V2Event } from '@dltech/atlas-core'
+import { chainHash, type RecordEvent } from '@dltech/atlas-core'
 import { toThreadId } from '@dltech/atlas-core'
 
 import { flushUntil, makeRig, postAndRun, seedSession, THREAD_ID } from './holder-rig'
 
 const fullLog = async (rig: Awaited<ReturnType<typeof makeRig>>) => {
-  const events: V2Event[] = []
+  const events: RecordEvent[] = []
   let afterSeq = 0
   for (;;) {
     const page = await rig.plane.readEvents({
@@ -127,10 +127,10 @@ describe('SessionHolder turn', () => {
     const log = await fullLog(rig)
     expect(log.length).toBeGreaterThanOrEqual(5)
     for (let index = 0; index < log.length; index += 1) {
-      const event = log[index] as V2Event
+      const event = log[index] as RecordEvent
       expect(event.seq).toBe(index + 1)
       const recomputed = chainHash(event)
-      const next = log[index + 1] as V2Event | undefined
+      const next = log[index + 1] as RecordEvent | undefined
       if (next !== undefined) expect(next.prevHash).toBe(recomputed)
     }
     const head = await rig.plane.head({ threadId: toThreadId('thread-rig') })

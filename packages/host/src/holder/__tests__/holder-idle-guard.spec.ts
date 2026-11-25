@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'bun:test'
 
-import type { V2Event } from '@dltech/atlas-core'
+import type { RecordEvent } from '@dltech/atlas-core'
 import { ELogSeverity, LogPort, type LogEntry } from '@dltech/atlas-observability'
 
 import { flushUntil, makeRig, seedSession, SESSION, THREAD_ID } from './holder-rig'
@@ -12,11 +12,11 @@ class RecordingLog extends LogPort {
   }
 }
 
-const eventsOf = async (rig: Awaited<ReturnType<typeof makeRig>>): Promise<V2Event[]> =>
+const eventsOf = async (rig: Awaited<ReturnType<typeof makeRig>>): Promise<RecordEvent[]> =>
   (await rig.plane.readEvents({ threadId: THREAD_ID, afterSeq: 0, limit: 500, visible: false }))
     .events
 
-const idleReleasesOf = (events: readonly V2Event[]): number =>
+const idleReleasesOf = (events: readonly RecordEvent[]): number =>
   events.filter((event) => event.type === 'idle-released').length
 
 const idleWarnsOf = (log: RecordingLog): LogEntry[] =>

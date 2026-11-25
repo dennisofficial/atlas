@@ -2,7 +2,7 @@ import { describe, expect, it } from 'bun:test'
 
 import { toRunId, toThreadId } from '../../../events/ids'
 import { chainEvents } from '../../chain-events'
-import type { V2Body, V2Event } from '../../event'
+import type { RecordEventBody, RecordEvent } from '../../event'
 import {
   failureMessageOf,
   initialFailureMessage,
@@ -14,35 +14,36 @@ import { initialSessionViewState, rebuildEditSensitive, stepSessionView } from '
 
 const NOW = '2026-11-03T12:00:00.000Z'
 
-const events = (bodies: readonly V2Body[]): V2Event[] =>
+const events = (bodies: readonly RecordEventBody[]): RecordEvent[] =>
   chainEvents({ threadId: toThreadId('t'), runId: toRunId('r'), epoch: 1, at: NOW, bodies })
 
-const started = (inboxHead: number): V2Body => ({
+const started = (inboxHead: number): RecordEventBody => ({
   type: 'session-start-failed',
   reason: 'no sandbox',
   inboxHead,
   permanent: false,
 })
 
-const posted = (inboxId: number): V2Body => ({
+const posted = (inboxId: number): RecordEventBody => ({
   type: 'input-posted',
   inboxId,
   kind: 'message',
   postedAt: NOW,
 })
 
-const said = (text: string): V2Body => ({ type: 'user-said', text })
+const said = (text: string): RecordEventBody => ({ type: 'user-said', text })
 
-const prepared: V2Body = { type: 'workspace-prepared' }
+const prepared: RecordEventBody = { type: 'workspace-prepared' }
 
-const folded = (bodies: readonly V2Body[]): FailureMessageState =>
+const folded = (bodies: readonly RecordEventBody[]): FailureMessageState =>
   events(bodies).reduce(stepSessionView, initialSessionViewState).failure
 
-const afterFailure = (bodies: readonly V2Body[]): boolean => messageAfterFailureOf(folded(bodies))
+const afterFailure = (bodies: readonly RecordEventBody[]): boolean =>
+  messageAfterFailureOf(folded(bodies))
 
 describe('failure message in the session view', () => {
   it('folds the same state the view fold carries', () => {
-    const sequences: V2Body[][] = [
+    const sequences: RecordEventBody[][] = [
       [prepared, posted(1), started(1)],
       [prepared, posted(1), started(1), posted(2)],
       [prepared, posted(1), started(1), posted(2), said('hi')],
@@ -67,7 +68,7 @@ describe('failure message in the session view', () => {
   })
 
   it('clears the pending message on the next user turn', () => {
-    const bodies: V2Body[] = [prepared, posted(1), started(1), posted(2)]
+    const bodies: RecordEventBody[] = [prepared, posted(1), started(1), posted(2)]
     expect(afterFailure(bodies)).toBe(true)
     expect(afterFailure([...bodies, said('retry')])).toBe(false)
   })

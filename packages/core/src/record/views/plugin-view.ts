@@ -1,8 +1,8 @@
-import type { V2Event } from '../event'
+import type { RecordEvent } from '../event'
 
 export type PluginViewFold<TState = unknown> = {
   name: string
   initial: TState
-  fold(state: TState, event: V2Event): TState
+  fold(state: TState, event: RecordEvent): TState
   rewindable?: boolean
 }

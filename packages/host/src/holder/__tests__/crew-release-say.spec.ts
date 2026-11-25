@@ -5,7 +5,7 @@ import {
   ToolDefinition,
   type ModelPort,
   type ToolOutcome,
-  type V2Event,
+  type RecordEvent,
 } from '@dltech/atlas-core'
 import {
   composePlugins,
@@ -146,7 +146,7 @@ const endingQueued = async (rig: Awaited<ReturnType<typeof makeRig>>): Promise<b
 const eventsIn = async (
   rig: Awaited<ReturnType<typeof makeRig>>,
   threadId: string,
-): Promise<V2Event[]> =>
+): Promise<RecordEvent[]> =>
   (
     await rig.plane.readEvents({
       threadId: threadId as typeof THREAD_ID,
@@ -156,23 +156,23 @@ const eventsIn = async (
     })
   ).events
 
-const spawnOf = (events: readonly V2Event[]): string | undefined =>
+const spawnOf = (events: readonly RecordEvent[]): string | undefined =>
   events.flatMap((event) => (event.type === 'agent-spawned' ? [event.agentId] : []))[0]
 
-const childIdOf = (events: readonly V2Event[]): string => {
+const childIdOf = (events: readonly RecordEvent[]): string => {
   const spawned = spawnOf(events)
   if (spawned === undefined) throw new Error('no spawn')
   return spawned
 }
 
-const saidTexts = (events: readonly V2Event[]): string[] =>
+const saidTexts = (events: readonly RecordEvent[]): string[] =>
   events.flatMap((event) =>
     event.type === 'assistant-said'
       ? event.parts.flatMap((part) => (part.type === 'text' ? [part.text] : []))
       : [],
   )
 
-const endingsOf = (args: { events: readonly V2Event[]; agentId: string }): V2Event[] =>
+const endingsOf = (args: { events: readonly RecordEvent[]; agentId: string }): RecordEvent[] =>
   args.events.filter((event) => event.type === 'agent-ended' && event.agentId === args.agentId)
 
 const deliverEndings = async (args: {

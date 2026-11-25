@@ -1,5 +1,5 @@
 import { COMMAND_OUTCOME_EVENT_TYPES, producesOutcome } from '../command-entries'
-import { EInputConsumed, type V2Event } from '../event'
+import { EInputConsumed, type RecordEvent } from '../event'
 import { commandInputName } from '../input-events'
 
 export type CommandFact = { inboxId: number; name: string; at: string }
@@ -13,7 +13,7 @@ export const NO_COMMANDS: CommandFacts = { postedCommands: {}, openCommands: [] 
 
 const keyOf = (inboxId: number): string => String(inboxId)
 
-const namedOf = (event: V2Event): { inboxId: number; name: string } | undefined => {
+const namedOf = (event: RecordEvent): { inboxId: number; name: string } | undefined => {
   if (event.type !== 'input-posted') return undefined
   const name = commandInputName(event.kind)
   return name === undefined ? undefined : { inboxId: event.inboxId, name }
@@ -28,7 +28,7 @@ const withoutPosted = (facts: CommandFacts, inboxId: number): CommandFacts => {
 
 const openedOf = (
   facts: CommandFacts,
-  event: Extract<V2Event, { type: 'input-consumed' }>,
+  event: Extract<RecordEvent, { type: 'input-consumed' }>,
 ): CommandFacts => {
   const name = facts.postedCommands[keyOf(event.inboxId)]?.name ?? event.command?.name
   const posted = withoutPosted(facts, event.inboxId)
@@ -44,7 +44,7 @@ const closedOf = (facts: CommandFacts, inboxId: number | undefined): CommandFact
   return openCommands.length === facts.openCommands.length ? facts : { ...facts, openCommands }
 }
 
-export const stepCommandFacts = (facts: CommandFacts, event: V2Event): CommandFacts => {
+export const stepCommandFacts = (facts: CommandFacts, event: RecordEvent): CommandFacts => {
   const named = namedOf(event)
   if (named !== undefined) {
     const posted = { inboxId: named.inboxId, name: named.name, at: event.at }

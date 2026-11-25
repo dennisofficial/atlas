@@ -1,17 +1,17 @@
-import type { V2Event, V2EventType, VisibleSegment } from '@dltech/atlas-core'
+import type { RecordEvent, RecordEventType, VisibleSegment } from '@dltech/atlas-core'
 import { visibleSegments } from '@dltech/atlas-core'
 import type { z } from 'zod'
 
 import type { ControlTx, StoredEvent, ThreadRow } from './port'
 import { decodeStoredEvent, decodeVisibility } from './stored-event'
 
-export type ReadEventsPage = { events: V2Event[]; next?: number }
+export type ReadEventsPage = { events: RecordEvent[]; next?: number }
 
 export const INPUT_POSTED = 'input-posted'
 
 const COMMIT_EXTENSION_PAGE = 64
 
-const endsCommit = (events: readonly V2Event[]): boolean =>
+const endsCommit = (events: readonly RecordEvent[]): boolean =>
   events[events.length - 1]?.type !== INPUT_POSTED
 
 const boundRowsByBytes = (
@@ -33,7 +33,7 @@ export const withHiddenTypes = (params: {
   visible: readonly VisibleSegment[]
   fromSeq: number
   throughSeq: number
-  types: readonly V2EventType[]
+  types: readonly RecordEventType[]
 }): VisibleSegment[] => {
   const segments: VisibleSegment[] = []
   let next = params.fromSeq
@@ -61,9 +61,9 @@ export const withHiddenTypes = (params: {
 const extendPastCommit = async (params: {
   tx: ControlTx
   row: ThreadRow
-  events: V2Event[]
-  eventSchema?: z.ZodType<V2Event> | undefined
-}): Promise<V2Event[]> => {
+  events: RecordEvent[]
+  eventSchema?: z.ZodType<RecordEvent> | undefined
+}): Promise<RecordEvent[]> => {
   const { tx, row } = params
   const kept = [...params.events]
   while (!endsCommit(kept)) {
@@ -86,7 +86,7 @@ const extendPastCommit = async (params: {
 
 const narrowToTypes = (args: {
   segments: readonly VisibleSegment[]
-  onlyTypes: readonly V2EventType[]
+  onlyTypes: readonly RecordEventType[]
 }): VisibleSegment[] =>
   args.segments.flatMap((segment) => {
     const kept =
@@ -100,7 +100,7 @@ const segmentsOf = (params: {
   row: ThreadRow
   fromSeq: number
   visible: boolean
-  hiddenTypes: readonly V2EventType[] | undefined
+  hiddenTypes: readonly RecordEventType[] | undefined
 }): VisibleSegment[] => {
   const { row, fromSeq } = params
   if (!params.visible) return [{ fromSeq, throughSeq: row.headSeq }]
@@ -119,10 +119,10 @@ export const readEventsIn = async (params: {
   afterSeq: number
   limit: number
   visible: boolean
-  hiddenTypes?: readonly V2EventType[] | undefined
-  onlyTypes?: readonly V2EventType[] | undefined
+  hiddenTypes?: readonly RecordEventType[] | undefined
+  onlyTypes?: readonly RecordEventType[] | undefined
   maxBytes?: number | undefined
-  eventSchema?: z.ZodType<V2Event> | undefined
+  eventSchema?: z.ZodType<RecordEvent> | undefined
 }): Promise<ReadEventsPage> => {
   const { tx, row } = params
   const whole = segmentsOf({

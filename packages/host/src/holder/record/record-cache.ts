@@ -17,8 +17,8 @@ import {
   type LogHead,
   type LoopState,
   type ThreadId,
-  type V2Event,
-  type V2EventType,
+  type RecordEvent,
+  type RecordEventType,
   type VisibilityState,
 } from '@dltech/atlas-core'
 import type { ControlPlane } from '@dltech/atlas-control'
@@ -29,32 +29,32 @@ import { firstIndexAfter, itemAtSeq } from './seq-index'
 
 const BLOB_FETCH_CONCURRENCY = 8
 
-export const HOLDER_STATE_TYPES: readonly V2EventType[] = [
+export const HOLDER_STATE_TYPES: readonly RecordEventType[] = [
   ...RECORD_ONLY_TYPES,
   'tool-dispatched',
   'user-said',
   'agent-spawned',
 ]
 
-const revealsHidden = (args: { state: VisibilityState; event: V2Event }): boolean => {
+const revealsHidden = (args: { state: VisibilityState; event: RecordEvent }): boolean => {
   const { event } = args
   if (event.type !== 'history-rewound') return false
   return args.state.spans.some((span) => span.createdAt > event.toSeq)
 }
 
-const editsHistory = (event: V2Event): boolean =>
+const editsHistory = (event: RecordEvent): boolean =>
   event.type === 'history-rewound' || event.type === 'history-summarised'
 
 export class RecordCache {
-  private events: V2Event[] = []
+  private events: RecordEvent[] = []
   private visibility: VisibilityState = EMPTY_VISIBILITY
   private book = new RecordBookkeeping()
-  private loopSources: V2Event[] = []
+  private loopSources: RecordEvent[] = []
   private loopEvents: Event[] = []
   private loopEventsHandedOut = false
   private state: LoopState = initialLoopState()
   private revealed = false
-  private visibleCache: V2Event[] | undefined = undefined
+  private visibleCache: RecordEvent[] | undefined = undefined
   private readonly blobValues = new Map<string, unknown>()
   private fetchedBlobBytes = 0
   private head: LogHead = { seq: 0, hash: '' as LogHead['hash'] }
@@ -79,7 +79,7 @@ export class RecordCache {
   }
 
   private async fill(): Promise<void> {
-    const events: V2Event[] = []
+    const events: RecordEvent[] = []
     const head = await this.args.plane.head({ threadId: this.args.threadId })
     let afterSeq = 0
     for (;;) {
@@ -99,7 +99,7 @@ export class RecordCache {
     if (head.seq >= this.head.seq) this.head = head
   }
 
-  private rebuild(events: V2Event[]): void {
+  private rebuild(events: RecordEvent[]): void {
     this.events = events
     this.visibility = events.reduce(stepVisibility, EMPTY_VISIBILITY)
     this.revealed = false
@@ -119,7 +119,7 @@ export class RecordCache {
     if (this.revealed) await this.fill()
   }
 
-  async resolveBlobsOf(events: readonly V2Event[]): Promise<void> {
+  async resolveBlobsOf(events: readonly RecordEvent[]): Promise<void> {
     const missing = new Set<string>()
     for (const event of events) {
       for (const ref of blobRefsOf(event)) {
@@ -143,7 +143,7 @@ export class RecordCache {
     return this.fetchedBlobBytes
   }
 
-  resolvedEvent(event: V2Event): V2Event {
+  resolvedEvent(event: RecordEvent): RecordEvent {
     if (blobRefsOf(event).length === 0) return event
     return resolveBody({ body: event, values: this.blobValues })
   }
@@ -156,11 +156,11 @@ export class RecordCache {
     return this.book
   }
 
-  eventsAfter(seq: number): V2Event[] {
+  eventsAfter(seq: number): RecordEvent[] {
     return this.events.slice(firstIndexAfter({ items: this.events, seq }))
   }
 
-  visibleEvents(): readonly V2Event[] {
+  visibleEvents(): readonly RecordEvent[] {
     this.visibleCache ??= this.events.filter((event) => isVisible(this.visibility, event))
     return this.visibleCache
   }
@@ -187,7 +187,7 @@ export class RecordCache {
   }
 
   extend(args: {
-    events: readonly V2Event[]
+    events: readonly RecordEvent[]
     head: LogHead
     resolved?: ReadonlyMap<string, unknown> | undefined
   }): void {
@@ -204,7 +204,7 @@ export class RecordCache {
     this.visibleCache = undefined
   }
 
-  private addLoopEvent(event: V2Event): void {
+  private addLoopEvent(event: RecordEvent): void {
     const loop = toLoopEvent({ event: this.resolvedEvent(event) })
     if (loop === undefined) return
     if (this.loopEventsHandedOut) {
@@ -217,7 +217,7 @@ export class RecordCache {
   }
 
   private dropHiddenLoopEvents(): void {
-    const sources: V2Event[] = []
+    const sources: RecordEvent[] = []
     const loops: Event[] = []
     for (const [index, source] of this.loopSources.entries()) {
       const loop = this.loopEvents[index]

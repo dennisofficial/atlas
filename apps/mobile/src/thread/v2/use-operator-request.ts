@@ -1,4 +1,4 @@
-import type { Event, V2Event } from '@dltech/atlas-core'
+import type { Event, RecordEvent } from '@dltech/atlas-core'
 import { useCallback, useMemo, useState } from 'react'
 
 import {
@@ -24,7 +24,7 @@ export type OperatorRequestControl = {
 export const useOperatorRequest = (args: {
   api: OperatorAnswerApi | undefined
   sessionId: string
-  events: readonly (Event | V2Event)[]
+  events: readonly (Event | RecordEvent)[]
 }): OperatorRequestControl => {
   const { api, sessionId, events } = args
   const [answer, setAnswer] = useState<OperatorAnswerState | null>(null)

@@ -6,7 +6,7 @@ import {
   toRunId,
   toThreadId,
   type Hash,
-  type V2Event,
+  type RecordEvent,
 } from '@dltech/atlas-core'
 import {
   EMPTY_ANALYTICS,
@@ -70,7 +70,7 @@ export const fakeCrew = (args: { queued?: boolean; held?: readonly SubagentSnaps
 
 export const withEvents = (args: {
   ctx: PluginPodContext
-  events: readonly V2Event[]
+  events: readonly RecordEvent[]
 }): PluginPodContext => ({ ...args.ctx, events: () => args.events })
 
 const HASH = 'a'.repeat(64) as Hash
@@ -91,7 +91,7 @@ export const eventLog = () => {
     }
   }
   return {
-    called: (args: { name: string; ordinal: number }): V2Event => ({
+    called: (args: { name: string; ordinal: number }): RecordEvent => ({
       ...envelope(),
       type: 'tool-called',
       callId: toCallId(`call-${seq}`),
@@ -99,12 +99,12 @@ export const eventLog = () => {
       input: {},
       ordinal: args.ordinal,
     }),
-    said: (): V2Event => ({
+    said: (): RecordEvent => ({
       ...envelope(),
       type: 'assistant-said',
       parts: [{ type: 'text', text: 'a step' }],
     }),
-    resulted: (args: { name: string }): V2Event => ({
+    resulted: (args: { name: string }): RecordEvent => ({
       ...envelope(),
       type: 'tool-result',
       callId: toCallId(`call-${seq}`),

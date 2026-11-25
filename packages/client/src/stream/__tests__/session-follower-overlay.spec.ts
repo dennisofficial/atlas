@@ -6,7 +6,7 @@ import {
   EWorkspaceStep,
   EWorkspaceStepState,
   toCallId,
-  type V2Body,
+  type RecordEventBody,
 } from '@dltech/atlas-core'
 import { EStreamBlockKind, type StreamServerMessage } from '@dltech/atlas-protocol'
 
@@ -16,9 +16,9 @@ import { createFakeScheduler, eventsMessage, headOf, mintEvents, userSaid } from
 
 const stepKey = { runId: 'run-1', step: 1, attempt: 0 }
 
-const reply: V2Body = { type: 'assistant-said', parts: [{ type: 'text', text: 'x' }] }
+const reply: RecordEventBody = { type: 'assistant-said', parts: [{ type: 'text', text: 'x' }] }
 
-const nudge: V2Body = { type: 'nudge', text: 'n', lifetimeSteps: 1 }
+const nudge: RecordEventBody = { type: 'nudge', text: 'n', lifetimeSteps: 1 }
 
 const overlay = (afterSeq: number): StreamServerMessage => ({
   type: 'overlay',
@@ -88,7 +88,7 @@ describe('the session follower overlay', () => {
   })
 
   it('closes a tool-only step on its tool call and a failed step on run-failed', () => {
-    const results: V2Body[] = [
+    const results: RecordEventBody[] = [
       { type: 'tool-called', callId: toCallId('c1'), name: 'bash', input: {}, ordinal: 0 },
       { type: 'run-failed', failure: { kind: ERunFailureKind.Other, message: 'boom' } },
     ]
@@ -141,7 +141,7 @@ describe('the session follower setup output', () => {
     frame: { type: 'tool-output', callId: 'setup:session-1', text },
   })
 
-  const setupDone = (): V2Body => ({
+  const setupDone = (): RecordEventBody => ({
     type: 'workspace-step',
     step: EWorkspaceStep.Setup,
     state: EWorkspaceStepState.Done,

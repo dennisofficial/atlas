@@ -2,7 +2,13 @@ import { registerDom, unregisterDom } from '@/lib/__tests__/happy-dom-globals'
 import { afterAll, beforeAll, describe, expect, it } from 'bun:test'
 import { act } from 'react'
 
-import { chainEvents, toRunId, toThreadId, type V2Body, type V2Event } from '@dltech/atlas-core'
+import {
+  chainEvents,
+  toRunId,
+  toThreadId,
+  type RecordEventBody,
+  type RecordEvent,
+} from '@dltech/atlas-core'
 import type { SessionCommandInput, SessionCommandOutput } from '@dltech/atlas-protocol'
 
 import type { RewindApi } from '@dltech/atlas-client/session'
@@ -17,7 +23,7 @@ afterAll(async () => {
   await unregisterDom()
 })
 
-const eventsOf = (bodies: readonly V2Body[]) =>
+const eventsOf = (bodies: readonly RecordEventBody[]) =>
   chainEvents({
     threadId: toThreadId('thread-1'),
     runId: toRunId('run-1'),
@@ -27,7 +33,7 @@ const eventsOf = (bodies: readonly V2Body[]) =>
     bodies,
   })
 
-const eventAt = (events: readonly V2Event[], index: number): V2Event => {
+const eventAt = (events: readonly RecordEvent[], index: number): RecordEvent => {
   const event = events[index]
   if (event === undefined) throw new Error('missing event')
   return event

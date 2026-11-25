@@ -1,6 +1,6 @@
 import { expect } from 'bun:test'
 
-import { EInputConsumed, type V2Event } from '@dltech/atlas-core'
+import { EInputConsumed, type RecordEvent } from '@dltech/atlas-core'
 
 import type { HostKnobs, HostProcess } from '../../testing/fault-rig'
 import { describeHandoff, waitUntil, type HandoffContext } from '../../testing/handoff-suite'
@@ -20,13 +20,13 @@ const CHILD_HOLD_MS = 5_000
 
 const KNOBS: HostKnobs = { plugins: true }
 
-const parentEvents = async (ctx: HandoffContext): Promise<V2Event[]> =>
-  (await ctx.record()).map((row) => row.event as V2Event)
+const parentEvents = async (ctx: HandoffContext): Promise<RecordEvent[]> =>
+  (await ctx.record()).map((row) => row.event as RecordEvent)
 
 const childEventsOf = async (args: {
   ctx: HandoffContext
   childId: string
-}): Promise<readonly V2Event[]> => {
+}): Promise<readonly RecordEvent[]> => {
   const page = await args.ctx.rig.plane.readEvents({
     threadId: args.childId,
     afterSeq: 0,
@@ -36,11 +36,11 @@ const childEventsOf = async (args: {
   return [...page.events]
 }
 
-const ofType = <T extends V2Event['type']>(
-  events: readonly V2Event[],
+const ofType = <T extends RecordEvent['type']>(
+  events: readonly RecordEvent[],
   type: T,
-): Extract<V2Event, { type: T }>[] =>
-  events.filter((event): event is Extract<V2Event, { type: T }> => event.type === type)
+): Extract<RecordEvent, { type: T }>[] =>
+  events.filter((event): event is Extract<RecordEvent, { type: T }> => event.type === type)
 
 const childIdOf = async (ctx: HandoffContext): Promise<string> => {
   const spawn = ofType(await parentEvents(ctx), 'agent-spawned').find(
@@ -66,12 +66,12 @@ const repliesOf = async (ctx: HandoffContext): Promise<number> => {
   ).length
 }
 
-const outcomesOf = async (ctx: HandoffContext): Promise<V2Event[]> =>
+const outcomesOf = async (ctx: HandoffContext): Promise<RecordEvent[]> =>
   ofType(await parentEvents(ctx), 'command-applied')
 
 const consumedCommandsOf = async (
   ctx: HandoffContext,
-): Promise<Extract<V2Event, { type: 'input-consumed' }>[]> =>
+): Promise<Extract<RecordEvent, { type: 'input-consumed' }>[]> =>
   ofType(await parentEvents(ctx), 'input-consumed').filter(
     (event) => event.consumed === EInputConsumed.Command,
   )

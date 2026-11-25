@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'bun:test'
 
-import type { V2Event } from '@dltech/atlas-core'
+import type { RecordEvent } from '@dltech/atlas-core'
 import { ScriptedModel } from '@dltech/atlas-agent/testing'
 
 import {
@@ -26,9 +26,9 @@ const fullEvents = async (rig: {
       afterSeq: number
       limit: number
       visible: boolean
-    }) => Promise<{ events: V2Event[] }>
+    }) => Promise<{ events: RecordEvent[] }>
   }
-}): Promise<V2Event[]> => {
+}): Promise<RecordEvent[]> => {
   const page = await rig.plane.readEvents({
     threadId: THREAD_ID,
     afterSeq: 0,
@@ -38,13 +38,13 @@ const fullEvents = async (rig: {
   return page.events
 }
 
-const retryFacts = (events: readonly V2Event[]) =>
+const retryFacts = (events: readonly RecordEvent[]) =>
   events.filter(
-    (event): event is Extract<V2Event, { type: 'retry-scheduled' }> =>
+    (event): event is Extract<RecordEvent, { type: 'retry-scheduled' }> =>
       event.type === 'retry-scheduled',
   )
 
-const notBeforeOf = (fact: Extract<V2Event, { type: 'retry-scheduled' }>): number =>
+const notBeforeOf = (fact: Extract<RecordEvent, { type: 'retry-scheduled' }>): number =>
   Date.parse(fact.notBefore)
 
 describe('holder retry deadlines', () => {

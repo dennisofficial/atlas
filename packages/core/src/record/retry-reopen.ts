@@ -1,5 +1,5 @@
 import type { EventDraft } from '../events/body'
-import type { V2Event } from './event'
+import type { RecordEvent } from './event'
 import { visibleLoopEvents } from './loop-events'
 import { awaitsReplyOf, loopStateOf } from './loop-state'
 import { visibleEvents } from './visibility'
@@ -16,7 +16,9 @@ const ANSWERS_OR_ASKS: ReadonlySet<string> = new Set([
   'resume-marked',
 ])
 
-export function retryReopenDraftsOf(args: { events: readonly V2Event[] }): readonly EventDraft[] {
+export function retryReopenDraftsOf(args: {
+  events: readonly RecordEvent[]
+}): readonly EventDraft[] {
   const visible = visibleEvents(args.events)
   const failedIndex = visible.findLastIndex((event) => event.type === 'run-failed')
   if (failedIndex === -1) return []

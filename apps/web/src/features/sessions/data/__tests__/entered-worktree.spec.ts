@@ -4,7 +4,7 @@ import {
   hashSchema,
   runIdSchema,
   threadIdSchema,
-  type V2Event,
+  type RecordEvent,
 } from '@dltech/atlas-core'
 
 import { enteredWorktreePathOf } from '../entered-worktree'
@@ -23,14 +23,14 @@ const stamp = (args: { seq: number; threadId: string }) => ({
   hash: HASH,
 })
 
-const entered = (args: { seq: number; threadId: string; path: string }): V2Event => ({
+const entered = (args: { seq: number; threadId: string; path: string }): RecordEvent => ({
   ...stamp({ seq: args.seq, threadId: args.threadId }),
   type: 'worktree-entered',
   path: args.path,
   branch: 'dennis/wt',
 })
 
-const exited = (args: { seq: number; threadId: string; path: string }): V2Event => ({
+const exited = (args: { seq: number; threadId: string; path: string }): RecordEvent => ({
   ...stamp({ seq: args.seq, threadId: args.threadId }),
   type: 'worktree-exited',
   path: args.path,

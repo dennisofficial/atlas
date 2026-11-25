@@ -4,7 +4,7 @@ import {
   type BlobPayload,
   type RunId,
   type ThreadId,
-  type V2Event,
+  type RecordEvent,
 } from '@dltech/atlas-core'
 import {
   RecordCorruptError,
@@ -52,7 +52,7 @@ export class AppendRetry {
 
   async commit(args: {
     threadId: ThreadId
-    events: V2Event[]
+    events: RecordEvent[]
     blobs: readonly BlobPayload[]
     resolved: ReadonlyMap<string, unknown>
     ackDaemons?: readonly DaemonAck[] | undefined
@@ -97,7 +97,7 @@ export class AppendRetry {
 
   private async tryAppend(args: {
     threadId: ThreadId
-    events: V2Event[]
+    events: RecordEvent[]
     blobs: readonly BlobPayload[]
     resolved: ReadonlyMap<string, unknown>
   }): Promise<'committed' | 'retry'> {
@@ -137,7 +137,7 @@ export class AppendRetry {
     )
   }
 
-  private replyLost(args: { events: V2Event[] }): boolean {
+  private replyLost(args: { events: RecordEvent[] }): boolean {
     if (args.events.length === 0) return false
     return args.events.every(
       (event) => this.args.cache.committedHashAtSeq(event.seq) === chainHash(event),

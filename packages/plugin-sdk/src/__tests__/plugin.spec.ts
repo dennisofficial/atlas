@@ -1,12 +1,12 @@
 import { describe, expect, it } from 'bun:test'
 import {
   chainEvents,
-  createV2EventSchema,
+  createRecordEventSchema,
   toRunId,
   toThreadId,
-  v2EventSchema,
+  recordEventSchema,
 } from '@dltech/atlas-core'
-import type { V2Body, V2Event } from '@dltech/atlas-core'
+import type { RecordEventBody, RecordEvent } from '@dltech/atlas-core'
 
 import {
   composePlugins,
@@ -30,7 +30,7 @@ import {
 
 const ctx = {} as PluginPodContext
 
-const mintWire = (bodies: V2Body[]): unknown[] =>
+const mintWire = (bodies: RecordEventBody[]): unknown[] =>
   JSON.parse(
     JSON.stringify(
       chainEvents({
@@ -43,12 +43,12 @@ const mintWire = (bodies: V2Body[]): unknown[] =>
     ),
   )
 
-const observed: V2Body = { type: 'probe-observed', label: 'first' }
+const observed: RecordEventBody = { type: 'probe-observed', label: 'first' }
 
 describe('plugin event registry', () => {
   it('round-trips a plugin event through the composed decoder', () => {
     const composed = composePlugins([fixturePlugin])
-    const schema = createV2EventSchema({ pluginBodies: composed.eventBodies })
+    const schema = createRecordEventSchema({ pluginBodies: composed.eventBodies })
     const [wire] = mintWire([observed])
     const parsed = schema.safeParse(wire)
     expect(parsed.success).toBe(true)
@@ -56,7 +56,7 @@ describe('plugin event registry', () => {
   })
 
   it('still decodes core and record bodies through the composed decoder', () => {
-    const schema = createV2EventSchema({ pluginBodies: [probeObservedSchema] })
+    const schema = createRecordEventSchema({ pluginBodies: [probeObservedSchema] })
     const wires = mintWire([
       { type: 'user-said', text: 'hi' },
       { type: 'history-rewound', toSeq: 0 },
@@ -66,20 +66,20 @@ describe('plugin event registry', () => {
 
   it('leaves the default decoder rejecting the plugin event as one unreadable row', () => {
     const [wire] = mintWire([observed])
-    expect(() => v2EventSchema.safeParse(wire)).not.toThrow()
-    expect(v2EventSchema.safeParse(wire).success).toBe(false)
+    expect(() => recordEventSchema.safeParse(wire)).not.toThrow()
+    expect(recordEventSchema.safeParse(wire).success).toBe(false)
   })
 
   it('rejects a plugin event the plugin schema refuses', () => {
-    const schema = createV2EventSchema({ pluginBodies: [probeObservedSchema] })
+    const schema = createRecordEventSchema({ pluginBodies: [probeObservedSchema] })
     const [wire] = mintWire([{ type: 'probe-observed', label: '' }])
     expect(schema.safeParse(wire).success).toBe(false)
   })
 
   it('folds the plugin view over decoded events', () => {
-    const schema = createV2EventSchema({ pluginBodies: [probeObservedSchema] })
+    const schema = createRecordEventSchema({ pluginBodies: [probeObservedSchema] })
     const events = mintWire([observed, { type: 'user-said', text: 'x' }]).map(
-      (wire): V2Event => schema.parse(wire),
+      (wire): RecordEvent => schema.parse(wire),
     )
     const labels = events.reduce(probeLabelsView.fold, probeLabelsView.initial)
     expect(labels).toEqual(['first'])

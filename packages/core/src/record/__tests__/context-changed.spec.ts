@@ -3,14 +3,14 @@ import { describe, expect, it } from 'bun:test'
 import { toEventId, toRunId, toThreadId } from '../../events/ids'
 import { contextChangedSchema } from '../context-changed'
 import { isDurable } from '../durability'
-import { RECORD_ONLY_TYPES, v2EventSchema, type Hash, type V2Event } from '../event'
+import { RECORD_ONLY_TYPES, recordEventSchema, type Hash, type RecordEvent } from '../event'
 import { toLoopEvent } from '../loop-events'
 
 const HASH = 'a'.repeat(64) as Hash
 const THREAD = toThreadId('t')
 const RUN = toRunId('r')
 
-const changedOf = (paths: readonly string[]): V2Event => ({
+const changedOf = (paths: readonly string[]): RecordEvent => ({
   id: toEventId('t:1'),
   seq: 1,
   threadId: THREAD,
@@ -49,6 +49,6 @@ describe('context-changed', () => {
 
   it('round-trips through the event schema', () => {
     const event = changedOf(['notes.md'])
-    expect(v2EventSchema.safeParse(JSON.parse(JSON.stringify(event))).success).toBe(true)
+    expect(recordEventSchema.safeParse(JSON.parse(JSON.stringify(event))).success).toBe(true)
   })
 })

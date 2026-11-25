@@ -1,4 +1,4 @@
-import type { V2Event } from '@dltech/atlas-core'
+import type { RecordEvent } from '@dltech/atlas-core'
 
 const LEFT_WORKTREE: ReadonlySet<string> = new Set([
   'worktree-exited',
@@ -7,7 +7,7 @@ const LEFT_WORKTREE: ReadonlySet<string> = new Set([
 ])
 
 export const enteredWorktreePathOf = (args: {
-  events: readonly V2Event[]
+  events: readonly RecordEvent[]
   threadId: string
 }): string | undefined => {
   for (let index = args.events.length - 1; index >= 0; index -= 1) {

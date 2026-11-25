@@ -1,4 +1,4 @@
-import type { V2Event } from '@dltech/atlas-core'
+import type { RecordEvent } from '@dltech/atlas-core'
 import { EAuthor, EEntryKind } from '@dltech/atlas-client/transcript'
 import { describe, expect, it } from 'bun:test'
 
@@ -7,16 +7,16 @@ import { mcpSignInEntries } from '../sign-in-entry'
 
 const URL = 'https://provider.test/authorize?client_id=c&code_challenge=xyz'
 
-const stamp = (body: Record<string, unknown>, n: number): V2Event =>
+const stamp = (body: Record<string, unknown>, n: number): RecordEvent =>
   ({
     ...body,
     seq: n,
     at: `2026-11-10T12:00:0${n}.000Z`,
     threadId: 't1',
     id: `e${n}`,
-  }) as unknown as V2Event
+  }) as unknown as RecordEvent
 
-const started = (n = 1, extra: Record<string, unknown> = {}): V2Event =>
+const started = (n = 1, extra: Record<string, unknown> = {}): RecordEvent =>
   stamp(
     {
       type: 'mcp-sign-in-started',
@@ -29,7 +29,7 @@ const started = (n = 1, extra: Record<string, unknown> = {}): V2Event =>
     n,
   )
 
-const resolved = (n = 2, extra: Record<string, unknown> = {}): V2Event =>
+const resolved = (n = 2, extra: Record<string, unknown> = {}): RecordEvent =>
   stamp(
     {
       type: 'mcp-sign-in-resolved',
@@ -41,7 +41,7 @@ const resolved = (n = 2, extra: Record<string, unknown> = {}): V2Event =>
     n,
   )
 
-const entryOf = (events: readonly V2Event[]) => {
+const entryOf = (events: readonly RecordEvent[]) => {
   const [entry] = [...mcpSignInEntries(events).values()]
   if (entry === undefined) throw new Error('no sign-in entry was built')
   return entry

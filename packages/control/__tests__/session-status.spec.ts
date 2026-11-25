@@ -9,7 +9,7 @@ import {
   toRunId,
   toThreadId,
   type Attachment,
-  type V2Body,
+  type RecordEventBody,
 } from '@dltech/atlas-core'
 
 import { ECommandState, ECredentialSource, ESandboxProvider } from '@dltech/atlas-protocol'
@@ -27,7 +27,7 @@ const posted = (args: {
   kind?: string
   text?: string
   attachments?: readonly Attachment[]
-}): V2Body => ({
+}): RecordEventBody => ({
   type: 'input-posted',
   inboxId: args.inboxId,
   kind: args.kind ?? 'message',
@@ -45,7 +45,7 @@ const setup = async () => {
     projectId: 'project-a',
     mainThreadId: THREAD,
   })
-  const append = async (args: { epoch: number; bodies: V2Body[] }) => {
+  const append = async (args: { epoch: number; bodies: RecordEventBody[] }) => {
     const outcome = await plane.append({
       threadId: THREAD,
       epoch: args.epoch,
@@ -273,7 +273,10 @@ describe('readSessionStatus', () => {
       epoch: lease.epoch,
       bodies: [
         { type: 'workspace-prepared' },
-        ...Array.from({ length: 1000 }, (): V2Body => ({ type: 'user-said', text: 'filler' })),
+        ...Array.from(
+          { length: 1000 },
+          (): RecordEventBody => ({ type: 'user-said', text: 'filler' }),
+        ),
         { type: 'assistant-said', parts: [{ type: 'text', text: 'done' }] },
       ],
     })
@@ -359,7 +362,7 @@ describe('readSessionStatus under a concurrent consume', () => {
       mainThreadId: THREAD,
     })
     const lease = await plane.grant({ sessionId: SESSION, hostId: 7 })
-    const append = async (bodies: V2Body[]) => {
+    const append = async (bodies: RecordEventBody[]) => {
       const outcome = await plane.append({
         threadId: THREAD,
         epoch: lease.epoch,

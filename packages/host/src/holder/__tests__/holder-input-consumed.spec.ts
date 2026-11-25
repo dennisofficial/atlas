@@ -1,11 +1,11 @@
 import { describe, expect, it } from 'bun:test'
 
-import type { V2Event } from '@dltech/atlas-core'
+import type { RecordEvent } from '@dltech/atlas-core'
 
 import { flushUntil, makeRig, seedSession, SESSION, THREAD_ID } from './holder-rig'
 
-const fullLog = async (rig: Awaited<ReturnType<typeof makeRig>>): Promise<V2Event[]> => {
-  const events: V2Event[] = []
+const fullLog = async (rig: Awaited<ReturnType<typeof makeRig>>): Promise<RecordEvent[]> => {
+  const events: RecordEvent[] = []
   let afterSeq = 0
   for (;;) {
     const page = await rig.plane.readEvents({

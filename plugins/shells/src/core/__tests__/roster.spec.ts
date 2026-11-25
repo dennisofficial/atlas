@@ -1,18 +1,18 @@
 import { describe, expect, it } from 'bun:test'
 
-import { EShellStatus, type V2Event } from '@dltech/atlas-core'
+import { EShellStatus, type RecordEvent } from '@dltech/atlas-core'
 
 import { foldShells, shellsOfEvents, type ShellsViewState } from '..'
 
 const at = (n: number): string => `2026-11-08T10:00:0${n}.000Z`
 
-const stamp = (body: Record<string, unknown>, n: number): V2Event =>
-  ({ ...body, seq: n, at: at(n), threadId: 't1', id: `e${n}` }) as unknown as V2Event
+const stamp = (body: Record<string, unknown>, n: number): RecordEvent =>
+  ({ ...body, seq: n, at: at(n), threadId: 't1', id: `e${n}` }) as unknown as RecordEvent
 
-const started = (n: number, extra: Record<string, unknown> = {}): V2Event =>
+const started = (n: number, extra: Record<string, unknown> = {}): RecordEvent =>
   stamp({ type: 'background-shell-started', shellId: 'shell-a', command: 'sleep 30', ...extra }, n)
 
-const ended = (n: number, output: string, status = EShellStatus.Killed): V2Event =>
+const ended = (n: number, output: string, status = EShellStatus.Killed): RecordEvent =>
   stamp(
     {
       type: 'background-shell-ended',
@@ -26,7 +26,7 @@ const ended = (n: number, output: string, status = EShellStatus.Killed): V2Event
     n,
   )
 
-const awaiting = (n: number, output: string): V2Event =>
+const awaiting = (n: number, output: string): RecordEvent =>
   stamp(
     {
       type: 'background-shell-awaiting-input',

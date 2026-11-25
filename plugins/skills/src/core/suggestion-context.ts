@@ -5,7 +5,7 @@ import {
   pendingMessagesOf,
   saidBy,
   visibleEvents,
-  type V2Event,
+  type RecordEvent,
 } from '@dltech/atlas-core'
 
 export type SkillSuggestionTurn = {
@@ -27,8 +27,8 @@ export const SKILL_SUGGEST_AGENT_CHARS = 800
 export const SKILL_SUGGESTION_SLOT = 'skill-suggestion'
 export const SKILL_SUGGESTION_KEY = 'latest'
 
-type OperatorSaid = Extract<V2Event, { type: 'user-said' }>
-type AgentSaid = Extract<V2Event, { type: 'assistant-said' }>
+type OperatorSaid = Extract<RecordEvent, { type: 'user-said' }>
+type AgentSaid = Extract<RecordEvent, { type: 'assistant-said' }>
 
 type OpenTurn = { operator: string; agent: string | undefined; trigger: string | undefined }
 
@@ -50,7 +50,7 @@ const clipped = (args: { text: string; maximum: number }): string => {
   return `${text.slice(0, args.maximum - 1).trimEnd()}${ELLIPSIS}`
 }
 
-const isOperatorSaid = (event: V2Event): event is OperatorSaid =>
+const isOperatorSaid = (event: RecordEvent): event is OperatorSaid =>
   event.type === 'user-said' && saidBy(event) === EMessageOrigin.Operator
 
 const replyTextOf = (event: AgentSaid): string =>
@@ -59,7 +59,7 @@ const replyTextOf = (event: AgentSaid): string =>
     .join('\n')
     .trim()
 
-const loadedNameOf = (event: V2Event): string | undefined => {
+const loadedNameOf = (event: RecordEvent): string | undefined => {
   if (event.type === 'context-loaded' && event.slot === EContextSlot.Skill) return event.key
   if (event.type !== 'tool-called' || event.name !== 'skill') return undefined
   const input = event.input
@@ -67,7 +67,7 @@ const loadedNameOf = (event: V2Event): string | undefined => {
   return typeof input.name === 'string' ? input.name : undefined
 }
 
-const stepReading = (reading: Reading, event: V2Event): Reading => {
+const stepReading = (reading: Reading, event: RecordEvent): Reading => {
   const loaded = loadedNameOf(event)?.trim().toLowerCase()
   if (loaded !== undefined && loaded !== '') reading.loaded.add(loaded)
   if (isOperatorSaid(event)) {
@@ -93,7 +93,7 @@ const stepReading = (reading: Reading, event: V2Event): Reading => {
   return reading
 }
 
-const withPending = (args: { reading: Reading; visible: readonly V2Event[] }): Reading => {
+const withPending = (args: { reading: Reading; visible: readonly RecordEvent[] }): Reading => {
   const pending = pendingMessagesOf(pendingInputsOf(args.visible)).filter(
     (entry) =>
       entry.message !== undefined &&
@@ -111,7 +111,7 @@ const withPending = (args: { reading: Reading; visible: readonly V2Event[] }): R
 }
 
 export const skillSuggestionStateOf = (args: {
-  events: readonly V2Event[]
+  events: readonly RecordEvent[]
 }): SkillSuggestionState | undefined => {
   const visible = visibleEvents(args.events)
   const read = visible.reduce(stepReading, {

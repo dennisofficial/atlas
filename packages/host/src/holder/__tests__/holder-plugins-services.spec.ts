@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'bun:test'
 
 import { composeCommands } from '@dltech/atlas-commands'
-import { createV2EventSchema, type V2Event } from '@dltech/atlas-core'
+import { createRecordEventSchema, type RecordEvent } from '@dltech/atlas-core'
 import { ControlPlane } from '@dltech/atlas-control'
 import { InMemoryControlStore } from '@dltech/atlas-control/testing'
 import { ScriptedModel, type ScriptedModelStep } from '@dltech/atlas-agent/testing'
@@ -28,7 +28,7 @@ const servicesRig = async (script: ScriptedModelStep[]) => {
   const store = new InMemoryControlStore()
   const plane = new ControlPlane({
     store,
-    eventSchema: createV2EventSchema({ pluginBodies: composed.eventBodies }),
+    eventSchema: createRecordEventSchema({ pluginBodies: composed.eventBodies }),
     pluginViews: composed.views,
   })
   const rig = await makeRig({
@@ -47,7 +47,7 @@ const servicesRig = async (script: ScriptedModelStep[]) => {
 
 type Rig = Awaited<ReturnType<typeof servicesRig>>
 
-const eventsOf = async (rig: Rig): Promise<V2Event[]> =>
+const eventsOf = async (rig: Rig): Promise<RecordEvent[]> =>
   (await rig.plane.readEvents({ threadId: THREAD_ID, afterSeq: 0, limit: 500, visible: false }))
     .events
 

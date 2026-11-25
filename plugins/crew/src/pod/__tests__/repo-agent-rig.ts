@@ -1,6 +1,6 @@
 import { basename, dirname } from 'node:path'
 
-import { EAgentStatus, toThreadId, type Assembled, type V2Event } from '@dltech/atlas-core'
+import { EAgentStatus, toThreadId, type Assembled, type RecordEvent } from '@dltech/atlas-core'
 import {
   type PluginPodContext,
   type PodCrew,
@@ -123,7 +123,7 @@ export const fakeCrew = () => {
 
 export const rig = (args: { nodes?: Record<string, FakeNode>; crew?: PodCrew } = {}) => {
   const daemon = fakeDaemon(args.nodes ?? {})
-  const events: V2Event[] = []
+  const events: RecordEvent[] = []
   const ctx: PluginPodContext = {
     sessionId: 's1',
     resources: EMPTY_POD_RESOURCES,
@@ -155,7 +155,7 @@ export const rig = (args: { nodes?: Record<string, FakeNode>; crew?: PodCrew } =
       },
     },
     append: async (drafts) => {
-      for (const draft of drafts) events.push(draft as unknown as V2Event)
+      for (const draft of drafts) events.push(draft as unknown as RecordEvent)
     },
     notify: async () => undefined,
     events: () => events,

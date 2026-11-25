@@ -1,5 +1,5 @@
 import type { OperatorRequestEntry } from '@dltech/atlas-client/transcript'
-import type { Event, V2Event } from '@dltech/atlas-core'
+import type { Event, RecordEvent } from '@dltech/atlas-core'
 import { pendingOperatorRequestOf } from '@dltech/atlas-plugin-operator/client'
 
 export enum EAnswerPhase {
@@ -33,7 +33,7 @@ const requestOf = (entry: OperatorRequestEntry): PendingOperatorAnswer => ({
 })
 
 export const operatorAnswerViewOf = (args: {
-  events: readonly (Event | V2Event)[]
+  events: readonly (Event | RecordEvent)[]
   answer: OperatorAnswerState | null
 }): OperatorAnswerView => {
   const entry = pendingOperatorRequestOf({ events: args.events })

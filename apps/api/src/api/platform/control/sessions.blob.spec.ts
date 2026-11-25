@@ -11,7 +11,7 @@ import {
   toCallId,
   toRunId,
   toThreadId,
-  type V2Body,
+  type RecordEventBody,
 } from '@dltech/atlas-core'
 import { useTestDatabase } from '@dltech/atlas-db/testing'
 import { BackgroundWork } from '../../../_core/ports/background-work'
@@ -81,7 +81,7 @@ describe('SessionsService blob reads', () => {
         runId: toRunId('run-1'),
         epoch: lease.epoch,
         at: NOW,
-        bodies: [body as V2Body],
+        bodies: [body as RecordEventBody],
       }),
       blobs,
     })

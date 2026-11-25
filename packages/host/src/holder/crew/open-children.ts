@@ -17,7 +17,7 @@ import {
   type Event,
   type EventOfType,
   type ThreadId,
-  type V2Event,
+  type RecordEvent,
 } from '@dltech/atlas-core'
 import type { ControlPlane } from '@dltech/atlas-control'
 import type { WorktreeEntryInfo } from '@dltech/atlas-plugin-sdk'
@@ -126,7 +126,7 @@ export const settledChildOf = (args: {
   return { ...openChildOf(spawn), status: agent.status, endedAt: agent.endedAt }
 }
 
-const loopEventsOf = (events: readonly V2Event[]): Event[] =>
+const loopEventsOf = (events: readonly RecordEvent[]): Event[] =>
   events.flatMap((event) => {
     const loop = toLoopEvent({ event })
     return loop === undefined ? [] : [loop]
@@ -136,8 +136,8 @@ const threadEventsOf = async (args: {
   plane: ControlPlane
   threadId: ThreadId
   visible: boolean
-}): Promise<V2Event[]> => {
-  const events: V2Event[] = []
+}): Promise<RecordEvent[]> => {
+  const events: RecordEvent[] = []
   let afterSeq = 0
   for (;;) {
     const page = await args.plane.readEvents({
@@ -152,14 +152,14 @@ const threadEventsOf = async (args: {
   }
 }
 
-const wasCompacted = (events: readonly V2Event[]): boolean =>
+const wasCompacted = (events: readonly RecordEvent[]): boolean =>
   events.some((event) => event.type === 'history-summarised')
 
 const survivingEventsOf = async (args: {
   record: SessionRecord
   plane: ControlPlane
   threadId: ThreadId
-}): Promise<V2Event[]> => {
+}): Promise<RecordEvent[]> => {
   const cached = args.record.eventCache().eventsAfter(0)
   const events = wasCompacted(cached)
     ? await threadEventsOf({ plane: args.plane, threadId: args.threadId, visible: false })
@@ -208,7 +208,7 @@ const childWaitsOnInput = async (args: {
 const pendingSettlementsOf = async (args: {
   plane: ControlPlane
   sessionId: string
-  events: readonly V2Event[]
+  events: readonly RecordEvent[]
 }): Promise<ReadonlyMap<ThreadId, ChildSettlement>> => {
   const settlements = new Map<ThreadId, ChildSettlement>()
   for (const pending of pendingInputsOf(args.events).pending) {

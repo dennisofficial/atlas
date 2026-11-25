@@ -1,7 +1,7 @@
 import { countQueries, useTestDatabase } from '@dltech/atlas-db/testing'
 import { db } from '@dltech/atlas-db'
 import { ControlPlane } from '@dltech/atlas-control'
-import { createV2EventSchema, INBOX_KIND_RECORD, inboxEventOf } from '@dltech/atlas-core'
+import { createRecordEventSchema, INBOX_KIND_RECORD, inboxEventOf } from '@dltech/atlas-core'
 import { PostgresControlStore } from '@dltech/atlas-control/postgres'
 import { beforeEach, describe, expect, it } from 'bun:test'
 
@@ -30,7 +30,7 @@ const inboxRecords = async (): Promise<number> => {
 const seedV2Thread = async (args: { sessionId: string; threadId: string }): Promise<void> => {
   const plane = new ControlPlane({
     store: new PostgresControlStore(db),
-    eventSchema: createV2EventSchema({ pluginBodies: [] }),
+    eventSchema: createRecordEventSchema({ pluginBodies: [] }),
   })
   await plane.createSession({
     sessionId: args.sessionId,

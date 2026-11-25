@@ -15,7 +15,7 @@ import {
   type SessionStatus,
   type SessionViewState,
   type SessionViewValue,
-  type V2Event,
+  type RecordEvent,
 } from '@dltech/atlas-core'
 import {
   sessionSandboxStatusSchema,
@@ -72,7 +72,7 @@ export const currentViewIn = async (args: {
   tx: ControlTx
   sessionId: string
   threadId: string
-  eventSchema?: z.ZodType<V2Event> | undefined
+  eventSchema?: z.ZodType<RecordEvent> | undefined
   pluginViews?: readonly PluginViewFold[] | undefined
 }): Promise<SessionViewState> => {
   const { tx, sessionId, threadId } = args
@@ -102,7 +102,7 @@ export const liveViewIn = async (args: {
   state: SessionViewState
   now: string
   queuedSince?: string | null | undefined
-  eventSchema?: z.ZodType<V2Event> | undefined
+  eventSchema?: z.ZodType<RecordEvent> | undefined
 }): Promise<LiveView> => {
   const { tx, sessionId, state } = args
   const { lease, live } = await args.leases.currentLeaseIn({ tx, sessionId })
@@ -253,7 +253,7 @@ export const readSessionViewIn = async (args: {
   sessionId: string
   threadId: string
   now: string
-  eventSchema?: z.ZodType<V2Event> | undefined
+  eventSchema?: z.ZodType<RecordEvent> | undefined
 }): Promise<SessionViewRead | undefined> => {
   const { tx, sessionId, threadId } = args
   const row = await tx.readThread(threadId)
@@ -318,7 +318,7 @@ type CatchUpArgs<T> = {
   store: ControlStorePort
   sessionId: string
   threadId: string
-  eventSchema?: z.ZodType<V2Event> | undefined
+  eventSchema?: z.ZodType<RecordEvent> | undefined
   pluginViews?: readonly PluginViewFold[] | undefined
   readIn: (tx: ControlTx) => Promise<T | undefined>
 }
@@ -351,7 +351,7 @@ export const readSessionViewWithCatchUp = (args: {
   nowIn: (tx: ControlTx) => Promise<string>
   sessionId: string
   threadId: string
-  eventSchema?: z.ZodType<V2Event> | undefined
+  eventSchema?: z.ZodType<RecordEvent> | undefined
   pluginViews?: readonly PluginViewFold[] | undefined
 }): Promise<SessionViewRead> =>
   withCatchUp({
@@ -373,7 +373,7 @@ export const readSessionBusyWithCatchUp = (args: {
   nowIn: (tx: ControlTx) => Promise<string>
   sessionId: string
   threadId: string
-  eventSchema?: z.ZodType<V2Event> | undefined
+  eventSchema?: z.ZodType<RecordEvent> | undefined
   pluginViews?: readonly PluginViewFold[] | undefined
 }): Promise<SessionBusyRead> =>
   withCatchUp({

@@ -5,7 +5,7 @@ import { normalizedRepo } from './github-pr-identity'
  * The watch scope is what keeps a pull request on screen: a live GithubSubscription (a session or
  * user watching a pull request or a branch), a live GithubTrackingTarget (the materialized
  * head/pull-request target), or a session that stopped watching but still holds the link — the
- * V2SessionPullRequest row the plugin writes when a subscription is created survives its
+ * SessionPullRequest row the plugin writes when a subscription is created survives its
  * expiry, and it is what the states stream and the session views replay from. Nothing else
  * decides what Atlas shows, so a delivery outside it carries no state any watcher would read.
  *

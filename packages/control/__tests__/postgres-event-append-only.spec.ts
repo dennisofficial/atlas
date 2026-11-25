@@ -4,7 +4,7 @@ import { useTestDatabase } from '@dltech/atlas-db/testing'
 
 const NOW = new Date('2026-11-19T00:00:00.000Z')
 
-describe('V2Event append-only trigger', () => {
+describe('RecordEvent append-only trigger', () => {
   const testDb = useTestDatabase()
 
   async function seedEvent() {

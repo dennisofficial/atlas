@@ -1,7 +1,7 @@
 import type { KeyEvent } from '@opentui/core'
 import React, { useCallback, useRef } from 'react'
 
-import type { Event, V2Event } from '@dltech/atlas-core'
+import type { Event, RecordEvent } from '@dltech/atlas-core'
 
 import type { McpPanel } from './mcp-panel'
 import { useMcpPanel } from './mcp-panel'
@@ -20,7 +20,7 @@ export type TranscriptPanels = {
 export function useTranscriptPanels(args: {
   api: SessionApi
   views: Readonly<Record<string, unknown>>
-  events: readonly (Event | V2Event)[]
+  events: readonly (Event | RecordEvent)[]
   openUrl: (url: string) => void
   onProblem: (reason: string) => void
   onComplete: (name: string) => void

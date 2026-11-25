@@ -1,10 +1,10 @@
-import { ERewindCause, quickStopOf, type TurnNotify, type V2Event } from '@dltech/atlas-core'
+import { ERewindCause, quickStopOf, type TurnNotify, type RecordEvent } from '@dltech/atlas-core'
 
 import type { AppendBody } from './record/append-drafts'
 import type { TurnEnding } from './turn-boundary'
 
 export const turnEndDraftsOf = (args: {
-  events: readonly V2Event[]
+  events: readonly RecordEvent[]
   turnId: string
   ending: TurnEnding
   notify?: TurnNotify | undefined

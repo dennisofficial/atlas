@@ -7,7 +7,7 @@ import {
   ToolDefinition,
   type ModelPort,
   type ToolOutcome,
-  type V2Event,
+  type RecordEvent,
 } from '@dltech/atlas-core'
 import {
   composePlugins,
@@ -135,7 +135,7 @@ const answeringModel = (parentScript: readonly ScriptedModelStep[]): ModelPort =
 const eventsIn = async (args: {
   rig: Awaited<ReturnType<typeof makeRig>>
   threadId: string
-}): Promise<V2Event[]> =>
+}): Promise<RecordEvent[]> =>
   (
     await args.rig.plane.readEvents({
       threadId: args.threadId as typeof THREAD_ID,
@@ -145,16 +145,16 @@ const eventsIn = async (args: {
     })
   ).events
 
-const childIdOf = (events: readonly V2Event[]): string => {
+const childIdOf = (events: readonly RecordEvent[]): string => {
   const spawned = events.find((event) => event.type === 'agent-spawned')
   if (spawned === undefined || spawned.type !== 'agent-spawned') throw new Error('no spawn')
   return spawned.agentId
 }
 
-const endingsOf = (args: { events: readonly V2Event[]; agentId: string }): V2Event[] =>
+const endingsOf = (args: { events: readonly RecordEvent[]; agentId: string }): RecordEvent[] =>
   args.events.filter((event) => event.type === 'agent-ended' && event.agentId === args.agentId)
 
-const ofType = (args: { events: readonly V2Event[]; type: string }): V2Event[] =>
+const ofType = (args: { events: readonly RecordEvent[]; type: string }): RecordEvent[] =>
   args.events.filter((event) => event.type === args.type)
 
 const sleep = (ms: number): Promise<void> => new Promise((resolve) => setTimeout(resolve, ms))
@@ -176,7 +176,7 @@ const queuedEndings = async (args: {
 const untilParentDrainsEnding = async (args: {
   rig: Awaited<ReturnType<typeof makeRig>>
   agentId: string
-}): Promise<V2Event[]> => {
+}): Promise<RecordEvent[]> => {
   const queued = await flushUntil({
     check: async () => (await queuedEndings(args)).length > 0,
     attempts: 200,
@@ -292,7 +292,7 @@ const untilEvents = async (args: {
   threadId: string
   type: string
   attempts?: number
-}): Promise<V2Event[]> => {
+}): Promise<RecordEvent[]> => {
   const ready = await flushUntil({
     check: async () =>
       ofType({

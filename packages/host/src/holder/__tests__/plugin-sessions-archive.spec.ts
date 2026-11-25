@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'bun:test'
 
-import { chainEvents, EEffort, toRunId, toThreadId, type V2Body } from '@dltech/atlas-core'
+import { chainEvents, EEffort, toRunId, toThreadId, type RecordEventBody } from '@dltech/atlas-core'
 import { ControlPlane } from '@dltech/atlas-control'
 import { InMemoryControlStore } from '@dltech/atlas-control/testing'
 
@@ -14,7 +14,7 @@ const appendAsHolder = async (args: {
   plane: ControlPlane
   sessionId: string
   threadId: string
-  bodies: V2Body[]
+  bodies: RecordEventBody[]
 }): Promise<void> => {
   const granted = await args.plane.grant({ sessionId: args.sessionId, hostId: 9000 })
   const appended = await args.plane.append({

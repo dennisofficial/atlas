@@ -9,7 +9,7 @@ import {
 import type { EProviderFailureKind } from '../models/provider-failure'
 import { EWaitEpisodeKind } from '../model-recovery/waiting'
 import { projectWaiting, waitEpisodeGroupKey } from '../model-recovery/waiting-projector'
-import type { V2Event } from '../record/event'
+import type { RecordEvent } from '../record/event'
 
 export enum ERepairSource {
   Failure = 'failure',
@@ -76,18 +76,18 @@ type OpenStop = {
   agent: RunFailureAgent | null
 }
 
-type WaitingEvent = Extract<V2Event, { type: 'model-waiting' | 'model-wait-cleared' }>
+type WaitingEvent = Extract<RecordEvent, { type: 'model-waiting' | 'model-wait-cleared' }>
 
-const isWaitingEvent = (event: V2Event): event is WaitingEvent =>
+const isWaitingEvent = (event: RecordEvent): event is WaitingEvent =>
   event.type === 'model-waiting' || event.type === 'model-wait-cleared'
 
-const agentOfEnding = (event: Extract<V2Event, { type: 'agent-ended' }>): RunFailureAgent => ({
+const agentOfEnding = (event: Extract<RecordEvent, { type: 'agent-ended' }>): RunFailureAgent => ({
   agentId: event.agentId,
   agentType: event.agentType,
   intent: event.intent,
 })
 
-const stopOfFailure = (event: Extract<V2Event, { type: 'run-failed' }>): OpenStop | null => {
+const stopOfFailure = (event: Extract<RecordEvent, { type: 'run-failed' }>): OpenStop | null => {
   if (!REPAIRABLE_FAILURE_KINDS.has(event.failure.kind)) return null
   return {
     seq: event.seq,
@@ -104,7 +104,7 @@ const stopOfFailure = (event: Extract<V2Event, { type: 'run-failed' }>): OpenSto
   }
 }
 
-const stopOfEnding = (event: Extract<V2Event, { type: 'agent-ended' }>): OpenStop | null => {
+const stopOfEnding = (event: Extract<RecordEvent, { type: 'agent-ended' }>): OpenStop | null => {
   const failure = event.failure
   if (event.status !== EAgentStatus.Failed || failure === undefined) return null
   if (!REPAIRABLE_FAILURE_KINDS.has(failure.kind)) return null
@@ -131,7 +131,7 @@ function failureStopsOf({
   events,
 }: {
   mainThreadId: ThreadId
-  events: readonly V2Event[]
+  events: readonly RecordEvent[]
 }): readonly OpenStop[] {
   const openMain = new Map<number, OpenStop>()
   const openChild = new Map<string, OpenStop>()
@@ -177,7 +177,7 @@ function failureStopsOf({
   return [...openMain.values(), ...openChild.values()]
 }
 
-const spawnedAgentsOf = (events: readonly V2Event[]): ReadonlyMap<string, RunFailureAgent> => {
+const spawnedAgentsOf = (events: readonly RecordEvent[]): ReadonlyMap<string, RunFailureAgent> => {
   const spawned = new Map<string, RunFailureAgent>()
   for (const event of events) {
     if (event.type === 'agent-spawned') {
@@ -200,9 +200,9 @@ const agentOfThread = ({
 }): RunFailureAgent => spawned.get(threadId) ?? { agentId: threadId, agentType: '', intent: '' }
 
 const latestWaitEventsOf = (
-  events: readonly V2Event[],
-): ReadonlyMap<string, Extract<V2Event, { type: 'model-waiting' }>> => {
-  const latest = new Map<string, Extract<V2Event, { type: 'model-waiting' }>>()
+  events: readonly RecordEvent[],
+): ReadonlyMap<string, Extract<RecordEvent, { type: 'model-waiting' }>> => {
+  const latest = new Map<string, Extract<RecordEvent, { type: 'model-waiting' }>>()
   for (const event of events) {
     if (event.type === 'model-waiting') {
       latest.set(waitEpisodeGroupKey(event.waiting.episode), event)
@@ -216,7 +216,7 @@ function waitStopsOf({
   events,
 }: {
   mainThreadId: ThreadId
-  events: readonly V2Event[]
+  events: readonly RecordEvent[]
 }): readonly OpenStop[] {
   const spawned = spawnedAgentsOf(events)
   const latest = latestWaitEventsOf(events)
@@ -257,7 +257,7 @@ const agentsOfGroup = (group: readonly OpenStop[]): readonly RunFailureAgent[] =
 
 export function credentialRepairOf(args: {
   mainThreadId: ThreadId
-  events: readonly V2Event[]
+  events: readonly RecordEvent[]
 }): CredentialRepair | null {
   const stops = [...failureStopsOf(args), ...waitStopsOf(args)].sort((a, b) => a.seq - b.seq)
   const newest = stops.at(-1)

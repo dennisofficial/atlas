@@ -1,4 +1,4 @@
-import { EFinishReason, type V2Event } from '@dltech/atlas-core'
+import { EFinishReason, type RecordEvent } from '@dltech/atlas-core'
 import type { AppendHook, ControlTx } from '@dltech/atlas-control'
 import type { ProductAnalytics, ProductAnalyticsProperties } from '@dltech/atlas-observability'
 import { reasonClassOf } from '@dltech/atlas-observability'
@@ -15,16 +15,16 @@ const TRACKED: ReadonlySet<EventType> = new Set<EventType>([
   'pull-request-linked',
 ])
 
-type EventType = V2Event['type']
+type EventType = RecordEvent['type']
 type Owner = { userId: string; projectId: string | null }
 type Mapped = { event: string; properties: ProductAnalyticsProperties }
 
-const endsTurn = (event: V2Event): boolean =>
+const endsTurn = (event: RecordEvent): boolean =>
   event.type === 'assistant-said' &&
   event.finish !== undefined &&
   event.finish !== EFinishReason.ToolCalls
 
-const mappedOf = (event: V2Event): Mapped | undefined => {
+const mappedOf = (event: RecordEvent): Mapped | undefined => {
   switch (event.type) {
     case 'input-posted': {
       const attachments = event.message?.attachments ?? event.attachments
@@ -97,7 +97,7 @@ const captureOf = (args: {
   analytics: ProductAnalytics
   sessionId: string
   owner: Owner
-  event: V2Event
+  event: RecordEvent
 }): void => {
   try {
     const mapped = mappedOf(args.event)

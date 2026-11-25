@@ -5,7 +5,7 @@ import {
   ECommandRunsIn,
 } from '@dltech/atlas-commands'
 import { rename, resize } from '@dltech/atlas-native-commands'
-import { chainEvents, toRunId, toThreadId, type V2Body } from '@dltech/atlas-core'
+import { chainEvents, toRunId, toThreadId, type RecordEventBody } from '@dltech/atlas-core'
 import { z } from 'zod'
 import { FakeMediaStore } from '@dltech/atlas-media/testing'
 import type { ProductAnalytics, TracePort } from '@dltech/atlas-observability'
@@ -41,7 +41,7 @@ export const appendBodies = async (args: {
   plane: ControlPlane
   threadId: string
   epoch: number
-  bodies: readonly V2Body[]
+  bodies: readonly RecordEventBody[]
 }): Promise<void> => {
   const outcome = await args.plane.append({
     threadId: args.threadId,
@@ -58,7 +58,11 @@ export const appendBodies = async (args: {
   if (!outcome.ok) throw new Error(`append refused: ${JSON.stringify(outcome.refusal)}`)
 }
 
-export const postedBody = (args: { inboxId: number; text?: string; kind?: string }): V2Body => ({
+export const postedBody = (args: {
+  inboxId: number
+  text?: string
+  kind?: string
+}): RecordEventBody => ({
   type: 'input-posted',
   inboxId: args.inboxId,
   kind: args.kind ?? 'message',

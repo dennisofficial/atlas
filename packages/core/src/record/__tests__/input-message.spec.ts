@@ -4,7 +4,7 @@ import type { Attachment } from '../../attachments/attachment'
 import { EAttachmentStore } from '../../attachments/attachment'
 import { EMessageOrigin } from '../../events/body'
 import { chainEvents } from '../chain-events'
-import { v2EventSchema, type V2Body, type V2Event } from '../event'
+import { recordEventSchema, type RecordEventBody, type RecordEvent } from '../event'
 import {
   inputMessageOfRow,
   inputMessageSchema,
@@ -30,18 +30,18 @@ const fullMessage = (): InputMessage => ({
   sender: { session: 'ses_child' },
 })
 
-const postedOf = (row: Record<string, unknown>): V2Body =>
+const postedOf = (row: Record<string, unknown>): RecordEventBody =>
   ({
     type: 'input-posted',
     inboxId: 7,
     kind: 'message',
     postedAt: NOW,
     ...row,
-  }) as V2Body
+  }) as RecordEventBody
 
-const roundTrip = (bodies: readonly V2Body[]): V2Event[] =>
+const roundTrip = (bodies: readonly RecordEventBody[]): RecordEvent[] =>
   chainEvents({ threadId, runId, epoch: 3, at: NOW, bodies }).map((event) =>
-    v2EventSchema.parse(JSON.parse(JSON.stringify(event))),
+    recordEventSchema.parse(JSON.parse(JSON.stringify(event))),
   )
 
 describe('inputMessageSchema', () => {
@@ -59,10 +59,10 @@ describe('one input message from staging to user-said', () => {
   it('keeps the whole message through posted, pending and said', () => {
     const message = fullMessage()
     const [posted] = roundTrip([postedOf({ message })])
-    const pending = pendingMessagesOf(pendingInputsOf([posted as V2Event]))
+    const pending = pendingMessagesOf(pendingInputsOf([posted as RecordEvent]))
     expect(pending.map((entry) => entry.message)).toEqual([message])
 
-    const said = pending.flatMap((entry): V2Body[] =>
+    const said = pending.flatMap((entry): RecordEventBody[] =>
       entry.message === undefined
         ? []
         : [userSaidOf({ inboxId: entry.inboxId, message: entry.message })],
@@ -82,13 +82,13 @@ describe('one input message from staging to user-said', () => {
   it('reads a flat row already in the log as the same message', () => {
     const message = fullMessage()
     const [legacy] = roundTrip([postedOf({ ...message })])
-    const [pending] = pendingMessagesOf(pendingInputsOf([legacy as V2Event]))
+    const [pending] = pendingMessagesOf(pendingInputsOf([legacy as RecordEvent]))
     expect(pending?.message).toEqual(message)
   })
 
   it('prefers the nested message when a row somehow carries both', () => {
     const [posted] = roundTrip([postedOf({ message: { text: 'nested' }, text: 'flat' })])
-    const [pending] = pendingMessagesOf(pendingInputsOf([posted as V2Event]))
+    const [pending] = pendingMessagesOf(pendingInputsOf([posted as RecordEvent]))
     expect(pending?.message).toEqual({ text: 'nested' })
   })
 })

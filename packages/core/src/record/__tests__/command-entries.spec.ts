@@ -6,28 +6,28 @@ import {
   runningCommandEntriesOf,
   unfinishedCommandIdsOf,
 } from '../command-entries'
-import { EInputConsumed, ERewindCause, type V2Body, type V2Event } from '../event'
+import { EInputConsumed, ERewindCause, type RecordEventBody, type RecordEvent } from '../event'
 import { ECompactionAnchor } from '../../events/body'
 import { commandInputKind } from '../input-events'
 import { NOW, runId, threadId } from './support'
 
-const logOf = (bodies: readonly V2Body[]): V2Event[] =>
+const logOf = (bodies: readonly RecordEventBody[]): RecordEvent[] =>
   chainEvents({ threadId, runId, epoch: 3, at: NOW, bodies })
 
-const posted = (args: { inboxId: number; name: string }): V2Body => ({
+const posted = (args: { inboxId: number; name: string }): RecordEventBody => ({
   type: 'input-posted',
   inboxId: args.inboxId,
   kind: commandInputKind(args.name),
   postedAt: NOW,
 })
 
-const consumed = (inboxId: number): V2Body => ({
+const consumed = (inboxId: number): RecordEventBody => ({
   type: 'input-consumed',
   inboxId,
   consumed: EInputConsumed.Command,
 })
 
-const summarised = (inboxId?: number): V2Body => ({
+const summarised = (inboxId?: number): RecordEventBody => ({
   type: 'history-summarised',
   fromSeq: 1,
   throughSeq: 1,
@@ -122,7 +122,7 @@ describe('runningCommandEntriesOf', () => {
 })
 
 describe('a typed command consumed on a message entry', () => {
-  const typedPosted = (inboxId: number, text: string): V2Body => ({
+  const typedPosted = (inboxId: number, text: string): RecordEventBody => ({
     type: 'input-posted',
     inboxId,
     kind: 'message',
@@ -135,7 +135,7 @@ describe('a typed command consumed on a message entry', () => {
     name: string
     argumentText: string
     text: string
-  }): V2Body => ({
+  }): RecordEventBody => ({
     type: 'input-consumed',
     inboxId: args.inboxId,
     consumed: EInputConsumed.Command,
@@ -164,7 +164,7 @@ describe('a typed command consumed on a message entry', () => {
 })
 
 describe('a pane command that records one applied outcome', () => {
-  const applied = (args: { inboxId: number; name: string }): V2Body => ({
+  const applied = (args: { inboxId: number; name: string }): RecordEventBody => ({
     type: 'command-applied',
     inboxId: args.inboxId,
     name: args.name,

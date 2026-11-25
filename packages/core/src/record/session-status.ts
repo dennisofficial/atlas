@@ -1,4 +1,4 @@
-import type { V2Event } from './event'
+import type { RecordEvent } from './event'
 import { deriveStatus } from './views/derive-status'
 import { initialStatusFacts, stepStatusFacts } from './views/status-facts'
 import type { SessionStatus } from './views/status-types'
@@ -12,7 +12,7 @@ export {
 } from './views/status-types'
 
 export function sessionStatusOf(params: {
-  events: readonly V2Event[]
+  events: readonly RecordEvent[]
   live: boolean
   queuedSince: string | null
   messageAfterFailure?: boolean | undefined

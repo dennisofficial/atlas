@@ -1,4 +1,4 @@
-import { EInputConsumed, ERewindCause, type ConsumedCommand, type V2Event } from './event'
+import { EInputConsumed, ERewindCause, type ConsumedCommand, type RecordEvent } from './event'
 import { commandInputName } from './input-events'
 import type { PendingInputsState } from './pending-inputs'
 
@@ -87,12 +87,14 @@ export const COMMAND_LOG_TYPES: ReadonlySet<string> = new Set([
   'resume-marked',
 ])
 
-export const isCommandLogEvent = (event: V2Event): boolean => COMMAND_LOG_TYPES.has(event.type)
+export const isCommandLogEvent = (event: RecordEvent): boolean => COMMAND_LOG_TYPES.has(event.type)
 
-export const commandLogOf = (events: readonly V2Event[]): readonly V2Event[] =>
+export const commandLogOf = (events: readonly RecordEvent[]): readonly RecordEvent[] =>
   events.filter(isCommandLogEvent)
 
-export const runningCommandEntriesOf = (events: readonly V2Event[]): readonly CommandEntry[] => {
+export const runningCommandEntriesOf = (
+  events: readonly RecordEvent[],
+): readonly CommandEntry[] => {
   const postedAt = new Map<number, string>()
   const posted = new Map<number, CommandEntry>()
   for (const event of events) {

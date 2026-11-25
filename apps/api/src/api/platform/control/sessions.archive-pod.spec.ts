@@ -5,7 +5,7 @@ import {
   INBOX_KIND_STOP,
   toRunId,
   toThreadId,
-  type V2Body,
+  type RecordEventBody,
 } from '@dltech/atlas-core'
 
 import {
@@ -20,7 +20,7 @@ const appendAsHolder = async (args: {
   plane: Rig['plane']
   sessionId: string
   threadId: string
-  bodies: V2Body[]
+  bodies: RecordEventBody[]
 }): Promise<void> => {
   const granted = await args.plane.grant({ sessionId: args.sessionId, hostId: 9000 })
   const appended = await args.plane.append({

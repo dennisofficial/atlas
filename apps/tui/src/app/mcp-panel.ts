@@ -1,7 +1,7 @@
 import type { KeyEvent } from '@opentui/core'
 import { useCallback, useEffect, useRef, useState } from 'react'
 
-import type { Event, V2Event } from '@dltech/atlas-core'
+import type { Event, RecordEvent } from '@dltech/atlas-core'
 import { mcpSignInEntries } from '@dltech/atlas-plugin-mcp/client'
 import {
   MCP_VIEW,
@@ -39,7 +39,7 @@ export const mcpRowsOfView = (
 
 export const mcpRosterOf = (args: {
   views: Readonly<Record<string, unknown>>
-  events: readonly (Event | V2Event)[]
+  events: readonly (Event | RecordEvent)[]
 }): readonly McpServerRow[] => {
   const held = mcpRowsOfView(args.views)
   return held.length > 0 ? held : mcpRosterOfEvents(args.events)
@@ -95,7 +95,7 @@ export const mcpPanelOf = (args: {
 export function useMcpPanel(args: {
   api: SessionApi | null
   views: Readonly<Record<string, unknown>>
-  events: readonly (Event | V2Event)[]
+  events: readonly (Event | RecordEvent)[]
   openUrl: (url: string) => void
   onProblem: (reason: string) => void
 }): McpPanel {

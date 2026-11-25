@@ -4,7 +4,7 @@ import {
   sessionViewOf,
   type PluginViewFold,
   type SessionViewState,
-  type V2Event,
+  type RecordEvent,
 } from '@dltech/atlas-core'
 import { sessionSandboxStatusSchema } from '@dltech/atlas-protocol'
 import type { z } from 'zod'
@@ -114,7 +114,7 @@ export const withDigestViews = async (args: {
   now: string
   withView: boolean
   timings?: DigestTimings | undefined
-  eventSchema?: z.ZodType<V2Event> | undefined
+  eventSchema?: z.ZodType<RecordEvent> | undefined
   pluginViews?: readonly PluginViewFold[] | undefined
 }): Promise<ControlSessionDigest[]> => {
   const { tx, rows } = args

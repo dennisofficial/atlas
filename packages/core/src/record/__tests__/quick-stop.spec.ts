@@ -9,7 +9,13 @@ import type { Event } from '../../events/envelope'
 import { toCallId, toThreadId } from '../../events/ids'
 import { ERetryReason } from '../../models/retry'
 import { chainEvents } from '../chain-events'
-import { EInputConsumed, ERewindCause, v2EventSchema, type V2Body, type V2Event } from '../event'
+import {
+  EInputConsumed,
+  ERewindCause,
+  recordEventSchema,
+  type RecordEventBody,
+  type RecordEvent,
+} from '../event'
 import { visibleLoopEvents } from '../loop-events'
 import { EResumePoint, RESUME_REFUSAL_NOTHING, resumePointOf } from '../resume-point'
 import { quickStopOf, type QuickStopEnding } from '../quick-stop'
@@ -22,29 +28,32 @@ const endedByOperator: QuickStopEnding = {
   by: ETurnEndedBy.Operator,
 }
 
-const eventsOf = (bodies: readonly V2Body[]): V2Event[] =>
+const eventsOf = (bodies: readonly RecordEventBody[]): RecordEvent[] =>
   chainEvents({ threadId, runId, epoch: 1, at: NOW, bodies })
 
-const stopOf = (bodies: readonly V2Body[], ending: QuickStopEnding = endedByOperator) =>
+const stopOf = (bodies: readonly RecordEventBody[], ending: QuickStopEnding = endedByOperator) =>
   quickStopOf({ events: eventsOf(bodies), ending })
 
-const said = (text: string, over: { via?: EMessageOrigin; clientId?: string } = {}): V2Body => ({
+const said = (
+  text: string,
+  over: { via?: EMessageOrigin; clientId?: string } = {},
+): RecordEventBody => ({
   type: 'user-said',
   text,
   ...over,
 })
 
-const thought = (text: string): V2Body => ({
+const thought = (text: string): RecordEventBody => ({
   type: 'assistant-said',
   parts: [{ type: 'reasoning', text }],
 })
 
-const replied = (text: string): V2Body => ({
+const replied = (text: string): RecordEventBody => ({
   type: 'assistant-said',
   parts: [{ type: 'text', text }],
 })
 
-const started = (turnId = 'turn-1', cause = ETurnCause.Input): V2Body => ({
+const started = (turnId = 'turn-1', cause = ETurnCause.Input): RecordEventBody => ({
   type: 'turn-started',
   turnId,
   cause,
@@ -54,7 +63,7 @@ const ended = (
   turnId = 'turn-1',
   outcome = ETurnOutcome.Completed,
   by = ETurnEndedBy.Agent,
-): V2Body => ({ type: 'turn-ended', turnId, outcome, by })
+): RecordEventBody => ({ type: 'turn-ended', turnId, outcome, by })
 
 describe('quickStopOf', () => {
   it('rewinds a thinking-only stop to before the prompt', () => {
@@ -64,7 +73,7 @@ describe('quickStopOf', () => {
   })
 
   it('rewinds a thinking-only stop that came in through the inbox', () => {
-    const posted: V2Body = {
+    const posted: RecordEventBody = {
       type: 'input-posted',
       inboxId: 4,
       kind: 'message',
@@ -77,7 +86,7 @@ describe('quickStopOf', () => {
   })
 
   it('rewinds a prompt the host drained after the turn started', () => {
-    const posted: V2Body = {
+    const posted: RecordEventBody = {
       type: 'input-posted',
       inboxId: 5,
       kind: 'message',
@@ -104,7 +113,7 @@ describe('quickStopOf', () => {
   })
 
   it('keeps the turn when the model called a tool', () => {
-    const called: V2Body = {
+    const called: RecordEventBody = {
       type: 'tool-called',
       callId: toCallId('c1'),
       name: 'bash',
@@ -116,7 +125,7 @@ describe('quickStopOf', () => {
   })
 
   it('keeps the turn when a sub-agent was spawned', () => {
-    const spawned: V2Body = {
+    const spawned: RecordEventBody = {
       type: 'agent-spawned',
       agentId: toThreadId('child-thread'),
       agentType: 'general-purpose',
@@ -164,7 +173,7 @@ describe('quickStopOf', () => {
   })
 
   it('keeps a turn that did work before it started', () => {
-    const called: V2Body = {
+    const called: RecordEventBody = {
       type: 'tool-called',
       callId: toCallId('c1'),
       name: 'bash',
@@ -266,19 +275,19 @@ const userTextsOf = (assembled: Assembled): readonly string[] =>
 
 const PROMPT = 'think hard about the meaning of life'
 
-const promptFirst = (): readonly V2Body[] => [
+const promptFirst = (): readonly RecordEventBody[] => [
   said(PROMPT, { clientId: 'client-a' }),
   started(),
   thought('hm'),
 ]
 
-const startFirst = (): readonly V2Body[] => [
+const startFirst = (): readonly RecordEventBody[] => [
   started(),
   said(PROMPT, { clientId: 'client-a' }),
   thought('hm'),
 ]
 
-const rewoundOf = (bodies: () => readonly V2Body[]): V2Event[] => {
+const rewoundOf = (bodies: () => readonly RecordEventBody[]): RecordEvent[] => {
   const stop = stopOf(bodies())
   if (stop === null) throw new Error('expected a quick stop')
   return eventsOf([
@@ -321,9 +330,9 @@ describe.each([
 
   it('parses a rewind with a cause, and one without', () => {
     const [quickStop] = rewound().slice(-1)
-    const marked = v2EventSchema.safeParse(quickStop)
-    const operator = v2EventSchema.safeParse({
-      ...(quickStop as V2Event),
+    const marked = recordEventSchema.safeParse(quickStop)
+    const operator = recordEventSchema.safeParse({
+      ...(quickStop as RecordEvent),
       cause: undefined,
     })
 

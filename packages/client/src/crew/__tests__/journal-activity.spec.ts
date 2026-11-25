@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'bun:test'
 
-import { toEventId, toRunId, toThreadId, type V2Event } from '@dltech/atlas-core'
+import { toEventId, toRunId, toThreadId, type RecordEvent } from '@dltech/atlas-core'
 
 import { journalActivityOf } from '../journal-activity'
 
@@ -17,7 +17,7 @@ const at = (seq: number) => ({
   at: '2026-01-01T00:00:00.000Z',
 })
 
-const eventOf = (body: Record<string, unknown>): V2Event => {
+const eventOf = (body: Record<string, unknown>): RecordEvent => {
   sequence += 1
   return {
     ...body,
@@ -25,10 +25,10 @@ const eventOf = (body: Record<string, unknown>): V2Event => {
     runId: toRunId('run-1'),
     depth: 0,
     ...at(sequence),
-  } as V2Event
+  } as RecordEvent
 }
 
-const shellStarted = (shellId: string, bootId?: string): V2Event =>
+const shellStarted = (shellId: string, bootId?: string): RecordEvent =>
   eventOf({
     type: 'background-shell-started',
     shellId,
@@ -36,7 +36,7 @@ const shellStarted = (shellId: string, bootId?: string): V2Event =>
     ...(bootId === undefined ? {} : { bootId }),
   })
 
-const shellEnded = (shellId: string, bootId?: string): V2Event =>
+const shellEnded = (shellId: string, bootId?: string): RecordEvent =>
   eventOf({
     type: 'background-shell-ended',
     shellId,
@@ -49,7 +49,7 @@ const shellEnded = (shellId: string, bootId?: string): V2Event =>
     remainingCharacters: 0,
   })
 
-const spawned = (agentId = childId): V2Event =>
+const spawned = (agentId = childId): RecordEvent =>
   eventOf({
     type: 'agent-spawned',
     agentId,
@@ -58,7 +58,7 @@ const spawned = (agentId = childId): V2Event =>
     mode: 'background',
   })
 
-const ended = (agentId = childId): V2Event =>
+const ended = (agentId = childId): RecordEvent =>
   eventOf({
     type: 'agent-ended',
     agentId,

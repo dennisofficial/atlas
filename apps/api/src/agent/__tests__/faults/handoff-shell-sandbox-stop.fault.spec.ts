@@ -1,7 +1,7 @@
 import { expect } from 'bun:test'
 
 import { quietEndingRecordsOf } from '@dltech/atlas-control'
-import { EShellEndCause, type V2Event } from '@dltech/atlas-core'
+import { EShellEndCause, type RecordEvent } from '@dltech/atlas-core'
 
 import { describeHandoff, waitUntil, type HandoffContext } from '../../testing/handoff-suite'
 import type { HostProcess, ReadEvent } from '../../testing/fault-rig'
@@ -17,7 +17,7 @@ const turnsEnded = (ctx: HandoffContext) => rowsOf({ ctx, type: 'turn-ended' })
 
 const stopTheSandbox = async (ctx: HandoffContext): Promise<void> => {
   await ctx.daemon.restart({ keepHome: true })
-  const events = (await ctx.record()).map((row) => row.event as V2Event)
+  const events = (await ctx.record()).map((row) => row.event as RecordEvent)
   for (const record of quietEndingRecordsOf(events)) {
     await ctx.rig.plane.post({
       sessionId: ctx.sessionId,

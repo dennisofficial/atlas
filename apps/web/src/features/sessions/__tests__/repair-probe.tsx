@@ -4,7 +4,13 @@ import * as realSonner from 'sonner'
 import { act } from 'react'
 import type { Root } from 'react-dom/client'
 
-import { chainEvents, toRunId, toThreadId, type V2Body, type V2Event } from '@dltech/atlas-core'
+import {
+  chainEvents,
+  toRunId,
+  toThreadId,
+  type RecordEventBody,
+  type RecordEvent,
+} from '@dltech/atlas-core'
 
 import { TestQueryProvider, createTestQueryClient } from '@/lib/__tests__/query-test-provider'
 
@@ -96,7 +102,7 @@ mock.module('next/navigation', () => ({
   useRouter: () => ({ push: (href: string) => pushed.push(href) }),
 }))
 
-export const eventsOf = (bodies: readonly V2Body[]): V2Event[] =>
+export const eventsOf = (bodies: readonly RecordEventBody[]): RecordEvent[] =>
   chainEvents({
     threadId: MAIN,
     runId: toRunId('run-1'),
@@ -130,7 +136,7 @@ export const flush = async (): Promise<void> => {
 }
 
 export async function mountRepair(args: {
-  events: readonly V2Event[]
+  events: readonly RecordEvent[]
   onSwitchModel: () => void
 }): Promise<void> {
   const { useCredentialRepair } = await import('../data/use-credential-repair')

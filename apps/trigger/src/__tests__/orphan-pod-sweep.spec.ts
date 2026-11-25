@@ -7,7 +7,7 @@ import {
   FakeSandboxProvider,
   listing,
   scope,
-} from '@dltech/atlas-pods/pods/v2-pod-sweep.fixture'
+} from '@dltech/atlas-pods/pods/pod-sweep.fixture'
 import type { OrphanPodSweepDeps } from '../sandbox-provisioning/orphan-pod-sweep'
 import { triggerSdkFake } from './trigger-sdk.fake'
 

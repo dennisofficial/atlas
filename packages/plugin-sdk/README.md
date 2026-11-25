@@ -87,7 +87,7 @@ user; the host adds `session_id` and `thread_id`.
 ### The control and client slots
 
 `ControlSlot` holds `hooks` and `commands` (a map of control command handlers). An append hook runs
-inside the append transaction. It receives a stamped `V2Event` and returns `Promise<void>`, so it
+inside the append transaction. It receives a stamped `RecordEvent` and returns `Promise<void>`, so it
 adds a transactional side effect. It cannot rewrite the event. `ClientSlot` holds `hooks` with a
 `name` and an `appliesTo(event)` predicate, and optional `entryFolds`.
 

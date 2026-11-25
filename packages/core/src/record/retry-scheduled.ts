@@ -1,7 +1,7 @@
 import { z } from 'zod'
 
 import { ERetryReason } from '../models/retry'
-import type { V2Event } from './event'
+import type { RecordEvent } from './event'
 
 export const retryScheduledSchema = z.object({
   type: z.literal('retry-scheduled'),
@@ -16,7 +16,7 @@ export type RetryScheduled = z.infer<typeof retryScheduledSchema>
 export type ScheduledRetry = Omit<RetryScheduled, 'type'>
 
 export const retryDeadlineAfter = (params: {
-  event: V2Event
+  event: RecordEvent
   nowMs: number
 }): string | undefined => {
   const { event, nowMs } = params

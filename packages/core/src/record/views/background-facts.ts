@@ -1,5 +1,5 @@
 import { shellKey } from '../../shells/lifecycle'
-import type { V2Event } from '../event'
+import type { RecordEvent } from '../event'
 
 export type BackgroundFacts = {
   shells: readonly string[]
@@ -14,7 +14,7 @@ const withKey = (keys: readonly string[], key: string): readonly string[] =>
 const withoutKey = (keys: readonly string[], key: string): readonly string[] =>
   keys.includes(key) ? keys.filter((kept) => kept !== key) : keys
 
-export const stepBackground = (facts: BackgroundFacts, event: V2Event): BackgroundFacts => {
+export const stepBackground = (facts: BackgroundFacts, event: RecordEvent): BackgroundFacts => {
   switch (event.type) {
     case 'background-shell-started':
       return { ...facts, shells: withKey(facts.shells, shellKey(event)) }

@@ -13,7 +13,7 @@ import {
   toRunId,
   toThreadId,
   type Hash,
-  type V2Event,
+  type RecordEvent,
 } from '@dltech/atlas-core'
 import { ECommandState } from '@dltech/atlas-protocol'
 
@@ -40,7 +40,7 @@ const envelope = () => {
   }
 }
 
-const posted = (): V2Event => ({
+const posted = (): RecordEvent => ({
   ...envelope(),
   type: 'input-posted',
   inboxId: INBOX,
@@ -48,7 +48,7 @@ const posted = (): V2Event => ({
   postedAt: NOW,
 })
 
-const consumed = (args: { name?: string } = {}): V2Event => ({
+const consumed = (args: { name?: string } = {}): RecordEvent => ({
   ...envelope(),
   type: 'input-consumed',
   inboxId: INBOX,
@@ -58,7 +58,7 @@ const consumed = (args: { name?: string } = {}): V2Event => ({
     : { command: { name: args.name, argumentText: '', text: args.name } }),
 })
 
-const windowOf = (events: readonly V2Event[]): SessionWindow => ({
+const windowOf = (events: readonly RecordEvent[]): SessionWindow => ({
   ...EMPTY_WINDOW,
   events: [...events],
   pending: pendingInputsOf(events),
@@ -66,7 +66,7 @@ const windowOf = (events: readonly V2Event[]): SessionWindow => ({
   commandLog: events.filter(isCommandLogEvent),
 })
 
-const statusOf = (events: readonly V2Event[]) =>
+const statusOf = (events: readonly RecordEvent[]) =>
   deriveStatusOf({ window: windowOf(events), frame: EMPTY_FRAME_FACTS, now: Date.parse(NOW) })
 
 describe('a running command in a derived session view', () => {
@@ -89,7 +89,7 @@ describe('a running command in a derived session view', () => {
   })
 
   it('drops the row and the status once the outcome lands', () => {
-    const summarised: V2Event = {
+    const summarised: RecordEvent = {
       ...envelope(),
       type: 'history-summarised',
       fromSeq: 1,
@@ -111,7 +111,7 @@ describe('a message waiting only in the inbox in a derived session view', () => 
   }
 
   it('reads queued since the post instead of idle', () => {
-    const prepared = { ...envelope(), type: 'workspace-prepared' } as V2Event
+    const prepared = { ...envelope(), type: 'workspace-prepared' } as RecordEvent
     const status = deriveStatusOf({
       window: windowOf([prepared]),
       frame: queuedFrame,
@@ -129,7 +129,7 @@ describe('a message waiting only in the inbox in a derived session view', () => 
       inboxId: 106,
       kind: 'message',
       postedAt: NOW,
-    } as V2Event
+    } as RecordEvent
     const status = deriveStatusOf({
       window: windowOf([message]),
       frame: queuedFrame,

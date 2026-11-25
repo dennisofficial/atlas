@@ -6,7 +6,7 @@ import {
   ESessionStatus,
   WORKSPACE_STEP_ORDER,
   workspaceStepsOf,
-  type V2Event,
+  type RecordEvent,
   type WorkspaceStepStatus,
 } from '@dltech/atlas-core'
 import type { SessionSnapshot } from '@dltech/atlas-client/stream'
@@ -183,7 +183,7 @@ const atMsOf = (step: WorkspaceStepStatus | undefined): number | undefined => {
 }
 
 export const sessionBootViewOf = (args: {
-  events: readonly V2Event[]
+  events: readonly RecordEvent[]
   status: SessionSnapshot['status']
   setupOutput?: string | undefined
   catchingUp?: boolean

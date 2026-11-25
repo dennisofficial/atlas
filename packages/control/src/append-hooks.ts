@@ -1,17 +1,17 @@
-import type { V2Event } from '@dltech/atlas-core'
+import type { RecordEvent } from '@dltech/atlas-core'
 
 import type { ControlTx } from './port'
 
 export type AppendHook = {
   name: string
-  appliesTo(event: V2Event): boolean
-  handle(args: { tx: ControlTx; sessionId: string; event: V2Event }): Promise<void>
+  appliesTo(event: RecordEvent): boolean
+  handle(args: { tx: ControlTx; sessionId: string; event: RecordEvent }): Promise<void>
 }
 
 export const runAppendHooks = async (args: {
   tx: ControlTx
   sessionId: string
-  events: readonly V2Event[]
+  events: readonly RecordEvent[]
   hooks: readonly AppendHook[] | undefined
 }): Promise<void> => {
   for (const event of args.events) {

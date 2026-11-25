@@ -1,5 +1,5 @@
 import { beforeEach, describe, expect, it } from 'bun:test'
-import { spillBody, toCallId, type V2Body } from '@dltech/atlas-core'
+import { spillBody, toCallId, type RecordEventBody } from '@dltech/atlas-core'
 
 import type { ConformanceParams } from './conformance'
 import {
@@ -37,7 +37,7 @@ export function describeControlPlaneBlobs(params: ConformanceParams): void {
       const { body, blobs } = spillOnce()
       const blob = blobs[0]
       if (blob === undefined) throw new Error('expected a spill')
-      const events = mint({ bodies: [body as V2Body], epoch })
+      const events = mint({ bodies: [body as RecordEventBody], epoch })
       const outcome = await harness.plane.append({ threadId: THREAD, epoch, events, blobs })
       expect(outcome.ok).toBe(true)
       const read = await harness.plane.readBlob({ hash: blob.hash })
@@ -49,7 +49,7 @@ export function describeControlPlaneBlobs(params: ConformanceParams): void {
       const { body, blobs } = spillOnce()
       const blob = blobs[0]
       if (blob === undefined) throw new Error('expected a spill')
-      const events = mint({ bodies: [body as V2Body], epoch })
+      const events = mint({ bodies: [body as RecordEventBody], epoch })
       await harness.plane.append({ threadId: THREAD, epoch, events, blobs })
       const read = await harness.plane.readBlob({ hash: blob.hash, offset: 7, length: 11 })
       expect(read?.size).toBe(blob.bytes.byteLength)
@@ -60,11 +60,11 @@ export function describeControlPlaneBlobs(params: ConformanceParams): void {
 
     it('accepts a second append that carries the same blob', async () => {
       const { body, blobs } = spillOnce()
-      const first = mint({ bodies: [body as V2Body], epoch })
+      const first = mint({ bodies: [body as RecordEventBody], epoch })
       const won = await harness.plane.append({ threadId: THREAD, epoch, events: first, blobs })
       expect(won.ok).toBe(true)
       if (!won.ok) throw new Error('unreachable')
-      const second = mint({ bodies: [body as V2Body], epoch, from: won.head })
+      const second = mint({ bodies: [body as RecordEventBody], epoch, from: won.head })
       const outcome = await harness.plane.append({ threadId: THREAD, epoch, events: second, blobs })
       expect(outcome.ok).toBe(true)
     })
@@ -73,7 +73,7 @@ export function describeControlPlaneBlobs(params: ConformanceParams): void {
       const { body, blobs } = spillOnce()
       const blob = blobs[0]
       if (blob === undefined) throw new Error('expected a spill')
-      const events = mint({ bodies: [body as V2Body], epoch })
+      const events = mint({ bodies: [body as RecordEventBody], epoch })
       const outcome = await harness.plane.append({ threadId: THREAD, epoch, events })
       expect(outcome).toMatchObject({ ok: false, refusal: { kind: 'blob-missing' } })
       expect((await harness.plane.head({ threadId: THREAD })).seq).toBe(0)
@@ -82,10 +82,10 @@ export function describeControlPlaneBlobs(params: ConformanceParams): void {
 
     it('accepts an event that references an already-stored blob', async () => {
       const { body, blobs } = spillOnce()
-      const first = mint({ bodies: [body as V2Body], epoch })
+      const first = mint({ bodies: [body as RecordEventBody], epoch })
       const won = await harness.plane.append({ threadId: THREAD, epoch, events: first, blobs })
       if (!won.ok) throw new Error('expected the first append to commit')
-      const second = mint({ bodies: [body as V2Body], epoch, from: won.head })
+      const second = mint({ bodies: [body as RecordEventBody], epoch, from: won.head })
       const outcome = await harness.plane.append({ threadId: THREAD, epoch, events: second })
       expect(outcome.ok).toBe(true)
     })
@@ -96,7 +96,10 @@ export function describeControlPlaneBlobs(params: ConformanceParams): void {
       const keptBlob = kept.blobs[0]
       const droppedBlob = dropped.blobs[0]
       if (keptBlob === undefined || droppedBlob === undefined) throw new Error('expected spills')
-      const events = mint({ bodies: [kept.body as V2Body, dropped.body as V2Body], epoch })
+      const events = mint({
+        bodies: [kept.body as RecordEventBody, dropped.body as RecordEventBody],
+        epoch,
+      })
       const outcome = await harness.plane.append({
         threadId: THREAD,
         epoch,
@@ -113,7 +116,7 @@ export function describeControlPlaneBlobs(params: ConformanceParams): void {
       const { body, blobs } = spillOnce()
       const blob = blobs[0]
       if (blob === undefined) throw new Error('expected a spill')
-      const events = mint({ bodies: [body as V2Body], epoch })
+      const events = mint({ bodies: [body as RecordEventBody], epoch })
       await harness.plane.append({ threadId: THREAD, epoch, events, blobs })
       expect(await harness.plane.blobReferencedBy({ sessionId: SESSION, hash: blob.hash })).toBe(
         true,
@@ -134,7 +137,7 @@ export function describeControlPlaneBlobs(params: ConformanceParams): void {
       const blob = blobs[0]
       if (blob === undefined) throw new Error('expected a spill')
       const events = mint({
-        bodies: [body as V2Body, said(`stolen hash: ${blob.hash}`)],
+        bodies: [body as RecordEventBody, said(`stolen hash: ${blob.hash}`)],
         epoch,
       })
       const outcome = await harness.plane.append({ threadId: THREAD, epoch, events, blobs })
@@ -165,7 +168,7 @@ export function describeControlPlaneBlobs(params: ConformanceParams): void {
       const { body, blobs } = spillOnce()
       const blob = blobs[0]
       if (blob === undefined) throw new Error('expected a spill')
-      const events = mint({ bodies: [body as V2Body], epoch })
+      const events = mint({ bodies: [body as RecordEventBody], epoch })
       const tampered = [{ hash: blob.hash, bytes: new Uint8Array([1, 2, 3, 4]) }]
       const outcome = await harness.plane.append({
         threadId: THREAD,

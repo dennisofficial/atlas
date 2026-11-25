@@ -6,25 +6,25 @@ import {
   platformCredentialsOf,
   readPodsEnv,
   sandboxProvidersOf,
-  uniqueV2Scopes,
-  v2Pods,
-  type V2PodSweepScope,
+  uniqueScopes,
+  pods,
+  type PodSweepScope,
 } from '@dltech/atlas-pods'
 import { EPreviewTunnelState } from '@dltech/atlas-previews'
 import '../init'
 import { triggerLog } from '../trigger-logger'
 import { runOrphanPodSweep } from './orphan-pod-sweep'
 
-const v2ScopesOf = async (): Promise<V2PodSweepScope[]> => {
+const v2ScopesOf = async (): Promise<PodSweepScope[]> => {
   const env = readPodsEnv()
   const sandbox = sandboxProvidersOf({ env, db })
-  const scopes: V2PodSweepScope[] = []
+  const scopes: PodSweepScope[] = []
   for (const provider of [ESandboxProvider.Vercel, ESandboxProvider.Agent37]) {
     const credentials = platformCredentialsOf({ provider, env })
     if ('configured' in credentials) continue
     scopes.push({ label: `platform/${provider}`, credentials, sandbox: sandbox.for(provider) })
   }
-  return uniqueV2Scopes(scopes)
+  return uniqueScopes(scopes)
 }
 
 export const orphanPodSweepTask = schedules.task({
@@ -37,7 +37,7 @@ export const orphanPodSweepTask = schedules.task({
       now,
       log: (line) => triggerLog.log(line),
       deps: {
-        pods: () => v2Pods({ now }),
+        pods: () => pods({ now }),
         v2Scopes: v2ScopesOf,
         softDeleteArchived: ({ cutoff, at }) =>
           db.transaction((tx) => softDeleteArchivedSessionsIn({ tx, cutoff, at })),

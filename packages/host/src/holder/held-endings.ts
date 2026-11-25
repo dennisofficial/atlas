@@ -4,7 +4,7 @@ import {
   pendingInputsOf,
   type EventDraft,
   type InboxEntry,
-  type V2Event,
+  type RecordEvent,
 } from '@dltech/atlas-core'
 
 const heldFlagOf = (input: EventDraft): boolean =>
@@ -12,7 +12,7 @@ const heldFlagOf = (input: EventDraft): boolean =>
 
 export const heldEndingIdsOf = (args: {
   entries: readonly InboxEntry[]
-  recordEvents: readonly V2Event[]
+  recordEvents: readonly RecordEvent[]
   childrenRunning: number
 }): ReadonlySet<number> => {
   const ids = new Set<number>()

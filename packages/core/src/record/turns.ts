@@ -1,7 +1,7 @@
 import { z } from 'zod'
 
 import { EPendingWork } from '../notify/pending-work'
-import type { V2Event } from './event'
+import type { RecordEvent } from './event'
 
 export enum ETurnCause {
   Input = 'input',
@@ -52,7 +52,7 @@ export type TurnEnd = { outcome: ETurnOutcome; by: ETurnEndedBy; at: string }
 
 const startedTurn = (
   open: readonly OpenTurn[],
-  event: Extract<V2Event, { type: 'turn-started' }>,
+  event: Extract<RecordEvent, { type: 'turn-started' }>,
 ): OpenTurn[] => [
   ...open.filter((turn) => turn.turnId !== event.turnId),
   { turnId: event.turnId, startedAt: event.at },
@@ -64,7 +64,7 @@ const endedTurn = (open: readonly OpenTurn[], turnId: string): OpenTurn[] => {
   return open.filter((_, at) => at !== index)
 }
 
-export const openTurnOf = (events: readonly V2Event[]): OpenTurn | null => {
+export const openTurnOf = (events: readonly RecordEvent[]): OpenTurn | null => {
   let open: OpenTurn[] = []
   for (const event of events) {
     if (event.type === 'turn-started') open = startedTurn(open, event)

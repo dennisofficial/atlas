@@ -5,7 +5,7 @@ import {
   type Assembled,
   type EventDraft,
   type ToolOutcome,
-  type V2Event,
+  type RecordEvent,
 } from '@dltech/atlas-core'
 import {
   EMPTY_CREW,
@@ -44,7 +44,7 @@ const TOOL_OK: ToolOutcome = { ok: true, output: null, modelText: '' }
 
 export const fakeDaemon = (nodes: Record<string, FakeNode>) => {
   const calls: CallOp[] = []
-  const events: V2Event[] = []
+  const events: RecordEvent[] = []
 
   const call = async (op: CallOp): Promise<CallResult> => {
     calls.push(op)
@@ -107,7 +107,7 @@ export const fakeDaemon = (nodes: Record<string, FakeNode>) => {
     sessions: EMPTY_SESSIONS,
     worktrees: EMPTY_WORKTREES,
     append: async (drafts) => {
-      for (const draft of drafts) events.push(draft as unknown as V2Event)
+      for (const draft of drafts) events.push(draft as unknown as RecordEvent)
     },
     notify: async () => undefined,
     events: () => events,

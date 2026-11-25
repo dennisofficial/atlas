@@ -2,7 +2,7 @@ import { describe, expect, it } from 'bun:test'
 import fc from 'fast-check'
 
 import type { Event } from '../../events/envelope'
-import type { V2Event } from '../../record/event'
+import type { RecordEvent } from '../../record/event'
 import { INBOX_EVENT_TYPES } from '../../record/inbox-event'
 import { ESubscriptionStatus } from '../../subscriptions/subscription'
 import { notifyDecisionOf } from '../decision'
@@ -24,10 +24,10 @@ import {
   turnStarted,
 } from './notify-fixtures'
 
-const pendingOf = (events: readonly V2Event[]) =>
+const pendingOf = (events: readonly RecordEvent[]) =>
   pendingWorkOf({ events: events as readonly Event[] })
 
-const decisionOf = (events: readonly V2Event[]) =>
+const decisionOf = (events: readonly RecordEvent[]) =>
   notifyDecisionOf({
     moment: ENotifyMoment.TurnFinished,
     pending: pendingOf(events),
@@ -76,7 +76,7 @@ describe('PENDING_WORK_SOURCES', () => {
   })
 })
 
-const builders: readonly (() => V2Event)[] = [
+const builders: readonly (() => RecordEvent)[] = [
   turnStarted,
   turnEnded,
   operatorSaid,
@@ -91,7 +91,7 @@ const builders: readonly (() => V2Event)[] = [
   parkedCall,
 ]
 
-const builderAt = (pick: number): (() => V2Event) => {
+const builderAt = (pick: number): (() => RecordEvent) => {
   const builder = builders[pick % builders.length]
   if (builder === undefined) throw new Error(`no builder at ${pick}`)
   return builder

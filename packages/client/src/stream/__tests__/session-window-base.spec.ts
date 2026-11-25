@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'bun:test'
-import { foldableOf, isDurable, type V2Event } from '@dltech/atlas-core'
+import { foldableOf, isDurable, type RecordEvent } from '@dltech/atlas-core'
 import type { StreamServerMessage } from '@dltech/atlas-protocol'
 
 import { windowOfBase } from '../session-base'
@@ -70,7 +70,7 @@ describe('the window foldable list', () => {
     expect(foldableOf({ visible: based.events, durable: based.durable })).toEqual([
       ...based.foldable,
     ])
-    expect(based.durable.map((event: V2Event) => event.seq)).toEqual(
+    expect(based.durable.map((event: RecordEvent) => event.seq)).toEqual(
       all.filter((event) => isDurable(event.type)).map((event) => event.seq),
     )
     expect(replay.durable.map((event) => event.seq)).toEqual(

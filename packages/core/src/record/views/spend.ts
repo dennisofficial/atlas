@@ -1,6 +1,6 @@
 import { tokenSpendOf, type TokenSpend } from '../../models/cost'
 import { unpricedTokensOf, type SpendRow } from '../../models/spend-tally'
-import type { V2Event } from '../event'
+import type { RecordEvent } from '../event'
 import { stepReadingOf } from './step-reading'
 
 export type SpendState = { rows: readonly SpendRow[] }
@@ -28,7 +28,7 @@ const storedCost = (row: SpendRow, costUsd: number | undefined): number | undefi
   return (row.costUsd ?? 0) + (costUsd ?? 0)
 }
 
-export const stepSpend = (state: SpendState, event: V2Event): SpendState => {
+export const stepSpend = (state: SpendState, event: RecordEvent): SpendState => {
   const reading = stepReadingOf(event)
   if (reading === undefined) return state
   const providerId = reading.providerId ?? UNKNOWN_MODEL

@@ -1,5 +1,5 @@
 import type { ContextMeter } from '../context-meter'
-import type { V2Event } from '../event'
+import type { RecordEvent } from '../event'
 import type { SpendRow } from '../../models/spend-tally'
 import { checkoutsOf, initialCheckoutsState, stepCheckouts } from './checkouts'
 import type { CheckoutsState, CheckoutsView } from './checkouts'
@@ -51,7 +51,7 @@ export const initialSessionViewState: SessionViewState = {
   pluginViews: {},
 }
 
-export const stepSessionView = (state: SessionViewState, event: V2Event): SessionViewState => ({
+export const stepSessionView = (state: SessionViewState, event: RecordEvent): SessionViewState => ({
   version: state.version,
   at: event.seq,
   facts: stepStatusFacts(state.facts, event),
@@ -67,7 +67,7 @@ export const stepSessionView = (state: SessionViewState, event: V2Event): Sessio
 export const foldPluginViews = (args: {
   bag: Readonly<Record<string, unknown>>
   views: readonly PluginViewFold[]
-  event: V2Event
+  event: RecordEvent
 }): Readonly<Record<string, unknown>> => {
   let bag = args.bag
   for (const view of args.views) {
@@ -80,7 +80,7 @@ export const foldPluginViews = (args: {
 export const refoldRewindable = (args: {
   bag: Readonly<Record<string, unknown>>
   views: readonly PluginViewFold[]
-  surviving: readonly V2Event[]
+  surviving: readonly RecordEvent[]
 }): Readonly<Record<string, unknown>> => {
   let bag = args.bag
   for (const view of args.views) {
@@ -93,7 +93,7 @@ export const refoldRewindable = (args: {
 export const stepSessionViewWith = (args: {
   state: SessionViewState
   views: readonly PluginViewFold[]
-  event: V2Event
+  event: RecordEvent
 }): SessionViewState => {
   const state = stepSessionView(args.state, args.event)
   if (args.views.length === 0) return state
@@ -103,13 +103,13 @@ export const stepSessionViewWith = (args: {
   }
 }
 
-export const needsRebuild = (event: V2Event): boolean =>
+export const needsRebuild = (event: RecordEvent): boolean =>
   event.type === 'history-rewound' || event.type === 'history-summarised'
 
 export const rebuildEditSensitive = (args: {
   state: SessionViewState
-  visibleTail: readonly V2Event[]
-  foldableTail: readonly V2Event[]
+  visibleTail: readonly RecordEvent[]
+  foldableTail: readonly RecordEvent[]
 }): SessionViewState => ({
   ...args.state,
   facts: args.foldableTail.reduce(stepStatusFacts, initialStatusFacts),

@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'bun:test'
 
-import type { V2Event } from '@dltech/atlas-core'
+import type { RecordEvent } from '@dltech/atlas-core'
 
 import { ESkillOrigin } from '../../core'
 import { latestSkillsOf, repoSkillsOf, skillsClient } from '..'
@@ -15,7 +15,7 @@ const row = (overrides: Partial<Row> = {}): Row => ({
   ...overrides,
 })
 
-const changed = (skills: readonly Row[], n: number): V2Event =>
+const changed = (skills: readonly Row[], n: number): RecordEvent =>
   ({
     type: 'skills-changed',
     skills,
@@ -23,9 +23,9 @@ const changed = (skills: readonly Row[], n: number): V2Event =>
     at: `2026-11-18T12:00:0${n}.000Z`,
     threadId: 's1',
     id: `e${n}`,
-  }) as unknown as V2Event
+  }) as unknown as RecordEvent
 
-const said = (n: number): V2Event =>
+const said = (n: number): RecordEvent =>
   ({
     type: 'assistant-said',
     text: 'hello',
@@ -33,7 +33,7 @@ const said = (n: number): V2Event =>
     at: `2026-11-18T12:00:0${n}.000Z`,
     threadId: 's1',
     id: `e${n}`,
-  }) as unknown as V2Event
+  }) as unknown as RecordEvent
 
 describe('skillsClient', () => {
   it('applies its hook to skills-changed only', () => {

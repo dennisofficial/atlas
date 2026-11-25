@@ -7,7 +7,7 @@ import {
   toCallId,
   verifySuffix,
   toRunId,
-  type V2Event,
+  type RecordEvent,
 } from '@dltech/atlas-core'
 import { EMPTY_CREW, readResource } from '@dltech/atlas-plugin-sdk'
 import { z } from 'zod'
@@ -17,7 +17,7 @@ import type { HeldSessionDeps } from '../held-session-deps'
 import { pluginPodContextOf } from '../plugin-pod'
 import type { SessionRuntime } from '../ports'
 import { SessionRecord } from '../record/record-adapter'
-import { V2OnceLedger } from '../record/v2-once-ledger'
+import { RecordOnceLedger } from '../record/record-once-ledger'
 
 const recordLease = async (rig: Awaited<ReturnType<typeof makeRig>>) => {
   const freed = await flushUntil({ check: () => !rig.holder.heldIds().includes(SESSION) })
@@ -25,7 +25,7 @@ const recordLease = async (rig: Awaited<ReturnType<typeof makeRig>>) => {
   return rig.plane.grant({ sessionId: SESSION, hostId: 9001 })
 }
 
-const readStored = async (rig: Awaited<ReturnType<typeof makeRig>>): Promise<V2Event[]> => {
+const readStored = async (rig: Awaited<ReturnType<typeof makeRig>>): Promise<RecordEvent[]> => {
   const page = await rig.plane.readEvents({
     threadId: THREAD_ID,
     afterSeq: 0,
@@ -124,7 +124,7 @@ describe('SessionRecord blob spill', () => {
     expect(isBlobRef(storedFact.value)).toBe(true)
 
     const replay = async (candidate: SessionRecord) => {
-      const ledger = new V2OnceLedger({
+      const ledger = new RecordOnceLedger({
         cache: candidate.eventCache(),
         record: candidate,
         threadId: THREAD_ID,

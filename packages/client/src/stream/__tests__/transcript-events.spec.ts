@@ -1,5 +1,10 @@
 import { describe, expect, it } from 'bun:test'
-import { ECompactionAnchor, EInputConsumed, toCallId, type V2Body } from '@dltech/atlas-core'
+import {
+  ECompactionAnchor,
+  EInputConsumed,
+  toCallId,
+  type RecordEventBody,
+} from '@dltech/atlas-core'
 
 import { runLabel } from '../../transcript/tools'
 import { durableEntries } from '../../transcript/durable-entries'
@@ -17,12 +22,12 @@ declare module '@dltech/atlas-core' {
 
 const call = toCallId('call-1')
 
-const said = (text: string): V2Body => ({
+const said = (text: string): RecordEventBody => ({
   type: 'assistant-said',
   parts: [{ type: 'text', text }],
 })
 
-const toolBodies = (params: { input?: unknown; output?: unknown }): V2Body[] => [
+const toolBodies = (params: { input?: unknown; output?: unknown }): RecordEventBody[] => [
   { type: 'tool-called', callId: call, name: 'bash', input: params.input, ordinal: 1 },
   { type: 'tool-dispatched', callId: call, name: 'bash' },
   { type: 'tool-result', callId: call, name: 'bash', output: params.output },

@@ -1,10 +1,10 @@
 import type { Event, EventOfType } from '../events/envelope'
-import { RECORD_ONLY_TYPES, type V2Event } from './event'
+import { RECORD_ONLY_TYPES, type RecordEvent } from './event'
 import { visibleEvents } from './visibility'
 
-type Summarised = Extract<V2Event, { type: 'history-summarised' }>
+type Summarised = Extract<RecordEvent, { type: 'history-summarised' }>
 
-export const isRecordOnly = (event: V2Event): boolean => RECORD_ONLY_TYPES.has(event.type)
+export const isRecordOnly = (event: RecordEvent): boolean => RECORD_ONLY_TYPES.has(event.type)
 
 function summaryAsCompaction(summary: Summarised): EventOfType<'history-compacted'> {
   const { epoch: _epoch, prevHash: _prevHash, type: _type, ...rest } = summary
@@ -16,14 +16,14 @@ function summaryAsCompaction(summary: Summarised): EventOfType<'history-compacte
 }
 
 /** A summary reaches the loop as the compaction watermark it already renders; other record-only bodies are dropped. */
-export function toLoopEvent({ event }: { event: V2Event }): Event | undefined {
+export function toLoopEvent({ event }: { event: RecordEvent }): Event | undefined {
   if (event.type === 'history-summarised') return summaryAsCompaction(event)
   if (isRecordOnly(event)) return undefined
   const { epoch: _epoch, prevHash: _prevHash, ...loop } = event
   return loop as Event
 }
 
-export function visibleLoopEvents(log: readonly V2Event[]): Event[] {
+export function visibleLoopEvents(log: readonly RecordEvent[]): Event[] {
   return visibleEvents(log).flatMap((event) => {
     const loop = toLoopEvent({ event })
     return loop === undefined ? [] : [loop]

@@ -33,9 +33,9 @@ assembly, settings, ports, and the record folds. It imports `zod` and nothing el
 ### Name an id and build an event
 
 - `toThreadId(value)`, `toRunId(value)`, `toCallId(value)`, `toEventId(value)`: brand a string.
-- `Event`, `EventDraft`, `V2Event`, `V2Body`, `RecordBody`, `PluginEventBody`: the event and the draft.
+- `Event`, `EventDraft`, `RecordEvent`, `RecordEventBody`, `RecordBody`, `PluginEventBody`: the event and the draft.
 - `chainEvents({threadId, runId, epoch, bodies, at})`: stamp bodies in order and chain them.
-- `createV2EventSchema({pluginBodies})`, `createEventBodySchema(...)`: the decoder for a log with plugins.
+- `createRecordEventSchema({pluginBodies})`, `createEventBodySchema(...)`: the decoder for a log with plugins.
 - `CORE_EVENT_TYPES`, `RECORD_ONLY_TYPES`: the types this package declares.
 
 ### Read the log

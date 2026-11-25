@@ -5,7 +5,7 @@ import {
   type EventDraft,
   type PluginEventBody,
   type RecordBody,
-  type V2Event,
+  type RecordEvent,
 } from '@dltech/atlas-core'
 import {
   EMPTY_CREW,
@@ -45,7 +45,7 @@ export const controlOf = (args: { url: string; tunnelToken?: string }): PodContr
 export const rig = (
   options: { control?: PodControl; env?: Record<string, string>; reap?: EServiceReapOutcome } = {},
 ) => {
-  const log: V2Event[] = []
+  const log: RecordEvent[] = []
   const listeners = new Set<(frame: DaemonEventFrame) => void>()
   const calls: CallOp[] = []
   const fs = new MemoryFileSystem()
@@ -73,7 +73,7 @@ export const rig = (
         seq: log.length + 1,
         threadId: toThreadId('t1'),
         at: '2026-11-08T10:00:00.000Z',
-      } as unknown as V2Event)
+      } as unknown as RecordEvent)
     }
   }
 

@@ -1,6 +1,6 @@
 import { z } from 'zod'
 
-import type { V2Event } from './event'
+import type { RecordEvent } from './event'
 
 export const resourceLoadedSchema = z.object({
   type: z.literal('resource-loaded'),
@@ -19,7 +19,7 @@ export type ResourceLoaded = {
 export type ResourceSnapshot = { fingerprint: string; value: unknown }
 
 export const latestResourceOf = (args: {
-  events: readonly V2Event[]
+  events: readonly RecordEvent[]
   resource: string
 }): ResourceSnapshot | undefined => {
   for (let index = args.events.length - 1; index >= 0; index -= 1) {

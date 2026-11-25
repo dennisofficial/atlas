@@ -10,7 +10,7 @@ import {
   type RecordBody,
   type RunId,
   type ThreadId,
-  type V2Event,
+  type RecordEvent,
 } from '@dltech/atlas-core'
 import type { ControlPlane } from '@dltech/atlas-control'
 import type { AgentIntake, PendingDrain } from '@dltech/atlas-agent'
@@ -266,7 +266,7 @@ export class InboxIntake implements AgentIntake {
     }
   }
 
-  private events(): V2Event[] {
+  private events(): RecordEvent[] {
     return this.args.record.eventCache().eventsAfter(0)
   }
 

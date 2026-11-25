@@ -1,10 +1,10 @@
 import { describe, expect, it } from 'bun:test'
 
-import type { V2Event } from '../../event'
+import type { RecordEvent } from '../../event'
 import { checkoutsOf, initialCheckoutsState, stepCheckouts } from '../checkouts'
 import { chainEvents } from '../../chain-events'
 import { toRunId, toThreadId } from '../../../events/ids'
-import type { V2Body } from '../../event'
+import type { RecordEventBody } from '../../event'
 
 type Observation = {
   repo?: string
@@ -14,8 +14,8 @@ type Observation = {
   worktrees?: { path: string; branch: string | null; sha: string; detached: boolean }[]
 }
 
-const observed = (observations: readonly Observation[]): V2Event[] => {
-  const bodies: V2Body[] = observations.map((observation) => ({
+const observed = (observations: readonly Observation[]): RecordEvent[] => {
+  const bodies: RecordEventBody[] = observations.map((observation) => ({
     type: 'branches-observed',
     repo: observation.repo ?? '/work',
     head: observation.head ?? null,

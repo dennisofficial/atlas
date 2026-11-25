@@ -1,4 +1,9 @@
-import { foldableOf, SESSION_VIEW_VERSION, v2EventSchema, type V2Event } from '@dltech/atlas-core'
+import {
+  foldableOf,
+  SESSION_VIEW_VERSION,
+  recordEventSchema,
+  type RecordEvent,
+} from '@dltech/atlas-core'
 import type { StreamServerMessage } from '@dltech/atlas-protocol'
 import type { z } from 'zod'
 
@@ -11,8 +16,8 @@ type BaseMessage = Extract<StreamServerMessage, { type: 'base' }>
 
 const readableEventsOf = (args: {
   raw: readonly unknown[]
-  eventSchema: z.ZodType<V2Event>
-}): V2Event[] =>
+  eventSchema: z.ZodType<RecordEvent>
+}): RecordEvent[] =>
   args.raw.flatMap((raw) => {
     const parsed = args.eventSchema.safeParse(raw)
     return parsed.success ? [parsed.data] : []
@@ -20,12 +25,12 @@ const readableEventsOf = (args: {
 
 export const windowOfBase = (args: {
   message: BaseMessage
-  eventSchema?: z.ZodType<V2Event> | undefined
+  eventSchema?: z.ZodType<RecordEvent> | undefined
 }): SessionWindow | undefined => {
   const { message } = args
   if (!isVisibility(message.visibility)) return undefined
   if (!isView(message.view) || message.view.version !== SESSION_VIEW_VERSION) return undefined
-  const eventSchema = args.eventSchema ?? v2EventSchema
+  const eventSchema = args.eventSchema ?? recordEventSchema
   const durable = readableEventsOf({ raw: message.durable, eventSchema })
   return {
     events: [],
@@ -45,7 +50,7 @@ export const windowOfBase = (args: {
 export const basedStateOf = (args: {
   inner: FollowedState
   message: BaseMessage
-  eventSchema?: z.ZodType<V2Event> | undefined
+  eventSchema?: z.ZodType<RecordEvent> | undefined
 }): FollowedState | undefined => {
   const window = windowOfBase({ message: args.message, eventSchema: args.eventSchema })
   if (window === undefined) return undefined

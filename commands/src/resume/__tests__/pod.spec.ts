@@ -16,8 +16,8 @@ import {
   type EventDraft,
   type PluginEventBody,
   type RecordBody,
-  type V2Body,
-  type V2Event,
+  type RecordEventBody,
+  type RecordEvent,
 } from '@dltech/atlas-core'
 
 import { REFUSAL_RESUME_AGENT, resumeHandler } from '../pod'
@@ -26,37 +26,37 @@ const threadId = toThreadId('thread-1')
 const runId = toRunId('run-1')
 const at = '2026-01-01T00:00:00.000Z'
 
-const eventsOf = (bodies: readonly V2Body[]): V2Event[] =>
+const eventsOf = (bodies: readonly RecordEventBody[]): RecordEvent[] =>
   chainEvents({ threadId, runId, epoch: 1, at, bodies })
 
-const said = (text: string): V2Body => ({ type: 'user-said', text })
+const said = (text: string): RecordEventBody => ({ type: 'user-said', text })
 
-const replied = (text: string): V2Body => ({
+const replied = (text: string): RecordEventBody => ({
   type: 'assistant-said',
   parts: [{ type: 'text', text }],
 })
 
-const cutReply = (text: string): V2Body => ({
+const cutReply = (text: string): RecordEventBody => ({
   type: 'assistant-said',
   parts: [{ type: 'text', text }],
   interrupted: true,
   stopped: true,
 })
 
-const started = (turnId = 'turn-1'): V2Body => ({
+const started = (turnId = 'turn-1'): RecordEventBody => ({
   type: 'turn-started',
   turnId,
   cause: ETurnCause.Input,
 })
 
-const ended = (outcome: ETurnOutcome, turnId = 'turn-1'): V2Body => ({
+const ended = (outcome: ETurnOutcome, turnId = 'turn-1'): RecordEventBody => ({
   type: 'turn-ended',
   turnId,
   outcome,
   by: ETurnEndedBy.Operator,
 })
 
-const called = (callId: string): V2Body => ({
+const called = (callId: string): RecordEventBody => ({
   type: 'tool-called',
   callId: toCallId(callId),
   name: 'bash',
@@ -64,7 +64,7 @@ const called = (callId: string): V2Body => ({
   ordinal: 0,
 })
 
-const interruptedResult = (callId: string): V2Body => ({
+const interruptedResult = (callId: string): RecordEventBody => ({
   type: 'tool-result',
   callId: toCallId(callId),
   name: 'bash',
@@ -72,7 +72,7 @@ const interruptedResult = (callId: string): V2Body => ({
   interrupted: true,
 })
 
-const marker: V2Body = {
+const marker: RecordEventBody = {
   type: 'resume-marked',
   point: EResumePoint.Clean,
   discards: [{ fromSeq: 3, throughSeq: 3 }],
@@ -97,7 +97,7 @@ const stoppedTool = [
 ]
 
 const run = async (params: {
-  bodies: readonly V2Body[]
+  bodies: readonly RecordEventBody[]
   args?: unknown
   mainThreadId?: string | undefined
   crew?: { resume(args: { agentId: string }): Promise<EResumeOutcome> } | undefined

@@ -5,7 +5,7 @@ import {
   ETurnEndedBy,
   ETurnOutcome,
 } from '@dltech/atlas-core'
-import type { V2Event } from '@dltech/atlas-core'
+import type { RecordEvent } from '@dltech/atlas-core'
 import { INBOX_KIND_STOP } from '@dltech/atlas-host'
 import { expect } from 'bun:test'
 
@@ -16,31 +16,31 @@ import type { HostProcess, ReadEvent } from '../../testing/fault-rig'
 const CUT_TEXT = 'half a sentence the operator cut, and it must never reach the model again. '
 const RESUMED_TEXT = 'the resumed reply'
 
-const rowsOf = async (ctx: HandoffContext): Promise<V2Event[]> =>
-  (await ctx.record()).map((row) => row.event as V2Event)
+const rowsOf = async (ctx: HandoffContext): Promise<RecordEvent[]> =>
+  (await ctx.record()).map((row) => row.event as RecordEvent)
 
-const markersOf = async (ctx: HandoffContext): Promise<V2Event[]> =>
+const markersOf = async (ctx: HandoffContext): Promise<RecordEvent[]> =>
   (await rowsOf(ctx)).filter((event) => event.type === 'resume-marked')
 
-const consumedOf = async (ctx: HandoffContext): Promise<V2Event[]> =>
+const consumedOf = async (ctx: HandoffContext): Promise<RecordEvent[]> =>
   (await rowsOf(ctx)).filter(
     (event) => event.type === 'input-consumed' && event.consumed === EInputConsumed.Command,
   )
 
-const resumedStartsOf = async (ctx: HandoffContext): Promise<V2Event[]> =>
+const resumedStartsOf = async (ctx: HandoffContext): Promise<RecordEvent[]> =>
   (await rowsOf(ctx)).filter(
     (event) => event.type === 'turn-started' && event.cause === ETurnCause.Resume,
   )
 
-const endsOf = async (ctx: HandoffContext): Promise<V2Event[]> =>
+const endsOf = async (ctx: HandoffContext): Promise<RecordEvent[]> =>
   (await rowsOf(ctx)).filter((event) => event.type === 'turn-ended')
 
-const stoppedEndsOf = async (ctx: HandoffContext): Promise<V2Event[]> =>
+const stoppedEndsOf = async (ctx: HandoffContext): Promise<RecordEvent[]> =>
   (await endsOf(ctx)).filter(
     (event) => event.type === 'turn-ended' && event.outcome === ETurnOutcome.Stopped,
   )
 
-const cutRowsOf = async (ctx: HandoffContext): Promise<V2Event[]> =>
+const cutRowsOf = async (ctx: HandoffContext): Promise<RecordEvent[]> =>
   (await rowsOf(ctx)).filter(
     (event) => event.type === 'assistant-said' && event.interrupted === true,
   )

@@ -10,7 +10,7 @@ import {
   toCallId,
   toRunId,
   toThreadId,
-  type V2Body,
+  type RecordEventBody,
 } from '@dltech/atlas-core'
 import { ProductAnalytics } from '@dltech/atlas-observability'
 
@@ -83,7 +83,7 @@ const seed = async (plane: ControlPlane): Promise<number> => {
   return lease.epoch
 }
 
-const append = async (plane: ControlPlane, epoch: number, bodies: readonly V2Body[]) => {
+const append = async (plane: ControlPlane, epoch: number, bodies: readonly RecordEventBody[]) => {
   const outcome = await plane.append({
     threadId: THREAD,
     epoch,

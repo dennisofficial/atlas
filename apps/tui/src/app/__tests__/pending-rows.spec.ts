@@ -1,6 +1,6 @@
 import { describe, expect, test } from 'bun:test'
 
-import { EMessageOrigin, pendingInputsOf, type V2Body } from '@dltech/atlas-core'
+import { EMessageOrigin, pendingInputsOf, type RecordEventBody } from '@dltech/atlas-core'
 import { mintEvents } from '@dltech/atlas-client/stream-fixture'
 
 import { EPendingKind, type PendingRow } from '../../store'
@@ -20,7 +20,7 @@ const posted = (args: {
   text: string
   clientId?: string
   via?: EMessageOrigin
-}): V2Body => ({
+}): RecordEventBody => ({
   type: 'input-posted',
   inboxId: args.inboxId,
   kind: 'message',
@@ -33,7 +33,7 @@ const posted = (args: {
 })
 
 const rowsOf = (args: {
-  bodies?: readonly V2Body[]
+  bodies?: readonly RecordEventBody[]
   staged?: readonly StagedMessage[]
   refused?: readonly StagedMessage[]
 }): readonly PendingRow[] =>

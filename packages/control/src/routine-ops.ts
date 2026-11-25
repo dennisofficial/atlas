@@ -4,7 +4,7 @@ import {
   EMessageOrigin,
   ESessionStatus,
   type PluginViewFold,
-  type V2Event,
+  type RecordEvent,
 } from '@dltech/atlas-core'
 import { INBOX_KIND_MESSAGE } from '@dltech/atlas-protocol'
 import type { z } from 'zod'
@@ -53,7 +53,7 @@ const busyStateOf = async (params: {
   routine: RoutineRow
   now: string
   wedgedAfterMs: number
-  eventSchema?: z.ZodType<V2Event> | undefined
+  eventSchema?: z.ZodType<RecordEvent> | undefined
   pluginViews?: readonly PluginViewFold[] | undefined
 }): Promise<ESessionStatus | undefined> => {
   const lastSessionId = params.routine.lastSessionId
@@ -95,7 +95,7 @@ export const runRoutineIn = async (
   params: RunRoutineParams & {
     tx: ControlTx
     leases: LeaseOps
-    eventSchema?: z.ZodType<V2Event> | undefined
+    eventSchema?: z.ZodType<RecordEvent> | undefined
     pluginViews?: readonly PluginViewFold[] | undefined
   },
 ): Promise<RunRoutineResult> => {

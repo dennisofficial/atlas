@@ -1,4 +1,4 @@
-import { v2EventSchema, type V2Event } from '@dltech/atlas-core'
+import { recordEventSchema, type RecordEvent } from '@dltech/atlas-core'
 import type { z } from 'zod'
 
 import {
@@ -23,7 +23,7 @@ export const SESSION_LOG_EVENTS_STORE = 'events'
 export const SESSION_LOG_SNAPSHOTS_STORE = 'snapshots'
 export const SESSION_LOG_LEGACY_STORES = ['windows'] as const
 
-type LogRow = { sessionId: string; seq: number; event: V2Event }
+type LogRow = { sessionId: string; seq: number; event: RecordEvent }
 
 type SnapshotRow = {
   sessionId: string
@@ -75,7 +75,10 @@ const rowsOf = (value: unknown): readonly LogRow[] => {
   )
 }
 
-const eventsOf = (rows: readonly LogRow[], schema: z.ZodType<V2Event>): readonly V2Event[] =>
+const eventsOf = (
+  rows: readonly LogRow[],
+  schema: z.ZodType<RecordEvent>,
+): readonly RecordEvent[] =>
   rows.flatMap((row) => (schema.safeParse(row.event).success ? [row.event] : []))
 
 const readCursor = async (args: {
@@ -83,8 +86,8 @@ const readCursor = async (args: {
   range: unknown
   count: number
   direction: 'next' | 'prev'
-  schema: z.ZodType<V2Event>
-}): Promise<readonly V2Event[]> => {
+  schema: z.ZodType<RecordEvent>
+}): Promise<readonly RecordEvent[]> => {
   const rows: LogRow[] = []
   const request = args.store.openCursor(args.range, args.direction)
   await new Promise<void>((resolve, reject) => {
@@ -111,11 +114,11 @@ const readCursor = async (args: {
 export function createIndexedDbSessionLog(args: {
   factory: IdbFactory | undefined
   keyRanges?: IdbKeyRangeFactory | undefined
-  eventSchema?: z.ZodType<V2Event> | undefined
+  eventSchema?: z.ZodType<RecordEvent> | undefined
 }): SessionLog {
   const { factory } = args
   const keyRanges = args.keyRanges ?? defaultKeyRangeFactory()
-  const schema = args.eventSchema ?? v2EventSchema
+  const schema = args.eventSchema ?? recordEventSchema
   const sessionRange = (sessionId: string) =>
     keyRanges === undefined
       ? undefined
@@ -144,8 +147,8 @@ export function createIndexedDbSessionLog(args: {
     sessionId: string
     fromSeq: number
     toSeq: number
-  }): Promise<readonly V2Event[]> =>
-    withDatabase<readonly V2Event[]>({
+  }): Promise<readonly RecordEvent[]> =>
+    withDatabase<readonly RecordEvent[]>({
       fallback: [],
       use: async (db) => {
         const tx = db.transaction(SESSION_LOG_EVENTS_STORE, 'readonly')
@@ -191,7 +194,7 @@ export function createIndexedDbSessionLog(args: {
       }),
     readRange,
     readTail: ({ sessionId, count }) =>
-      withDatabase<readonly V2Event[]>({
+      withDatabase<readonly RecordEvent[]>({
         fallback: [],
         use: (db) =>
           readCursor({
@@ -205,7 +208,7 @@ export function createIndexedDbSessionLog(args: {
           }),
       }),
     readBefore: ({ sessionId, seq, count }) =>
-      withDatabase<readonly V2Event[]>({
+      withDatabase<readonly RecordEvent[]>({
         fallback: [],
         use: (db) =>
           readCursor({
@@ -291,7 +294,7 @@ export function createIndexedDbSessionLog(args: {
   }
 }
 
-export const browserSessionLog = (eventSchema?: z.ZodType<V2Event>): SessionLog =>
+export const browserSessionLog = (eventSchema?: z.ZodType<RecordEvent>): SessionLog =>
   createIndexedDbSessionLog({
     factory: defaultIndexedDbFactory(),
     eventSchema,

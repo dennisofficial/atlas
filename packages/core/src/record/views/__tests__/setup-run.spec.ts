@@ -3,54 +3,54 @@ import { describe, expect, it } from 'bun:test'
 import { toRunId, toThreadId } from '../../../events/ids'
 import { ESetupPhase } from '../../../workspace/setup-notice'
 import { chainEvents } from '../../chain-events'
-import type { V2Body, V2Event } from '../../event'
+import type { RecordEventBody, RecordEvent } from '../../event'
 import { EWorkspaceStep, EWorkspaceStepState } from '../../workspace'
 import { initialStatusFacts, setupRunningOf, stepStatusFacts } from '../status-facts'
 
 const FIRST_MS = Date.parse('2026-11-22T03:06:48.000Z')
 const MINUTE_MS = 60_000
 
-const setupStartedStep: V2Body = {
+const setupStartedStep: RecordEventBody = {
   type: 'workspace-step',
   step: EWorkspaceStep.Setup,
   state: EWorkspaceStepState.Started,
   command: 'bun install',
 }
 
-const cloneStartedStep: V2Body = {
+const cloneStartedStep: RecordEventBody = {
   type: 'workspace-step',
   step: EWorkspaceStep.Clone,
   state: EWorkspaceStepState.Started,
 }
 
-const setupDoneStep: V2Body = {
+const setupDoneStep: RecordEventBody = {
   type: 'workspace-step',
   step: EWorkspaceStep.Setup,
   state: EWorkspaceStepState.Done,
   command: 'bun install',
 }
 
-const startedReport: V2Body = {
+const startedReport: RecordEventBody = {
   type: 'sandbox-setup-reported',
   text: 'the project setup script started in the background',
   failed: false,
   phase: ESetupPhase.Started,
 }
 
-const finishedReport: V2Body = {
+const finishedReport: RecordEventBody = {
   type: 'sandbox-setup-reported',
   text: 'the project setup script finished after 40s',
   failed: false,
   phase: ESetupPhase.Finished,
 }
 
-const warningReport: V2Body = {
+const warningReport: RecordEventBody = {
   type: 'sandbox-setup-reported',
   text: 'setup reported warnings',
   failed: true,
 }
 
-const eventsOf = (bodies: readonly V2Body[]): V2Event[] =>
+const eventsOf = (bodies: readonly RecordEventBody[]): RecordEvent[] =>
   chainEvents({
     threadId: toThreadId('t'),
     runId: toRunId('r'),
@@ -59,7 +59,7 @@ const eventsOf = (bodies: readonly V2Body[]): V2Event[] =>
     bodies,
   }).map((event) => ({ ...event, at: new Date(FIRST_MS + event.seq * MINUTE_MS).toISOString() }))
 
-const runningAt = (args: { events: readonly V2Event[]; minute: number }): boolean =>
+const runningAt = (args: { events: readonly RecordEvent[]; minute: number }): boolean =>
   setupRunningOf({
     run: args.events.reduce(stepStatusFacts, initialStatusFacts).setupRun,
     now: new Date(FIRST_MS + args.minute * MINUTE_MS).toISOString(),

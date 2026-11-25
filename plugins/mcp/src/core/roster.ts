@@ -1,4 +1,4 @@
-import type { Event, PluginViewFold, V2Event } from '@dltech/atlas-core'
+import type { Event, PluginViewFold, RecordEvent } from '@dltech/atlas-core'
 
 import './roster-events'
 import { mcpServerRowSchema, type McpServerRow } from './row'
@@ -12,7 +12,10 @@ const upsert = (state: McpRosterState, row: McpServerRow): McpRosterState =>
     ? state.map((kept) => (kept.name === row.name ? row : kept))
     : [...state, row]
 
-export const foldMcpRoster = (state: McpRosterState, event: Event | V2Event): McpRosterState => {
+export const foldMcpRoster = (
+  state: McpRosterState,
+  event: Event | RecordEvent,
+): McpRosterState => {
   if (event.type === 'mcp-server-changed') {
     return upsert(state, mcpServerRowSchema.parse(event.row))
   }
@@ -28,5 +31,5 @@ export const mcpRosterView: PluginViewFold<McpRosterState> = {
   fold: foldMcpRoster,
 }
 
-export const mcpRosterOfEvents = (events: readonly (Event | V2Event)[]): McpRosterState =>
+export const mcpRosterOfEvents = (events: readonly (Event | RecordEvent)[]): McpRosterState =>
   events.reduce(foldMcpRoster, mcpRosterView.initial)

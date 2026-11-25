@@ -2,7 +2,7 @@ import { writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 
-import type { V2Event } from '@dltech/atlas-core'
+import type { RecordEvent } from '@dltech/atlas-core'
 import { expect } from 'bun:test'
 
 import type { HostKnobs, HostProcess } from '../../testing/fault-rig'
@@ -24,13 +24,13 @@ const NOTICE = 'agents-ended'
 
 const KNOBS: HostKnobs = { plugins: true, modelRequestsFile: REQUESTS }
 
-const parentEvents = async (ctx: HandoffContext): Promise<V2Event[]> =>
-  (await ctx.record()).map((row) => row.event as V2Event)
+const parentEvents = async (ctx: HandoffContext): Promise<RecordEvent[]> =>
+  (await ctx.record()).map((row) => row.event as RecordEvent)
 
 const threadEventsOf = async (args: {
   ctx: HandoffContext
   threadId: string
-}): Promise<V2Event[]> => {
+}): Promise<RecordEvent[]> => {
   const page = await args.ctx.rig.plane.readEvents({
     threadId: args.threadId,
     afterSeq: 0,
@@ -40,21 +40,21 @@ const threadEventsOf = async (args: {
   return [...page.events]
 }
 
-const ofType = <T extends V2Event['type']>(
-  events: readonly V2Event[],
+const ofType = <T extends RecordEvent['type']>(
+  events: readonly RecordEvent[],
   type: T,
-): Extract<V2Event, { type: T }>[] =>
-  events.filter((event): event is Extract<V2Event, { type: T }> => event.type === type)
+): Extract<RecordEvent, { type: T }>[] =>
+  events.filter((event): event is Extract<RecordEvent, { type: T }> => event.type === type)
 
-const childIdOf = (events: readonly V2Event[], intent: string): string => {
+const childIdOf = (events: readonly RecordEvent[], intent: string): string => {
   const spawn = ofType(events, 'agent-spawned').find((event) => event.intent === intent)
   if (spawn === undefined) throw new Error(`the record never carried a sub-agent for ${intent}`)
   return spawn.agentId
 }
 
-const callOf = (event: V2Event): string | undefined => (event as { callId?: string }).callId
+const callOf = (event: RecordEvent): string | undefined => (event as { callId?: string }).callId
 
-const saidOf = (events: readonly V2Event[], text: string): boolean =>
+const saidOf = (events: readonly RecordEvent[], text: string): boolean =>
   events.some((event) => event.type === 'assistant-said' && JSON.stringify(event).includes(text))
 
 const waitsForText = async (args: {

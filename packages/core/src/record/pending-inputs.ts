@@ -1,5 +1,5 @@
 import type { EventBody } from '../events/body'
-import type { V2Event } from './event'
+import type { RecordEvent } from './event'
 import { inputMessageOfRow, type InputMessage } from './input-message'
 import { isMessageInputKind } from './input-events'
 import { INBOX_KIND_EVENT } from './inbox-event'
@@ -27,7 +27,7 @@ const withoutInbox = (
   return { pending: state.pending.filter((entry) => entry.inboxId !== inboxId) }
 }
 
-const postedEntry = (event: Extract<V2Event, { type: 'input-posted' }>): PendingInput => {
+const postedEntry = (event: Extract<RecordEvent, { type: 'input-posted' }>): PendingInput => {
   const message = inputMessageOfRow(event)
   return {
     inboxId: event.inboxId,
@@ -41,7 +41,7 @@ const postedEntry = (event: Extract<V2Event, { type: 'input-posted' }>): Pending
 
 const withPosted = (
   state: PendingInputsState,
-  event: Extract<V2Event, { type: 'input-posted' }>,
+  event: Extract<RecordEvent, { type: 'input-posted' }>,
 ): PendingInputsState => {
   if (state.pending.some((entry) => entry.inboxId === event.inboxId)) return state
   const entry = postedEntry(event)
@@ -50,7 +50,7 @@ const withPosted = (
   return { pending: [...state.pending.slice(0, at), entry, ...state.pending.slice(at)] }
 }
 
-export function stepPending(state: PendingInputsState, event: V2Event): PendingInputsState {
+export function stepPending(state: PendingInputsState, event: RecordEvent): PendingInputsState {
   switch (event.type) {
     case 'input-posted':
       return withPosted(state, event)
@@ -66,7 +66,7 @@ export function stepPending(state: PendingInputsState, event: V2Event): PendingI
   }
 }
 
-export const pendingInputsOf = (events: readonly V2Event[]): PendingInputsState =>
+export const pendingInputsOf = (events: readonly RecordEvent[]): PendingInputsState =>
   events.reduce(stepPending, EMPTY_PENDING)
 
 export const pendingMessagesOf = (state: PendingInputsState): readonly PendingInput[] =>

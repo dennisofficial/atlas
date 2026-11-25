@@ -4,7 +4,7 @@ import type { StepReading } from '../../../events/body'
 import { toRunId, toThreadId } from '../../../events/ids'
 import type { SpendRow } from '../../../models/spend-tally'
 import { chainEvents } from '../../chain-events'
-import type { V2Body } from '../../event'
+import type { RecordEventBody } from '../../event'
 import { initialSpendState, stepSpend, type SpendState } from '../spend'
 
 const THREAD = toThreadId('t')
@@ -26,7 +26,9 @@ const folding = (readings: readonly StepReading[], from: SpendState = initialSpe
     runId: RUN,
     epoch: 1,
     at: AT,
-    bodies: readings.map((usage): V2Body => ({ type: 'assistant-said', parts: [], usage })),
+    bodies: readings.map(
+      (usage): RecordEventBody => ({ type: 'assistant-said', parts: [], usage }),
+    ),
   }).reduce(stepSpend, from)
 
 const only = (state: SpendState): SpendRow => {

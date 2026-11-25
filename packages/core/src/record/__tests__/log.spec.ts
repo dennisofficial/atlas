@@ -3,14 +3,14 @@ import fc from 'fast-check'
 
 import { GENESIS_HASH, chainHash, verifySuffix, type LogHead } from '../chain'
 import { chainEvents } from '../chain-events'
-import type { V2Event } from '../event'
+import type { RecordEvent } from '../event'
 import { acceptAppend } from '../log'
 import { NOW, lease, mint, runId, threadId, userSaid } from './support'
 
 const genesis: LogHead = { seq: 0, hash: GENESIS_HASH }
 
-const headAfter = (events: V2Event[]): LogHead => {
-  const last = events[events.length - 1] as V2Event
+const headAfter = (events: RecordEvent[]): LogHead => {
+  const last = events[events.length - 1] as RecordEvent
   return { seq: last.seq, hash: chainHash(last) }
 }
 
@@ -86,7 +86,7 @@ describe('acceptAppend', () => {
     })
     const gap = mint({ count: 2 }).slice(1)
     const gapAndBadHash = gap.map(
-      (e) => ({ ...e, prevHash: GENESIS_HASH.replace(/0/, '1') }) as V2Event,
+      (e) => ({ ...e, prevHash: GENESIS_HASH.replace(/0/, '1') }) as RecordEvent,
     )
     expect(
       acceptAppend({ head: genesis, lease: lease(), epoch: 3, events: gapAndBadHash }),
@@ -116,7 +116,7 @@ describe('acceptAppend', () => {
         const events = mint({ count: n })
         const at = pick % (n - 1)
         const tampered = events.map((e, index) =>
-          index === at ? ({ ...e, type: 'user-said', text: `${text}!` } as V2Event) : e,
+          index === at ? ({ ...e, type: 'user-said', text: `${text}!` } as RecordEvent) : e,
         )
         const result = acceptAppend({
           head: genesis,
@@ -132,7 +132,7 @@ describe('acceptAppend', () => {
   it('refuses a wrong first prevHash as hash-mismatch', () => {
     const events = mint({
       count: 1,
-      from: { seq: 0, hash: chainHash(mint({ count: 1 })[0] as V2Event) },
+      from: { seq: 0, hash: chainHash(mint({ count: 1 })[0] as RecordEvent) },
     })
     const result = acceptAppend({ head: genesis, lease: lease(), epoch: 3, events })
     expect(result).toEqual({ ok: false, refusal: { kind: 'hash-mismatch', atSeq: 1 } })
@@ -152,7 +152,7 @@ describe('verifySuffix', () => {
         const events = mint({ count: n })
         const split = cut % n
         const trusted: LogHead =
-          split === 0 ? genesis : { seq: split, hash: chainHash(events[split - 1] as V2Event) }
+          split === 0 ? genesis : { seq: split, hash: chainHash(events[split - 1] as RecordEvent) }
         const result = verifySuffix({ trusted, events: events.slice(split) })
         expect(result).toEqual({ ok: true, head: headAfter(events) })
       }),
@@ -165,7 +165,7 @@ describe('verifySuffix', () => {
         const events = mint({ count: n })
         const at = pick % (n - 1)
         const stored = events.map((e, i) =>
-          i === at ? ({ ...e, type: 'user-said', text: 'forged' } as V2Event) : e,
+          i === at ? ({ ...e, type: 'user-said', text: 'forged' } as RecordEvent) : e,
         )
         const result = verifySuffix({ trusted: genesis, events: stored })
         expect(result).toEqual({ ok: false, atSeq: at + 2, reason: 'hash-mismatch' })
@@ -176,7 +176,10 @@ describe('verifySuffix', () => {
   it('reports a gap or a wrong start as seq-mismatch', () => {
     const events = mint({ count: 4 })
     expect(
-      verifySuffix({ trusted: genesis, events: [events[0] as V2Event, events[2] as V2Event] }),
+      verifySuffix({
+        trusted: genesis,
+        events: [events[0] as RecordEvent, events[2] as RecordEvent],
+      }),
     ).toEqual({
       ok: false,
       atSeq: 3,
@@ -205,6 +208,6 @@ describe('chainEvents', () => {
     })
     expect(events.map((e) => e.seq)).toEqual([1, 2])
     expect(events[0]?.prevHash).toBe(GENESIS_HASH)
-    expect(events[1]?.prevHash).toBe(chainHash(events[0] as V2Event))
+    expect(events[1]?.prevHash).toBe(chainHash(events[0] as RecordEvent))
   })
 })

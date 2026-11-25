@@ -6,7 +6,7 @@ import { endPodTerminals } from '../pod-terminals'
 
 const NOW = new Date('2026-11-19T06:00:00Z')
 
-const v2Session = async (args: { id: string; podSessionId?: string }): Promise<void> => {
+const seedSession = async (args: { id: string; podSessionId?: string }): Promise<void> => {
   await db.orm.public.Session.create({
     id: args.id,
     userId: 'user-a',
@@ -45,9 +45,9 @@ describe('endPodTerminals', () => {
 
   it('ends the open terminals of every session on a pod that is gone', async () => {
     await seedUser({ db, id: 'user-a' })
-    await v2Session({ id: 'ses-root', podSessionId: 'pod-1' })
-    await v2Session({ id: 'ses-peer', podSessionId: 'pod-1' })
-    await v2Session({ id: 'ses-elsewhere', podSessionId: 'pod-2' })
+    await seedSession({ id: 'ses-root', podSessionId: 'pod-1' })
+    await seedSession({ id: 'ses-peer', podSessionId: 'pod-1' })
+    await seedSession({ id: 'ses-elsewhere', podSessionId: 'pod-2' })
     await terminal({ sessionId: 'ses-root', terminalId: 't1', ordinal: 1, state: 'open' })
     await terminal({ sessionId: 'ses-peer', terminalId: 't2', ordinal: 1, state: 'open' })
     await terminal({ sessionId: 'ses-root', terminalId: 't3', ordinal: 2, state: 'ended' })
@@ -70,7 +70,7 @@ describe('endPodTerminals', () => {
 
   it('ends the terminals of a root pod, named by its own session id', async () => {
     await seedUser({ db, id: 'user-a' })
-    await v2Session({ id: 'ses-solo' })
+    await seedSession({ id: 'ses-solo' })
     await terminal({ sessionId: 'ses-solo', terminalId: 't1', ordinal: 1, state: 'open' })
 
     expect(await endPodTerminals({ podSessionIds: ['ses-solo'] })).toBe(1)
@@ -81,7 +81,7 @@ describe('endPodTerminals', () => {
 
   it('ignores a pod that never hosted a v2 session', async () => {
     await seedUser({ db, id: 'user-a' })
-    await v2Session({ id: 'ses-root', podSessionId: 'pod-1' })
+    await seedSession({ id: 'ses-root', podSessionId: 'pod-1' })
     await terminal({ sessionId: 'ses-root', terminalId: 't1', ordinal: 1, state: 'open' })
 
     expect(await endPodTerminals({ podSessionIds: ['pod-elsewhere'] })).toBe(0)

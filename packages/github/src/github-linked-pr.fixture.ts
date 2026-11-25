@@ -15,7 +15,7 @@ export async function seedLinkedPr(
 
 /**
  * The link outlives the subscription that created it: plugins/github `subscription-created` writes
- * a V2SessionPullRequest row that nothing deletes when the lease lapses, and that row is what the
+ * a SessionPullRequest row that nothing deletes when the lease lapses, and that row is what the
  * session view and the change announcement read.
  */
 async function seedSessionLink(args: {

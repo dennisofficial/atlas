@@ -5,7 +5,7 @@ import { PostgresControlStore } from '@dltech/atlas-control/postgres'
 import { useTestDatabase } from '@dltech/atlas-db/testing'
 import { createDb } from '@dltech/atlas-db'
 import { INBOX_KIND_MESSAGE } from '@dltech/atlas-protocol'
-import { EMessageOrigin, GENESIS_HASH, verifySuffix, type V2Event } from '@dltech/atlas-core'
+import { EMessageOrigin, GENESIS_HASH, verifySuffix, type RecordEvent } from '@dltech/atlas-core'
 
 import { LocalSandboxProvider } from '../testing/local-sandbox-provider'
 import {
@@ -125,7 +125,7 @@ describe('agent-host e2e', () => {
     expect(names).toEqual(['bash', 'write', 'read', 'edit', 'grep'])
     const chain = verifySuffix({
       trusted: { seq: 0, hash: GENESIS_HASH },
-      events: events.map((row) => row.event as V2Event),
+      events: events.map((row) => row.event as RecordEvent),
     })
     expect(chain).toMatchObject({ ok: true })
     holder.discard()

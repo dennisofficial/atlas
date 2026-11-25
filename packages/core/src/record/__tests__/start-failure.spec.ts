@@ -1,22 +1,27 @@
 import { describe, expect, it } from 'bun:test'
 
 import { chainEvents } from '../chain-events'
-import { v2EventSchema, type V2Body } from '../event'
+import { recordEventSchema, type RecordEventBody } from '../event'
 import { isRecordOnly } from '../loop-events'
 import { ESessionStatus, sessionStatusOf } from '../session-status'
 import { activeStartFailure } from '../start-failure'
 import { NOW, runId, threadId } from './support'
 
-const log = (bodies: V2Body[]) => chainEvents({ threadId, runId, epoch: 1, at: NOW, bodies })
+const log = (bodies: RecordEventBody[]) =>
+  chainEvents({ threadId, runId, epoch: 1, at: NOW, bodies })
 
-const failed = (inboxHead: number, permanent = false): V2Body => ({
+const failed = (inboxHead: number, permanent = false): RecordEventBody => ({
   type: 'session-start-failed',
   reason: 'sandbox is not configured: no token',
   inboxHead,
   permanent,
 })
 
-const status = (args: { bodies: V2Body[]; messageAfterFailure?: boolean; pending?: boolean }) =>
+const status = (args: {
+  bodies: RecordEventBody[]
+  messageAfterFailure?: boolean
+  pending?: boolean
+}) =>
   sessionStatusOf({
     events: log(args.bodies),
     live: false,
@@ -28,7 +33,7 @@ const status = (args: { bodies: V2Body[]; messageAfterFailure?: boolean; pending
 describe('session-start-failed', () => {
   it('round-trips through the v2 event schema as a record-only event', () => {
     const [event] = log([failed(3, true)])
-    const parsed = v2EventSchema.parse(event)
+    const parsed = recordEventSchema.parse(event)
     expect(parsed.type).toBe('session-start-failed')
     expect(isRecordOnly(parsed)).toBe(true)
   })
@@ -36,7 +41,7 @@ describe('session-start-failed', () => {
   it('rejects a failure without a permanence flag', () => {
     const [event] = log([failed(1)])
     const { permanent: _permanent, ...partial } = event as unknown as Record<string, unknown>
-    expect(v2EventSchema.safeParse(partial).success).toBe(false)
+    expect(recordEventSchema.safeParse(partial).success).toBe(false)
   })
 })
 
@@ -54,7 +59,7 @@ describe('activeStartFailure', () => {
     expect(activeStartFailure(log([{ type: 'workspace-prepared' }]))).toBeUndefined()
   })
 
-  it.each<[string, V2Body]>([
+  it.each<[string, RecordEventBody]>([
     ['a user message', { type: 'user-said', text: 'hi' }],
     ['an assistant reply', { type: 'assistant-said', parts: [{ type: 'text', text: 'ok' }] }],
     ['a prepared workspace', { type: 'workspace-prepared' }],

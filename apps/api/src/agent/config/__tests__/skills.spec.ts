@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'bun:test'
 
-import { toThreadId, type Assembled, type V2Event } from '@dltech/atlas-core'
+import { toThreadId, type Assembled, type RecordEvent } from '@dltech/atlas-core'
 import { useTestDatabase } from '@dltech/atlas-db/testing'
 import type { Db } from '@dltech/atlas-db'
 import { SKILL_LISTING_HEADING, skillsPodOf } from '@dltech/atlas-plugin-skills/pod'
@@ -22,11 +22,11 @@ const readAs = async (args: {
     cloud: () => port.source(SESSION),
     writes: () => port.writer(SESSION),
   })
-  const events: V2Event[] = []
+  const events: RecordEvent[] = []
   const ctx = {
     ...podContextOf(SESSION),
     append: async (drafts: readonly unknown[]) => {
-      for (const draft of drafts) events.push(draft as V2Event)
+      for (const draft of drafts) events.push(draft as RecordEvent)
     },
     events: () => events,
   }

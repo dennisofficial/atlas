@@ -1,4 +1,4 @@
-import { chainHash, ETurnCause, SESSION_VIEW_VERSION, type V2Event } from '@dltech/atlas-core'
+import { chainHash, ETurnCause, SESSION_VIEW_VERSION, type RecordEvent } from '@dltech/atlas-core'
 import {
   EStreamResetReason,
   STREAM_TAIL_EVENTS,
@@ -22,7 +22,7 @@ const hashAtOf = async (args: {
     limit: 1,
     visible: false,
   })
-  const event: V2Event | undefined = page.events[0]
+  const event: RecordEvent | undefined = page.events[0]
   if (event === undefined) throw new Error(`no event ${args.seq}`)
   return chainHash(event)
 }

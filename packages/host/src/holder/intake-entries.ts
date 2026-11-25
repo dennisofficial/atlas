@@ -5,7 +5,7 @@ import {
   INBOX_KIND_STOP,
   retryReopenDraftsOf,
   type InboxEntry,
-  type V2Event,
+  type RecordEvent,
 } from '@dltech/atlas-core'
 import { INBOX_KIND_MESSAGE } from '@dltech/atlas-protocol'
 import { INBOX_KIND_OPERATOR_ANSWER } from '@dltech/atlas-plugin-operator/core'
@@ -24,7 +24,7 @@ export type EntryDrain = { drainable: StagedDrainable[]; wakesTurn: boolean }
 
 export const drainEntries = async (args: {
   entries: readonly InboxEntry[]
-  events: readonly V2Event[]
+  events: readonly RecordEvent[]
   scope: EIntakeScope
   resolved: ReadonlySet<number>
   superseded: ReadonlySet<number>

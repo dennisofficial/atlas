@@ -4,9 +4,9 @@ import {
   toThreadId,
   type LogHead,
   type PluginViewFold,
-  type V2Body,
-  type V2Event,
-  type V2EventType,
+  type RecordEventBody,
+  type RecordEvent,
+  type RecordEventType,
 } from '@dltech/atlas-core'
 
 import type { AppendHook } from '../../append-hooks'
@@ -26,7 +26,7 @@ export type Harness = { plane: ControlPlane; setNow: (iso: string) => void }
 
 export function makeHarness(
   store: ControlStorePort,
-  eventSchema?: z.ZodType<V2Event> | undefined,
+  eventSchema?: z.ZodType<RecordEvent> | undefined,
   options?: {
     pluginViews?: readonly PluginViewFold[] | undefined
     appendHooks?: readonly AppendHook[] | undefined
@@ -74,14 +74,14 @@ export const createSessionParams = (params: {
   sandboxInstanceId: null,
 })
 
-export const said = (text: string): V2Body => ({ type: 'user-said', text })
+export const said = (text: string): RecordEventBody => ({ type: 'user-said', text })
 
 export const mint = (params: {
-  bodies: readonly V2Body[]
+  bodies: readonly RecordEventBody[]
   epoch: number
   from?: LogHead | undefined
   threadId?: string | undefined
-}): V2Event[] =>
+}): RecordEvent[] =>
   chainEvents({
     threadId: toThreadId(params.threadId ?? THREAD),
     runId: toRunId('run-1'),
@@ -93,7 +93,7 @@ export const mint = (params: {
 
 export async function appendBodies(params: {
   harness: Harness
-  bodies: readonly V2Body[]
+  bodies: readonly RecordEventBody[]
   epoch: number
 }) {
   const head = await params.harness.plane.head({ threadId: THREAD })
@@ -111,9 +111,9 @@ export async function readAll(params: {
   harness: Harness
   visible: boolean
   limit?: number
-  hiddenTypes?: readonly V2EventType[]
+  hiddenTypes?: readonly RecordEventType[]
 }) {
-  const out: V2Event[] = []
+  const out: RecordEvent[] = []
   let afterSeq = 0
   for (;;) {
     const page = await params.harness.plane.readEvents({

@@ -1,4 +1,4 @@
-import { blobRefsOf, sha256Hex, type V2Event } from '@dltech/atlas-core'
+import { blobRefsOf, sha256Hex, type RecordEvent } from '@dltech/atlas-core'
 
 import type { BlobRefusal } from './refusal'
 import type { BlobRow, BlobWrite, ControlTx } from './port'
@@ -12,7 +12,7 @@ export const verifyBlobWrites = (blobs: readonly BlobWrite[]): BlobRefusal | und
 
 export const missingBlobHashes = async (params: {
   tx: ControlTx
-  events: readonly V2Event[]
+  events: readonly RecordEvent[]
   blobs: readonly BlobWrite[]
 }): Promise<BlobRefusal | undefined> => {
   const supplied = new Set(params.blobs.map((blob) => blob.hash))

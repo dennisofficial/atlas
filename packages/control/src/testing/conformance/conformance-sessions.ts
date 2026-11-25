@@ -4,7 +4,7 @@ import {
   ETurnCause,
   ETurnEndedBy,
   ETurnOutcome,
-  type V2Body,
+  type RecordEventBody,
 } from '@dltech/atlas-core'
 
 import { ControlPlane } from '../../control-plane'
@@ -491,7 +491,7 @@ export function describeControlPlaneSessions(params: ConformanceParams): void {
           const threadId = `t-${sessionId}`
           await plane.createSession(createSessionParams({ sessionId, mainThreadId: threadId }))
           const lease = await plane.grant({ sessionId, hostId: liveHost })
-          const bodies: V2Body[] = [said(`hello ${sessionId}`)]
+          const bodies: RecordEventBody[] = [said(`hello ${sessionId}`)]
           if (index === 0 || index === 2) bodies.push(branches)
           const appended = await plane.append({
             threadId,

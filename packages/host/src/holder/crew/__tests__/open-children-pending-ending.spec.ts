@@ -11,8 +11,8 @@ import {
   toThreadId,
   type InboxEntry,
   type ThreadId,
-  type V2Body,
-  type V2Event,
+  type RecordEventBody,
+  type RecordEvent,
 } from '@dltech/atlas-core'
 import type { ControlPlane } from '@dltech/atlas-control'
 
@@ -24,7 +24,7 @@ const PARENT = toThreadId('thread-parent')
 const CHILD = toThreadId('brn_child')
 const AT = '2026-11-25T00:41:05.000Z'
 
-const eventsOf = (threadId: ThreadId, bodies: readonly V2Body[]): V2Event[] =>
+const eventsOf = (threadId: ThreadId, bodies: readonly RecordEventBody[]): RecordEvent[] =>
   chainEvents({ threadId, runId: toRunId('run-seed'), epoch: 1, at: AT, bodies })
 
 const PARENT_LOG = eventsOf(PARENT, [

@@ -1,4 +1,4 @@
-import { EContextSlot, EDefinitionOrigin, type V2Event } from '@dltech/atlas-core'
+import { EContextSlot, EDefinitionOrigin, type RecordEvent } from '@dltech/atlas-core'
 import { describe, expect, it } from 'bun:test'
 
 import { mcpInstructionsDraftsOf } from '../instructions'
@@ -12,7 +12,7 @@ const offer = (content: string, key = 'docs') => ({
   content,
 })
 
-const recorded = (...drafts: readonly object[]): readonly V2Event[] =>
+const recorded = (...drafts: readonly object[]): readonly RecordEvent[] =>
   drafts.map((draft, index) => eventOf(draft, index + 1))
 
 const serverOf = (

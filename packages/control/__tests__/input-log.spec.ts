@@ -1,6 +1,12 @@
 import { describe, expect, it } from 'bun:test'
 
-import { chainEvents, ESessionStatus, toRunId, toThreadId, type V2Body } from '@dltech/atlas-core'
+import {
+  chainEvents,
+  ESessionStatus,
+  toRunId,
+  toThreadId,
+  type RecordEventBody,
+} from '@dltech/atlas-core'
 
 import { ControlPlane, readSessionStatus } from '../src'
 import { InMemoryControlStore } from '../src/testing/memory'
@@ -19,7 +25,7 @@ const setup = async () => {
     mainThreadId: THREAD,
   })
   const lease = await plane.grant({ sessionId: SESSION, hostId: 7 })
-  const append = async (args: { bodies: readonly V2Body[] }) => {
+  const append = async (args: { bodies: readonly RecordEventBody[] }) => {
     const outcome = await plane.append({
       threadId: THREAD,
       epoch: lease.epoch,
@@ -38,7 +44,7 @@ const setup = async () => {
   return { store, plane, append, epoch: lease.epoch }
 }
 
-const posted = (inboxId: number, text: string): V2Body => ({
+const posted = (inboxId: number, text: string): RecordEventBody => ({
   type: 'input-posted',
   inboxId,
   kind: 'message',
@@ -46,7 +52,7 @@ const posted = (inboxId: number, text: string): V2Body => ({
   text,
 })
 
-const said = (inboxId: number, text: string): V2Body => ({
+const said = (inboxId: number, text: string): RecordEventBody => ({
   type: 'user-said',
   text,
   requestId: `inbox:${inboxId}`,

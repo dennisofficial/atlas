@@ -1,4 +1,4 @@
-import type { InboxEntry, SpawnFile, V2Event } from '@dltech/atlas-core'
+import type { InboxEntry, SpawnFile, RecordEvent } from '@dltech/atlas-core'
 import { INBOX_KIND_MESSAGE, inboxMessageSchema } from '@dltech/atlas-protocol'
 import { logFieldsOf, type LogPort } from '@dltech/atlas-observability'
 
@@ -9,10 +9,12 @@ import type { SessionRecord } from './record/record-adapter'
 
 export type ContextSeedOutcome = { ok: true } | { ok: false; reason: string }
 
-const isPostedMessage = (event: V2Event): event is Extract<V2Event, { type: 'input-posted' }> =>
+const isPostedMessage = (
+  event: RecordEvent,
+): event is Extract<RecordEvent, { type: 'input-posted' }> =>
   event.type === 'input-posted' && event.kind === INBOX_KIND_MESSAGE
 
-const firstPostedMessageOf = (events: readonly V2Event[]): number | undefined =>
+const firstPostedMessageOf = (events: readonly RecordEvent[]): number | undefined =>
   events.find(isPostedMessage)?.inboxId
 
 const payloadOf = (entry: InboxEntry): unknown => {

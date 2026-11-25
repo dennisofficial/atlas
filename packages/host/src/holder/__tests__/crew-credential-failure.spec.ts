@@ -12,7 +12,7 @@ import {
   toAccountId,
   type ModelPort,
   type ToolOutcome,
-  type V2Event,
+  type RecordEvent,
 } from '@dltech/atlas-core'
 import { ScriptedModel } from '@dltech/atlas-agent/testing'
 import {
@@ -84,7 +84,7 @@ const probePlugin = (state: ProbeState): Plugin =>
     transport: 'none',
   })
 
-const eventsIn = async (rig: HolderRig, threadId: string): Promise<V2Event[]> =>
+const eventsIn = async (rig: HolderRig, threadId: string): Promise<RecordEvent[]> =>
   (
     await rig.plane.readEvents({
       threadId: threadId as typeof THREAD_ID,
@@ -94,7 +94,9 @@ const eventsIn = async (rig: HolderRig, threadId: string): Promise<V2Event[]> =>
     })
   ).events
 
-const endOf = (events: readonly V2Event[]): Extract<V2Event, { type: 'agent-ended' }> | undefined =>
+const endOf = (
+  events: readonly RecordEvent[],
+): Extract<RecordEvent, { type: 'agent-ended' }> | undefined =>
   events.flatMap((event) => (event.type === 'agent-ended' ? [event] : []))[0]
 
 const routedModel = (parent: ScriptedModel, child: ScriptedModel): ModelPort => ({

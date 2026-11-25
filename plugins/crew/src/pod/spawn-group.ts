@@ -1,10 +1,10 @@
-import type { V2Event } from '@dltech/atlas-core'
+import type { RecordEvent } from '@dltech/atlas-core'
 
-type ToolCalled = Extract<V2Event, { type: 'tool-called' }>
+type ToolCalled = Extract<RecordEvent, { type: 'tool-called' }>
 
-const isToolCalled = (event: V2Event): event is ToolCalled => event.type === 'tool-called'
+const isToolCalled = (event: RecordEvent): event is ToolCalled => event.type === 'tool-called'
 
-const stepCallsOf = (events: readonly V2Event[]): readonly ToolCalled[] => {
+const stepCallsOf = (events: readonly RecordEvent[]): readonly ToolCalled[] => {
   const anchor = events.findLastIndex((event) => isToolCalled(event) && event.ordinal === 0)
   if (anchor < 0) return []
   const calls: ToolCalled[] = []
@@ -15,8 +15,8 @@ const stepCallsOf = (events: readonly V2Event[]): readonly ToolCalled[] => {
   return calls
 }
 
-export const spawnsInStepOf = (events: readonly V2Event[]): number =>
+export const spawnsInStepOf = (events: readonly RecordEvent[]): number =>
   stepCallsOf(events).filter((event) => event.name === 'agent_spawn').length
 
-export const spawnStepKeyOf = (events: readonly V2Event[]): string | undefined =>
+export const spawnStepKeyOf = (events: readonly RecordEvent[]): string | undefined =>
   events.filter(isToolCalled).findLast((event) => event.ordinal === 0)?.callId

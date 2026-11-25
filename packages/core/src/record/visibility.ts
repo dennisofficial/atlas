@@ -1,6 +1,6 @@
 import { KEPT_THROUGH_COMPACTION } from '../compaction/disposition'
 import { isDurable } from './durability'
-import type { V2Event, V2EventType } from './event'
+import type { RecordEvent, RecordEventType } from './event'
 
 export type HiddenSpan = {
   createdAt: number
@@ -12,15 +12,15 @@ export type HiddenSpan = {
 
 export type VisibilityState = { spans: HiddenSpan[] }
 
-export type VisibleSegment = { fromSeq: number; throughSeq: number; onlyTypes?: V2EventType[] }
+export type VisibleSegment = { fromSeq: number; throughSeq: number; onlyTypes?: RecordEventType[] }
 
 export const EMPTY_VISIBILITY: VisibilityState = { spans: [] }
 
-const SURVIVOR_TYPES: readonly V2EventType[] = KEPT_THROUGH_COMPACTION
+const SURVIVOR_TYPES: readonly RecordEventType[] = KEPT_THROUGH_COMPACTION
 
-const TURN_END_TYPES: readonly V2EventType[] = ['turn-ended']
+const TURN_END_TYPES: readonly RecordEventType[] = ['turn-ended']
 
-export function stepVisibility(state: VisibilityState, event: V2Event): VisibilityState {
+export function stepVisibility(state: VisibilityState, event: RecordEvent): VisibilityState {
   if (event.type === 'history-rewound') {
     const kept = state.spans.filter((span) => span.createdAt <= event.toSeq)
     const span = {
@@ -48,35 +48,38 @@ export function stepVisibility(state: VisibilityState, event: V2Event): Visibili
 const covers = (params: { span: HiddenSpan; seq: number }): boolean =>
   params.span.fromSeq <= params.seq && params.seq <= params.span.throughSeq
 
-const keptTypesOf = (span: HiddenSpan): readonly V2EventType[] => {
+const keptTypesOf = (span: HiddenSpan): readonly RecordEventType[] => {
   const survivors = span.keepSurvivors ? SURVIVOR_TYPES : []
   const turns = span.keepTurns ? TURN_END_TYPES : []
   return [...survivors, ...turns]
 }
 
-const keptBy = (params: { span: HiddenSpan; type: V2EventType }): boolean =>
+const keptBy = (params: { span: HiddenSpan; type: RecordEventType }): boolean =>
   (params.span.keepSurvivors && SURVIVOR_TYPES.includes(params.type)) ||
   (params.span.keepTurns && TURN_END_TYPES.includes(params.type))
 
-export const isVisible = (state: VisibilityState, event: Pick<V2Event, 'seq' | 'type'>): boolean =>
+export const isVisible = (
+  state: VisibilityState,
+  event: Pick<RecordEvent, 'seq' | 'type'>,
+): boolean =>
   !state.spans.some(
     (span) => covers({ span, seq: event.seq }) && !keptBy({ span, type: event.type }),
   )
 
 export const isSurviving = (
   state: VisibilityState,
-  event: Pick<V2Event, 'seq' | 'type'>,
+  event: Pick<RecordEvent, 'seq' | 'type'>,
 ): boolean => !state.spans.some((span) => !span.keepSurvivors && covers({ span, seq: event.seq }))
 
-const intersectTypes = (lists: readonly (readonly V2EventType[])[]): V2EventType[] => {
+const intersectTypes = (lists: readonly (readonly RecordEventType[])[]): RecordEventType[] => {
   const [first, ...rest] = lists
   if (first === undefined) return []
   return first.filter((type) => rest.every((list) => list.includes(type)))
 }
 
 const sameTypes = (
-  left: readonly V2EventType[] | undefined,
-  right: readonly V2EventType[] | undefined,
+  left: readonly RecordEventType[] | undefined,
+  right: readonly RecordEventType[] | undefined,
 ): boolean => {
   if (left === undefined || right === undefined) return left === right
   return left.length === right.length && left.every((type) => right.includes(type))
@@ -124,7 +127,7 @@ export function visibleSegments(params: {
   return segments
 }
 
-const turnStartSeqs = (events: readonly V2Event[]): ReadonlyMap<number, number> => {
+const turnStartSeqs = (events: readonly RecordEvent[]): ReadonlyMap<number, number> => {
   const open = new Map<string, number>()
   const starts = new Map<number, number>()
   for (const event of events) {
@@ -139,8 +142,8 @@ const turnStartSeqs = (events: readonly V2Event[]): ReadonlyMap<number, number> 
 
 export function visibleWithin(params: {
   state: VisibilityState
-  events: readonly V2Event[]
-}): V2Event[] {
+  events: readonly RecordEvent[]
+}): RecordEvent[] {
   const starts = turnStartSeqs(params.events)
   return params.events.filter((event) => {
     if (!isVisible(params.state, event)) return false
@@ -151,14 +154,16 @@ export function visibleWithin(params: {
   })
 }
 
-export function visibleEvents(events: readonly V2Event[]): V2Event[] {
+export function visibleEvents(events: readonly RecordEvent[]): RecordEvent[] {
   return visibleWithin({ state: events.reduce(stepVisibility, EMPTY_VISIBILITY), events })
 }
 
-export const isFoldable = (state: VisibilityState, event: Pick<V2Event, 'seq' | 'type'>): boolean =>
-  isDurable(event.type) || isVisible(state, event)
+export const isFoldable = (
+  state: VisibilityState,
+  event: Pick<RecordEvent, 'seq' | 'type'>,
+): boolean => isDurable(event.type) || isVisible(state, event)
 
-export function foldableEvents(events: readonly V2Event[]): V2Event[] {
+export function foldableEvents(events: readonly RecordEvent[]): RecordEvent[] {
   const state = events.reduce(stepVisibility, EMPTY_VISIBILITY)
   return events.filter((event) => isFoldable(state, event))
 }

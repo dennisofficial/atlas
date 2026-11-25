@@ -1,10 +1,10 @@
-import type { V2Event } from '@dltech/atlas-core'
+import type { RecordEvent } from '@dltech/atlas-core'
 
 import { SESSION_LOG_STRUCTURE_VERSION, type SessionLog } from './session-log'
 import type { SessionCursor, SessionWindow } from './session-window'
 
 export type SessionLogWriter = {
-  append(args: { events: readonly V2Event[]; head: SessionCursor }): void
+  append(args: { events: readonly RecordEvent[]; head: SessionCursor }): void
   save(window: SessionWindow): void
   drop(): void
 }

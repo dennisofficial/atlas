@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'bun:test'
 
 import { composeCommands } from '@dltech/atlas-commands'
-import { ECompactionAnchor, EInputConsumed, type V2Event } from '@dltech/atlas-core'
+import { ECompactionAnchor, EInputConsumed, type RecordEvent } from '@dltech/atlas-core'
 import { nativeCommandHandlers, nativeCommands } from '@dltech/atlas-native-commands'
 import { ScriptedModel } from '@dltech/atlas-agent/testing'
 
@@ -9,7 +9,7 @@ import { flushUntil, makeRig, seedSession, SESSION, THREAD_ID } from './holder-r
 
 type Rig = Awaited<ReturnType<typeof makeRig>>
 
-const eventsOf = async (rig: Rig): Promise<V2Event[]> =>
+const eventsOf = async (rig: Rig): Promise<RecordEvent[]> =>
   (await rig.plane.readEvents({ threadId: THREAD_ID, afterSeq: 0, limit: 500, visible: false }))
     .events
 

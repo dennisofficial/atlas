@@ -10,7 +10,7 @@ import {
   workedHeadsOf,
   type PluginViewFold,
   type SessionViewState,
-  type V2Event,
+  type RecordEvent,
 } from '@dltech/atlas-core'
 import type { z } from 'zod'
 
@@ -35,7 +35,7 @@ export const usableState = (view: SessionViewRow | undefined): SessionViewState 
 const foldPluginViews = (args: {
   bag: Readonly<Record<string, unknown>>
   views: readonly PluginViewFold[]
-  event: V2Event
+  event: RecordEvent
 }): Readonly<Record<string, unknown>> => {
   let bag = args.bag
   for (const view of args.views) {
@@ -47,7 +47,7 @@ const foldPluginViews = (args: {
 
 export const foldEvents = (args: {
   state: SessionViewState
-  events: readonly V2Event[]
+  events: readonly RecordEvent[]
   pluginViews?: readonly PluginViewFold[] | undefined
 }): { state: SessionViewState; rebuild: boolean; rewound: boolean } => {
   const views = args.pluginViews ?? []
@@ -68,10 +68,10 @@ export const foldEvents = (args: {
 const survivingEvents = async (args: {
   tx: ControlTx
   row: ThreadRow
-  eventSchema?: z.ZodType<V2Event> | undefined
-}): Promise<V2Event[]> => {
+  eventSchema?: z.ZodType<RecordEvent> | undefined
+}): Promise<RecordEvent[]> => {
   const visibility = decodeVisibility(args.row.visibility)
-  const surviving: V2Event[] = []
+  const surviving: RecordEvent[] = []
   let afterSeq = 0
   for (;;) {
     const page = await readEventsIn({
@@ -92,7 +92,7 @@ export const rebuildFromLog = async (args: {
   tx: ControlTx
   row: ThreadRow
   state: SessionViewState
-  eventSchema?: z.ZodType<V2Event> | undefined
+  eventSchema?: z.ZodType<RecordEvent> | undefined
   pluginViews?: readonly PluginViewFold[] | undefined
   rewound: boolean
 }): Promise<SessionViewState> => {
@@ -133,7 +133,7 @@ export const rebuildFromLog = async (args: {
 
 export const branchRowsOf = (args: {
   sessionId: string
-  events: readonly V2Event[]
+  events: readonly RecordEvent[]
 }): SessionBranchRow[] =>
   args.events.flatMap((event) =>
     event.type === 'branches-observed'
@@ -171,7 +171,7 @@ export const catchUpSessionViewIn = async (args: {
   sessionId: string
   row: ThreadRow
   existing: SessionViewRow | undefined
-  eventSchema?: z.ZodType<V2Event> | undefined
+  eventSchema?: z.ZodType<RecordEvent> | undefined
   pluginViews?: readonly PluginViewFold[] | undefined
 }): Promise<SessionViewState> => {
   const { tx, sessionId, row } = args
@@ -181,7 +181,7 @@ export const catchUpSessionViewIn = async (args: {
   let state = existing ?? initialSessionViewState
   let rebuild = false
   let rewound = false
-  let folded: V2Event[] = []
+  let folded: RecordEvent[] = []
   for (;;) {
     const page = await readEventsIn({
       tx,
@@ -221,7 +221,7 @@ export const ensureSessionViewIn = async (args: {
   tx: ControlTx
   sessionId: string
   threadId: string
-  eventSchema?: z.ZodType<V2Event> | undefined
+  eventSchema?: z.ZodType<RecordEvent> | undefined
   pluginViews?: readonly PluginViewFold[] | undefined
 }): Promise<LoadedView> => {
   const { tx, sessionId, threadId } = args
@@ -243,8 +243,8 @@ export const appendToViewIn = async (args: {
   sessionId: string
   row: ThreadRow
   state: SessionViewState
-  events: readonly V2Event[]
-  eventSchema?: z.ZodType<V2Event> | undefined
+  events: readonly RecordEvent[]
+  eventSchema?: z.ZodType<RecordEvent> | undefined
   pluginViews?: readonly PluginViewFold[] | undefined
 }): Promise<void> => {
   const { tx, row } = args

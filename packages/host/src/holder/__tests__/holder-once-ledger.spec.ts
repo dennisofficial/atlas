@@ -3,7 +3,7 @@ import { describe, expect, it } from 'bun:test'
 import { ERetryReason } from '@dltech/atlas-core'
 
 import { flushUntil, makeRig, seedSession, SESSION, THREAD_ID } from './holder-rig'
-import { V2OnceLedger } from '../record/v2-once-ledger'
+import { RecordOnceLedger } from '../record/record-once-ledger'
 import { SessionRecord } from '../record/record-adapter'
 
 describe('SessionHolder OnceLedger', () => {
@@ -31,7 +31,7 @@ describe('SessionHolder OnceLedger', () => {
       daemonTools: runtimeA.daemonTools,
       nowIso: () => new Date(a.clock.now()).toISOString(),
     })
-    const ledgerA = new V2OnceLedger({
+    const ledgerA = new RecordOnceLedger({
       cache: recordA.eventCache(),
       record: recordA,
       threadId: THREAD_ID,
@@ -81,7 +81,7 @@ describe('SessionHolder OnceLedger', () => {
       daemonTools: runtimeB.daemonTools,
       nowIso: () => new Date(b.clock.now()).toISOString(),
     })
-    const ledgerB = new V2OnceLedger({
+    const ledgerB = new RecordOnceLedger({
       cache: recordB.eventCache(),
       record: recordB,
       threadId: THREAD_ID,

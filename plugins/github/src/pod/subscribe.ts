@@ -4,7 +4,7 @@ import {
   resolveEventFilter,
   type Event,
   type SubscribedTarget,
-  type V2Event,
+  type RecordEvent,
 } from '@dltech/atlas-core'
 import type { PluginPodContext, PodSubscriptionLease } from '@dltech/atlas-plugin-sdk'
 import type { SessionSubscription } from '@dltech/atlas-protocol'
@@ -41,7 +41,9 @@ export type SubscribeOutcome =
     }
   | { ok: false; error: string }
 
-export const githubSubscriptionsOf = (events: readonly (Event | V2Event)[]): SubscriptionRow[] =>
+export const githubSubscriptionsOf = (
+  events: readonly (Event | RecordEvent)[],
+): SubscriptionRow[] =>
   subscriptionsOfEvents(events).filter((row) => isGithubProvider(row.provider))
 
 const noSubscription = (subscriptionId: string): string =>

@@ -1,4 +1,4 @@
-import { latestResourceOf, resourceFingerprintOf, type V2Event } from '@dltech/atlas-core'
+import { latestResourceOf, resourceFingerprintOf, type RecordEvent } from '@dltech/atlas-core'
 import { ESpan, spanWith, type TracePort } from '@dltech/atlas-observability'
 import type {
   ECloudSetting,
@@ -79,7 +79,7 @@ export const loadedDraftsOf = async <T>(args: {
 
 const staleOf = (args: {
   entries: readonly Entry[]
-  events: readonly V2Event[]
+  events: readonly RecordEvent[]
   instance: string
   seqs: ReadonlyMap<string, number>
   versions: Readonly<Record<ECloudSetting, string>>
@@ -113,7 +113,7 @@ const staleOf = (args: {
 
 const sharedValueOf = (args: {
   resource: PodResource<unknown>
-  events: readonly V2Event[]
+  events: readonly RecordEvent[]
   fingerprint: string
   live: boolean
 }): { value: unknown } | undefined => {
@@ -186,7 +186,7 @@ export const refresh = async (args: {
   resources: readonly PodResource<unknown>[]
   projectDirectory: string
   trace: TracePort | undefined
-  shared: (() => readonly V2Event[]) | undefined
+  shared: (() => readonly RecordEvent[]) | undefined
   loadingOf?: ((resource: string) => boolean) | undefined
   onBackground?: ((background: { resource: string; loading: Promise<void> }) => void) | undefined
 }): Promise<void> => {

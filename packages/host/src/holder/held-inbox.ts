@@ -12,7 +12,7 @@ import {
   type PodResizeNotice,
   type PodResizeStarted,
   type ThreadId,
-  type V2Event,
+  type RecordEvent,
   type InboxEntry,
   type PrepareFailure,
 } from '@dltech/atlas-core'
@@ -81,15 +81,15 @@ export const readThreadInbox = (args: {
 }): Promise<InboxEntry[]> =>
   readInboxPages({ plane: args.plane, sessionId: args.sessionId, forThread: args.threadId })
 
-export const logPendingInputIdsOf = (events: readonly V2Event[]): number[] => {
+export const logPendingInputIdsOf = (events: readonly RecordEvent[]): number[] => {
   const pending = pendingInputsOf(events)
   return [...pendingMessagesOf(pending), ...pendingNoticesOf(pending)].map((entry) => entry.inboxId)
 }
 
-export const logPendingNoticeIdsOf = (events: readonly V2Event[]): number[] =>
+export const logPendingNoticeIdsOf = (events: readonly RecordEvent[]): number[] =>
   pendingNoticesOf(pendingInputsOf(events)).map((entry) => entry.inboxId)
 
-export const podResizedNoticeIdsOf = (events: readonly V2Event[]): ReadonlySet<number> =>
+export const podResizedNoticeIdsOf = (events: readonly RecordEvent[]): ReadonlySet<number> =>
   new Set(
     events.flatMap((event) =>
       event.type === 'input-posted' && event.event?.type === 'pod-resized' ? [event.inboxId] : [],
@@ -141,7 +141,7 @@ const onThread = (args: { entry: InboxEntry; threadId: ThreadId }): boolean =>
 
 export const queuedPromptAtOf = (args: {
   entries: readonly InboxEntry[]
-  events: readonly V2Event[]
+  events: readonly RecordEvent[]
   threadId: ThreadId
 }): string | undefined => {
   const posted = new Map<number, string>()
@@ -157,7 +157,7 @@ export const queuedPromptAtOf = (args: {
   return oldest?.[1]
 }
 
-export const stopSettledPromptOf = (events: readonly V2Event[]): boolean => {
+export const stopSettledPromptOf = (events: readonly RecordEvent[]): boolean => {
   let lastPrompt = -1
   let lastStop = -1
   for (const event of events) {

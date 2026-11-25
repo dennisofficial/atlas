@@ -9,16 +9,16 @@ import { exchangeFaults } from '../../assembly/exchange-shape'
 import { defaultRules } from '../../assembly/pipeline'
 import { EMPTY_PROMPT } from '../../assembly/rules/system-prompt'
 import { chainEvents } from '../chain-events'
-import type { V2Body } from '../event'
+import type { RecordEventBody } from '../event'
 import { visibleLoopEvents } from '../loop-events'
 import { NOW, runId, threadId } from './support'
 
 const call = toCallId('call-1')
 
-const record = (bodies: readonly V2Body[]) =>
+const record = (bodies: readonly RecordEventBody[]) =>
   chainEvents({ threadId, runId, epoch: 1, at: NOW, bodies })
 
-const promptOf = (bodies: readonly V2Body[]) =>
+const promptOf = (bodies: readonly RecordEventBody[]) =>
   assemble({
     rules: defaultRules({ prompt: () => EMPTY_PROMPT, launchDirectory: '/w' }),
     ctx: contextFor({ events: visibleLoopEvents(record(bodies)) }),
@@ -33,7 +33,7 @@ const conversationOf = (prompt: {
   messages: readonly AssembledMessage[]
 }): readonly AssembledMessage[] => prompt.messages.filter((entry) => !isWorkspaceNote(entry))
 
-const summarised = (fromSeq: number, throughSeq: number): V2Body => ({
+const summarised = (fromSeq: number, throughSeq: number): RecordEventBody => ({
   type: 'history-summarised',
   fromSeq,
   throughSeq,

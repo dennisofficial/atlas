@@ -7,8 +7,8 @@ import {
   type LogHead,
   toRunId,
   toThreadId,
-  type V2Body,
-  type V2Event,
+  type RecordEventBody,
+  type RecordEvent,
 } from '@dltech/atlas-core'
 import {
   EStreamSubscribeKind,
@@ -34,7 +34,7 @@ export const THREAD = 'thread-1'
 export const OWNER = 'user-a'
 const AT = '2026-11-02T12:00:00.000Z'
 
-export const said = (text: string): V2Body => ({ type: 'user-said', text })
+export const said = (text: string): RecordEventBody => ({ type: 'user-said', text })
 
 export type Capture = { userId: string; event: string; properties: ProductAnalyticsProperties }
 
@@ -137,7 +137,7 @@ export class FollowRig {
       await this.append(Array.from({ length: args.events }, (_, n) => said(`m${n}`)))
   }
 
-  async append(bodies: readonly V2Body[]): Promise<V2Event[]> {
+  async append(bodies: readonly RecordEventBody[]): Promise<RecordEvent[]> {
     const events = chainEvents({
       threadId: toThreadId(THREAD),
       runId: toRunId('run-1'),
@@ -152,7 +152,10 @@ export class FollowRig {
     return events
   }
 
-  async appendTo(args: { threadId: string; bodies: readonly V2Body[] }): Promise<V2Event[]> {
+  async appendTo(args: {
+    threadId: string
+    bodies: readonly RecordEventBody[]
+  }): Promise<RecordEvent[]> {
     const events = chainEvents({
       threadId: toThreadId(args.threadId),
       runId: toRunId('run-1'),
@@ -170,7 +173,7 @@ export class FollowRig {
     return events
   }
 
-  hashAt(events: readonly V2Event[], seq: number): string {
+  hashAt(events: readonly RecordEvent[], seq: number): string {
     const event = events.find((candidate) => candidate.seq === seq)
     if (event === undefined) throw new Error(`no event ${seq}`)
     return chainHash(event)

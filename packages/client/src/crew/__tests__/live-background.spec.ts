@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'bun:test'
 
-import { toEventId, toRunId, toThreadId, type V2Event } from '@dltech/atlas-core'
+import { toEventId, toRunId, toThreadId, type RecordEvent } from '@dltech/atlas-core'
 
 import { liveBackgroundOf } from '../journal-activity'
 
@@ -9,7 +9,7 @@ const childId = toThreadId('thread-child')
 
 let sequence = 0
 
-const eventOf = (body: Record<string, unknown>): V2Event => {
+const eventOf = (body: Record<string, unknown>): RecordEvent => {
   sequence += 1
   return {
     ...body,
@@ -21,10 +21,10 @@ const eventOf = (body: Record<string, unknown>): V2Event => {
     epoch: 0,
     prevHash: '0'.repeat(64),
     at: '2026-01-01T00:00:00.000Z',
-  } as V2Event
+  } as RecordEvent
 }
 
-const spawned = (): V2Event =>
+const spawned = (): RecordEvent =>
   eventOf({
     type: 'agent-spawned',
     agentId: childId,

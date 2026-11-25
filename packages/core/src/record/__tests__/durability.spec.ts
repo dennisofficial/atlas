@@ -4,7 +4,7 @@ import { CORE_EVENT_TYPES } from '../../events/schema'
 import { ECompactionAnchor } from '../../events/body'
 import { ESetupPhase } from '../../workspace/setup-notice'
 import { chainEvents } from '../chain-events'
-import { RECORD_ONLY_TYPES, type V2Body } from '../event'
+import { RECORD_ONLY_TYPES, type RecordEventBody } from '../event'
 import { DURABLE_TYPES, EVENT_DURABILITY, foldableOf, isDurable } from '../durability'
 import { foldableEvents, visibleEvents } from '../visibility'
 import { ETurnCause } from '../turns'
@@ -13,9 +13,10 @@ import { EWorkspaceStep, EWorkspaceStepState } from '../workspace'
 import { setupInFlightOf, workspaceStepsOf } from '../workspace-steps'
 import { NOW, runId, threadId } from './support'
 
-const log = (bodies: V2Body[]) => chainEvents({ threadId, runId, epoch: 1, at: NOW, bodies })
+const log = (bodies: RecordEventBody[]) =>
+  chainEvents({ threadId, runId, epoch: 1, at: NOW, bodies })
 
-const setupStarted: V2Body = {
+const setupStarted: RecordEventBody = {
   type: 'workspace-step',
   step: EWorkspaceStep.Setup,
   state: EWorkspaceStepState.Started,
@@ -23,7 +24,7 @@ const setupStarted: V2Body = {
   attempt: 1,
 }
 
-const summarisedFrom = (fromSeq: number, throughSeq: number): V2Body => ({
+const summarisedFrom = (fromSeq: number, throughSeq: number): RecordEventBody => ({
   type: 'history-summarised',
   fromSeq,
   throughSeq,

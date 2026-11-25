@@ -5,7 +5,7 @@ import {
   type EventDraft,
   type InboxEntry,
   type InputMessage,
-  type V2Event,
+  type RecordEvent,
 } from '@dltech/atlas-core'
 import { inboxMessageSchema } from '@dltech/atlas-protocol'
 
@@ -49,7 +49,7 @@ export const drainRecordEntry = async (params: {
 }
 
 export const drainLoggedNotices = async (params: {
-  events: readonly V2Event[]
+  events: readonly RecordEvent[]
   staged: ReadonlySet<number>
   appendDrafts: AppendDrafts
   release: DraftRelease

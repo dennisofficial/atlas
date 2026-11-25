@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'bun:test'
-import { ESessionStatus, EShellStatus, ETurnCause, type V2Body } from '@dltech/atlas-core'
+import { ESessionStatus, EShellStatus, ETurnCause, type RecordEventBody } from '@dltech/atlas-core'
 import {
   EStreamBlockKind,
   EStreamErrorCode,
@@ -12,7 +12,11 @@ import { memorySessionLog, type SessionLog } from '../session-log'
 import { createSessionFollower, ESessionConnection } from '../session-follower'
 import { createFakeScheduler, eventsMessage, headOf, mintEvents, mintUserEvents } from './support'
 
-const turnStarted: V2Body = { type: 'turn-started', turnId: 'turn-1', cause: ETurnCause.Input }
+const turnStarted: RecordEventBody = {
+  type: 'turn-started',
+  turnId: 'turn-1',
+  cause: ETurnCause.Input,
+}
 const openTurn = () => mintEvents({ bodies: [turnStarted, { type: 'user-said', text: 'a' }] })
 
 const statusView = (params: { at: number; state?: ESessionStatus }): StreamServerMessage => ({

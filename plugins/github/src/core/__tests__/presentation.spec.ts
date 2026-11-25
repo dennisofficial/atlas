@@ -7,7 +7,7 @@ import {
   ESubscriptionTone,
   toRunId,
   toThreadId,
-  type V2Body,
+  type RecordEventBody,
 } from '@dltech/atlas-core'
 
 import type { SubscriptionPresentationInput } from '@dltech/atlas-core'
@@ -25,7 +25,7 @@ const input = (
   ...overrides,
 })
 
-const eventsOf = (bodies: V2Body[]) =>
+const eventsOf = (bodies: RecordEventBody[]) =>
   chainEvents({
     threadId: toThreadId('t1'),
     runId: toRunId('r1'),
@@ -34,8 +34,8 @@ const eventsOf = (bodies: V2Body[]) =>
     bodies,
   })
 
-const created = (body: Record<string, unknown>): V2Body =>
-  ({ type: 'subscription-created', ...body }) as V2Body
+const created = (body: Record<string, unknown>): RecordEventBody =>
+  ({ type: 'subscription-created', ...body }) as RecordEventBody
 
 describe('github pull request presentation', () => {
   it('names the pull request and says it watches every event', () => {

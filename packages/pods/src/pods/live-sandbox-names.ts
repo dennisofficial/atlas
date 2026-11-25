@@ -3,7 +3,7 @@ import { controlTxOf } from '@dltech/atlas-control/postgres'
 
 import { ARCHIVED_SANDBOX_GRACE_MS } from './archived-sandbox-grace'
 
-export type V2Pods = {
+export type Pods = {
   live: ReadonlySet<string>
   retirable: ReadonlyMap<string, number>
   sessionIdsByPod: ReadonlyMap<string, string[]>
@@ -46,7 +46,7 @@ const sessionsInUse = (args: { sessionIds: readonly string[] }): Promise<Readonl
  * because the grace counts from archive and not from the pod's creation. The pod's provider name
  * stays in its adapter, so this is the only identity the sweep and the runtime share.
  */
-export async function v2Pods(args: { now: Date }): Promise<V2Pods> {
+export async function pods(args: { now: Date }): Promise<Pods> {
   const cutoff = args.now.getTime() - ARCHIVED_SANDBOX_GRACE_MS
   const sessions = await db.orm.public.Session.select('id', 'podSessionId', 'archivedAt').all()
   const byPod = new Map<string, PodEntry>()

@@ -1,4 +1,4 @@
-import { ETurnEndedBy, ETurnOutcome, type V2Event } from '@dltech/atlas-core'
+import { ETurnEndedBy, ETurnOutcome, type RecordEvent } from '@dltech/atlas-core'
 import { expect } from 'bun:test'
 
 import { callIdOf, isDoneResult } from './fault-support'
@@ -7,9 +7,9 @@ import type { HostProcess } from '../../testing/fault-rig'
 
 const CALL_ID = 'c1'
 
-const boundariesOf = async (ctx: HandoffContext): Promise<V2Event[]> =>
+const boundariesOf = async (ctx: HandoffContext): Promise<RecordEvent[]> =>
   (await ctx.record())
-    .map((row) => row.event as V2Event)
+    .map((row) => row.event as RecordEvent)
     .filter((event) => event.type === 'turn-started' || event.type === 'turn-ended')
 
 const startsOf = async (ctx: HandoffContext) =>
@@ -21,7 +21,7 @@ const endsOf = async (ctx: HandoffContext) =>
 const resultsOf = async (ctx: HandoffContext) =>
   (await ctx.events()).filter((row) => row.type === 'tool-result' && callIdOf(row) === CALL_ID)
 
-const turnIdsOf = (events: readonly V2Event[]): Set<string> =>
+const turnIdsOf = (events: readonly RecordEvent[]): Set<string> =>
   new Set(
     events.map((event) =>
       event.type === 'turn-started' || event.type === 'turn-ended' ? event.turnId : '',

@@ -1,5 +1,5 @@
 import { afterAll, afterEach, beforeAll, describe, expect, it, spyOn } from 'bun:test'
-import { toEventId, toRunId, toThreadId, type Hash, type V2Event } from '@dltech/atlas-core'
+import { toEventId, toRunId, toThreadId, type Hash, type RecordEvent } from '@dltech/atlas-core'
 import { act } from 'react'
 
 import { registerDom, unregisterDom } from '@/lib/__tests__/happy-dom-globals'
@@ -31,7 +31,7 @@ afterEach(async () => {
   for (const unmount of mounted.splice(0)) await act(async () => unmount())
 })
 
-const eventOf = (seq: number, paths: string[]): V2Event => ({
+const eventOf = (seq: number, paths: string[]): RecordEvent => ({
   id: toEventId(`t:${seq}`),
   seq,
   threadId: toThreadId('t'),
@@ -90,7 +90,7 @@ describe('contextChangesOf', () => {
     const change = contextChangesOf([
       eventOf(1, ['plan.md']),
       eventOf(2, ['sections/01.md', 'plan.md']),
-      { type: 'user-said', seq: 3 } as unknown as V2Event,
+      { type: 'user-said', seq: 3 } as unknown as RecordEvent,
       eventOf(4, ['sections/02.md']),
     ])
 

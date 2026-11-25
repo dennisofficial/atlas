@@ -2,7 +2,12 @@ import { describe, expect, it } from 'bun:test'
 
 import { ScriptedModel } from '@dltech/atlas-agent/testing'
 import { composeCommands } from '@dltech/atlas-commands'
-import { ECompactionAnchor, EInputConsumed, visibleEvents, type V2Event } from '@dltech/atlas-core'
+import {
+  ECompactionAnchor,
+  EInputConsumed,
+  visibleEvents,
+  type RecordEvent,
+} from '@dltech/atlas-core'
 import {
   nativeCommandHandlers,
   nativeCommands,
@@ -13,17 +18,17 @@ import { flushUntil, makeRig, seedSession, THREAD_ID } from './holder-rig'
 
 type Rig = Awaited<ReturnType<typeof makeRig>>
 
-const eventsOf = async (rig: Rig): Promise<V2Event[]> =>
+const eventsOf = async (rig: Rig): Promise<RecordEvent[]> =>
   (await rig.plane.readEvents({ threadId: THREAD_ID, afterSeq: 0, limit: 500, visible: false }))
     .events
 
 const typesOf = async (rig: Rig): Promise<string[]> =>
   (await eventsOf(rig)).map((event) => event.type)
 
-const recordedSaidTexts = (events: readonly V2Event[]): string[] =>
+const recordedSaidTexts = (events: readonly RecordEvent[]): string[] =>
   events.flatMap((event) => (event.type === 'user-said' ? [event.text] : []))
 
-const saidTexts = (events: readonly V2Event[]): string[] =>
+const saidTexts = (events: readonly RecordEvent[]): string[] =>
   visibleEvents(events).flatMap((event) => (event.type === 'user-said' ? [event.text] : []))
 
 const rigWithConversation = async (lastStep: { text: string }): Promise<Rig> => {

@@ -1,7 +1,7 @@
 import { toRunId, toThreadId } from '../../events/ids'
 import { chainEvents } from '../chain-events'
 import type { LogHead } from '../chain'
-import type { V2Body, V2Event } from '../event'
+import type { RecordEventBody, RecordEvent } from '../event'
 import type { Lease } from '../lease'
 
 export const threadId = toThreadId('thread-1')
@@ -18,9 +18,9 @@ export const lease = (overrides: Partial<Lease> = {}): Lease => ({
   ...overrides,
 })
 
-export const userSaid = (text: string): V2Body => ({ type: 'user-said', text })
+export const userSaid = (text: string): RecordEventBody => ({ type: 'user-said', text })
 
-export const mint = (params: { count: number; epoch?: number; from?: LogHead }): V2Event[] =>
+export const mint = (params: { count: number; epoch?: number; from?: LogHead }): RecordEvent[] =>
   chainEvents({
     threadId,
     runId,

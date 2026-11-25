@@ -9,14 +9,14 @@ import {
   toRunId,
   toThreadId,
   type RunFailure,
-  type V2Body,
+  type RecordEventBody,
 } from '@dltech/atlas-core'
 
 import { RunFailureCard } from '@/features/threads/transcript/run-failure-card'
 
 import { sessionAttentionOf, sessionFailureCardOf } from '../session-run-attention'
 
-const eventsOf = (bodies: readonly V2Body[]) =>
+const eventsOf = (bodies: readonly RecordEventBody[]) =>
   chainEvents({
     threadId: toThreadId('thread-1'),
     runId: toRunId('run-1'),

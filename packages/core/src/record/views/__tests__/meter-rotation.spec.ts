@@ -2,7 +2,7 @@ import { describe, expect, it } from 'bun:test'
 
 import { toRunId, toThreadId } from '../../../events/ids'
 import { chainEvents } from '../../chain-events'
-import type { V2Body } from '../../event'
+import type { RecordEventBody } from '../../event'
 import { initialMeterState, meterOf, rebuildMeter, stepMeter } from '../meter-state'
 
 const WINDOW = 200_000
@@ -10,16 +10,16 @@ const threadId = toThreadId('thread-meter')
 const runId = toRunId('run-meter')
 const AT = '2026-11-20T00:00:00.000Z'
 
-const logOf = (bodies: readonly V2Body[]) =>
+const logOf = (bodies: readonly RecordEventBody[]) =>
   chainEvents({ threadId, runId, epoch: 1, at: AT, bodies })
 
-const said = (inputTokens: number): V2Body => ({
+const said = (inputTokens: number): RecordEventBody => ({
   type: 'assistant-said',
   parts: [{ type: 'text', text: 'ok' }],
   usage: { inputTokens, outputTokens: 1_000, contextWindow: WINDOW },
 })
 
-const rotated: V2Body = { type: 'rotated', handoff: 'the brief' }
+const rotated: RecordEventBody = { type: 'rotated', handoff: 'the brief' }
 
 const recovered = { ...initialMeterState, window: WINDOW }
 
@@ -57,7 +57,7 @@ describe('the context meter across a rotation', () => {
 
   it('keeps the breakdown a reading carried, and agrees when rebuilt', () => {
     const breakdown = [{ label: 'Tools', tokens: 120 }]
-    const withBreakdown: V2Body = {
+    const withBreakdown: RecordEventBody = {
       type: 'assistant-said',
       parts: [{ type: 'text', text: 'ok' }],
       usage: { inputTokens: 120, outputTokens: 0, contextWindow: WINDOW, breakdown },

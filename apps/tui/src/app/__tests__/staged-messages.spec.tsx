@@ -7,31 +7,36 @@ import {
   EMPTY_PENDING,
   type Attachment,
   type PendingInputsState,
-  type V2Body,
-  type V2Event,
+  type RecordEventBody,
+  type RecordEvent,
 } from '@dltech/atlas-core'
 
 import { mountProbe, type Mounted } from '../../ui/hooks/__tests__/mention-reader-fixture'
 import { mintEvents } from '@dltech/atlas-client/stream-fixture'
 import { useStagedMessages, type StagedState } from '../staged-messages'
 
-const eventsOf = (bodies: readonly V2Body[]): V2Event[] => mintEvents({ bodies })
+const eventsOf = (bodies: readonly RecordEventBody[]): RecordEvent[] => mintEvents({ bodies })
 
-const REFUSED: V2Body = { type: 'input-refused', inboxId: 4, reason: 'unreadable', clientId: 'c1' }
-const ALREADY: V2Body = {
+const REFUSED: RecordEventBody = {
+  type: 'input-refused',
+  inboxId: 4,
+  reason: 'unreadable',
+  clientId: 'c1',
+}
+const ALREADY: RecordEventBody = {
   type: 'input-refused',
   inboxId: 4,
   reason: 'already-sent',
   clientId: 'c1',
 }
-const POSTED: V2Body = {
+const POSTED: RecordEventBody = {
   type: 'input-posted',
   inboxId: 4,
   kind: 'message',
   postedAt: '2026-11-20T00:00:00.000Z',
   message: { text: 'hello', clientId: 'c1' },
 }
-const SAID: V2Body = { type: 'user-said', text: 'hello', clientId: 'c1', inboxId: 4 }
+const SAID: RecordEventBody = { type: 'user-said', text: 'hello', clientId: 'c1', inboxId: 4 }
 
 type Probe = {
   staged: StagedState | null
@@ -52,7 +57,7 @@ function Harness(props: MountProps): React.ReactNode {
 }
 
 type MountProps = {
-  events: readonly V2Event[]
+  events: readonly RecordEvent[]
   pending?: PendingInputsState
   working: boolean
 }
@@ -91,7 +96,7 @@ const SHOT: Attachment = {
   content: { store: EAttachmentStore.Inline, data: 'AAAA' },
 }
 
-const DISCARDED: V2Body = {
+const DISCARDED: RecordEventBody = {
   type: 'input-consumed',
   inboxId: 4,
   consumed: EInputConsumed.Discarded,

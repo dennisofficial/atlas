@@ -3,7 +3,7 @@ import { z } from 'zod'
 
 import { ControlPlane } from '@dltech/atlas-control'
 import { InMemoryControlStore } from '@dltech/atlas-control/testing'
-import { createV2EventSchema, toRunId, toThreadId } from '@dltech/atlas-core'
+import { createRecordEventSchema, toRunId, toThreadId } from '@dltech/atlas-core'
 
 import { RemoteCalls } from '../../../calls/remote-calls'
 import { SessionRecord } from '../record-adapter'
@@ -33,7 +33,7 @@ const timers = {
 const composedPlane = async (): Promise<{ plane: ControlPlane; epoch: number }> => {
   const plane = new ControlPlane({
     store: new InMemoryControlStore({ clock: () => AT }),
-    eventSchema: createV2EventSchema({ pluginBodies: [probeObservedSchema] }),
+    eventSchema: createRecordEventSchema({ pluginBodies: [probeObservedSchema] }),
   })
   await plane.createSession({
     sessionId: SESSION,

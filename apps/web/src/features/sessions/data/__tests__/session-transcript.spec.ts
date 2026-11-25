@@ -10,8 +10,8 @@ import {
   toRunId,
   toThreadId,
   visibleEvents,
-  type V2Body,
-  type V2Event,
+  type RecordEventBody,
+  type RecordEvent,
 } from '@dltech/atlas-core'
 import { ESessionConnection, type SessionSnapshot } from '@dltech/atlas-client/stream'
 import { overlayStepOf, runKey, tailRunOfSteps } from '@dltech/atlas-client/transcript'
@@ -23,7 +23,7 @@ import { ETranscriptKind } from '@/features/threads/data/transcript-kind'
 import { sessionTranscriptOf } from '../session-transcript'
 
 describe('a message from another session', () => {
-  const peerSaid = (session: string): V2Body[] => [
+  const peerSaid = (session: string): RecordEventBody[] => [
     { type: 'user-said', text: 'second reply ok', sender: { session }, via: 'peer-agent' as never },
   ]
 
@@ -92,7 +92,7 @@ describe('a rewind that landed inside an earlier turn', () => {
 
 const call = toCallId('call-1')
 
-const mint = (bodies: readonly V2Body[]): V2Event[] =>
+const mint = (bodies: readonly RecordEventBody[]): RecordEvent[] =>
   chainEvents({
     threadId: toThreadId('thread-1'),
     runId: toRunId('run-1'),
@@ -325,7 +325,7 @@ describe('sessionTranscriptOf', () => {
         name: 'operator_input',
         request: { kind: 'input', prompt: 'the login code' },
       },
-    ] satisfies V2Body[]
+    ] satisfies RecordEventBody[]
     const pending = sessionTranscriptOf(snapshotOf({ events: mint(asked) })).items
     const answered = sessionTranscriptOf(
       snapshotOf({
@@ -372,7 +372,7 @@ describe('sessionTranscriptOf', () => {
 })
 
 describe('a stopped turn in the transcript', () => {
-  const stoppedRun = (): V2Body[] => [
+  const stoppedRun = (): RecordEventBody[] => [
     { type: 'user-said', text: 'go' },
     { type: 'turn-started', turnId: 'turn-1', cause: ETurnCause.Input },
     {

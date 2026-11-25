@@ -3,7 +3,7 @@
 import { useRouter } from 'next/navigation'
 import { useCallback, useMemo } from 'react'
 
-import { ERunRemedy, type V2Event } from '@dltech/atlas-core'
+import { ERunRemedy, type RecordEvent } from '@dltech/atlas-core'
 
 import { PROVIDERS_HREF } from '@/features/settings/settings-nav'
 import { attentionKeyOf } from '@/features/threads/data/run-attention-pending'
@@ -25,7 +25,7 @@ export type SessionRepair = {
 
 export function useSessionRunFailure(args: {
   sessionId: string
-  events: readonly V2Event[]
+  events: readonly RecordEvent[]
   working: boolean
   openAgent: (agentId: string) => void
   onSwitchModel: () => void

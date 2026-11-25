@@ -3,7 +3,7 @@ import {
   EWorkspaceStep,
   EWorkspaceStepState,
   type EventDraft,
-  type V2Event,
+  type RecordEvent,
 } from '@dltech/atlas-core'
 
 import type { BootNotice } from './ports'
@@ -20,7 +20,7 @@ export const bootDraftOf = (notice: BootNotice): EventDraft => ({
 
 export const setupNoticesOf = (record: SessionRecord): ReadonlySet<ESetupPhase> => {
   const events = record.eventCache().eventsAfter(0)
-  const runStart = (event: V2Event): boolean =>
+  const runStart = (event: RecordEvent): boolean =>
     event.type === 'workspace-step' &&
     event.step === EWorkspaceStep.Setup &&
     event.state === EWorkspaceStepState.Started

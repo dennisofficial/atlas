@@ -9,7 +9,7 @@ import {
   type ModelPort,
   type ThreadId,
   type ToolOutcome,
-  type V2Event,
+  type RecordEvent,
 } from '@dltech/atlas-core'
 import { INBOX_KIND_MESSAGE } from '@dltech/atlas-protocol'
 import {
@@ -72,8 +72,11 @@ const spawnProbePlugin = (state: ProbeState): Plugin =>
     transport: 'none',
   })
 
-const eventsIn = async (args: { plane: ControlPlane; threadId: ThreadId }): Promise<V2Event[]> => {
-  const events: V2Event[] = []
+const eventsIn = async (args: {
+  plane: ControlPlane
+  threadId: ThreadId
+}): Promise<RecordEvent[]> => {
+  const events: RecordEvent[] = []
   let afterSeq = 0
   for (;;) {
     const page = await args.plane.readEvents({

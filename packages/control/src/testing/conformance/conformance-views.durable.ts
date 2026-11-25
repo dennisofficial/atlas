@@ -4,7 +4,7 @@ import {
   ESetupPhase,
   EWorkspaceStep,
   EWorkspaceStepState,
-  type V2Body,
+  type RecordEventBody,
 } from '@dltech/atlas-core'
 
 import { decodeViewState } from '../../session-view-codec'
@@ -19,7 +19,7 @@ import {
   type Harness,
 } from './support'
 
-const setupStep = (state: EWorkspaceStepState): V2Body => ({
+const setupStep = (state: EWorkspaceStepState): RecordEventBody => ({
   type: 'workspace-step',
   step: EWorkspaceStep.Setup,
   state,
@@ -27,7 +27,7 @@ const setupStep = (state: EWorkspaceStepState): V2Body => ({
   attempt: 1,
 })
 
-const setupReport = (phase: ESetupPhase): V2Body => ({
+const setupReport = (phase: ESetupPhase): RecordEventBody => ({
   type: 'sandbox-setup-reported',
   text: `setup ${phase}`,
   failed: false,

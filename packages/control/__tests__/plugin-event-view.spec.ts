@@ -1,7 +1,7 @@
 import { beforeEach, describe, expect, it } from 'bun:test'
 import { z } from 'zod'
 
-import { createV2EventSchema, type PluginViewFold } from '@dltech/atlas-core'
+import { createRecordEventSchema, type PluginViewFold } from '@dltech/atlas-core'
 
 import { InMemoryControlStore } from '../src/testing/memory'
 import {
@@ -32,7 +32,7 @@ const probeLabelsView: PluginViewFold<readonly string[]> = {
 }
 
 const composedHarness = (store: InMemoryControlStore): Harness =>
-  makeHarness(store, createV2EventSchema({ pluginBodies: [probeObservedSchema] }), {
+  makeHarness(store, createRecordEventSchema({ pluginBodies: [probeObservedSchema] }), {
     pluginViews: [probeLabelsView as PluginViewFold],
   })
 
@@ -120,7 +120,10 @@ describe('a plugin event through the session view', () => {
   })
 
   it('leaves the bag empty on a plane with no plugin views', async () => {
-    const bare = makeHarness(store, createV2EventSchema({ pluginBodies: [probeObservedSchema] }))
+    const bare = makeHarness(
+      store,
+      createRecordEventSchema({ pluginBodies: [probeObservedSchema] }),
+    )
     const epoch = await seedGranted(bare)
     await appendBodies({
       harness: bare,

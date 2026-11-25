@@ -3,42 +3,47 @@ import { describe, expect, it } from 'bun:test'
 import { ERunFailureKind } from '../../events/run-failure'
 import { chainEvents } from '../chain-events'
 import { EInputConsumed } from '../event'
-import type { V2Body, V2Event } from '../event'
+import type { RecordEventBody, RecordEvent } from '../event'
 import { RETRY_NUDGE, retryReopenDraftsOf } from '../retry-reopen'
 import { ETurnCause, ETurnEndedBy, ETurnOutcome } from '../turns'
 import { NOW, runId, threadId } from './support'
 
-const eventsOf = (bodies: readonly V2Body[]): V2Event[] =>
+const eventsOf = (bodies: readonly RecordEventBody[]): RecordEvent[] =>
   chainEvents({ threadId, runId, epoch: 1, at: NOW, bodies })
 
-const said = (text: string): V2Body => ({ type: 'user-said', text })
+const said = (text: string): RecordEventBody => ({ type: 'user-said', text })
 
-const replied = (text: string): V2Body => ({
+const replied = (text: string): RecordEventBody => ({
   type: 'assistant-said',
   parts: [{ type: 'text', text }],
 })
 
-const runFailed: V2Body = {
+const runFailed: RecordEventBody = {
   type: 'run-failed',
   failure: { kind: ERunFailureKind.FinishFault, message: 'the safety filter ended the reply' },
 }
 
-const turnStarted: V2Body = { type: 'turn-started', turnId: 'turn-2', cause: ETurnCause.Input }
+const turnStarted: RecordEventBody = {
+  type: 'turn-started',
+  turnId: 'turn-2',
+  cause: ETurnCause.Input,
+}
 
-const inputConsumed: V2Body = {
+const inputConsumed: RecordEventBody = {
   type: 'input-consumed',
   inboxId: 4,
   consumed: EInputConsumed.Discarded,
 }
 
-const turnEnded: V2Body = {
+const turnEnded: RecordEventBody = {
   type: 'turn-ended',
   turnId: 'turn-2',
   outcome: ETurnOutcome.Completed,
   by: ETurnEndedBy.Agent,
 }
 
-const draftOf = (bodies: readonly V2Body[]) => retryReopenDraftsOf({ events: eventsOf(bodies) })
+const draftOf = (bodies: readonly RecordEventBody[]) =>
+  retryReopenDraftsOf({ events: eventsOf(bodies) })
 
 describe('retryReopenDraftsOf', () => {
   it('reopens a reply the content filter cut short after it was recorded', () => {

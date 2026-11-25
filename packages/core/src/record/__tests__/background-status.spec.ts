@@ -5,14 +5,14 @@ import { EAgentStatus } from '../../agents/status'
 import { toEventId, toRunId, toThreadId } from '../../events/ids'
 import { EShellStatus } from '../../shells/status'
 import { EFinishReason } from '../../stream/chunk'
-import type { Hash, V2Body, V2Event } from '../event'
+import type { Hash, RecordEventBody, RecordEvent } from '../event'
 import { ESessionStatus, sessionStatusOf } from '../session-status'
 import { ETurnCause, ETurnEndedBy, ETurnOutcome } from '../turns'
 
 const NOW = '2026-11-19T12:00:00.000Z'
 const CHILD = toThreadId('child')
 
-const eventsOf = (bodies: readonly V2Body[]): V2Event[] =>
+const eventsOf = (bodies: readonly RecordEventBody[]): RecordEvent[] =>
   bodies.map(
     (body, index) =>
       ({
@@ -25,24 +25,32 @@ const eventsOf = (bodies: readonly V2Body[]): V2Event[] =>
         at: NOW,
         epoch: 1,
         prevHash: 'a'.repeat(64) as Hash,
-      }) as V2Event,
+      }) as RecordEvent,
   )
 
-const userSaid: V2Body = { type: 'user-said', text: 'hi' }
-const turnStarted: V2Body = { type: 'turn-started', turnId: 'turn-1', cause: ETurnCause.Input }
-const turnEnded: V2Body = {
+const userSaid: RecordEventBody = { type: 'user-said', text: 'hi' }
+const turnStarted: RecordEventBody = {
+  type: 'turn-started',
+  turnId: 'turn-1',
+  cause: ETurnCause.Input,
+}
+const turnEnded: RecordEventBody = {
   type: 'turn-ended',
   turnId: 'turn-1',
   outcome: ETurnOutcome.Completed,
   by: ETurnEndedBy.Agent,
 }
-const assistantDone: V2Body = { type: 'assistant-said', parts: [], finish: EFinishReason.Stop }
-const shellStarted: V2Body = {
+const assistantDone: RecordEventBody = {
+  type: 'assistant-said',
+  parts: [],
+  finish: EFinishReason.Stop,
+}
+const shellStarted: RecordEventBody = {
   type: 'background-shell-started',
   shellId: 'sh1',
   command: 'sleep 9',
 }
-const shellEnded: V2Body = {
+const shellEnded: RecordEventBody = {
   type: 'background-shell-ended',
   shellId: 'sh1',
   command: 'sleep 9',
@@ -52,14 +60,14 @@ const shellEnded: V2Body = {
   droppedCharacters: 0,
   remainingCharacters: 0,
 }
-const agentSpawned: V2Body = {
+const agentSpawned: RecordEventBody = {
   type: 'agent-spawned',
   agentId: CHILD,
   agentType: 'builder',
   intent: 'build',
   mode: EAgentStart.Fresh,
 }
-const agentEnded: V2Body = {
+const agentEnded: RecordEventBody = {
   type: 'agent-ended',
   agentId: CHILD,
   agentType: 'builder',
@@ -70,7 +78,7 @@ const agentEnded: V2Body = {
   toolCalls: 0,
 }
 
-const statusOf = (bodies: readonly V2Body[], live = true) =>
+const statusOf = (bodies: readonly RecordEventBody[], live = true) =>
   sessionStatusOf({ events: eventsOf(bodies), live, queuedSince: null, now: NOW }).state
 
 describe('background work in the session status', () => {

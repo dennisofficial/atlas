@@ -7,8 +7,8 @@ import {
   toRunId,
   toThreadId,
   type ThreadId,
-  type V2Body,
-  type V2Event,
+  type RecordEventBody,
+  type RecordEvent,
 } from '@dltech/atlas-core'
 import { INBOX_KIND_MESSAGE } from '@dltech/atlas-protocol'
 
@@ -25,7 +25,7 @@ const AT = new Date(0).toISOString()
 
 type Rig = Awaited<ReturnType<typeof makeRig>>
 
-const spawned: V2Body = {
+const spawned: RecordEventBody = {
   type: 'agent-spawned',
   agentId: CHILD,
   agentType: 'general-purpose',
@@ -33,7 +33,7 @@ const spawned: V2Body = {
   mode: EAgentStart.Fresh,
 }
 
-const ended: V2Body = {
+const ended: RecordEventBody = {
   type: 'agent-ended',
   agentId: CHILD,
   agentType: 'general-purpose',
@@ -44,13 +44,13 @@ const ended: V2Body = {
   toolCalls: 0,
 }
 
-const firstTurn: readonly V2Body[] = [
+const firstTurn: readonly RecordEventBody[] = [
   { type: 'user-said', inboxId: FIRST_INBOX, requestId: `inbox:${FIRST_INBOX}`, text: BRIEF },
   { type: 'assistant-said', parts: [{ type: 'text', text: ANSWER }] },
 ]
 
-const eventsIn = async (args: { rig: Rig; threadId: ThreadId }): Promise<V2Event[]> => {
-  const events: V2Event[] = []
+const eventsIn = async (args: { rig: Rig; threadId: ThreadId }): Promise<RecordEvent[]> => {
+  const events: RecordEvent[] = []
   let afterSeq = 0
   for (;;) {
     const page = await args.rig.plane.readEvents({
@@ -69,7 +69,7 @@ const appendSeeded = async (args: {
   rig: Rig
   threadId: ThreadId
   epoch: number
-  bodies: readonly V2Body[]
+  bodies: readonly RecordEventBody[]
 }): Promise<void> => {
   const head = await args.rig.plane.head({ threadId: args.threadId })
   const outcome = await args.rig.plane.append({
@@ -88,7 +88,7 @@ const appendSeeded = async (args: {
 }
 
 const textsOf = (args: {
-  events: readonly V2Event[]
+  events: readonly RecordEvent[]
   type: 'user-said' | 'assistant-said'
 }): string[] =>
   args.events.flatMap((event) => {
@@ -99,12 +99,16 @@ const textsOf = (args: {
       : []
   })
 
-const ofType = (args: { events: readonly V2Event[]; type: string; agentId: string }): V2Event[] =>
+const ofType = (args: {
+  events: readonly RecordEvent[]
+  type: string
+  agentId: string
+}): RecordEvent[] =>
   args.events.filter(
     (event) => event.type === args.type && 'agentId' in event && event.agentId === args.agentId,
   )
 
-const childEndings = async (rig: Rig): Promise<V2Event[]> =>
+const childEndings = async (rig: Rig): Promise<RecordEvent[]> =>
   ofType({
     events: await eventsIn({ rig, threadId: THREAD_ID }),
     type: 'agent-ended',

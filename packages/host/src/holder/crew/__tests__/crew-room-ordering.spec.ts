@@ -18,7 +18,7 @@ import {
   type ModelPort,
   type ModelRef,
   type ThreadId,
-  type V2Body,
+  type RecordEventBody,
 } from '@dltech/atlas-core'
 import { ScriptedModel, SequentialIds, fakeToolRegistry } from '@dltech/atlas-agent/testing'
 
@@ -35,13 +35,13 @@ const A = toThreadId('thread-order-a')
 const B = toThreadId('thread-order-b')
 const GROUP = 'call-1'
 const AT = '2026-01-01T00:00:00.000Z'
-const FINISHED_A: readonly V2Body[] = [
+const FINISHED_A: readonly RecordEventBody[] = [
   { type: 'user-said', text: 'child-a first pass' },
   { type: 'assistant-said', parts: [{ type: 'text', text: 'child-a done' }] },
   { type: 'input-consumed', inboxId: 7 },
 ]
-const RESUMABLE_A: readonly V2Body[] = [{ type: 'user-said', text: 'child-a long pass' }]
-const RESUMABLE_B: readonly V2Body[] = [{ type: 'user-said', text: 'child-b long pass' }]
+const RESUMABLE_A: readonly RecordEventBody[] = [{ type: 'user-said', text: 'child-a long pass' }]
+const RESUMABLE_B: readonly RecordEventBody[] = [{ type: 'user-said', text: 'child-b long pass' }]
 
 const timers: HostTimers = {
   now: () => Date.now(),
@@ -137,7 +137,7 @@ const appendSeeded = async (args: {
   plane: ControlPlane
   threadId: ThreadId
   epoch: number
-  bodies: readonly V2Body[]
+  bodies: readonly RecordEventBody[]
 }): Promise<void> => {
   const outcome = await args.plane.append({
     threadId: args.threadId,
@@ -180,7 +180,7 @@ const delayingPlane = (args: {
 
 const rigOf = async (args: {
   model: ModelPort
-  logs: readonly (readonly V2Body[])[]
+  logs: readonly (readonly RecordEventBody[])[]
   delaying?:
     | { delayFor: ThreadId; until: Promise<void>; posted: (agentId: ThreadId) => void }
     | undefined

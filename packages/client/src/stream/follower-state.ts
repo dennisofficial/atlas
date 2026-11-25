@@ -1,4 +1,4 @@
-import type { PendingInputsState, V2Event } from '@dltech/atlas-core'
+import type { PendingInputsState, RecordEvent } from '@dltech/atlas-core'
 import type {
   EStreamErrorCode,
   SessionStatusOutput,
@@ -20,8 +20,8 @@ export enum ESessionConnection {
 }
 
 export type SessionSnapshot = {
-  events: readonly V2Event[]
-  foldable: readonly V2Event[]
+  events: readonly RecordEvent[]
+  foldable: readonly RecordEvent[]
   quickStops: readonly QuickStopEvidence[]
   pending: PendingInputsState
   cursor: SessionCursor | undefined

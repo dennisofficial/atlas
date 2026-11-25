@@ -11,7 +11,7 @@ import {
   repairActionsOf,
   toThreadId,
   type CredentialRepair,
-  type V2Event,
+  type RecordEvent,
 } from '@dltech/atlas-core'
 import type {
   RunAttentionAction,
@@ -84,7 +84,7 @@ export type CredentialRepairControl = {
 export function useCredentialRepair(args: {
   sessionId: string
   mainThreadId: string | undefined
-  events: readonly V2Event[]
+  events: readonly RecordEvent[]
   onSwitchModel: () => void
   retryAfterModel: ModelSwitchRetry
 }): CredentialRepairControl {

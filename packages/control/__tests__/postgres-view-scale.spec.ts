@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'bun:test'
 import { mkdir, writeFile } from 'node:fs/promises'
 import { join } from 'node:path'
-import type { SessionViewState, V2Event } from '@dltech/atlas-core'
+import type { SessionViewState, RecordEvent } from '@dltech/atlas-core'
 import { useTestDatabase } from '@dltech/atlas-db/testing'
 
 import { ControlPlane } from '../src/control-plane'
@@ -24,7 +24,7 @@ const percentile = (values: number[], fraction: number): number =>
     Math.min(values.length - 1, Math.floor(values.length * fraction))
   ] as number
 
-const viewCost = (state: SessionViewState, events: readonly V2Event[]): number => {
+const viewCost = (state: SessionViewState, events: readonly RecordEvent[]): number => {
   const start = performance.now()
   const folded = foldEvents({ state, events })
   encodeViewState(folded.state)

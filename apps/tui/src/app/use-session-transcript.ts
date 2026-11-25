@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState, useSyncExternalStore } from 'react'
 
-import type { Event, PendingInputsState, V2Event } from '@dltech/atlas-core'
+import type { Event, PendingInputsState, RecordEvent } from '@dltech/atlas-core'
 import { EMPTY_PENDING, toThreadId } from '@dltech/atlas-core'
 import type { SessionStatusOutput, SessionViewOutput } from '@dltech/atlas-protocol'
 import {
@@ -38,7 +38,7 @@ export type SessionTranscript = {
   sessionId: string
   loadOlder: () => Promise<number>
   events: readonly Event[]
-  rawEvents: readonly V2Event[]
+  rawEvents: readonly RecordEvent[]
   quickStops: readonly QuickStopEvidence[]
   status: SessionStatusOutput | undefined
   pending: PendingInputsState
@@ -73,7 +73,7 @@ export function useSessionTranscript(args: {
 
   const followed = useRef<FollowedSession | undefined>(undefined)
   const [connection, setConnection] = useState<ESessionConnection>(NOT_CONNECTED)
-  const [rawEvents, setRawEvents] = useState<readonly V2Event[]>([])
+  const [rawEvents, setRawEvents] = useState<readonly RecordEvent[]>([])
   const [quickStops, setQuickStops] = useState<readonly QuickStopEvidence[]>([])
   const [status, setStatus] = useState<SessionStatusOutput | undefined>(undefined)
   const [pending, setPending] = useState<PendingInputsState>(EMPTY_PENDING)
@@ -83,7 +83,7 @@ export function useSessionTranscript(args: {
     shells: {},
   })
 
-  const mapped = useRef<{ source: readonly V2Event[]; events: Event[] } | null>(null)
+  const mapped = useRef<{ source: readonly RecordEvent[]; events: Event[] } | null>(null)
 
   useEffect(() => {
     const handle = client.connection.follow({

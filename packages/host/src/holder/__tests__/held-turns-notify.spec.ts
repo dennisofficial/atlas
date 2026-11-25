@@ -14,7 +14,7 @@ import {
   toCallId,
   toEventId,
   toRunId,
-  type V2Event,
+  type RecordEvent,
 } from '@dltech/atlas-core'
 import { describe, expect, it } from 'bun:test'
 
@@ -31,7 +31,7 @@ const runnerOf = (outcome: TurnOutcome): LoopTurnRunner =>
     resume: () => Promise.resolve(outcome),
   }) as unknown as LoopTurnRunner
 
-const openShellEvents = (): V2Event[] =>
+const openShellEvents = (): RecordEvent[] =>
   [
     {
       type: 'background-shell-started',
@@ -42,9 +42,9 @@ const openShellEvents = (): V2Event[] =>
       at: AT,
       threadId: THREAD,
     },
-  ] as V2Event[]
+  ] as RecordEvent[]
 
-const parkedEvents = (): V2Event[] =>
+const parkedEvents = (): RecordEvent[] =>
   [
     ...openTurnIn('turn-parked'),
     {
@@ -56,10 +56,10 @@ const parkedEvents = (): V2Event[] =>
       at: AT,
       threadId: THREAD,
     },
-  ] as V2Event[]
+  ] as RecordEvent[]
 
 const setup = (
-  over: { events?: V2Event[]; headSeq?: number; failure?: Error } = {},
+  over: { events?: RecordEvent[]; headSeq?: number; failure?: Error } = {},
 ): { sent: NotifyDispatchArgs[]; log: FakeLog; turns: HeldTurns } => {
   const sent: NotifyDispatchArgs[] = []
   const log = new FakeLog(THREAD, over.events ?? [])

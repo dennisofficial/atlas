@@ -1,10 +1,10 @@
-import { EContextSlot, type EventDraft, type V2Event } from '@dltech/atlas-core'
+import { EContextSlot, type EventDraft, type RecordEvent } from '@dltech/atlas-core'
 
 import { EMcpServerStatus, type McpServerTools } from './snapshot'
 
 const SLOT = EContextSlot.McpInstructions
 
-const offeredOf = (events: readonly V2Event[]): ReadonlyMap<string, string> => {
+const offeredOf = (events: readonly RecordEvent[]): ReadonlyMap<string, string> => {
   const offered = new Map<string, string>()
   for (const event of events) {
     if (event.type !== 'context-loaded' || event.slot !== SLOT) continue
@@ -31,7 +31,7 @@ const desiredOf = (args: {
 }
 
 export const mcpInstructionsDraftsOf = (args: {
-  events: readonly V2Event[]
+  events: readonly RecordEvent[]
   servers: readonly McpServerTools[]
 }): readonly EventDraft[] => {
   const offered = offeredOf(args.events)

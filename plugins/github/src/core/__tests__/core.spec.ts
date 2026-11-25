@@ -8,7 +8,7 @@ import {
   ESubscriptionStatus,
   toRunId,
   toThreadId,
-  type V2Body,
+  type RecordEventBody,
 } from '@dltech/atlas-core'
 
 import {
@@ -22,7 +22,7 @@ import {
   targetOfRepo,
 } from '..'
 
-const eventsOf = (bodies: V2Body[]) =>
+const eventsOf = (bodies: RecordEventBody[]) =>
   chainEvents({
     threadId: toThreadId('t1'),
     runId: toRunId('r1'),
@@ -31,7 +31,7 @@ const eventsOf = (bodies: V2Body[]) =>
     bodies,
   })
 
-const created = (id: string): V2Body => ({
+const created = (id: string): RecordEventBody => ({
   type: 'subscription-created',
   subscriptionId: id,
   provider: 'github.pull-request',
@@ -76,7 +76,7 @@ describe('subscriptions view', () => {
   })
 
   it('carries the events filter, replacing it on a later created for the same id', () => {
-    const created = (events?: readonly string[]): V2Body => ({
+    const created = (events?: readonly string[]): RecordEventBody => ({
       type: 'subscription-created',
       subscriptionId: 'a',
       provider: 'github.pull-request',

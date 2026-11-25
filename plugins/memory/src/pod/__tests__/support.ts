@@ -1,4 +1,4 @@
-import { toThreadId, type V2Event } from '@dltech/atlas-core'
+import { toThreadId, type RecordEvent } from '@dltech/atlas-core'
 import {
   type MemoryKind,
   type MemoryScope,
@@ -94,7 +94,7 @@ export const fakeMemory = (args: { project?: string | null } = {}) => {
 }
 
 export const rig = (memory: PodMemory = fakeMemory().port) => {
-  const log: V2Event[] = []
+  const log: RecordEvent[] = []
   const ctx: PluginPodContext = {
     sessionId: 's1',
     resources: EMPTY_POD_RESOURCES,
@@ -117,7 +117,11 @@ export const rig = (memory: PodMemory = fakeMemory().port) => {
     },
     append: async (drafts) => {
       for (const body of drafts) {
-        log.push({ ...body, id: `e${log.length + 1}`, seq: log.length + 1 } as unknown as V2Event)
+        log.push({
+          ...body,
+          id: `e${log.length + 1}`,
+          seq: log.length + 1,
+        } as unknown as RecordEvent)
       }
     },
     notify: async () => undefined,

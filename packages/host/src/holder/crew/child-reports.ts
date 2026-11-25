@@ -5,7 +5,7 @@ import {
   type EventBody,
   type EventDraft,
   type ThreadId,
-  type V2Event,
+  type RecordEvent,
 } from '@dltech/atlas-core'
 import { inboxMessageSchema } from '@dltech/atlas-protocol'
 import type { ControlPlane } from '@dltech/atlas-control'
@@ -36,7 +36,7 @@ export const appendOnParent = async (
   })
 }
 
-export const lastSeqOf = (events: readonly V2Event[]): number => events.at(-1)?.seq ?? 0
+export const lastSeqOf = (events: readonly RecordEvent[]): number => events.at(-1)?.seq ?? 0
 
 export const threadLastSeq = async (args: {
   plane: ControlPlane

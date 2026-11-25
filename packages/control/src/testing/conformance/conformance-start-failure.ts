@@ -1,5 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it } from 'bun:test'
-import type { V2Body } from '@dltech/atlas-core'
+import type { RecordEventBody } from '@dltech/atlas-core'
 
 import { ControlPlane } from '../../control-plane'
 import { createSessionParams, HOLDER_HOST, mint, SESSION, T0, THREAD } from './support'
@@ -19,7 +19,10 @@ export function describeControlPlaneStartFailures(params: ConformanceParams): vo
 
     afterEach(() => hosts.releaseAll())
 
-    const appendAs = async (args: { bodies: V2Body[]; wantsHolder: boolean }): Promise<void> => {
+    const appendAs = async (args: {
+      bodies: RecordEventBody[]
+      wantsHolder: boolean
+    }): Promise<void> => {
       const { epoch } = await plane.grant({
         sessionId: SESSION,
         hostId: HOLDER_HOST,

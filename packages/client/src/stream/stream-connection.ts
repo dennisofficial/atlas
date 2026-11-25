@@ -1,4 +1,4 @@
-import type { PluginViewFold, V2Event } from '@dltech/atlas-core'
+import type { PluginViewFold, RecordEvent } from '@dltech/atlas-core'
 import type { StreamServerMessage } from '@dltech/atlas-protocol'
 import type { z } from 'zod'
 
@@ -36,7 +36,7 @@ export type StreamConnectionArgs = {
   transport: StreamTransport
   scheduler: StreamScheduler
   networkSignal?: StreamNetworkSignal | undefined
-  eventSchema?: z.ZodType<V2Event> | undefined
+  eventSchema?: z.ZodType<RecordEvent> | undefined
   knownEventTypes?: ReadonlySet<string> | undefined
   views?: readonly PluginViewFold[] | undefined
 }

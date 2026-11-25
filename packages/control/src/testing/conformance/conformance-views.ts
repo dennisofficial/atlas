@@ -10,14 +10,18 @@ import {
   SESSION_VIEW_VERSION,
   stepSessionView,
   toCallId,
-  type V2Body,
+  type RecordEventBody,
 } from '@dltech/atlas-core'
 
 import { decodeViewState, encodeViewState } from '../../session-view-codec'
 import type { PrStateRow } from '../../port'
 import type { ConformanceParams } from './conformance'
 import { branches, linked, prStateOf, reading } from './conformance-views.fixture'
-const TURN_STARTED: V2Body = { type: 'turn-started', turnId: 'turn-1', cause: ETurnCause.Input }
+const TURN_STARTED: RecordEventBody = {
+  type: 'turn-started',
+  turnId: 'turn-1',
+  cause: ETurnCause.Input,
+}
 
 import { describeControlPlaneDigests } from './conformance-views.digests'
 import { describeControlPlaneDurableViews } from './conformance-views.durable'
@@ -71,7 +75,7 @@ export function describeControlPlaneViews(params: ConformanceParams): void {
       return state
     }
 
-    const writePlan = (args: { callId: string; texts: readonly string[] }): V2Body[] => [
+    const writePlan = (args: { callId: string; texts: readonly string[] }): RecordEventBody[] => [
       {
         type: 'tool-called',
         callId: toCallId(args.callId),

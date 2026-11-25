@@ -3,7 +3,7 @@ import { EAgentStart } from '../../agents/start'
 import { EAgentStatus } from '../../agents/status'
 import { EMessageOrigin } from '../../events/body'
 import { toCallId, toEventId, toRunId, toThreadId } from '../../events/ids'
-import type { Hash, V2Body, V2Event } from '../../record/event'
+import type { Hash, RecordEventBody, RecordEvent } from '../../record/event'
 import { ETurnCause, ETurnEndedBy, ETurnOutcome } from '../../record/turns'
 import { EShellStatus } from '../../shells/status'
 import { ESubscriptionActor, ESubscriptionStatus } from '../../subscriptions/subscription'
@@ -16,7 +16,7 @@ const runId = toRunId('run-notify')
 const HASH = 'a'.repeat(64) as Hash
 let sequence = 0
 
-const eventOf = (body: V2Body): V2Event => {
+const eventOf = (body: RecordEventBody): RecordEvent => {
   sequence += 1
   return {
     ...body,
@@ -28,13 +28,13 @@ const eventOf = (body: V2Body): V2Event => {
     at: `2026-11-23T14:00:${String(sequence % 60).padStart(2, '0')}.000Z`,
     epoch: 1,
     prevHash: HASH,
-  } as V2Event
+  } as RecordEvent
 }
 
-export const turnStarted = (): V2Event =>
+export const turnStarted = (): RecordEvent =>
   eventOf({ type: 'turn-started', turnId: `turn-${sequence + 1}`, cause: ETurnCause.Input })
 
-export const turnEnded = (): V2Event =>
+export const turnEnded = (): RecordEvent =>
   eventOf({
     type: 'turn-ended',
     turnId: `turn-${sequence}`,
@@ -42,10 +42,10 @@ export const turnEnded = (): V2Event =>
     by: ETurnEndedBy.Agent,
   })
 
-export const operatorSaid = (via?: EMessageOrigin): V2Event =>
+export const operatorSaid = (via?: EMessageOrigin): RecordEvent =>
   eventOf({ type: 'user-said', text: 'go', ...(via === undefined ? {} : { via }) })
 
-export const shellStarted = (args: { shellId: string; bootId?: string }): V2Event =>
+export const shellStarted = (args: { shellId: string; bootId?: string }): RecordEvent =>
   eventOf({
     type: 'background-shell-started',
     shellId: args.shellId,
@@ -53,7 +53,7 @@ export const shellStarted = (args: { shellId: string; bootId?: string }): V2Even
     ...(args.bootId === undefined ? {} : { bootId: args.bootId }),
   })
 
-export const shellEnded = (args: { shellId: string; bootId?: string }): V2Event =>
+export const shellEnded = (args: { shellId: string; bootId?: string }): RecordEvent =>
   eventOf({
     type: 'background-shell-ended',
     shellId: args.shellId,
@@ -66,7 +66,7 @@ export const shellEnded = (args: { shellId: string; bootId?: string }): V2Event 
     ...(args.bootId === undefined ? {} : { bootId: args.bootId }),
   })
 
-export const agentSpawned = (agentId: string): V2Event =>
+export const agentSpawned = (agentId: string): RecordEvent =>
   eventOf({
     type: 'agent-spawned',
     agentId: toThreadId(agentId),
@@ -75,7 +75,7 @@ export const agentSpawned = (agentId: string): V2Event =>
     mode: EAgentStart.Fresh,
   })
 
-export const agentRestarted = (agentId: string): V2Event =>
+export const agentRestarted = (agentId: string): RecordEvent =>
   eventOf({
     type: 'agent-restarted',
     agentId: toThreadId(agentId),
@@ -84,7 +84,7 @@ export const agentRestarted = (agentId: string): V2Event =>
     via: EAgentRestart.Resume,
   })
 
-export const agentEnded = (agentId: string): V2Event =>
+export const agentEnded = (agentId: string): RecordEvent =>
   eventOf({
     type: 'agent-ended',
     agentId: toThreadId(agentId),
@@ -96,7 +96,7 @@ export const agentEnded = (agentId: string): V2Event =>
     toolCalls: 2,
   })
 
-export const subscriptionCreated = (subscriptionId: string): V2Event =>
+export const subscriptionCreated = (subscriptionId: string): RecordEvent =>
   eventOf({
     type: 'subscription-created',
     subscriptionId,
@@ -109,7 +109,7 @@ export const subscriptionCreated = (subscriptionId: string): V2Event =>
 export const subscriptionChanged = (args: {
   subscriptionId: string
   status: ESubscriptionStatus
-}): V2Event =>
+}): RecordEvent =>
   eventOf({
     type: 'subscription-changed',
     subscriptionId: args.subscriptionId,
@@ -117,8 +117,8 @@ export const subscriptionChanged = (args: {
     by: ESubscriptionActor.Agent,
   })
 
-export const serviceStarted = (serviceId: string): V2Event =>
+export const serviceStarted = (serviceId: string): RecordEvent =>
   eventOf({ type: 'service-started', serviceId, command: 'bun run dev' })
 
-export const parkedCall = (): V2Event =>
+export const parkedCall = (): RecordEvent =>
   eventOf({ type: 'tool-parked', callId: toCallId('call-1'), name: 'bash' })

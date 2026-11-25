@@ -1,18 +1,18 @@
 import { describe, expect, it } from 'bun:test'
 import { ESandboxProvider } from '@dltech/atlas-protocol'
 import type { SandboxCredentials } from '../../sandbox/sandbox-provider'
-import { planV2Pods, uniqueV2Scopes } from '../v2-pod-sweep'
+import { planPods, uniqueScopes } from '../pod-sweep'
 import {
   AGENT37_CREDENTIALS,
   FakeSandboxProvider,
   NOW,
   hoursAgo,
   listing,
-} from '../v2-pod-sweep.fixture'
+} from '../pod-sweep.fixture'
 
-describe('planV2Pods', () => {
+describe('planPods', () => {
   it('stops a running pod whose sessions are all archived, and deletes a stopped one', () => {
-    const plan = planV2Pods({
+    const plan = planPods({
       pods: [
         listing({ sandboxSessionId: 'pod-running', running: true }),
         listing({ sandboxSessionId: 'pod-stopped' }),
@@ -29,7 +29,7 @@ describe('planV2Pods', () => {
   })
 
   it('stops a running pod no session row resolves, once its own creation is past the grace', () => {
-    const plan = planV2Pods({
+    const plan = planPods({
       pods: [
         listing({ sandboxSessionId: 'pod-orphan', running: true }),
         listing({ sandboxSessionId: 'pod-orphan-fresh', running: true, createdAt: hoursAgo(1) }),
@@ -43,7 +43,7 @@ describe('planV2Pods', () => {
   })
 
   it('counts the grace from the archive, not from the pod in front of it', () => {
-    const plan = planV2Pods({
+    const plan = planPods({
       pods: [listing({ sandboxSessionId: 'pod-rebuilt', createdAt: hoursAgo(1) })],
       live: new Set(),
       retirable: new Map([['pod-rebuilt', hoursAgo(30)]]),
@@ -54,7 +54,7 @@ describe('planV2Pods', () => {
   })
 
   it('leaves a pod whose archive is still inside the grace', () => {
-    const plan = planV2Pods({
+    const plan = planPods({
       pods: [listing({ sandboxSessionId: 'pod-fresh-archive', running: true })],
       live: new Set(),
       retirable: new Map([['pod-fresh-archive', hoursAgo(1)]]),
@@ -68,10 +68,10 @@ describe('planV2Pods', () => {
     const fresh = listing({ sandboxSessionId: 'pod-fresh', createdAt: NOW.getTime() - 60_000 })
 
     expect(
-      planV2Pods({ pods: [fresh], live: new Set(), retirable: new Map(), now: NOW }).delete,
+      planPods({ pods: [fresh], live: new Set(), retirable: new Map(), now: NOW }).delete,
     ).toEqual([])
     expect(
-      planV2Pods({
+      planPods({
         pods: [fresh],
         live: new Set(),
         retirable: new Map(),
@@ -81,7 +81,7 @@ describe('planV2Pods', () => {
   })
 })
 
-describe('uniqueV2Scopes', () => {
+describe('uniqueScopes', () => {
   const vercelCredentials = (args: {
     teamId: string
     projectId: string
@@ -99,7 +99,7 @@ describe('uniqueV2Scopes', () => {
   })
 
   it('keeps one scope per Vercel team and project, platform first', () => {
-    const scopes = uniqueV2Scopes([
+    const scopes = uniqueScopes([
       vercelScope('platform/vercel', 'platform-token'),
       vercelScope('usr-1/prj-1', 'user-token'),
       vercelScope('usr-1/prj-2', 'user-token', 'prj-2'),
@@ -115,11 +115,11 @@ describe('uniqueV2Scopes', () => {
       sandbox: new FakeSandboxProvider({}),
     })
 
-    expect(uniqueV2Scopes([agent37('platform/agent37'), agent37('duplicate')])).toHaveLength(1)
+    expect(uniqueScopes([agent37('platform/agent37'), agent37('duplicate')])).toHaveLength(1)
   })
 
   it('keeps the providers apart even for the same label', () => {
-    const scopes = uniqueV2Scopes([
+    const scopes = uniqueScopes([
       vercelScope('platform', 'platform-token'),
       { label: 'platform', credentials: AGENT37_CREDENTIALS, sandbox: new FakeSandboxProvider({}) },
     ])

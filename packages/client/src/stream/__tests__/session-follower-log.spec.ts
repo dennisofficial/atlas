@@ -4,8 +4,8 @@ import {
   EMPTY_VISIBILITY,
   initialFailureMessage,
   initialSessionViewState,
-  type V2Body,
-  type V2Event,
+  type RecordEventBody,
+  type RecordEvent,
 } from '@dltech/atlas-core'
 import { EStreamResetReason } from '@dltech/atlas-protocol'
 
@@ -24,7 +24,7 @@ import {
 
 const SESSION = 'session-1'
 
-const posted = (inboxId: number): V2Body => ({
+const posted = (inboxId: number): RecordEventBody => ({
   type: 'input-posted',
   inboxId,
   kind: 'message',
@@ -32,7 +32,7 @@ const posted = (inboxId: number): V2Body => ({
   text: `q${inboxId}`,
 })
 
-const seedEvents = async (args: { log: SessionLog; events: V2Event[] }) => {
+const seedEvents = async (args: { log: SessionLog; events: RecordEvent[] }) => {
   const window = applyPage({
     window: EMPTY_WINDOW,
     page: { events: args.events, head: headOf(args.events) },
@@ -41,7 +41,11 @@ const seedEvents = async (args: { log: SessionLog; events: V2Event[] }) => {
   return window
 }
 
-const seedSnapshot = async (args: { log: SessionLog; events: V2Event[]; throughSeq: number }) => {
+const seedSnapshot = async (args: {
+  log: SessionLog
+  events: RecordEvent[]
+  throughSeq: number
+}) => {
   const window = await seedEvents({ log: args.log, events: args.events })
   await args.log.saveSnapshot({
     sessionId: SESSION,

@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'bun:test'
 
-import type { V2Event } from '@dltech/atlas-core'
+import type { RecordEvent } from '@dltech/atlas-core'
 
 import {
   EOutgoingPlacement,
@@ -14,7 +14,7 @@ import {
 
 type PartialEvent = { type: string } & Record<string, unknown>
 
-const eventsOf = (partials: readonly PartialEvent[]): V2Event[] =>
+const eventsOf = (partials: readonly PartialEvent[]): RecordEvent[] =>
   partials.map(
     (partial, index) =>
       ({
@@ -27,7 +27,7 @@ const eventsOf = (partials: readonly PartialEvent[]): V2Event[] =>
         epoch: 0,
         prevHash: 'a'.repeat(64),
         ...partial,
-      }) as unknown as V2Event,
+      }) as unknown as RecordEvent,
   )
 
 const STAGED = [

@@ -14,7 +14,7 @@ import {
   stepVisibility,
   type PluginViewFold,
   type SessionViewState,
-  type V2Event,
+  type RecordEvent,
 } from '@dltech/atlas-core'
 
 import { EMPTY_QUICK_STOP_STATE, stepQuickStop } from '../session/quick-stop-state'
@@ -66,7 +66,7 @@ export const restoredWindowOf = async (args: {
     to >= from
       ? await log
           .readRange({ sessionId, fromSeq: from, toSeq: to })
-          .catch(() => [] as readonly V2Event[])
+          .catch(() => [] as readonly RecordEvent[])
       : []
   const visibility = gap.reduce(stepVisibility, saved.visibility)
   const pending = gap.reduce(stepPending, saved.pending)
@@ -104,12 +104,12 @@ export const olderVisibleOf = async (args: {
   sessionId: string
   window: SessionWindow
   count: number
-}): Promise<readonly V2Event[]> => {
+}): Promise<readonly RecordEvent[]> => {
   const { log, sessionId, window, count } = args
   const oldest = window.events[0]?.seq
   if (oldest === undefined) return []
   const older = await log
     .readBefore({ sessionId, seq: oldest, count })
-    .catch(() => [] as readonly V2Event[])
+    .catch(() => [] as readonly RecordEvent[])
   return visibleWithin({ state: window.visibility, events: older })
 }

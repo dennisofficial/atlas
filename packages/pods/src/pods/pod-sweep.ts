@@ -9,7 +9,7 @@ import { ARCHIVED_SANDBOX_GRACE_MS } from './archived-sandbox-grace'
 const WORK_CONCURRENCY = 4
 
 /** One provider's credentials and the adapter that holds the pods under them. */
-export type V2PodSweepScope = {
+export type PodSweepScope = {
   label: string
   credentials: SandboxCredentials
   sandbox: SandboxProvider
@@ -19,27 +19,27 @@ export type V2PodSweepScope = {
  * Pod session ids, the only identity the port knows a pod by. `retirable` maps a pod to the latest
  * `archivedAt` of the sessions on it, in milliseconds.
  */
-export type V2PodSweepPods = {
+export type PodSweepPods = {
   live: ReadonlySet<string>
   retirable: ReadonlyMap<string, number>
 }
 
-export type V2PodPlan = { stop: string[]; delete: string[] }
+export type PodPlan = { stop: string[]; delete: string[] }
 
 /**
  * Two scopes with the same key list the same pods, so sweeping both would act on one pod twice. A
  * Vercel scope is an account and project whatever token it carries; Agent37 has one platform account.
  */
-export const v2ScopeKeyOf = (credentials: SandboxCredentials): string =>
+export const sweepScopeKeyOf = (credentials: SandboxCredentials): string =>
   credentials.provider === ESandboxProvider.Vercel
     ? `${credentials.provider}/${credentials.teamId}/${credentials.projectId}`
     : credentials.provider
 
-export function uniqueV2Scopes(scopes: readonly V2PodSweepScope[]): V2PodSweepScope[] {
+export function uniqueScopes(scopes: readonly PodSweepScope[]): PodSweepScope[] {
   const seen = new Set<string>()
-  const unique: V2PodSweepScope[] = []
+  const unique: PodSweepScope[] = []
   for (const scope of scopes) {
-    const key = v2ScopeKeyOf(scope.credentials)
+    const key = sweepScopeKeyOf(scope.credentials)
     if (seen.has(key)) continue
     seen.add(key)
     unique.push(scope)
@@ -47,7 +47,7 @@ export function uniqueV2Scopes(scopes: readonly V2PodSweepScope[]): V2PodSweepSc
   return unique
 }
 
-export type V2PodSweepSummary = {
+export type PodSweepSummary = {
   scopes: number
   scanned: number
   stopped: number
@@ -58,21 +58,21 @@ export type V2PodSweepSummary = {
   dryRun: boolean
 }
 
-export type V2PodFenceOutcome = 'acted' | 'kept'
+export type PodFenceOutcome = 'acted' | 'kept'
 
 /** Re-check the pod and act on it as one step that no unarchive can split. */
-export type V2PodFence = (args: {
+export type PodFence = (args: {
   podSessionId: string
   act: () => Promise<void>
-}) => Promise<V2PodFenceOutcome>
+}) => Promise<PodFenceOutcome>
 
-export function planV2Pods(args: {
+export function planPods(args: {
   pods: readonly SandboxListing[]
   live: ReadonlySet<string>
   retirable: ReadonlyMap<string, number>
   now: Date
   graceMs?: number | undefined
-}): V2PodPlan {
+}): PodPlan {
   const cutoff = args.now.getTime() - (args.graceMs ?? ARCHIVED_SANDBOX_GRACE_MS)
   const stop: string[] = []
   const doomed: string[] = []
@@ -99,10 +99,10 @@ async function runBounded<T>(args: {
   await Promise.all(Array.from({ length: WORK_CONCURRENCY }, worker))
 }
 
-export async function sweepV2Pods(args: {
-  scopes: readonly V2PodSweepScope[]
-  pods: V2PodSweepPods
-  fence: V2PodFence
+export async function sweepPods(args: {
+  scopes: readonly PodSweepScope[]
+  pods: PodSweepPods
+  fence: PodFence
   onRetired?: ((args: { podSessionId: string }) => Promise<void>) | undefined
   onStopped?:
     | ((args: { podSessionId: string; cpuCumulativeMs?: number | undefined }) => Promise<void>)
@@ -112,8 +112,8 @@ export async function sweepV2Pods(args: {
   dryRun: boolean
   log: (line: string) => void
   graceMs?: number | undefined
-}): Promise<V2PodSweepSummary> {
-  const summary: V2PodSweepSummary = {
+}): Promise<PodSweepSummary> {
+  const summary: PodSweepSummary = {
     scopes: args.scopes.length,
     scanned: 0,
     stopped: 0,
@@ -134,7 +134,7 @@ export async function sweepV2Pods(args: {
       continue
     }
     summary.scanned += listings.length
-    const plan = planV2Pods({
+    const plan = planPods({
       pods: listings,
       live: args.pods.live,
       retirable: args.pods.retirable,

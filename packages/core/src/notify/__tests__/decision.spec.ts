@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'bun:test'
 
 import type { Event } from '../../events/envelope'
-import type { V2Event } from '../../record/event'
+import type { RecordEvent } from '../../record/event'
 import { ESubscriptionStatus } from '../../subscriptions/subscription'
 import { ENotifyVerdict, notifyDecisionOf } from '../decision'
 import { ENotifyMoment } from '../moment'
@@ -24,20 +24,21 @@ import {
   turnStarted,
 } from './notify-fixtures'
 
-const pendingOf = (events: readonly V2Event[]) =>
+const pendingOf = (events: readonly RecordEvent[]) =>
   pendingWorkOf({ events: events as readonly Event[] })
 
-const decided = (args: { moment: ENotifyMoment; events: readonly V2Event[] }) =>
+const decided = (args: { moment: ENotifyMoment; events: readonly RecordEvent[] }) =>
   notifyDecisionOf({
     moment: args.moment,
     pending: pendingOf(args.events),
     operatorTurn: operatorTurnOf({ events: args.events }),
   })
 
-const finished = (events: readonly V2Event[]) =>
+const finished = (events: readonly RecordEvent[]) =>
   decided({ moment: ENotifyMoment.TurnFinished, events })
-const failed = (events: readonly V2Event[]) => decided({ moment: ENotifyMoment.TurnFailed, events })
-const waiting = (events: readonly V2Event[]) =>
+const failed = (events: readonly RecordEvent[]) =>
+  decided({ moment: ENotifyMoment.TurnFailed, events })
+const waiting = (events: readonly RecordEvent[]) =>
   decided({ moment: ENotifyMoment.WaitingForYou, events })
 
 describe('notifyDecisionOf at a turn end', () => {

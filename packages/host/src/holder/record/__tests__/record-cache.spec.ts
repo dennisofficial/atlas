@@ -8,7 +8,7 @@ import {
   toRunId,
   toThreadId,
   type LogHead,
-  type V2Body,
+  type RecordEventBody,
 } from '@dltech/atlas-core'
 
 import { RecordCache } from '../record-cache'
@@ -17,8 +17,8 @@ const SESSION = 'session-1'
 const THREAD = toThreadId('thread-1')
 const AT = '2026-11-06T12:00:00.000Z'
 
-const said = (text: string): V2Body => ({ type: 'user-said', text })
-const answered = (text: string): V2Body => ({
+const said = (text: string): RecordEventBody => ({ type: 'user-said', text })
+const answered = (text: string): RecordEventBody => ({
   type: 'assistant-said',
   parts: [{ type: 'text', text }],
 })
@@ -38,7 +38,7 @@ const openThread = async (): Promise<{ plane: ControlPlane; epoch: number }> => 
 const appendTo = async (args: {
   plane: ControlPlane
   epoch: number
-  bodies: readonly V2Body[]
+  bodies: readonly RecordEventBody[]
 }): Promise<{ head: LogHead; events: ReturnType<typeof chainEvents> }> => {
   const from = await args.plane.head({ threadId: THREAD })
   const events = chainEvents({
@@ -54,7 +54,7 @@ const appendTo = async (args: {
   return { head: outcome.head, events }
 }
 
-const summaryOver = (throughSeq: number): V2Body => ({
+const summaryOver = (throughSeq: number): RecordEventBody => ({
   type: 'history-summarised',
   fromSeq: 1,
   throughSeq,
@@ -138,7 +138,7 @@ describe('RecordCache', () => {
     const total = 20_000
     const covered = 19_000
     for (let seq = 0; seq < total; seq += 500) {
-      const bodies = Array.from({ length: 500 }, (_, index): V2Body => {
+      const bodies = Array.from({ length: 500 }, (_, index): RecordEventBody => {
         const at = seq + index
         if (at % 100 === 0) return { type: 'fact-recorded', key: `f:${at}`, kind: 'f', value: at }
         return at % 2 === 0 ? said(`ask ${at}`) : answered(`reply ${at}`)

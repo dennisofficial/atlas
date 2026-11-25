@@ -3,7 +3,7 @@ import { PostgresControlStore } from '@dltech/atlas-control/postgres'
 import {
   INBOX_KIND_EVENT,
   INBOX_KIND_RECORD,
-  createV2EventSchema,
+  createRecordEventSchema,
   ESubscriptionActor,
   ESubscriptionEnd,
   inboxEventOf,
@@ -47,7 +47,7 @@ describe('v2 session notice for a PR event', () => {
     await prepareDelivery()
     const plane = new ControlPlane({
       store: new PostgresControlStore(db),
-      eventSchema: createV2EventSchema({ pluginBodies: [] }),
+      eventSchema: createRecordEventSchema({ pluginBodies: [] }),
     })
     await plane.createSession({
       sessionId: SESSION,
@@ -85,8 +85,8 @@ describe('v2 session notice for a PR event', () => {
 
   const noticeOf = async (kind: string): Promise<number> => {
     const event = await seedPrEvent({ userId: 'usr-a', kind })
-    const { noticeV2Sessions } = await import('./github-v2-notice')
-    return db.transaction((tx) => noticeV2Sessions({ tx, event }))
+    const { noticeSessions } = await import('./github-notice')
+    return db.transaction((tx) => noticeSessions({ tx, event }))
   }
 
   it('posts one event naming the PR, its checks tally and its mergeability', async () => {
@@ -143,8 +143,8 @@ describe('v2 session notice for a PR event', () => {
     const [event] = await prEventRows()
     if (event === undefined) throw new Error('no event row')
 
-    const { noticeV2Sessions } = await import('./github-v2-notice')
-    await db.transaction((tx) => noticeV2Sessions({ tx, event }))
+    const { noticeSessions } = await import('./github-notice')
+    await db.transaction((tx) => noticeSessions({ tx, event }))
 
     expect(await inboxOf(SESSION)).toHaveLength(1)
   })
@@ -222,10 +222,10 @@ describe('v2 session notice for a PR event', () => {
   it('ends the row of the pull request once it merges', async () => {
     await seedWatchedPr()
     const [held] = await subscriptionsOf()
-    const { noticeV2Sessions } = await import('./github-v2-notice')
+    const { noticeSessions } = await import('./github-notice')
     const event = await stateEventOf('merged')
 
-    await db.transaction((tx) => noticeV2Sessions({ tx, event }))
+    await db.transaction((tx) => noticeSessions({ tx, event }))
 
     expect(await subscriptionsOf()).toEqual([])
     expect(await endedRecordsOf()).toEqual([
@@ -240,10 +240,10 @@ describe('v2 session notice for a PR event', () => {
 
   it('ends a row whose liveness lapsed, so no notice went out', async () => {
     await seedWatchedPr({ liveUntil: new Date(Date.now() - 1_000) })
-    const { noticeV2Sessions } = await import('./github-v2-notice')
+    const { noticeSessions } = await import('./github-notice')
     const event = await stateEventOf('closed')
 
-    await db.transaction((tx) => noticeV2Sessions({ tx, event }))
+    await db.transaction((tx) => noticeSessions({ tx, event }))
 
     expect(await subscriptionsOf()).toEqual([])
     expect(await inboxOf(SESSION)).toHaveLength(1)
@@ -252,10 +252,10 @@ describe('v2 session notice for a PR event', () => {
 
   it('leaves the row in place for a state that does not end the pull request', async () => {
     await seedWatchedPr()
-    const { noticeV2Sessions } = await import('./github-v2-notice')
+    const { noticeSessions } = await import('./github-notice')
     const event = await stateEventOf('open')
 
-    await db.transaction((tx) => noticeV2Sessions({ tx, event }))
+    await db.transaction((tx) => noticeSessions({ tx, event }))
 
     expect(await subscriptionsOf()).toHaveLength(1)
     expect(await endedRecordsOf()).toEqual([])

@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'bun:test'
-import { v2EventSchema } from '@dltech/atlas-core'
+import { recordEventSchema } from '@dltech/atlas-core'
 
 import { agentLabelOf, agentOf, agentsOf } from '../agent-status'
 
@@ -14,7 +14,7 @@ const envelope = (args: { seq: number; threadId: string }) => ({
   prevHash: '0'.repeat(64),
 })
 
-const eventsOf = (raw: readonly unknown[]) => raw.map((event) => v2EventSchema.parse(event))
+const eventsOf = (raw: readonly unknown[]) => raw.map((event) => recordEventSchema.parse(event))
 
 const spawned = {
   ...envelope({ seq: 1, threadId: 'thr_main' }),

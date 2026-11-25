@@ -1,4 +1,4 @@
-import type { PendingInput, PendingInputsState, V2Event } from '@dltech/atlas-core'
+import type { PendingInput, PendingInputsState, RecordEvent } from '@dltech/atlas-core'
 
 import {
   EOutgoingPlacement,
@@ -15,7 +15,7 @@ export type OptimisticPlacement<TStaged extends PlacedStaged> = {
   hiddenInboxIds: ReadonlySet<number>
 }
 
-const clientIdByInboxOf = (events: readonly V2Event[]): ReadonlyMap<number, string> =>
+const clientIdByInboxOf = (events: readonly RecordEvent[]): ReadonlyMap<number, string> =>
   new Map(
     events.flatMap((event) =>
       event.type === 'input-posted' && event.message?.clientId !== undefined
@@ -24,7 +24,7 @@ const clientIdByInboxOf = (events: readonly V2Event[]): ReadonlyMap<number, stri
     ),
   )
 
-const saidClientIdsOf = (events: readonly V2Event[]): ReadonlySet<string> => {
+const saidClientIdsOf = (events: readonly RecordEvent[]): ReadonlySet<string> => {
   const byInbox = clientIdByInboxOf(events)
   return new Set(
     events.flatMap((event) => {
@@ -36,7 +36,7 @@ const saidClientIdsOf = (events: readonly V2Event[]): ReadonlySet<string> => {
   )
 }
 
-const openTurnStartedSeqOf = (events: readonly V2Event[]): number | undefined => {
+const openTurnStartedSeqOf = (events: readonly RecordEvent[]): number | undefined => {
   let started: number | undefined
   for (const event of events) {
     if (event.type === 'turn-started') started = event.seq
@@ -54,7 +54,7 @@ const pendingByClientIdOf = (pending: PendingInputsState): ReadonlyMap<string, P
 
 export const optimisticPlacementOf = <TStaged extends PlacedStaged>(args: {
   staged: readonly TStaged[]
-  events: readonly V2Event[]
+  events: readonly RecordEvent[]
   pending: PendingInputsState
 }): OptimisticPlacement<TStaged> => {
   const outcomes = stagedOutcomesOf({

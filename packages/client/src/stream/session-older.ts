@@ -1,7 +1,7 @@
 import {
-  v2EventSchema,
+  recordEventSchema,
   visibleWithin,
-  type V2Event,
+  type RecordEvent,
   type VisibilityState,
 } from '@dltech/atlas-core'
 import type { z } from 'zod'
@@ -40,16 +40,16 @@ export type OlderFetchArgs = {
   beforeSeq: number
   count: number
   visibility: VisibilityState
-  eventSchema?: z.ZodType<V2Event> | undefined
+  eventSchema?: z.ZodType<RecordEvent> | undefined
 }
 
 const visibleBetween = (args: {
   page: OlderEventsPage
   afterSeq: number
   beforeSeq: number
-  eventSchema: z.ZodType<V2Event>
+  eventSchema: z.ZodType<RecordEvent>
   visibility: VisibilityState
-}): V2Event[] =>
+}): RecordEvent[] =>
   visibleWithin({
     state: args.visibility,
     events: args.page.events.flatMap((raw) => {
@@ -60,9 +60,9 @@ const visibleBetween = (args: {
     }),
   })
 
-export const olderOverHttp = async (args: OlderFetchArgs): Promise<readonly V2Event[]> => {
-  const eventSchema = args.eventSchema ?? v2EventSchema
-  const collected: V2Event[] = []
+export const olderOverHttp = async (args: OlderFetchArgs): Promise<readonly RecordEvent[]> => {
+  const eventSchema = args.eventSchema ?? recordEventSchema
+  const collected: RecordEvent[] = []
   let boundary = args.beforeSeq
   for (
     let attempt = 0;

@@ -7,7 +7,7 @@ import {
   ESessionStatus,
   toRunId,
   toThreadId,
-  type V2Body,
+  type RecordEventBody,
 } from '@dltech/atlas-core'
 import { ECommandState } from '@dltech/atlas-protocol'
 
@@ -27,7 +27,7 @@ const setup = async () => {
     mainThreadId: THREAD,
   })
   const lease = await plane.grant({ sessionId: SESSION, hostId: 7 })
-  const append = async (bodies: V2Body[]) => {
+  const append = async (bodies: RecordEventBody[]) => {
     const outcome = await plane.append({
       threadId: THREAD,
       epoch: lease.epoch,
@@ -54,7 +54,7 @@ const setup = async () => {
   }
   const commands = async () =>
     (await readSessionStatus({ plane, sessionId: SESSION, threadId: THREAD })).value.commands
-  const consume = (inboxId: number): V2Body => ({
+  const consume = (inboxId: number): RecordEventBody => ({
     type: 'input-consumed',
     inboxId,
     consumed: EInputConsumed.Command,
@@ -62,7 +62,7 @@ const setup = async () => {
   return { append, post, commands, consume, plane }
 }
 
-const summarised = (inboxId?: number): V2Body => ({
+const summarised = (inboxId?: number): RecordEventBody => ({
   type: 'history-summarised',
   fromSeq: 1,
   throughSeq: 1,

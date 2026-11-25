@@ -1,6 +1,6 @@
 import type { ApiClient } from '@dltech/atlas-api-router'
 import { EClientAction, type CommandEntry } from '@dltech/atlas-commands'
-import type { V2Event } from '@dltech/atlas-core'
+import type { RecordEvent } from '@dltech/atlas-core'
 import { useEffect, useMemo, useState } from 'react'
 
 import { composerActionsOf, mobileEntriesOf } from './session-commands'
@@ -18,7 +18,7 @@ export type V2SessionCommands = {
 export const useV2SessionCommands = (args: {
   api: ApiClient | undefined
   sessionId: string
-  events: readonly V2Event[]
+  events: readonly RecordEvent[]
   reportHidden: (name: string) => void
 }): V2SessionCommands => {
   const [commands, setCommands] = useState<readonly CommandEntry[]>(NO_COMMANDS)

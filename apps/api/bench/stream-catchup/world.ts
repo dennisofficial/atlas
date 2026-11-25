@@ -7,8 +7,8 @@ import {
   toRunId,
   toThreadId,
   type LogHead,
-  type V2Body,
-  type V2Event,
+  type RecordEventBody,
+  type RecordEvent,
 } from '@dltech/atlas-core'
 
 import { createFollowSubscriptions } from '../../src/agent/stream/follow-port'
@@ -57,7 +57,7 @@ export const filler = (args: { words: number; seed: number }): string => {
   return parts.join(' ')
 }
 
-const bodyAt = (n: number): V2Body => {
+const bodyAt = (n: number): RecordEventBody => {
   const turn = Math.floor(n / 4)
   const kind = n % 4
   if (kind === 0) return { type: 'user-said', text: filler({ words: 14, seed: n }) }
@@ -96,7 +96,7 @@ export type BenchWorld = {
   userId: string
   stream: SessionStream
   counts: QueryCounts
-  events: readonly V2Event[]
+  events: readonly RecordEvent[]
   resetCounts(): void
   close(): void
 }
@@ -128,7 +128,7 @@ export const createBenchWorld = async (args: {
   })
   const lease = await plane.grant({ sessionId: BENCH_SESSION, hostId: 1 })
   const threadId = toThreadId(BENCH_THREAD)
-  const seeded: V2Event[] = []
+  const seeded: RecordEvent[] = []
   let head: LogHead = { seq: 0, hash: GENESIS_HASH }
   for (let start = 0; start < args.events; start += SEED_CHUNK) {
     const bodies = Array.from({ length: Math.min(SEED_CHUNK, args.events - start) }, (_, offset) =>

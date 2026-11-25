@@ -19,7 +19,7 @@ import {
   type InputMessage,
   type PluginEventBody,
   type RecordBody,
-  type V2Event,
+  type RecordEvent,
 } from '@dltech/atlas-core'
 import { INBOX_KIND_WITHDRAW } from '@dltech/atlas-control'
 import type { Command, CommandHandler } from '@dltech/atlas-commands'
@@ -143,7 +143,9 @@ export const postedDraftsOf = (params: {
   ]
 }
 
-export const postedInboxIdsOf = (params: { events: readonly V2Event[] }): ReadonlySet<number> => {
+export const postedInboxIdsOf = (params: {
+  events: readonly RecordEvent[]
+}): ReadonlySet<number> => {
   const pending = pendingInputsOf(params.events).pending
   return new Set(pending.map((entry) => entry.inboxId))
 }
@@ -188,14 +190,14 @@ export const drainOrderOf = (params: {
   return [...staged, ...logged].sort((left, right) => left.inboxId - right.inboxId)
 }
 
-export const loggedMessagesOf = (params: { events: readonly V2Event[] }): LoggedMessage[] =>
+export const loggedMessagesOf = (params: { events: readonly RecordEvent[] }): LoggedMessage[] =>
   pendingInputsOf(params.events).pending.flatMap((pending) => {
     if (pending.kind !== INBOX_KIND_MESSAGE || pending.message === undefined) return []
     return [{ inboxId: pending.inboxId, message: pending.message }]
   })
 
 export const loggedNoticesOf = (params: {
-  events: readonly V2Event[]
+  events: readonly RecordEvent[]
   staged: ReadonlySet<number>
 }): { inboxId: number; event: EventBody; record: boolean }[] => {
   const pending = pendingInputsOf(params.events)

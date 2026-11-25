@@ -11,8 +11,8 @@ import {
   toThreadId,
   type RunId,
   type ThreadId,
-  type V2Body,
-  type V2Event,
+  type RecordEventBody,
+  type RecordEvent,
   type WaitingForModel,
 } from '@dltech/atlas-core'
 import type { LogEntry, LogPort } from '@dltech/atlas-observability'
@@ -74,7 +74,7 @@ const fakeRecordOf = (): FakeRecord => {
         appended.flatMap((entry) =>
           entry.drafts
             .filter(isWaitingDraft)
-            .map((draft) => ({ ...draft, threadId: entry.threadId }) as unknown as V2Event),
+            .map((draft) => ({ ...draft, threadId: entry.threadId }) as unknown as RecordEvent),
         ),
     }),
   } as unknown as SessionRecord
@@ -85,10 +85,10 @@ const observerOn = (record: SessionRecord) =>
   modelWaitObserverOf({ record, threadId: THREAD_ID, newRunId: () => RUN })
 
 const recordOn = async (
-  bodies: readonly V2Body[],
+  bodies: readonly RecordEventBody[],
 ): Promise<{
   record: SessionRecord
-  events: () => Promise<readonly V2Event[]>
+  events: () => Promise<readonly RecordEvent[]>
 }> => {
   const plane = new ControlPlane({ store: new InMemoryControlStore({ clock: () => AT }) })
   await plane.createSession({
@@ -99,7 +99,7 @@ const recordOn = async (
   })
   const { epoch } = await plane.grant({ sessionId: SESSION, hostId: 1 })
   const cache = await RecordCache.load({ plane, threadId: THREAD_ID })
-  const write = async (next: readonly V2Body[]): Promise<void> => {
+  const write = async (next: readonly RecordEventBody[]): Promise<void> => {
     const from = await plane.head({ threadId: THREAD_ID })
     const events = chainEvents({
       threadId: THREAD_ID,
@@ -119,7 +119,7 @@ const recordOn = async (
       write(args.drafts.map(toRecordBody)),
     eventCache: () => cache,
   } as unknown as SessionRecord
-  const events = async (): Promise<readonly V2Event[]> => {
+  const events = async (): Promise<readonly RecordEvent[]> => {
     const page = await plane.readEvents({
       threadId: THREAD_ID,
       afterSeq: 0,

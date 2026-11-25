@@ -7,7 +7,7 @@ import {
   type ModelPort,
   type ToolDeclaration,
   type ToolOutcome,
-  type V2Event,
+  type RecordEvent,
 } from '@dltech/atlas-core'
 import {
   composePlugins,
@@ -121,7 +121,7 @@ const splitModel = (scripts: {
 const eventsIn = async (
   rig: Awaited<ReturnType<typeof makeRig>>,
   threadId: typeof THREAD_ID,
-): Promise<V2Event[]> =>
+): Promise<RecordEvent[]> =>
   (await rig.plane.readEvents({ threadId, afterSeq: 0, limit: 500, visible: false })).events
 
 const crewRig = async (callName: string = SPAWN_PROBE) => {
@@ -141,7 +141,7 @@ const crewRig = async (callName: string = SPAWN_PROBE) => {
   return { rig, model, spawned }
 }
 
-const childIdOf = (events: readonly V2Event[]): string => {
+const childIdOf = (events: readonly RecordEvent[]): string => {
   const spawned = events.find((event) => event.type === 'agent-spawned')
   if (spawned === undefined || spawned.type !== 'agent-spawned') throw new Error('no spawn')
   return spawned.agentId
@@ -150,7 +150,7 @@ const childIdOf = (events: readonly V2Event[]): string => {
 const toolNamesOf = (request: ModelRequest | undefined): readonly string[] =>
   request === undefined ? [] : request.tools.map((tool: ToolDeclaration) => tool.name)
 
-const answeredAfterEnding = (events: readonly V2Event[]): boolean => {
+const answeredAfterEnding = (events: readonly RecordEvent[]): boolean => {
   const ending = events.findIndex((event) => event.type === 'agent-ended')
   return ending >= 0 && events.slice(ending).some((event) => event.type === 'assistant-said')
 }

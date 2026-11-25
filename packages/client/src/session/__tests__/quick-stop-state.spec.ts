@@ -11,8 +11,8 @@ import {
   toRunId,
   toThreadId,
   type Attachment,
-  type V2Body,
-  type V2Event,
+  type RecordEventBody,
+  type RecordEvent,
 } from '@dltech/atlas-core'
 
 import {
@@ -22,7 +22,7 @@ import {
   type QuickStopState,
 } from '../quick-stop-state'
 
-const eventsOf = (bodies: readonly V2Body[]): V2Event[] =>
+const eventsOf = (bodies: readonly RecordEventBody[]): RecordEvent[] =>
   chainEvents({
     threadId: toThreadId('thread-1'),
     runId: toRunId('run-1'),
@@ -32,21 +32,24 @@ const eventsOf = (bodies: readonly V2Body[]): V2Event[] =>
     bodies,
   })
 
-const stateOf = (events: readonly V2Event[]): QuickStopState =>
+const stateOf = (events: readonly RecordEvent[]): QuickStopState =>
   events.reduce(stepQuickStop, EMPTY_QUICK_STOP_STATE)
 
-const started: V2Body = { type: 'turn-started', turnId: 'turn-1', cause: ETurnCause.Input }
+const started: RecordEventBody = { type: 'turn-started', turnId: 'turn-1', cause: ETurnCause.Input }
 
-const thought: V2Body = { type: 'assistant-said', parts: [{ type: 'reasoning', text: 'hm' }] }
+const thought: RecordEventBody = {
+  type: 'assistant-said',
+  parts: [{ type: 'reasoning', text: 'hm' }],
+}
 
-const ended: V2Body = {
+const ended: RecordEventBody = {
   type: 'turn-ended',
   turnId: 'turn-1',
   outcome: ETurnOutcome.Stopped,
   by: ETurnEndedBy.Operator,
 }
 
-const quickStop = (toSeq: number): V2Body => ({
+const quickStop = (toSeq: number): RecordEventBody => ({
   type: 'history-rewound',
   toSeq,
   draft: 'back',
@@ -61,7 +64,7 @@ const shot: Attachment = {
   content: { store: EAttachmentStore.Inline, data: 'AAAA' },
 }
 
-const turnOf = (text: string, turnId: string): readonly V2Body[] => [
+const turnOf = (text: string, turnId: string): readonly RecordEventBody[] => [
   { type: 'user-said', text, clientId: 'client-a' },
   { type: 'turn-started', turnId, cause: ETurnCause.Input },
   thought,

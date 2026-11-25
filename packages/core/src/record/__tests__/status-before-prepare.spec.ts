@@ -2,14 +2,15 @@ import { describe, expect, it } from 'bun:test'
 
 import { toCallId } from '../../events/ids'
 import { chainEvents } from '../chain-events'
-import type { V2Body } from '../event'
+import type { RecordEventBody } from '../event'
 import { ESessionStatus, sessionStatusOf } from '../session-status'
 import { ETurnCause } from '../turns'
 import { NOW, runId, threadId } from './support'
 
 const CALL = toCallId('call-1')
 
-const log = (bodies: V2Body[]) => chainEvents({ threadId, runId, epoch: 1, at: NOW, bodies })
+const log = (bodies: RecordEventBody[]) =>
+  chainEvents({ threadId, runId, epoch: 1, at: NOW, bodies })
 
 const statusOf = (events: readonly ReturnType<typeof log>[number][]) =>
   sessionStatusOf({ events, live: true, queuedSince: null, messageAfterFailure: false, now: NOW })

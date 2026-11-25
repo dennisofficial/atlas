@@ -1,4 +1,4 @@
-import { v2EventSchema, type V2Event } from '@dltech/atlas-core'
+import { recordEventSchema, type RecordEvent } from '@dltech/atlas-core'
 import type { z } from 'zod'
 
 import { logSnapshotOf } from './session-log-record'
@@ -38,7 +38,10 @@ const parse = (raw: unknown): unknown => {
 const rowOf = (raw: unknown): Record<string, unknown> | undefined =>
   typeof raw === 'object' && raw !== null ? (raw as Record<string, unknown>) : undefined
 
-const eventsOf = (rows: readonly unknown[], schema: z.ZodType<V2Event>): readonly V2Event[] =>
+const eventsOf = (
+  rows: readonly unknown[],
+  schema: z.ZodType<RecordEvent>,
+): readonly RecordEvent[] =>
   rows.flatMap((row) => {
     const parsed = schema.safeParse(parse(rowOf(row)?.raw))
     return parsed.success ? [parsed.data] : []
@@ -61,10 +64,10 @@ const snapshotRowOf = (row: Record<string, unknown>): unknown => ({
 
 export const createSqliteSessionLog = (args: {
   db: SqliteExecutor
-  eventSchema?: z.ZodType<V2Event> | undefined
+  eventSchema?: z.ZodType<RecordEvent> | undefined
 }): SessionLog & { prepare(): Promise<void> } => {
   const { db } = args
-  const schema = args.eventSchema ?? v2EventSchema
+  const schema = args.eventSchema ?? recordEventSchema
 
   const prepare = async (): Promise<void> => {
     const [version] = await db.getAllAsync('PRAGMA user_version')

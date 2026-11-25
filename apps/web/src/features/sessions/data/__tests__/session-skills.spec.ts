@@ -7,7 +7,7 @@ import {
   skillEntryOf,
   type CommandEntry,
 } from '@dltech/atlas-commands'
-import type { V2Event } from '@dltech/atlas-core'
+import type { RecordEvent } from '@dltech/atlas-core'
 import { ESkillOrigin } from '@dltech/atlas-plugin-skills/core'
 
 import { repoSkillEntriesOf, skillMenuEntries } from '../session-skills'
@@ -22,7 +22,7 @@ const repoRow = (overrides: Partial<Row> = {}): Row => ({
   ...overrides,
 })
 
-const changed = (skills: readonly Row[], n: number): V2Event =>
+const changed = (skills: readonly Row[], n: number): RecordEvent =>
   ({
     type: 'skills-changed',
     skills,
@@ -30,7 +30,7 @@ const changed = (skills: readonly Row[], n: number): V2Event =>
     at: `2026-11-18T12:00:0${n}.000Z`,
     threadId: 's1',
     id: `e${n}`,
-  }) as unknown as V2Event
+  }) as unknown as RecordEvent
 
 const catalogueEntry = (overrides: Partial<CommandEntry> = {}): CommandEntry => ({
   ...skillEntryOf({
@@ -44,7 +44,7 @@ const catalogueEntry = (overrides: Partial<CommandEntry> = {}): CommandEntry => 
 const namesOf = (entries: readonly CommandEntry[]): readonly string[] =>
   entries.map((entry) => entry.name).sort()
 
-const menuOf = (args: { events: readonly V2Event[]; catalogue?: readonly CommandEntry[] }) =>
+const menuOf = (args: { events: readonly RecordEvent[]; catalogue?: readonly CommandEntry[] }) =>
   skillMenuEntries({ catalogue: args.catalogue ?? [catalogueEntry()], events: args.events })
 
 describe('repoSkillEntriesOf', () => {

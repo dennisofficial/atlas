@@ -1,15 +1,15 @@
-import { EFinishReason, type V2Body } from '@dltech/atlas-core'
+import { EFinishReason, type RecordEventBody } from '@dltech/atlas-core'
 
 import type { PrStateRow } from '../../port'
 
-export const reading = (tokens: number): V2Body => ({
+export const reading = (tokens: number): RecordEventBody => ({
   type: 'assistant-said',
   parts: [],
   finish: EFinishReason.Stop,
   usage: { inputTokens: tokens, outputTokens: 5, providerId: 'openai', modelId: 'gpt-5' },
 })
 
-export const linked = (number: number): V2Body => ({
+export const linked = (number: number): RecordEventBody => ({
   type: 'pull-request-linked',
   number,
   url: `https://github.com/Acme/App/pull/${number}`,
@@ -17,7 +17,7 @@ export const linked = (number: number): V2Body => ({
   branch: 'feat',
 })
 
-export const branches: V2Body = {
+export const branches: RecordEventBody = {
   type: 'branches-observed',
   repo: '/work/app',
   head: 'feat',
@@ -30,7 +30,7 @@ export const branches: V2Body = {
   remotes: [{ name: 'origin', url: 'git@github.com:Acme/App.git' }],
 }
 
-export const forkBranches: V2Body = {
+export const forkBranches: RecordEventBody = {
   ...branches,
   repo: '/work/fork',
   remotes: [{ name: 'origin', url: 'https://github.com/Fork/App.git' }],

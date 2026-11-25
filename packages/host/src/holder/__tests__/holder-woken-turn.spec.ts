@@ -6,7 +6,7 @@ import {
   EWorkspaceStepState,
   toRunId,
   toThreadId,
-  type V2Body,
+  type RecordEventBody,
 } from '@dltech/atlas-core'
 import { FakeTool } from '@dltech/atlas-agent/testing'
 
@@ -24,7 +24,7 @@ const gate = (): { promise: Promise<PrepareResult>; settle(result: PrepareResult
 }
 
 const seedWokenWorkspace = async (rig: HolderRig): Promise<void> => {
-  const bodies: V2Body[] = [
+  const bodies: RecordEventBody[] = [
     {
       type: 'workspace-step',
       step: EWorkspaceStep.Setup,

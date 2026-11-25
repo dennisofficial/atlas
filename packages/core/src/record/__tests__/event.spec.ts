@@ -3,10 +3,10 @@ import { describe, expect, it } from 'bun:test'
 import { EFinishReason } from '../../stream/chunk'
 import { chainHash } from '../chain'
 import { chainEvents } from '../chain-events'
-import { RECORD_ONLY_TYPES, v2EventSchema, type V2Event } from '../event'
+import { RECORD_ONLY_TYPES, recordEventSchema, type RecordEvent } from '../event'
 import { mint, NOW, runId, threadId } from './support'
 
-describe('v2EventSchema', () => {
+describe('recordEventSchema', () => {
   it('keeps the step finish reason through parsing so the chain hash is unchanged', () => {
     const [event] = chainEvents({
       threadId,
@@ -15,26 +15,26 @@ describe('v2EventSchema', () => {
       at: NOW,
       bodies: [{ type: 'assistant-said', parts: [], finish: EFinishReason.ToolCalls }],
     })
-    const parsed = v2EventSchema.parse(JSON.parse(JSON.stringify(event)))
+    const parsed = recordEventSchema.parse(JSON.parse(JSON.stringify(event)))
     expect(parsed).toMatchObject({ finish: EFinishReason.ToolCalls })
-    expect(chainHash(parsed)).toBe(chainHash(event as V2Event))
+    expect(chainHash(parsed)).toBe(chainHash(event as RecordEvent))
   })
 
   it('accepts a minted v1 body event and a record body event', () => {
     const [plain] = mint({ count: 1 })
-    expect(v2EventSchema.safeParse(plain).success).toBe(true)
+    expect(recordEventSchema.safeParse(plain).success).toBe(true)
     const consumed = { ...plain, type: 'input-consumed', inboxId: 1 }
     delete (consumed as { text?: string }).text
-    expect(v2EventSchema.safeParse(consumed).success).toBe(true)
+    expect(recordEventSchema.safeParse(consumed).success).toBe(true)
   })
 
   it('rejects a bad prevHash, an unknown type and a bad record body', () => {
     const [plain] = mint({ count: 1 })
-    expect(v2EventSchema.safeParse({ ...plain, prevHash: 'abc' }).success).toBe(false)
-    expect(v2EventSchema.safeParse({ ...plain, type: 'nope' }).success).toBe(false)
-    expect(v2EventSchema.safeParse({ ...plain, type: 'history-rewound', toSeq: -1 }).success).toBe(
-      false,
-    )
+    expect(recordEventSchema.safeParse({ ...plain, prevHash: 'abc' }).success).toBe(false)
+    expect(recordEventSchema.safeParse({ ...plain, type: 'nope' }).success).toBe(false)
+    expect(
+      recordEventSchema.safeParse({ ...plain, type: 'history-rewound', toSeq: -1 }).success,
+    ).toBe(false)
   })
 
   it('refuses the v1 history-compacted body', () => {
@@ -48,7 +48,7 @@ describe('v2EventSchema', () => {
       summary: 's',
       replaced: 1,
     }
-    expect(v2EventSchema.safeParse(compacted).success).toBe(false)
+    expect(recordEventSchema.safeParse(compacted).success).toBe(false)
   })
 
   it('accepts a fact-recorded body and rejects a malformed one', () => {
@@ -61,8 +61,8 @@ describe('v2EventSchema', () => {
       value: { decision: 'deny', reason: 'no' },
     }
     delete (fact as { text?: string }).text
-    expect(v2EventSchema.safeParse(fact).success).toBe(true)
-    expect(v2EventSchema.safeParse({ ...fact, key: '' }).success).toBe(false)
+    expect(recordEventSchema.safeParse(fact).success).toBe(true)
+    expect(recordEventSchema.safeParse({ ...fact, key: '' }).success).toBe(false)
   })
 
   it('accepts an assistant-said aborted by a handoff and a tool-dispatched with a bootId', () => {
@@ -74,7 +74,7 @@ describe('v2EventSchema', () => {
       aborted: 'handoff',
     }
     delete (aborted as { text?: string }).text
-    expect(v2EventSchema.safeParse(aborted).success).toBe(true)
+    expect(recordEventSchema.safeParse(aborted).success).toBe(true)
 
     const dispatched = {
       ...plain,
@@ -84,7 +84,7 @@ describe('v2EventSchema', () => {
       bootId: 'boot-7',
     }
     delete (dispatched as { text?: string }).text
-    expect(v2EventSchema.safeParse(dispatched).success).toBe(true)
+    expect(recordEventSchema.safeParse(dispatched).success).toBe(true)
   })
 
   it('round-trips inboxId on outcomes and still decodes them without one', () => {
@@ -101,9 +101,9 @@ describe('v2EventSchema', () => {
     }
     delete (summarised as { text?: string }).text
     for (const body of [rewound, summarised]) {
-      expect(v2EventSchema.safeParse(body).success).toBe(true)
-      expect(v2EventSchema.parse({ ...body, inboxId: 5 })).toMatchObject({ inboxId: 5 })
-      expect(v2EventSchema.safeParse({ ...body, inboxId: 0 }).success).toBe(false)
+      expect(recordEventSchema.safeParse(body).success).toBe(true)
+      expect(recordEventSchema.parse({ ...body, inboxId: 5 })).toMatchObject({ inboxId: 5 })
+      expect(recordEventSchema.safeParse({ ...body, inboxId: 0 }).success).toBe(false)
     }
   })
 
@@ -111,9 +111,9 @@ describe('v2EventSchema', () => {
     const [plain] = mint({ count: 1 })
     const refused = { ...plain, type: 'input-refused', inboxId: 4, reason: 'not now' }
     delete (refused as { text?: string }).text
-    expect(v2EventSchema.safeParse(refused).success).toBe(true)
-    expect(v2EventSchema.safeParse({ ...refused, inboxId: 0 }).success).toBe(false)
-    expect(v2EventSchema.safeParse({ ...refused, reason: undefined }).success).toBe(false)
+    expect(recordEventSchema.safeParse(refused).success).toBe(true)
+    expect(recordEventSchema.safeParse({ ...refused, inboxId: 0 }).success).toBe(false)
+    expect(recordEventSchema.safeParse({ ...refused, reason: undefined }).success).toBe(false)
     expect(RECORD_ONLY_TYPES.has('input-refused')).toBe(true)
   })
 
@@ -141,24 +141,26 @@ describe('v2EventSchema', () => {
     })
 
     for (const body of [posted, withdrawn, restored]) {
-      expect(v2EventSchema.safeParse(body).success).toBe(true)
+      expect(recordEventSchema.safeParse(body).success).toBe(true)
     }
     for (const type of ['input-posted', 'input-withdrawn'] as const) {
       expect(RECORD_ONLY_TYPES.has(type)).toBe(true)
     }
-    expect(v2EventSchema.parse({ ...posted, clientId: 'c-1', text: 'go' })).toMatchObject({
+    expect(recordEventSchema.parse({ ...posted, clientId: 'c-1', text: 'go' })).toMatchObject({
       clientId: 'c-1',
       kind: 'command:compact',
       postedAt: NOW,
     })
-    expect(v2EventSchema.safeParse({ ...posted, postedAt: undefined }).success).toBe(false)
-    expect(v2EventSchema.safeParse({ ...posted, kind: '' }).success).toBe(false)
-    expect(v2EventSchema.safeParse({ ...withdrawn, inboxId: 0 }).success).toBe(false)
-    expect(v2EventSchema.safeParse({ ...restored, targetInboxId: 0 }).success).toBe(false)
+    expect(recordEventSchema.safeParse({ ...posted, postedAt: undefined }).success).toBe(false)
+    expect(recordEventSchema.safeParse({ ...posted, kind: '' }).success).toBe(false)
+    expect(recordEventSchema.safeParse({ ...withdrawn, inboxId: 0 }).success).toBe(false)
+    expect(recordEventSchema.safeParse({ ...restored, targetInboxId: 0 }).success).toBe(false)
   })
 
   it('keeps a clientId on user-said so a dimmed bubble can be matched to its log event', () => {
     const [plain] = mint({ count: 1 })
-    expect(v2EventSchema.parse({ ...plain, clientId: 'c-1' })).toMatchObject({ clientId: 'c-1' })
+    expect(recordEventSchema.parse({ ...plain, clientId: 'c-1' })).toMatchObject({
+      clientId: 'c-1',
+    })
   })
 })

@@ -10,7 +10,7 @@ import {
   lostShellsOf,
   type Event,
   type EventBody,
-  type V2Event,
+  type RecordEvent,
 } from '@dltech/atlas-core'
 
 import { postIn } from './inbox-ops'
@@ -76,15 +76,18 @@ const serviceEndingOf = (service: ReturnType<typeof lostServicesOf>[number]): Qu
     },
   })
 
-export const quietEndingRecordsOf = (events: readonly V2Event[]): QuietEndingRecord[] => {
+export const quietEndingRecordsOf = (events: readonly RecordEvent[]): QuietEndingRecord[] => {
   const log = events as readonly Event[]
   return [...lostShellsOf(log).map(shellEndingOf), ...lostServicesOf(log).map(serviceEndingOf)]
 }
 
-const threadEventsOf = async (params: { tx: ControlTx; threadId: string }): Promise<V2Event[]> => {
+const threadEventsOf = async (params: {
+  tx: ControlTx
+  threadId: string
+}): Promise<RecordEvent[]> => {
   const head = await params.tx.readThread(params.threadId)
   if (head === undefined) return []
-  const events: V2Event[] = []
+  const events: RecordEvent[] = []
   for (let afterSeq = 0; afterSeq < head.headSeq; ) {
     const rows = await params.tx.readEvents({
       threadId: params.threadId,

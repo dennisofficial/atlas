@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'bun:test'
 
-import { chainEvents, toRunId, toThreadId, type V2Body } from '@dltech/atlas-core'
+import { chainEvents, toRunId, toThreadId, type RecordEventBody } from '@dltech/atlas-core'
 
 import type { PrepareResult } from '../ports'
 import { flushUntil, makeRig, seedSession, SESSION, THREAD_ID } from './holder-rig'
@@ -15,7 +15,10 @@ const gate = (): Gate => {
   return { promise, settle }
 }
 
-const seedLog = async (args: { rig: Awaited<ReturnType<typeof makeRig>>; bodies: V2Body[] }) => {
+const seedLog = async (args: {
+  rig: Awaited<ReturnType<typeof makeRig>>
+  bodies: RecordEventBody[]
+}) => {
   const { rig } = args
   const { epoch } = await rig.plane.grant({ sessionId: SESSION, hostId: 9001 })
   const outcome = await rig.plane.append({

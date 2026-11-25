@@ -1,4 +1,4 @@
-import type { V2Event } from '@dltech/atlas-core'
+import type { RecordEvent } from '@dltech/atlas-core'
 
 import type { ControlTx } from './port'
 
@@ -19,7 +19,7 @@ const markLogged = async (params: {
 export const settleInputRow = async (params: {
   tx: ControlTx
   sessionId: string
-  event: V2Event
+  event: RecordEvent
 }): Promise<void> => {
   const { tx, sessionId, event } = params
   const mark = (inboxId: number | undefined): Promise<void> =>

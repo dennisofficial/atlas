@@ -15,8 +15,8 @@ import {
   toRunId,
   toThreadId,
   type LogHead,
-  type V2Body,
-  type V2Event,
+  type RecordEventBody,
+  type RecordEvent,
 } from '@dltech/atlas-core'
 import { ELogSeverity, LogPort, type LogEntry } from '@dltech/atlas-observability'
 import { z } from 'zod'
@@ -47,8 +47,8 @@ const AT = '2026-11-23T12:00:00.000Z'
 const appendBodies = async (args: {
   rig: Rig
   epoch: number
-  bodies: readonly V2Body[]
-}): Promise<{ head: LogHead; events: V2Event[] }> => {
+  bodies: readonly RecordEventBody[]
+}): Promise<{ head: LogHead; events: RecordEvent[] }> => {
   const from = await args.rig.plane.head({ threadId: THREAD_ID })
   const events = chainEvents({
     threadId: THREAD_ID,
@@ -86,7 +86,7 @@ const seedOf = async (args: { rig: Rig; used: number }): Promise<number> => {
 
 const EVENT_AT = '2026-11-23T12:00:00.000Z'
 
-const userSaidEvent = (): V2Event =>
+const userSaidEvent = (): RecordEvent =>
   ({
     type: 'user-said',
     seq: 0,
@@ -96,9 +96,9 @@ const userSaidEvent = (): V2Event =>
     epoch: 1,
     at: EVENT_AT,
     text: 'do the work',
-  }) as unknown as V2Event
+  }) as unknown as RecordEvent
 
-const usageEvent = (used: number): V2Event =>
+const usageEvent = (used: number): RecordEvent =>
   ({
     type: 'assistant-said',
     seq: 1,
@@ -109,7 +109,7 @@ const usageEvent = (used: number): V2Event =>
     at: EVENT_AT,
     parts: [{ type: 'text', text: 'work so far' }],
     usage: { inputTokens: used, outputTokens: 0, contextWindow: 1_000 },
-  }) as unknown as V2Event
+  }) as unknown as RecordEvent
 
 const rotationOver = (args: {
   used: number

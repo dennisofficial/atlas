@@ -17,8 +17,8 @@ import {
   toRunId,
   toThreadId,
   type InboxEntry,
-  type V2Body,
-  type V2Event,
+  type RecordEventBody,
+  type RecordEvent,
 } from '@dltech/atlas-core'
 import type { ControlPlane } from '@dltech/atlas-control'
 import { z } from 'zod'
@@ -30,7 +30,7 @@ import type { SessionRecord } from '../record/record-adapter'
 const THREAD = toThreadId('thr_1')
 const RUN = toRunId('run_1')
 
-const eventsOf = (bodies: readonly V2Body[]): V2Event[] =>
+const eventsOf = (bodies: readonly RecordEventBody[]): RecordEvent[] =>
   chainEvents({
     threadId: THREAD,
     runId: RUN,
@@ -39,7 +39,7 @@ const eventsOf = (bodies: readonly V2Body[]): V2Event[] =>
     bodies,
   })
 
-const posted = (): V2Body => ({
+const posted = (): RecordEventBody => ({
   type: 'input-posted',
   inboxId: 4,
   kind: 'message',
@@ -68,7 +68,7 @@ const entry = (params: { inboxId: number; kind: string }): InboxEntry => ({
   senderSessionId: null,
 })
 
-const preparedRecord = (events: readonly V2Event[]): SessionRecord =>
+const preparedRecord = (events: readonly RecordEvent[]): SessionRecord =>
   ({
     eventCache: () => ({
       threadId: () => THREAD,
@@ -83,8 +83,8 @@ const preparedRecord = (events: readonly V2Event[]): SessionRecord =>
 const needsHolder = (params: {
   entries: InboxEntry[]
   knowsPing: boolean
-  events?: readonly V2Event[]
-  childEvents?: readonly V2Event[]
+  events?: readonly RecordEvent[]
+  childEvents?: readonly RecordEvent[]
 }): Promise<boolean> => {
   const deps = {
     sessionId: 'session-1',
@@ -131,7 +131,7 @@ describe('drainNeedsHolder with commands', () => {
 })
 
 describe('outcomeCommandPending, which a drain hands to the next holder', () => {
-  const consumedRotate = (): V2Body[] => [
+  const consumedRotate = (): RecordEventBody[] => [
     {
       type: 'input-posted',
       inboxId: 9,
@@ -141,7 +141,10 @@ describe('outcomeCommandPending, which a drain hands to the next holder', () => 
     { type: 'input-consumed', inboxId: 9, consumed: EInputConsumed.Command },
   ]
 
-  const pending = (params: { bodies: readonly V2Body[]; kind: string }): Promise<boolean> =>
+  const pending = (params: {
+    bodies: readonly RecordEventBody[]
+    kind: string
+  }): Promise<boolean> =>
     outcomeCommandPending({ events: eventsOf(params.bodies), kindOf: async () => params.kind })
 
   it('is pending while a consumed command owes its outcome', async () => {
@@ -220,7 +223,7 @@ describe('drainNeedsHolder over the pending log', () => {
 
 const CHILD = toThreadId('thr_child')
 
-const spawnedChild = (): V2Body => ({
+const spawnedChild = (): RecordEventBody => ({
   type: 'agent-spawned',
   agentId: CHILD,
   agentType: 'builder',
@@ -228,7 +231,7 @@ const spawnedChild = (): V2Body => ({
   mode: EAgentStart.Fresh,
 })
 
-const childEventsOf = (bodies: readonly V2Body[]): V2Event[] =>
+const childEventsOf = (bodies: readonly RecordEventBody[]): RecordEvent[] =>
   chainEvents({
     threadId: CHILD,
     runId: RUN,
@@ -280,7 +283,7 @@ describe('drainNeedsHolder over the children a takeover left open', () => {
   })
 })
 
-const endedChild = (): V2Body => ({
+const endedChild = (): RecordEventBody => ({
   type: 'agent-ended',
   agentId: CHILD,
   agentType: 'builder',
@@ -297,7 +300,7 @@ const targeted = (params: { inboxId: number }): InboxEntry => ({
 })
 
 const needsHolderOverEndedChild = (params: {
-  childEvents: readonly V2Event[]
+  childEvents: readonly RecordEvent[]
   rows: readonly InboxEntry[]
 }): Promise<boolean> => {
   const deps = {

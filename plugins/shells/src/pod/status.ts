@@ -1,4 +1,4 @@
-import { EKilledBy, EShellStatus, type OomMemory, type V2Event } from '@dltech/atlas-core'
+import { EKilledBy, EShellStatus, type OomMemory, type RecordEvent } from '@dltech/atlas-core'
 import { EShellRunStatus, type ShellInfo } from '@dltech/atlas-protocol'
 
 export type ShellOutcome = {
@@ -30,7 +30,7 @@ export const outcomeOf = (info: ShellInfo): ShellOutcome => {
 export type StartedShell = { description?: string | undefined; command: string }
 
 export const startedOf = (args: {
-  events: readonly V2Event[]
+  events: readonly RecordEvent[]
   shellId: string
 }): StartedShell | undefined => {
   for (const event of args.events) {
@@ -41,12 +41,12 @@ export const startedOf = (args: {
   return undefined
 }
 
-export const hasStarted = (args: { events: readonly V2Event[]; shellId: string }): boolean =>
+export const hasStarted = (args: { events: readonly RecordEvent[]; shellId: string }): boolean =>
   args.events.some(
     (event) => event.type === 'background-shell-started' && event.shellId === args.shellId,
   )
 
-export const hasEnded = (args: { events: readonly V2Event[]; shellId: string }): boolean =>
+export const hasEnded = (args: { events: readonly RecordEvent[]; shellId: string }): boolean =>
   args.events.some(
     (event) => event.type === 'background-shell-ended' && event.shellId === args.shellId,
   )

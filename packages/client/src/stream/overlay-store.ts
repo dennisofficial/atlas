@@ -1,4 +1,4 @@
-import type { V2Event } from '@dltech/atlas-core'
+import type { RecordEvent } from '@dltech/atlas-core'
 import type { EStreamBlockKind, StreamServerMessage, StreamStepKey } from '@dltech/atlas-protocol'
 
 const MAX_REMEMBERED_RUNS = 16
@@ -186,20 +186,20 @@ export const applyOverlayMessage = (args: {
   return noChange(state)
 }
 
-const STEP_RESULT_TYPES: ReadonlySet<V2Event['type']> = new Set([
+const STEP_RESULT_TYPES: ReadonlySet<RecordEvent['type']> = new Set([
   'assistant-said',
   'tool-called',
   'run-failed',
 ])
 
-const recordsStep = (args: { open: OpenOverlay; event: V2Event }): boolean =>
+const recordsStep = (args: { open: OpenOverlay; event: RecordEvent }): boolean =>
   args.event.runId === args.open.key.runId &&
   args.event.seq > args.open.afterSeq &&
   STEP_RESULT_TYPES.has(args.event.type)
 
 export const closeOverlayForEvents = (args: {
   state: OverlayState
-  events: readonly V2Event[]
+  events: readonly RecordEvent[]
 }): OverlayState => {
   const { state, events } = args
   const { open } = state

@@ -103,16 +103,16 @@ export type RecordBody =
   | TurnStarted
   | TurnEnded
 
-export type V2Body =
+export type RecordEventBody =
   | Exclude<EventBody, { type: 'history-compacted' }>
   | RecordBody
   | PluginEventBody
 
-export type StampedV2<TBody> = TBody extends unknown ? TBody & RecordEnvelope : never
+export type StampedRecord<TBody> = TBody extends unknown ? TBody & RecordEnvelope : never
 
-export type V2Event = StampedV2<V2Body>
+export type RecordEvent = StampedRecord<RecordEventBody>
 
-export type V2EventType = V2Event['type']
+export type RecordEventType = RecordEvent['type']
 
 const HASH_PATTERN = /^[0-9a-f]{64}$/
 
@@ -207,7 +207,7 @@ const RECORD_TYPE_TABLE = {
   'turn-ended': true,
 } satisfies Record<RecordBody['type'], true>
 
-export const RECORD_ONLY_TYPES: ReadonlySet<V2EventType> = new Set<V2EventType>(
+export const RECORD_ONLY_TYPES: ReadonlySet<RecordEventType> = new Set<RecordEventType>(
   Object.keys(RECORD_TYPE_TABLE) as RecordBody['type'][],
 )
 
@@ -216,16 +216,16 @@ const typeOf = (raw: unknown): unknown =>
 
 const bodySchemaFor = (params: {
   raw: unknown
-  composedBody: z.ZodType<V2Body>
-}): z.ZodType<V2Body> => {
+  composedBody: z.ZodType<RecordEventBody>
+}): z.ZodType<RecordEventBody> => {
   const type = typeOf(params.raw)
   if (type === 'history-compacted') return z.never()
   if (typeof type === 'string' && Object.hasOwn(RECORD_TYPE_TABLE, type)) return recordBodySchema
   return params.composedBody
 }
 
-export const createV2EventSchema = (args: EventBodySchemaArgs = {}): z.ZodType<V2Event> => {
-  const composedBody = createEventBodySchema(args) as z.ZodType<V2Body>
+export const createRecordEventSchema = (args: EventBodySchemaArgs = {}): z.ZodType<RecordEvent> => {
+  const composedBody = createEventBodySchema(args) as z.ZodType<RecordEventBody>
   return z.unknown().transform((raw, ctx) => {
     const envelope = recordEnvelopeSchema.safeParse(raw)
     const body = bodySchemaFor({ raw, composedBody }).safeParse(raw)
@@ -236,8 +236,10 @@ export const createV2EventSchema = (args: EventBodySchemaArgs = {}): z.ZodType<V
       }
     }
     if (!envelope.success || !body.success) return z.NEVER
-    return { ...body.data, ...envelope.data } as V2Event
+    return { ...body.data, ...envelope.data } as RecordEvent
   })
 }
 
-export const v2EventSchema: z.ZodType<V2Event> = createV2EventSchema({ pluginBodies: [] })
+export const recordEventSchema: z.ZodType<RecordEvent> = createRecordEventSchema({
+  pluginBodies: [],
+})
