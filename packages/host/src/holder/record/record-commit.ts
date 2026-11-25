@@ -115,6 +115,10 @@ export const prepareDraft = async (
     }
     return undefined
   }
+  if (draft.bootId !== undefined) {
+    markDispatched({ bootId: draft.bootId })
+    return draft
+  }
   const bootId = await dispatchBootId({ ...args, name: draft.name })
   if (bootId === undefined) return draft
   markDispatched({ bootId })
