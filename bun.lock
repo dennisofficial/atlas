@@ -189,6 +189,7 @@
         "expo-crypto": "~58.0.7",
         "expo-device": "~58.0.5",
         "expo-document-picker": "~58.0.4",
+        "expo-drag-drop-content-view": "0.9.2",
         "expo-file-system": "~58.0.13",
         "expo-font": "~58.0.11",
         "expo-glass-effect": "~58.0.5",
@@ -200,6 +201,7 @@
         "expo-localization": "~58.0.5",
         "expo-notifications": "~58.1.8",
         "expo-observe": "~58.0.19",
+        "expo-paste-input": "0.2.2",
         "expo-router": "~58.0.30",
         "expo-secure-store": "~58.0.2",
         "expo-splash-screen": "~58.0.13",
@@ -3716,6 +3718,8 @@
 
     "expo-document-picker": ["expo-document-picker@58.0.4", "", { "peerDependencies": { "expo": "*" } }, "sha512-rxs+9RrpI55/BEGNB/3sXjoBG6yZDLyn6Z7KzjbbBLdX8bE2cZT4IozQ3Q5wufaEEeaHQn48EgPiuMoTsAidpg=="],
 
+    "expo-drag-drop-content-view": ["expo-drag-drop-content-view@0.9.2", "", { "peerDependencies": { "expo": "*", "react": "*", "react-native": "*" } }, "sha512-ePpoWXsfhfIgAnfSNijaS2mo/7QFN2wshlbUVs/Cl4szeQqWaE/Q4qFylhiMI+dKCBAbKcbI78cR29uq8/9kiw=="],
+
     "expo-eas-client": ["expo-eas-client@58.0.2", "", {}, "sha512-mhRYnE35MzGxR1Xnl9FAg7/yHaocy4xoVzgsDmS9cbK+1wM6l74/I/73/E4Kr6wChdVZfeS6S+Tv4I1qYbGY2g=="],
 
     "expo-file-system": ["expo-file-system@58.0.13", "", { "peerDependencies": { "expo": "*", "react-native": "*" } }, "sha512-+/1aFErkawyky5UdWI06zYeO2DeHUnfaWnYHeiI8M8Z/sB6L66gI3WUxqtvUvKJoaM0Ti1CximD3x3JwteLYIg=="],
@@ -3757,6 +3761,8 @@
     "expo-notifications": ["expo-notifications@58.1.8", "", { "dependencies": { "@expo/image-utils": "^0.12.6", "abort-controller": "^3.0.0", "badgin": "^1.1.5", "expo-application": "~58.1.2", "expo-constants": "~58.0.15" }, "peerDependencies": { "expo": "*", "react": "*", "react-native": "*" } }, "sha512-TbYuNpD+1WKi02PHVI22o5W+FAsVMUfVyeW6YfubmZNM2fwcijoYuiagVj1E2ca6WEi0AxgorUX6TpZ6u4lIXA=="],
 
     "expo-observe": ["expo-observe@58.0.19", "", { "dependencies": { "expo-app-metrics": "~58.0.15", "expo-eas-client": "~58.0.2" }, "peerDependencies": { "@react-navigation/native": "^7.0.0", "expo": "*", "expo-router": "*", "react": "*", "react-native": "*", "react-native-reanimated": ">=4.7.0" }, "optionalPeers": ["@react-navigation/native", "expo-router", "react-native-reanimated"] }, "sha512-QcaRhq1gOW0oRqycsPSqf3x5gSLDBpNrmFXt0jF2OoRFtYqNlnLNtmQZpMuKp9sazQm6mdJzn91boXKUVbcFtg=="],
+
+    "expo-paste-input": ["expo-paste-input@0.2.2", "", { "peerDependencies": { "expo": "*", "react": "*", "react-native": "*" } }, "sha512-uDv5qi+/FRsEYwVF0Y9MJE7k9pxTNpI77jOnNqS1TQDQlqSfj11O5yvd+G8e7Hi8fDVBZx/BhyImG0b9sK/zIQ=="],
 
     "expo-router": ["expo-router@58.0.30", "", { "dependencies": { "@expo/log-box": "^58.0.15", "@expo/metro-runtime": "^58.0.17", "@expo/schema-utils": "^58.0.3", "@radix-ui/react-slot": "^1.2.0", "@radix-ui/react-tabs": "^1.1.12", "@react-native-masked-view/masked-view": "^0.3.2", "@react-native/normalize-colors": "0.88.1", "client-only": "^0.0.1", "expo-glass-effect": "^58.0.5", "expo-server": "^58.0.6", "expo-status-bar": "^58.0.4", "nanoid": "^3.3.18", "react-fast-compare": "^3.2.2", "react-is": "^19.1.0", "react-native-drawer-layout": "^4.2.12", "react-native-screens": "^4.30.1 || ^5.0.0-alpha.3", "server-only": "^0.0.1", "sf-symbols-typescript": "^2.1.0", "standard-navigation": "^0.0.5" }, "peerDependencies": { "@expo/ui": "^58.0.27", "@testing-library/react-native": ">= 14.0.0", "expo": "*", "expo-constants": "^58.0.15", "expo-linking": "^58.0.16", "expo-symbols": "^58.0.4", "react": "*", "react-dom": "*", "react-native": "*", "react-native-gesture-handler": "*", "react-native-reanimated": "*", "react-native-safe-area-context": ">= 5.4.0", "react-native-web": "*", "react-native-worklets": "*", "react-server-dom-webpack": "~19.0.4 || ~19.1.5 || ~19.2.4 || ~19.3.0" }, "optionalPeers": ["@expo/ui", "@testing-library/react-native", "expo-symbols", "react-dom", "react-native-gesture-handler", "react-native-reanimated", "react-native-web", "react-native-worklets", "react-server-dom-webpack"] }, "sha512-GzwSjiDCJeSHDiH71jeCsncMCEksRyDhGweNcVjGfW5C7JMYtROUroMBudPGtrOpKkHUQ0lampFsb8jidT4lbg=="],
 

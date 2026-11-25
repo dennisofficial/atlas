@@ -1,35 +1,31 @@
 import type { PickedFile } from './attachment-plan'
 
-const DATA_URI = /^data:(image\/[a-z0-9.+-]+);base64,(.+)$/i
-
-export type PastedImage = { name: string; mediaType: string; base64: string; size: number }
-
-const byteLengthOf = (base64: string): number => {
-  const padding = base64.endsWith('==') ? 2 : base64.endsWith('=') ? 1 : 0
-  return Math.floor((base64.length * 3) / 4) - padding
+const MEDIA_TYPE_OF_EXTENSION: Record<string, string> = {
+  png: 'image/png',
+  jpg: 'image/jpeg',
+  jpeg: 'image/jpeg',
+  gif: 'image/gif',
+  webp: 'image/webp',
+  heic: 'image/heic',
+  tiff: 'image/tiff',
 }
 
-const extensionOf = (mediaType: string): string => {
-  const subtype = mediaType.split('/')[1]?.toLowerCase() ?? 'png'
-  return subtype === 'jpeg' ? 'jpg' : subtype
+const FALLBACK_EXTENSION = 'png'
+
+const extensionOf = (uri: string): string => {
+  const path = uri.split(/[?#]/)[0] ?? ''
+  const dot = path.lastIndexOf('.')
+  const extension = dot < 0 ? '' : path.slice(dot + 1).toLowerCase()
+  return extension in MEDIA_TYPE_OF_EXTENSION ? extension : FALLBACK_EXTENSION
 }
 
-export const pastedImageOf = (args: { data: string; at: number }): PastedImage | null => {
-  const match = DATA_URI.exec(args.data.trim())
-  const mediaType = match?.[1]?.toLowerCase()
-  const base64 = match?.[2]
-  if (mediaType === undefined || base64 === undefined || base64.length === 0) return null
+export const pastedFileOf = (args: { uri: string; at: number; index: number }): PickedFile => {
+  const extension = extensionOf(args.uri)
+  const suffix = args.index === 0 ? '' : `-${args.index + 1}`
   return {
-    name: `pasted-${args.at}.${extensionOf(mediaType)}`,
-    mediaType,
-    base64,
-    size: byteLengthOf(base64),
+    name: `pasted-${args.at}${suffix}.${extension === 'jpeg' ? 'jpg' : extension}`,
+    size: 0,
+    mediaType: MEDIA_TYPE_OF_EXTENSION[extension] ?? 'image/png',
+    uri: args.uri,
   }
 }
-
-export const pickedOfPasted = (args: { image: PastedImage; uri: string }): PickedFile => ({
-  name: args.image.name,
-  size: args.image.size,
-  mediaType: args.image.mediaType,
-  uri: args.uri,
-})

@@ -14,6 +14,7 @@ import {
   useTheme,
   withAlpha,
 } from '@dltech/atlas-ui-native'
+import { type PasteEventPayload, TextInputWrapper } from 'expo-paste-input'
 import { ArrowUp, Square } from 'lucide-react-native'
 import { type ReactNode, useEffect, useRef, useState } from 'react'
 import { ScrollView, StyleSheet, View } from 'react-native'
@@ -23,7 +24,8 @@ import { AttachmentChips } from './attachment-chips'
 import { AttachButton } from './attach-button'
 import { AttachMenu } from './attach-menu'
 import type { EAttachSource } from './attach-sources'
-import { PasteImageButton } from './paste-image-button'
+import { ComposerDropZone } from './composer-drop-zone'
+import { pastedFileOf } from './paste-image'
 import {
   hasFailed,
   isUploading,
@@ -152,6 +154,12 @@ export const Composer = ({
     void attachments?.pick(source)
   }
 
+  const handlePaste = (payload: PasteEventPayload) => {
+    if (payload.type !== 'images') return
+    const at = Date.now()
+    attachments?.attachFiles(payload.uris.map((uri, index) => pastedFileOf({ uri, at, index })))
+  }
+
   return (
     <View style={[styles.dock, joined ? styles.joinedDock : null]}>
       {menuQueryOf(draft) === null || candidates.length === 0 ? null : (
@@ -166,27 +174,30 @@ export const Composer = ({
           {notice}
         </Text>
       )}
-      <View
+      <ComposerDropZone
         style={[
           styles.field,
           joined ? styles.joinedField : null,
           {
             backgroundColor: dark ? withAlpha({ color: theme.input, alpha: 0.3 }) : 'transparent',
-            borderColor: theme.input,
           },
         ]}
+        borderColor={theme.input}
+        onFiles={attachments?.attachFiles}
       >
-        <Input
-          bare
-          multiline
-          accessibilityLabel="Message Atlas"
-          autoFocus={autoFocus}
-          editable={!sending}
-          placeholder={placeholder}
-          value={draft}
-          onChangeText={setDraft}
-          style={styles.input}
-        />
+        <TextInputWrapper onPaste={attachments === undefined ? undefined : handlePaste}>
+          <Input
+            bare
+            multiline
+            accessibilityLabel="Message Atlas"
+            autoFocus={autoFocus}
+            editable={!sending}
+            placeholder={placeholder}
+            value={draft}
+            onChangeText={setDraft}
+            style={styles.input}
+          />
+        </TextInputWrapper>
         <View style={styles.bar}>
           {attachments === undefined ? null : (
             <AttachButton
@@ -194,9 +205,6 @@ export const Composer = ({
               onPick={handlePick}
               onToggle={() => setChoosing((open) => !open)}
             />
-          )}
-          {attachments === undefined ? null : (
-            <PasteImageButton onImage={(data) => void attachments.pasteImage(data)} />
           )}
           {children === undefined ? null : (
             <ScrollView
@@ -230,7 +238,7 @@ export const Composer = ({
             />
           )}
         </View>
-      </View>
+      </ComposerDropZone>
     </View>
   )
 }
