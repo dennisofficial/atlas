@@ -26,11 +26,15 @@ reaches the API through this package. No client imports `apps/api`.
 
 ### Call the API
 
-- `createApiClient({ baseUrl, token?, clientVersion?, credentials?, fetchFn?, EventSource? })`:
+- `createApiClient({ baseUrl, token?, clientVersion?, credentials?, fetchFn?, EventSource?, queryDeadlineMs? })`:
   returns an `ApiClient`. It speaks to `<baseUrl>/v1/trpc` over HTTP, and it uses an SSE
   subscription link for a subscription procedure. `credentials` is `'omit'`, `'same-origin'` or
   `'include'`.
 - `ApiClient`, `ApiClientOptions`: the client type and its options.
+- `QUERY_DEADLINE_MS` (`10_000`): a query is an HTTP `GET`, and it is aborted once this long passes,
+  body read included, so a query on a dead socket settles and the caller's retry can run. A
+  mutation is never aborted, because a slow write must finish. `queryDeadlineMs` on the client
+  options replaces the constant, which a spec uses to keep itself fast.
 - `httpStatusOf(failure)`: the HTTP status of a failed call, or `undefined`.
 - `detailsOf(failure)`: the error details of a failed call, or `undefined`.
 - `controlPlaneError(failure)`: a plain `Error` for a failure from the control plane.

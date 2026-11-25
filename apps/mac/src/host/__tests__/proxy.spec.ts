@@ -7,7 +7,7 @@ let seen:
   | { method: string; url: string; body: string; host: string | null; cookie: string | null }
   | undefined
 
-beforeAll(() => {
+beforeAll(async () => {
   upstream = Bun.serve({
     hostname: '127.0.0.1',
     port: 0,
@@ -45,7 +45,7 @@ beforeAll(() => {
       return Response.json({ echoed: true })
     },
   })
-  host = createDesktopHost({
+  host = await createDesktopHost({
     appOrigin: 'http://127.0.0.1:1',
     apiOrigin: `http://127.0.0.1:${upstream.port}`,
     secret: 's',
@@ -96,7 +96,7 @@ describe('api proxy', () => {
   })
 
   test('returns 502 when the upstream is down', async () => {
-    const dead = createDesktopHost({
+    const dead = await createDesktopHost({
       appOrigin: 'http://127.0.0.1:1',
       apiOrigin: 'http://127.0.0.1:1',
       secret: 's',

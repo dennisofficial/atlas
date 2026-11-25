@@ -7,7 +7,7 @@ import { bunPath, startNextServer } from '../host/next-server'
 import { defaultDesktopHome } from '../host/desktop-home'
 import type { IPanePort, PaneReply } from '../host/pane-routes'
 import { createUpdatesPort, UPDATE_ORIGIN_ENV } from '../host/updates-port'
-import { SESSION_MARKER, sessionUrlOf } from './session-url'
+import { CERT_MARKER, HTTP_ORIGIN_MARKER, SESSION_MARKER, sessionUrlOf } from './session-url'
 
 const webRoot =
   process.env.ATLAS_WEB_ROOT ?? join(import.meta.dir, '../../../web-standalone/apps/web')
@@ -30,7 +30,7 @@ const pane: IPanePort | undefined =
 const nextServer = await startNextServer({ root: webRoot, bunPath: bunPath() })
 const login = createLoginShellPath({ spawn: Bun.spawn })
 let runner: MacMcpRunner | undefined
-const host = createDesktopHost({
+const host = await createDesktopHost({
   appOrigin: nextServer.origin,
   stablePortHome: defaultDesktopHome(),
   secret,
@@ -52,7 +52,9 @@ const host = createDesktopHost({
     return runner
   },
 })
-process.stdout.write(`${SESSION_MARKER}${sessionUrlOf({ origin: host.url, secret })}\n`)
+process.stdout.write(`${SESSION_MARKER}${sessionUrlOf({ origin: host.secureUrl, secret })}\n`)
+process.stdout.write(`${HTTP_ORIGIN_MARKER}${host.url}\n`)
+process.stdout.write(`${CERT_MARKER}${host.certFingerprint}\n`)
 
 const stop = async () => {
   runner?.stop()

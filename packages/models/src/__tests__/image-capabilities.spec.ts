@@ -22,13 +22,19 @@ describe('image capabilities by api', () => {
     ).toBe('both')
   })
 
-  it('keeps the gateway and unknown apis on inline bytes', () => {
+  it('lets the gateway take a link or bytes, and keeps unknown apis on inline bytes', () => {
     expect(imageCapabilitiesOf({ api: 'ai-gateway', inputModalities: SEES_IMAGES }).images).toBe(
-      'inline',
+      'both',
     )
     expect(imageCapabilitiesOf({ api: 'something-new', inputModalities: SEES_IMAGES }).images).toBe(
       'inline',
     )
+  })
+
+  it('keeps openai-completions on inline bytes', () => {
+    expect(
+      imageCapabilitiesOf({ api: 'openai-completions', inputModalities: SEES_IMAGES }).images,
+    ).toBe('inline')
   })
 
   it('turns away a model that publishes no image input, whatever its api', () => {

@@ -11,6 +11,7 @@ import {
   resetAnalyticsForTests,
   superPropsOf,
   track,
+  trackBeforeUnload,
 } from '../analytics'
 
 interface RecordedCall {
@@ -70,6 +71,27 @@ describe('track', () => {
     initAnalytics({ enabled: true, client })
     track('app_loaded', { ttfb_ms: 12 })
     expect(calls).toEqual([{ name: 'capture', args: ['app_loaded', { ttfb_ms: 12 }] }])
+  })
+})
+
+describe('trackBeforeUnload', () => {
+  it('sends the event by beacon so it leaves a page that is going away', () => {
+    const { client, calls } = fakeClient()
+    initAnalytics({ enabled: true, client })
+    trackBeforeUnload('route_navigated', { outcome: 'abandoned' })
+    expect(calls).toEqual([
+      {
+        name: 'capture',
+        args: ['route_navigated', { outcome: 'abandoned' }, { transport: 'sendBeacon' }],
+      },
+    ])
+  })
+
+  it('no-ops when analytics is disabled', () => {
+    const { client, calls } = fakeClient()
+    initAnalytics({ enabled: false, client })
+    trackBeforeUnload('route_navigated')
+    expect(calls).toEqual([])
   })
 })
 

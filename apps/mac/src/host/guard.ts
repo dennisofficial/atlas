@@ -48,13 +48,13 @@ export function startSession({ url, secret }: { url: URL; secret: string }): Res
 export function isAuthorized({
   request,
   secret,
-  port,
+  selfHost,
 }: {
   request: Request
   secret: string
-  port: number
+  selfHost: string
 }): boolean {
-  if (request.headers.get('host') !== `127.0.0.1:${port}`) return false
+  if (request.headers.get('host') !== selfHost) return false
   const cookie = cookieValue({ header: request.headers.get('cookie'), name: SESSION_COOKIE })
   return cookie !== undefined && safeEqual({ a: cookie, b: secret })
 }
