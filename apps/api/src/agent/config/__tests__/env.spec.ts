@@ -34,6 +34,11 @@ describe('readAgentHostEnv', () => {
     expect(env.sandboxImage).toBe('atlas-sandbox:latest')
     expect(env.daemonBundlePath.endsWith('apps/daemon/bin/daemon.js')).toBe(true)
     expect(env.qualityExampleUsers).toEqual([])
+    expect(env.jinaApiKey).toBeUndefined()
+  })
+
+  it('reads the jina key the web tools search with', () => {
+    expect(readAgentHostEnv({ ...complete, JINA_API_KEY: 'jina' }).jinaApiKey).toBe('jina')
   })
 
   it('reads the vercel oauth client only when both halves are set', () => {

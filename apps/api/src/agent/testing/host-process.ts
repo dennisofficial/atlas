@@ -10,7 +10,7 @@ import {
   nativeControlHandlers,
   resize,
 } from '@dltech/atlas-native-commands'
-import { composedPlugins, controlEventSchema } from '../registered-plugins'
+import { composedPluginsOf, controlEventSchema } from '../registered-plugins'
 import { ERunFailureKind, ModelPort } from '@dltech/atlas-core'
 import { PostgresControlStore } from '@dltech/atlas-control/postgres'
 import { createDb, createPool } from '@dltech/atlas-db'
@@ -237,6 +237,7 @@ const main = async (): Promise<void> => {
   const wakes = startPgWakeListener({ url: requireEnv('DATABASE_DIRECT_URL'), log })
   const bus = createHostBus({ wakes, liveFrames })
   const timers = { now: () => Date.now(), ...systemTimers }
+  const composedPlugins = composedPluginsOf({ jinaApiKey: process.env.JINA_API_KEY })
   const sandbox = new FixedEndpointSandboxProvider({
     url: daemonUrl,
     daemonSecret,

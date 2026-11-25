@@ -3,6 +3,7 @@ import {
   definePlugin,
   EMPTY_CONTROL,
   eventSchemaOf,
+  type ComposedPlugins,
   type Plugin,
 } from '@dltech/atlas-plugin-sdk'
 import { githubControl } from '@dltech/atlas-plugin-github/control'
@@ -23,6 +24,7 @@ import { mcpServerPort } from './config/mcp-servers'
 import { skillCloudPort } from './config/skills'
 import { instructionsPort } from './config/instructions'
 import { qualitySettingsPort } from './config/quality-settings'
+import type { AgentHostEnv } from './config/env'
 import { skillsClient } from '@dltech/atlas-plugin-skills/client'
 import { skillsCoreSlots } from '@dltech/atlas-plugin-skills/core'
 import { skillsPodOf } from '@dltech/atlas-plugin-skills/pod'
@@ -78,7 +80,9 @@ const qualityPod = qualityPodOf({
   settings: async (ctx) => await qualitySettings.settings(ctx.sessionId),
 })
 
-export const registeredPlugins: readonly Plugin[] = [
+export type PluginHostEnv = Pick<AgentHostEnv, 'jinaApiKey'>
+
+const pluginsOf = (env: PluginHostEnv): readonly Plugin[] => [
   definePlugin({
     name: 'github',
     ...githubCoreSlots,
@@ -180,7 +184,7 @@ export const registeredPlugins: readonly Plugin[] = [
   definePlugin({
     name: 'web',
     ...webCoreSlots,
-    pod: webPodOf({ jinaKey: () => process.env['JINA_API_KEY'] }),
+    pod: webPodOf({ jinaKey: () => env.jinaApiKey }),
     control: webControl,
     client: webClient,
     transport: 'none',
@@ -195,6 +199,9 @@ export const registeredPlugins: readonly Plugin[] = [
   }),
 ]
 
-export const composedPlugins = composePlugins(registeredPlugins)
+export const composedPluginsOf = (env: PluginHostEnv): ComposedPlugins =>
+  composePlugins(pluginsOf(env))
+
+export const registeredPlugins = pluginsOf({ jinaApiKey: undefined })
 
 export const controlEventSchema = eventSchemaOf(registeredPlugins)

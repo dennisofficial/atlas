@@ -27,6 +27,7 @@ no tiers of its own. A service holds only `DOTENV_PRIVATE_KEY_PRODUCTION_ENC`. A
 | `ATLAS_SANDBOX_IMAGE`                | no       | `atlas-sandbox:latest`               |
 | `ATLAS_DAEMON_BUNDLE`                | no       | `apps/daemon/bin/daemon.js`          |
 | `BLOB_READ_WRITE_TOKEN`              | no       | —                                    |
+| `JINA_API_KEY`                       | no       | — (`web_search` answers it has none) |
 | `VERCEL_OAUTH_CLIENT_ID` / `_SECRET` | no       | —                                    |
 | `PLATFORM_VERCEL_TOKEN`              | no       | —                                    |
 | `PLATFORM_VERCEL_TEAM_ID`            | no       | —                                    |

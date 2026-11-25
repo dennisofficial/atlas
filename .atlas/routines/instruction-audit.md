@@ -3,50 +3,50 @@
 Checkable rules taken from the repo's instruction files (`AGENTS.md` = `CLAUDE.md`, `apps/*/AGENTS.md`,
 `apps/web/CLAUDE.md` = its `AGENTS.md`, `packages/*/AGENTS.md`, `evals/**/AGENTS.md`). `deprecated/` is
 out of scope. Layering/import boundaries belong to the Abstraction police routine; test conventions to
-the Test audit routine. Rule list rebuilt 2026-11-24 after #2780 (new `apps/mobile/AGENTS.md`) and #2771/#2791/#2792 edits.
+the Test audit routine. Rule list rebuilt 2026-11-25 after the v1 retirement edits (#2887–#2908, `packages/harness` deleted).
 
 ## Rules
 
-| #   | Rule                                                                               | Source                                     | Check                                                                              |
-| --- | ---------------------------------------------------------------------------------- | ------------------------------------------ | ---------------------------------------------------------------------------------- |
-| R1  | Max 300 lines per file (vendored `ui` files exempt)                                | `AGENTS.md:45`, `packages/ui/AGENTS.md:65` | `wc -l` over tracked `*.ts(x)` minus specs, fixtures, stories, generated, vendored |
-| R2  | No `as any`, `@ts-ignore`, `@ts-expect-error`                                      | `AGENTS.md:46`                             | grep, ignoring generated, vendored and string fixtures                             |
-| R3  | Value-union enums are `E`-prefixed                                                 | `AGENTS.md:52`                             | grep `enum [^E]`                                                                   |
-| R4  | No tsyringe decorators outside `apps/api`                                          | `AGENTS.md:58`                             | grep `@injectable(` / `@inject(`                                                   |
-| R5  | No comments / no JSDoc on internal code                                            | `AGENTS.md:53`                             | grep `//`, `/**` in non-test source                                                |
-| R6  | No npm/pnpm/yarn lockfiles                                                         | `AGENTS.md:100`                            | `git ls-files`                                                                     |
-| R7  | `apps/api` app code never reads `process.env` (except `main.ts`, `auth.server.ts`) | `apps/api/AGENTS.md:291`                   | grep                                                                               |
-| R8  | Every `.prisma` model file starts `// use prisma-8`, one model per file            | `packages/db/AGENTS.md:13`                 | head/grep                                                                          |
-| R9  | Every lexical language has `languages/__tests__/<ft>.spec.ts`                      | `packages/syntax/AGENTS.md:5`              | file listing                                                                       |
-| R10 | Every `ui` component / AI pattern has a sibling `.stories.tsx`                     | `packages/ui/AGENTS.md:73`                 | `story-coverage.spec.ts`                                                           |
-| R11 | `apps/api` has no tsconfig path aliases                                            | `apps/api/AGENTS.md:171`                   | grep `"paths"` in tsconfig                                                         |
-| R12 | No `db.prisma`, no P2002/P2025 handling; queries go through `db.orm.public`        | `packages/db/AGENTS.md:88`                 | grep                                                                               |
-| R13 | No raw hex or arbitrary Tailwind value in `apps/web` screens                       | `packages/ui/AGENTS.md:53`                 | grep `#[0-9a-f]{3,8}` and `-\[` in `className`                                     |
-| R14 | Only `lucide-react` icons, no Radix                                                | `packages/ui/AGENTS.md:140`                | grep deps                                                                          |
-| R15 | Stories import from `@storybook/react`, never a framework package                  | `packages/ui/AGENTS.md:135`                | grep `*.stories.tsx`                                                               |
-| R16 | TUI: no inline `content={new StyledText(` ; clickables use `useClickRegion`        | `apps/tui/AGENTS.md:5,20`                  | grep                                                                               |
-| R17 | Every `packages/*`, `plugins/*`, `commands/` has a template `README.md`            | `AGENTS.md:43`                             | `bun scripts/check-package-readmes.ts`                                             |
-| R18 | Mobile: native stack header, no custom `header`, no JS back button on iOS          | `apps/mobile/AGENTS.md:9,17`               | grep `header:`, `BackButton`, `router.back()` in `apps/mobile/src`                 |
-| R19 | Mobile: no hard-coded status bar or notch size                                     | `apps/mobile/AGENTS.md:29`                 | grep numeric `top`/`paddingTop` insets                                             |
-| R20 | Every `apps/api` env schema key has a line in every tier file                      | `apps/api/AGENTS.md:291`                   | diff Joi keys in `sections/*.ts` against `.env.*.enc` keys                         |
+| #   | Rule                                                                             | Source                                     | Check                                                                              |
+| --- | -------------------------------------------------------------------------------- | ------------------------------------------ | ---------------------------------------------------------------------------------- |
+| R1  | Max 300 lines per file (vendored `ui` files exempt)                              | `AGENTS.md:50`, `packages/ui/AGENTS.md:65` | `wc -l` over tracked `*.ts(x)` minus specs, fixtures, stories, generated, vendored |
+| R2  | No `as any`, `@ts-ignore`, `@ts-expect-error`                                    | `AGENTS.md:46`                             | grep, ignoring generated, vendored and string fixtures                             |
+| R3  | Value-union enums are `E`-prefixed                                               | `AGENTS.md:52`                             | grep `enum [^E]`                                                                   |
+| R4  | No tsyringe decorators outside `apps/api`                                        | `AGENTS.md:58`                             | grep `@injectable(` / `@inject(`                                                   |
+| R5  | No comments / no JSDoc on internal code                                          | `AGENTS.md:53`                             | grep `//`, `/**` in non-test source                                                |
+| R6  | No npm/pnpm/yarn lockfiles                                                       | `AGENTS.md:100`                            | `git ls-files`                                                                     |
+| R7  | `apps/api` app code never reads `process.env` (except `auth.server.ts`, loaders) | `apps/api/AGENTS.md:256`                   | grep                                                                               |
+| R8  | Every `.prisma` model file starts `// use prisma-8`, one model per file          | `packages/db/AGENTS.md:13`                 | head/grep                                                                          |
+| R9  | Every lexical language has `languages/__tests__/<ft>.spec.ts`                    | `packages/syntax/AGENTS.md:5`              | file listing                                                                       |
+| R10 | Every `ui` component / AI pattern has a sibling `.stories.tsx`                   | `packages/ui/AGENTS.md:73`                 | `story-coverage.spec.ts`                                                           |
+| R11 | `apps/api` has no tsconfig path aliases                                          | `apps/api/AGENTS.md:171`                   | grep `"paths"` in tsconfig                                                         |
+| R12 | No `db.prisma`, no P2002/P2025 handling; queries go through `db.orm.public`      | `packages/db/AGENTS.md:88`                 | grep                                                                               |
+| R13 | No raw hex or arbitrary Tailwind value in `apps/web` screens                     | `packages/ui/AGENTS.md:53`                 | grep `#[0-9a-f]{3,8}` and `-\[` in `className`                                     |
+| R14 | Only `lucide-react` icons, no Radix                                              | `packages/ui/AGENTS.md:140`                | grep deps                                                                          |
+| R15 | Stories import from `@storybook/react`, never a framework package                | `packages/ui/AGENTS.md:135`                | grep `*.stories.tsx`                                                               |
+| R16 | TUI: no inline `content={new StyledText(` ; clickables use `useClickRegion`      | `apps/tui/AGENTS.md:5,20`                  | grep                                                                               |
+| R17 | Every `packages/*`, `plugins/*`, `commands/` has a template `README.md`          | `AGENTS.md:43`                             | `bun scripts/check-package-readmes.ts`                                             |
+| R18 | Mobile: native stack header, no custom `header`, no JS back button on iOS        | `apps/mobile/AGENTS.md:9,17`               | grep `header:`, `BackButton`, `router.back()` in `apps/mobile/src`                 |
+| R19 | Mobile: no hard-coded status bar or notch size                                   | `apps/mobile/AGENTS.md:29`                 | grep numeric `top`/`paddingTop` insets                                             |
+| R20 | Every `apps/api` env schema key has a line in every tier file                    | `apps/api/AGENTS.md:252`                   | diff Joi keys in `sections/*.ts` against `.env.*.enc` keys                         |
+| R21 | No `.prisma` contract file declares the `v1_archive` schema                      | `packages/db/AGENTS.md:110`                | grep `v1_archive` in `*.prisma`                                                    |
 
 R3, R4, R6, R8–R12, R14–R16 measured clean 2026-11-20. R17 clean 2026-11-24 (45 packages). R19 clean 2026-11-24.
-R13: 0 raw hex, 105 arbitrary-value `className` hits in `apps/web/src` (stories included).
+R21 clean 2026-11-25. R13: 0 raw hex, 105 arbitrary-value `className` hits in `apps/web/src` (stories included).
 
 ## Backlog (ranked)
 
 1. R7 — remaining `process.env` reads in `apps/api` app code: `src/_lib/version/api-version.ts:17` (`ATLAS_APP_VERSION`,
    reached from `agent/analytics/singleton.ts`, built outside DI), `src/_core/config/env/env.module.ts:15` (`NODE_ENV`),
-   `src/agent/config/env.ts:68` (default parameter, 9 lazy callers in `src/agent/config/*`),
-   `src/api/platform/sandboxes/sandboxes.fixture.ts:34`, `src/agent/testing/*` (test rigs; candidate for ruled-out).
+   `src/agent/config/env.ts:69` (default parameter, 9 lazy callers in `src/agent/config/*`).
 2. R20 — schema keys with no tier line: `ARTIFACT_DOMAIN` (`sections/artifacts.ts:13`), `CHANGES_S3_BUCKET`,
    `CHANGES_S3_PREFIX`, `CONTEXT_S3_PREFIX`, `CHANGES_GC_GRACE_MS` (`sections/changes.ts:11,12,15,18`), `EMAIL_FROM`
    (`sections/email.ts:10`), `PREVIEW_DOMAIN` (`sections/cloudflare.ts:14`). Needs the decrypt key to add lines.
 3. R18 — `apps/mobile/src/app/(app)/sessions/[id].tsx:96-110` draws a JS `BackButton` (`navigation/back-button.tsx`)
    in `headerLeft` when the threads overlay shows, on iOS too. Native-component change; check on a device.
 4. R13 — triage the 105 arbitrary values in `apps/web/src`; e.g. `features/sessions/panel/details/rows.tsx:14,16,23`.
-5. R1 — 75 production source files over 300 lines. Largest: `packages/core/src/settings/registry.ts`,
-   `packages/control/src/control-plane.ts`, `packages/control/src/postgres/postgres-store.ts`. One split per run.
+5. R1 — 49 production source files over 300 lines (2026-11-25). Largest: `packages/control/src/control-plane.ts`,
+   `packages/control/src/postgres/postgres-store.ts`, `packages/protocol/src/api.ts`. One split per run.
 6. R5 — comment lines in ~430 package source files; pick per-file alongside R1 splits.
 
 ## Ruled out
@@ -54,13 +54,21 @@ R13: 0 raw hex, 105 arbitrary-value `className` hits in `apps/web/src` (stories 
 - R1 for `packages/db/migrations/**`, `packages/db/.agents/skills/**`, `*.generated.ts`, `contract.d.ts`,
   `apps/*/prototype/**`, `**/spikes/**`, `apps/*/scripts/**`: generated, vendored or throwaway.
 - R2 hits in `packages/api-router/src/generated/**`, `packages/db/.agents/**`, JSON/string fixtures.
-- R7 for `src/api/hydrate-env.ts` and `src/trigger/tier-env.ts`: they decrypt the tier into `process.env`, so
-  nothing validated exists yet. `apps/api/AGENTS.md:293` lists them since #2694.
-- `packages/harness/src/prompt/AGENTS.md`: nothing mechanically checkable.
+- R7 for `src/api/hydrate-env.ts` and `_core/config/env/validated-env.ts` (default source): they load or validate
+  `process.env` before anything validated exists. `apps/api/AGENTS.md:256` lists the loaders.
+- R7 for `src/agent/testing/*`: child-process test rigs configured through env by their specs.
 - `apps/tui` import list (`AGENTS.md:36`, `apps/tui/AGENTS.md:27`): a boundary rule, owned by Abstraction police and
   enforced by `apps/tui/src/__tests__/package.spec.ts`.
 
 ## Runs
+
+### 2026-11-25
+
+- Rebuilt the rule list after the v1 retirement edits: added R21 (`v1_archive` stays out of the contract, clean);
+  dropped the deleted `packages/harness` prompt file; re-anchored R1/R7/R20. R1 down to 49 files.
+- Fixed R7 for `JINA_API_KEY` (`agent/registered-plugins.ts:183`, added by #2852): `AgentHostEnv.jinaApiKey` carries
+  it and `composedPluginsOf(env)` builds the web pod from it in `compose.ts` and `control.module.ts`. Pinned the
+  bearer and the no-key answer on main first; 3 mutations failed, restored. Added the row to `src/agent/AGENTS.md`.
 
 ### 2026-11-24
 
