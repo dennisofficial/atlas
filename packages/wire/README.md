@@ -74,7 +74,7 @@ helpers. The serve process in a pod, `apps/api` and every client read it.
 
 ## Usage
 
-From `apps/serve/src/frame-egress.ts`:
+Encoding a frame for a peer:
 
 ```ts
 import { downgradeServeFrame, encodeFrame } from '@dltech/atlas-wire'

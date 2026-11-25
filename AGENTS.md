@@ -22,22 +22,17 @@ The repository is a Bun workspace of `packages/*` and `apps/*`. A package bounda
 where the compiler should enforce a dependency rule.
 - **`core` is pure** (`zod` only): it has no filesystem, network, database, clock or randomness.
   When something is hard to test, move the decision into `core`. Do not add a mock.
-- **Features live in `harness`; surfaces own none.** TUI, serve, web and the API are interfaces to
-  one harness over different transports. Every session kind must think identically: the same
-  hooks, tools and prompt fragments, composed by `composeHarness`
-  (`packages/harness/src/composition`), which also loads plugins. A surface that lacks something
-  gets a port or adapter. It never gets a reimplementation. Surface-specific behavior, such as
-  transport-latency loading states, is rare and deliberate.
-- **A session feature is done when its port is registered.** Feature logic runs on a runtime port
-  implementation. It reaches detached clients through a transport adapter. A port with no remote
-  surface declares an explicit empty transport slot. Ports are registered in
-  `packages/core/src/ports/registry.ts` (extended by harness). `composeHarness` requires the full
-  manifest, so a missing binding breaks typecheck.
+- **Features live in `packages/{agent,host,control}` and `plugins/*`; surfaces own none.** TUI,
+  web and the API are interfaces to one pod host over different transports. Every session kind
+  must think identically: the same hooks, tools and prompt fragments, composed by
+  `composeAgentHost` (`apps/api/src/agent/compose.ts`), which also loads plugins. A surface that
+  lacks something gets a port or adapter. It never gets a reimplementation. Surface-specific
+  behavior, such as transport-latency loading states, is rare and deliberate.
 - **`tui` reaches v2 only through the client packages.** `apps/tui` may import
   `@dltech/atlas-client/*`, `@dltech/atlas-api-router`, `@dltech/atlas-protocol`,
   `@dltech/atlas-commands`, `@dltech/atlas-core`, `@dltech/atlas-models`, `@dltech/atlas-syntax`,
   `@dltech/atlas-observability`, `@dltech/atlas-notifications` and `@dltech/atlas-plugin-*/client|core`.
-  It never imports `@dltech/atlas-harness`, `@dltech/atlas-wire`, `tsyringe` or `reflect-metadata`;
+  It never imports `@dltech/atlas-wire`, `tsyringe` or `reflect-metadata`;
   `apps/tui/src/__tests__/package.spec.ts` enforces the list.
 - **`ui` is a design system with no Atlas imports**: shadcn `base-nova` (Base UI + CVA + Tailwind
   v4) plus AI Elements. Its `/tokens` subpath is pure TS and imports no platform module.
@@ -99,10 +94,9 @@ where the compiler should enforce a dependency rule.
   title sizes the release: `feat` cuts a minor, and anything else a patch. Reserve `feat` for
   something an operator can do today that they could not do yesterday. Polish and a restyle are
   `fix` or `refactor`.
-- A merge releases when its title is `fix` or `feat`, or when it changes TUI, serve, Mac or web,
-  directly or through a dependency. The API deploys on every merge. A sandbox downloads the latest
-  serve _release_ instead, so an API change that the released serve or TUI cannot talk to must be
-  titled `fix` or `feat` to cut a release (#1400 left every new sandbox hanging on "Start Atlas").
+- A merge releases when its title is `fix` or `feat`, or when it changes TUI, Mac or web,
+  directly or through a dependency. The API deploys on every merge, so an API change an installed
+  TUI cannot talk to must be titled `fix` or `feat` to cut a release (#1400).
 
 ## Workspace
 
@@ -120,8 +114,7 @@ where the compiler should enforce a dependency rule.
 - CI builds the real binaries, not only a typecheck. Bundling catches an asset loaded by path (the
   tree-sitter grammars) and an optional peer that needs `--external`.
 - The sandbox image publishes to GHCR (`ghcr.io/<owner>/atlas-sandbox`, multi-arch, `sha-<7>` and
-  `latest`, anonymous pulls) and to Vercel's VCR (`linux/amd64`, `latest` only). Serve is not in
-  the image. A sandbox downloads the release that matches its client at boot.
+  `latest`, anonymous pulls) and to Vercel's VCR (`linux/amd64`, `latest` only).
 
 ## Environment secrets
 

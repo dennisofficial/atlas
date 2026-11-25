@@ -1,3 +1,4 @@
+import { createHash } from 'node:crypto'
 import { mkdir, mkdtemp } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
@@ -5,16 +6,13 @@ import { join } from 'node:path'
 import { toCallId, toRunId, toThreadId, type QualityScope } from '@dltech/atlas-core'
 
 import { singleResponsibilityPolicy } from '@dltech/atlas-plugin-quality/review'
-import {
-  QualityExampleSink,
-  EXAMPLE_SCHEMA_VERSION,
-} from '../../packages/harness/src/quality/example-sink'
 import { prepareQualityScopes } from '@dltech/atlas-plugin-quality/review'
 import { writeFileAtomic } from '../src/atomic'
 
 export const PROJECT_DIRECTORY = '/proj'
 export const WORKSPACE_NAMESPACE = 'local:eval-test-namespace'
 export const SRP_POLICY = 'single-responsibility'
+export const EXAMPLE_SCHEMA_VERSION = '1'
 
 export const makeTmpDir = (): Promise<string> => mkdtemp(join(tmpdir(), 'atlas-curation-'))
 
@@ -78,7 +76,6 @@ export async function recordCapture({
   before: string | null
   after: string
 }): Promise<RecordedCapture> {
-  const sink = new QualityExampleSink({ sessions: { sessionDirOf: async () => sessionDir } })
   const preparation = prepareQualityScopes({
     change: { path: `${PROJECT_DIRECTORY}/${path}`, before, after },
     projectDirectory: PROJECT_DIRECTORY,
@@ -91,21 +88,39 @@ export async function recordCapture({
   const selected = preparation.scopes.filter((scope) => selectedIds.has(scope.id))
   const relativePaths: string[] = []
   for (const scope of selected) {
-    const result = await sink.record({
-      threadId: toThreadId(threadId),
-      runId: toRunId('run-1'),
-      callId: toCallId('call-1'),
-      toolName: 'write',
-      scope,
-      change: { path, before, after },
-      workspaceNamespace: WORKSPACE_NAMESPACE,
-      policyIds: [SRP_POLICY],
-      policyVersions: { [SRP_POLICY]: '1' },
-      adapterVersion: scope.adapterVersion,
+    const content = JSON.stringify({
       schemaVersion: EXAMPLE_SCHEMA_VERSION,
+      adapterVersion: scope.adapterVersion,
+      provenance: {
+        toolName: 'write',
+        threadId: toThreadId(threadId),
+        runId: toRunId('run-1'),
+        callId: toCallId('call-1'),
+      },
+      workspaceNamespace: WORKSPACE_NAMESPACE,
+      path,
+      policies: [{ id: SRP_POLICY, version: '1' }],
+      scope: {
+        id: scope.id,
+        kind: scope.kind,
+        name: scope.name,
+        language: scope.language,
+        structuralHash: scope.structuralHash,
+        parentScopeId: scope.parentScopeId,
+        lineRange: scope.lineRange,
+        beforeLineRange: scope.beforeLineRange,
+        afterLineRange: scope.afterLineRange,
+      },
+      hashes: { before: scope.beforeHash, after: scope.afterHash },
+      before: scope.before,
+      after: scope.after,
+      diff: scope.diff,
+      dependencyContext: scope.dependencyContext,
+      evidence: scope.evidence,
     })
-    if (!result.ok) throw new Error(result.fault)
-    relativePaths.push(result.relativePath)
+    const digest = createHash('sha256').update(content).digest('hex')
+    await writeRawSinkFile({ sessionDir, threadId, fileStem: digest, content })
+    relativePaths.push(`threads/${threadId}/quality/examples/${digest}.json`)
   }
   return { sessionDir, threadId, relativePaths, scopes: selected }
 }

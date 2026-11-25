@@ -31,7 +31,6 @@ The headless client library that web, the TUI and the mobile app share.
 | `@dltech/atlas-client/account`                  | The Atlas Cloud device-code login.                                                            |
 | `@dltech/atlas-client/transcript`               | The transcript rows, the tool runs and the turn rows.                                         |
 | `@dltech/atlas-client/stream-fixture`           | A fake scheduler and transport, and the event factories, for a spec.                          |
-| `@dltech/atlas-client/channel-fixture`          | A fake channel socket and a channel harness, for a spec.                                      |
 | `@dltech/atlas-client/transcript-fixture`       | The event drafts and the step signals of a transcript, for a spec.                            |
 | `@dltech/atlas-client/transcript-tool-fixture`  | The tool call and result drafts, for a spec.                                                  |
 | `@dltech/atlas-client/transcript-tools-fixture` | A sample tool call and shell call, for a spec or a prototype.                                 |

@@ -67,8 +67,8 @@ describe('the drawer keys are settings the API validates', () => {
   })
 
   it('keeps the dropped rows out of the account registry', () => {
-    expect(CLOUD_SETTING_REGISTRY.has(ESettingId.Editor)).toBe(false)
-    expect(CLOUD_SETTING_REGISTRY.has(ESettingId.ContainerCpus)).toBe(false)
+    expect(CLOUD_SETTING_REGISTRY.has('files.editor')).toBe(false)
+    expect(CLOUD_SETTING_REGISTRY.has('container.cpus')).toBe(false)
     expect(CLOUD_SETTING_REGISTRY.has('transcript.smoothStreaming')).toBe(false)
     expect(CLOUD_SETTING_REGISTRY.has('tldr.status')).toBe(false)
     expect(CLOUD_SETTING_REGISTRY.has(ESettingId.Accent)).toBe(true)

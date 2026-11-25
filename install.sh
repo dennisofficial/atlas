@@ -9,20 +9,10 @@ REPO=dennisofficial/atlas
 MIRROR=https://install.byatlas.io
 
 usage() {
-  printf 'usage: install.sh [tui|serve] [VERSION]\n' >&2
+  printf 'usage: install.sh [VERSION]\n' >&2
   exit 2
 }
 
-flavor=tui
-if [ $# -gt 0 ]; then
-  case "$1" in
-    tui | serve)
-      flavor=$1
-      shift
-      ;;
-    *) usage ;;
-  esac
-fi
 [ $# -le 1 ] || usage
 version=${1:-latest}
 
@@ -33,31 +23,16 @@ fi
 
 platform="$(uname -s)-$(uname -m)"
 
-case "$flavor" in
-  serve)
-    case "$platform" in
-      Linux-x86_64) asset=atlas-serve-linux-x64 ;;
-      Linux-aarch64 | Linux-arm64) asset=atlas-serve-linux-arm64 ;;
-      *)
-        printf 'install.sh: serve ships linux-x64 and linux-arm64 only, not %s\n' "$platform" >&2
-        exit 1
-        ;;
-    esac
-    binary=atlas-serve
-    ;;
-  tui)
-    case "$platform" in
-      Darwin-arm64) asset=atlas-darwin-arm64 ;;
-      Darwin-x86_64) asset=atlas-darwin-x64 ;;
-      Linux-x86_64) asset=atlas-linux-x64 ;;
-      *)
-        printf 'install.sh: no prebuilt binary for %s\n' "$platform" >&2
-        exit 1
-        ;;
-    esac
-    binary=atlas
+case "$platform" in
+  Darwin-arm64) asset=atlas-darwin-arm64 ;;
+  Darwin-x86_64) asset=atlas-darwin-x64 ;;
+  Linux-x86_64) asset=atlas-linux-x64 ;;
+  *)
+    printf 'install.sh: no prebuilt binary for %s\n' "$platform" >&2
+    exit 1
     ;;
 esac
+binary=atlas
 
 dest_dir=${ATLAS_INSTALL_DIR:-"$HOME/.local/bin"}
 dest="$dest_dir/$binary"

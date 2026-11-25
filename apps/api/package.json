@@ -17,6 +17,7 @@
     "dev:login": "bun run env:inject -- bun scripts/dev-login.ts",
     "dev:no-trigger": "GITHUB_SWEEPS_IN_PROCESS=1 bun run env:inject -- bun --watch src/main.ts",
     "env:inject": "dotenvx run -f .env.local.enc -f .env.personal --ignore=MISSING_ENV_FILE --strict --",
+    "generate:claude-code-version": "bun scripts/generate-claude-code-version.ts",
     "generate:trpc": "bun scripts/generate-trpc.ts",
     "start": "bun src/main.ts",
     "start:prod": "dotenvx run --strict -f .env.$APP_TIER.enc -- bun src/main.ts",

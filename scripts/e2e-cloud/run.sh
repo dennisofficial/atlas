@@ -1,8 +1,7 @@
 #!/bin/sh
 # End-to-end proof of the cloud transition path, runnable on any dev machine:
-# transfer up (idempotent), the serve running a turn over the socket (streaming, ledger,
-# legible failure, wake after park), transfer down + re-lift, and the wholesale log replace a
-# re-lift or descend moves with. Everything runs against a throwaway Postgres container and a
+# transfer up (idempotent), transfer down + re-lift, and the wholesale log replace a re-lift or
+# descend moves with. Everything runs against a throwaway Postgres container and a
 # throwaway API boot; nothing touches production.
 #
 #   sh scripts/e2e-cloud/run.sh
@@ -62,18 +61,14 @@ done
 if [ "$ready" != "1" ]; then echo "API never became healthy"; tail -20 /tmp/e2e-cloud-api.log; exit 1; fi
 echo "api healthy on $API_URL"
 
-rm -rf /tmp/e2e-cloud-serve-home /tmp/e2e-cloud-ws /tmp/e2e-cloud-ws-home
-mkdir -p /tmp/e2e-cloud-serve-home /tmp/e2e-cloud-ws /tmp/e2e-cloud-ws-home
+rm -rf /tmp/e2e-cloud-ws
+mkdir -p /tmp/e2e-cloud-ws
 cd "$ROOT"
 E2E_API_URL=$API_URL E2E_TOKEN_FILE=$TOKEN_FILE E2E_PG_CONTAINER=$PG_CONTAINER E2E_SERVE_PORT=$SERVE_PORT E2E_MOCK_PORT=$MOCK_PORT \
   bun scripts/e2e-cloud/transfer-up.mjs
 E2E_API_URL=$API_URL E2E_TOKEN_FILE=$TOKEN_FILE E2E_PG_CONTAINER=$PG_CONTAINER E2E_SERVE_PORT=$SERVE_PORT E2E_MOCK_PORT=$MOCK_PORT \
-  ATLAS_HOME=/tmp/e2e-cloud-serve-home bun scripts/e2e-cloud/serve-turn.mts
-E2E_API_URL=$API_URL E2E_TOKEN_FILE=$TOKEN_FILE E2E_PG_CONTAINER=$PG_CONTAINER E2E_SERVE_PORT=$SERVE_PORT E2E_MOCK_PORT=$MOCK_PORT \
   bun scripts/e2e-cloud/transfer-down.mjs
 E2E_API_URL=$API_URL E2E_TOKEN_FILE=$TOKEN_FILE E2E_PG_CONTAINER=$PG_CONTAINER E2E_SERVE_PORT=$SERVE_PORT E2E_MOCK_PORT=$MOCK_PORT \
   bun scripts/e2e-cloud/transfer-replace.mjs
-E2E_API_URL=$API_URL E2E_TOKEN_FILE=$TOKEN_FILE E2E_PG_CONTAINER=$PG_CONTAINER E2E_SERVE_PORT=$SERVE_PORT E2E_MOCK_PORT=$MOCK_PORT \
-  ATLAS_HOME=/tmp/e2e-cloud-ws-home bun scripts/e2e-cloud/workspace-down.mjs
 
 echo "E2E CLOUD: ALL PHASES GREEN"

@@ -16,7 +16,6 @@ const PROSE_MENTIONS = new Map<string, readonly ReservedTag[]>([
   ['apps/api/src/agent/runtime/prompt-fragments/envelope-contract.ts', RESERVED_TAGS],
   ['packages/core/src/policy/classifier/brief.ts', ['system-untrusted']],
   ['packages/core/src/policy/classifier/critique.ts', ['system-untrusted']],
-  ['packages/harness/src/prompt/fragments/envelope-contract.ts', RESERVED_TAGS],
 ])
 
 const isSpec = (path: string): boolean => path.includes('/__tests__/') || /\.spec\.tsx?$/.test(path)

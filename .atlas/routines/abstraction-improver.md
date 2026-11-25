@@ -26,7 +26,7 @@
 
 ### 2026-11-19
 
-- Swept `packages/` and `apps/` (skipping harness/agent-v1/serve, deprecated, files in open PRs #2368/#2272).
+- Swept `packages/` and `apps/` (skipping deprecated, files in open PRs #2368/#2272).
 - Flattened `canonicalEvent` (core `record/chain.ts`) and `encodeVisibility` (control `stored-event.ts`), both pure renames of `canonicalJson`; 7 call sites now call `canonicalJson`.
 - Pinned with new `core/src/record/__tests__/chain.spec.ts` and `control/__tests__/stored-event.spec.ts`; mutation-checked each.
 
