@@ -9,9 +9,24 @@ on:
     branches: ['main']
     paths:
       - 'apps/mobile/**'
-      - 'packages/ui/src/tokens/**'
-      - 'packages/wire/**'
       - 'packages/api-router/**'
+      - 'packages/client/**'
+      - 'packages/commands/**'
+      - 'packages/core/**'
+      - 'packages/notifications/**'
+      - 'packages/plugin-sdk/**'
+      - 'packages/protocol/**'
+      - 'packages/ui/**'
+      - 'packages/ui-native/**'
+      - 'packages/wire/**'
+      - 'plugins/crew/**'
+      - 'plugins/github/**'
+      - 'plugins/mcp/**'
+      - 'plugins/operator/**'
+      - 'plugins/services/**'
+      - 'plugins/sessions/**'
+      - 'plugins/shells/**'
+      - 'plugins/skills/**'
       - 'bun.lock'
 
 jobs:

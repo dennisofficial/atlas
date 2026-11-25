@@ -17,6 +17,7 @@ export const fetchSession = async ({
 }): Promise<IAuthUser | undefined> => {
   try {
     const response = await fetchFn(`${apiOrigin}/api/auth/get-session`, {
+      credentials: 'omit',
       headers: { authorization: `Bearer ${token}` },
     })
     if (!response.ok) return undefined
@@ -41,6 +42,7 @@ export const revokeSession = async ({
   try {
     const response = await fetchFn(`${apiOrigin}/api/auth/sign-out`, {
       method: 'POST',
+      credentials: 'omit',
       headers: { authorization: `Bearer ${token}`, 'content-type': 'application/json' },
       body: '{}',
     })
@@ -68,6 +70,7 @@ export const signInWithPassword = async ({
   try {
     const response = await fetchFn(`${apiOrigin}/api/auth/sign-in/email`, {
       method: 'POST',
+      credentials: 'omit',
       headers: { 'content-type': 'application/json' },
       body: JSON.stringify({ email, password }),
     })

@@ -104,10 +104,25 @@ describe('server messages', () => {
       expect(parseServerMessage(roundTrip(fixture))).toEqual({ ok: true, message: parsed })
     })
 
-    it(`rejects an extra key on the ${name} fixture`, () => {
-      expect(streamServerMessageSchema.safeParse({ ...fixture, extra: 1 }).success).toBe(false)
+    it(`keeps reading the ${name} fixture once the server adds a key`, () => {
+      const parsed = streamServerMessageSchema.parse({ ...fixture, extra: 1 })
+      expect(Object.keys(parsed)).not.toContain('extra')
     })
   }
+
+  it('reads a page frame from a server one field ahead of this client', () => {
+    const parsed = streamServerMessageSchema.parse({
+      type: 'events',
+      id: 'sub-1',
+      events: [{ seq: 35, type: 'user-said', text: 'Say hi in one word.' }],
+      head: { seq: 35, hash: 'hash-35' },
+      cursor: { seq: 35, hash: 'hash-35' },
+      live: true,
+    })
+
+    expect(parsed).toMatchObject({ type: 'events', live: true })
+    expect(parsed.type === 'events' && parsed.events.length).toBe(1)
+  })
 
   it('rejects a negative delta offset', () => {
     expect(
