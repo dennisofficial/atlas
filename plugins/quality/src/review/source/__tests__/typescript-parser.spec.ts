@@ -1,6 +1,7 @@
 import { EQualityLanguage, EQualityScopeKind } from '@dltech/atlas-core'
 import { describe, expect, it } from 'bun:test'
 
+import { clearQualityParseCache, qualityParseCacheStats } from '../parse-cache'
 import { parseQualitySource, scriptKindForPath } from '../typescript-parser'
 
 const parse = (path: string, text: string) => {
@@ -141,5 +142,69 @@ describe('parseQualitySource', () => {
     expect(greetFirst.structuralHash).toBe(greetSpaced.structuralHash)
     expect(greetFirst.structuralHash).toBe(salute.structuralHash)
     expect(greetFirst.structuralHash).not.toBe(altered.structuralHash)
+  })
+})
+
+describe('parseQualitySource cache', () => {
+  const texts = [
+    'export function greet() { return 1 }\n',
+    'import { z } from "zod"\nexport class Greeter {\n  greet() { return z }\n}\n',
+    'export const outer = () => {\n  const inner = () => 1\n  return inner()\n}\n',
+    'function broken( {\n',
+    'export const View = () => <div className="a">{1}</div>\n',
+  ]
+
+  it('gives the same document for a cached text as for a fresh one', () => {
+    clearQualityParseCache()
+    for (const text of texts) {
+      const cached = parseQualitySource({ path: '/p/a.tsx', text })
+      clearQualityParseCache()
+      const fresh = parseQualitySource({ path: '/p/a.tsx', text })
+      expect(cached).toEqual(fresh)
+    }
+  })
+
+  it('reuses the parse and keeps the path of the caller', () => {
+    clearQualityParseCache()
+    const text = 'export function greet() { return 1 }\n'
+    const first = parse('/p/a.ts', text)
+    const second = parse('/other/b.mts', text)
+
+    expect(second.path).toBe('/other/b.mts')
+    expect({ ...second, path: '' }).toEqual({ ...first, path: '' })
+    expect(qualityParseCacheStats()).toEqual({
+      entries: 1,
+      bytes: Buffer.byteLength(text, 'utf8'),
+      hits: 1,
+      misses: 1,
+    })
+  })
+
+  it('remembers a text that does not parse, so the verdict does not drift', () => {
+    clearQualityParseCache()
+    const text = 'function broken( {'
+    const first = parseQualitySource({ path: '/p/a.ts', text })
+    const second = parseQualitySource({ path: '/p/a.ts', text })
+
+    expect(first).toEqual({ ok: false, invalidSyntax: true })
+    expect(second).toEqual(first)
+    expect(qualityParseCacheStats().hits).toBe(1)
+  })
+
+  it('keeps a script kind apart, so a TSX parse never answers for a JS file', () => {
+    clearQualityParseCache()
+    const text = 'export const View = () => <div className="a">{1}</div>\n'
+    const tsx = parseQualitySource({ path: '/p/view.tsx', text })
+    const js = parseQualitySource({ path: '/p/view.js', text })
+
+    expect(tsx.ok).toBe(true)
+    expect(qualityParseCacheStats()).toEqual({
+      entries: 2,
+      bytes: Buffer.byteLength(text, 'utf8') * 2,
+      hits: 0,
+      misses: 2,
+    })
+    expect(parseQualitySource({ path: '/p/view.js', text })).toEqual(js)
+    expect(parseQualitySource({ path: '/p/view.tsx', text })).toEqual(tsx)
   })
 })
