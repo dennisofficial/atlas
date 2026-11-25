@@ -121,7 +121,7 @@ function KeyForm({
           </div>
         ) : null}
         {offerUse ? (
-          <Label className="flex items-center gap-2 font-normal">
+          <Label className="font-normal">
             <Checkbox checked={use} onCheckedChange={setUse} />
             Use this key for {providerName} now
           </Label>

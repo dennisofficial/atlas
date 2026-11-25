@@ -79,12 +79,14 @@ files is expected.
 - `select.tsx`: the inset moved from the optional `SelectGroup` onto the internal `SelectPrimitive.List`, so ungrouped items are inset too. `SelectTrigger` has `variant: 'default' | 'ghost'`. The ghost variant is borderless and takes the Button-ghost hover. Consumers do not fake it with `border-0`.
 - `command.tsx`: `CommandGroup` lost its extra `p-1`. Items use the shared menu row (`rounded-md px-1.5 py-1 gap-1.5`), so Command rows match DropdownMenu.
 - `popover.tsx`: a popover whose direct child is a `Command` drops its own padding and gap. Consumers do not pass `p-0 gap-0`.
+- `popover.tsx`: `size: 'default' | 'sm'`. `sm` is a tighter inset and gap (`p-1.5 gap-1`) for a popover that holds one inline control row.
 - `sheet.tsx`: `SheetContent` owns `p-4`. `SheetHeader`/`SheetFooter` carry no padding, and `SheetHeader` reserves `pr-8` for the close button. Its top, left and right edges sit inside the safe-area insets (`--safe-area-*` from `base.css`), so a sheet never opens under the iOS status bar. The bottom edge stays at 0, and the body pads `max(1rem, var(--safe-area-bottom))` so its content clears the home indicator.
 - `drawer.tsx`: `DrawerContent` owns `p-4 gap-4`. `DrawerHeader`/`DrawerFooter` carry no padding.
 - `attachment.tsx`: content padding sits on the base of each size, not behind `has-data-[slot=attachment-content]`. The media override stays.
-- `input.tsx`: `size: 'default' | 'lg'` (lg = `h-9`, matching Button `lg`).
+- `input.tsx`: `size: 'default' | 'sm' | 'lg'` (lg = `h-9`, matching Button `lg`; sm = `h-7`, the height of Button `sm`).
 - `input-group.tsx`: `InputGroupButton` `sm` is an explicit `h-7`. It inherited Button's `h-8`. `shape: 'default' | 'round'`. `InputGroupInput` accepts Input's `size`. The group's disabled dimming keys on a disabled `input-group-control`, not on any disabled descendant, so a disabled addon button (an empty composer's Send) does not grey out the whole field.
 - `input-otp.tsx`: `size: 'default' | 'lg'` on `InputOTP`, read by every slot.
+- `radio-group.tsx`: `layout: 'default' | 'rows'`. `rows` sets `gap-0 divide-y`, so a list of selectable account rows runs edge to edge with a hairline between rows.
 - `slider.tsx`: a scalar `value`/`defaultValue` renders one thumb. The upstream thumb count treats a
   non-array value as unknown and falls back to `[min, max]`, so `<Slider value={2} />` rendered two
   focusable thumbs on top of each other. The count now comes from the scalar itself. `aria-label` on
@@ -103,6 +105,7 @@ files is expected.
 - `sidebar.tsx`: `collapsible="none"` draws the same side edge border as the other modes. `SidebarFooter` has `variant: 'default' | 'bordered'`, where bordered adds a top `border-sidebar-border` edge. `SidebarMenuButton` has `size="avatar"` (`h-10`, `px-1` when collapsed) for the account row. `SidebarProvider` pads its wrapper by the top, left and right safe-area insets. The fixed desktop container offsets by the side insets. `sidebar-inner` pads the top, so the sidebar surface runs under the status bar.
 - `card.tsx`: `CardFooter` owns `gap-2` between its buttons. `variant: 'default' | 'list'` and the `CardRow` part serve divided settings lists. A table directly inside a list card gets the card's edge inset. `tone: 'default' | 'destructive'` tints the ring for danger zones.
 - `button.tsx`: `ghost` shows the selected state for `aria-current="page"` / `"true"`. Nav and tree rows do not add `bg-muted` themselves.
+- `button.tsx`: `size="row"` is the action inside a dense row: `h-6`, `px-1.5`, `text-xs`, with the `xs` rounding and icon size.
 - `button.tsx`: `variant="tree"` is `ghost` without the `aria-expanded` highlight, so open folder rows in the file tree stay unhighlighted. Only hover and the selected `aria-current="true"` row take `bg-muted`.
 - `message.tsx`: `MessageHeader`/`MessageFooter` take the `px-3` bubble inset only when the message has a bubble. The header owns `gap-2`.
 - `message-scroller.tsx`: `MessageScrollerContent` owns the transcript gutter (`px-4 py-6`).

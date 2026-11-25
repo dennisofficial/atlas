@@ -2,13 +2,30 @@
 
 import { Radio as RadioPrimitive } from '@base-ui/react/radio'
 import { RadioGroup as RadioGroupPrimitive } from '@base-ui/react/radio-group'
+import { cva, type VariantProps } from 'class-variance-authority'
 import { cn } from 'cn'
 
-function RadioGroup({ className, ...props }: RadioGroupPrimitive.Props) {
+const radioGroupVariants = cva('grid w-full gap-2', {
+  variants: {
+    layout: {
+      default: '',
+      rows: 'gap-0 divide-y',
+    },
+  },
+  defaultVariants: {
+    layout: 'default',
+  },
+})
+
+function RadioGroup({
+  className,
+  layout = 'default',
+  ...props
+}: RadioGroupPrimitive.Props & VariantProps<typeof radioGroupVariants>) {
   return (
     <RadioGroupPrimitive
       data-slot="radio-group"
-      className={cn('grid w-full gap-2', className)}
+      className={cn(radioGroupVariants({ layout, className }))}
       {...props}
     />
   )
@@ -34,4 +51,4 @@ function RadioGroupItem({ className, ...props }: RadioPrimitive.Root.Props) {
   )
 }
 
-export { RadioGroup, RadioGroupItem }
+export { RadioGroup, RadioGroupItem, radioGroupVariants }
