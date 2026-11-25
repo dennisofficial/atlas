@@ -45,6 +45,12 @@ const hostDetachedOnHandoff = (args: {
 }): boolean =>
   args.signal.aborted && args.signal.reason === 'handoff' && args.detach?.(args.name) === false
 
+const finishedResult = (drafts: readonly EventDraft[]): boolean =>
+  drafts.some(
+    (draft) =>
+      draft.type === 'tool-result' && draft.error === undefined && draft.interrupted !== true,
+  )
+
 export function createSettlePending(deps: {
   record: AgentRecordPort
   dispatch: ToolDispatcher
@@ -125,7 +131,11 @@ export function createSettlePending(deps: {
             homeDirectory,
             activeWorktree,
           })
-          if (hostDetachedOnHandoff({ signal, detach, name: call.name })) {
+          const abortedOnHandoff = signal.aborted && signal.reason === 'handoff'
+          if (
+            hostDetachedOnHandoff({ signal, detach, name: call.name }) &&
+            !finishedResult(drafts)
+          ) {
             await deps.record.append({
               threadId,
               runId: call.runId,
@@ -135,7 +145,12 @@ export function createSettlePending(deps: {
           }
           if ((signal.aborted || paused()) && detach?.(call.name) === true) return []
           if (drafts.length > 0) {
-            await deps.record.append({ threadId, runId: call.runId, drafts, signal })
+            await deps.record.append({
+              threadId,
+              runId: call.runId,
+              drafts,
+              ...(abortedOnHandoff ? {} : { signal }),
+            })
           }
           return drafts
         }),

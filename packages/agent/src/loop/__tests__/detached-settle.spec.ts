@@ -38,6 +38,23 @@ class GatedTool extends FakeTool {
   }
 }
 
+class CancelledSettleTool extends FakeTool {
+  started = false
+  private release: (() => void) | undefined
+
+  releaseNow(): void {
+    this.release?.()
+  }
+
+  override async invoke(): Promise<ToolOutcome> {
+    this.started = true
+    await new Promise<void>((resolve) => {
+      this.release = resolve
+    })
+    return { ok: false, reason: 'the handoff stopped the call before it finished' }
+  }
+}
+
 class InterruptedSettleTool extends FakeTool {
   started = false
   private release: (() => void) | undefined
@@ -65,8 +82,8 @@ const until = async (check: () => boolean): Promise<void> => {
 }
 
 describe('a call the drain detaches', () => {
-  it('marks a host-side call detached so the next host re-dispatches rather than settling a crash', async () => {
-    const tool = new GatedTool()
+  it('marks an unfinished host-side call detached so the next host re-dispatches it', async () => {
+    const tool = new CancelledSettleTool('slow', 'done')
     const rig = rigOf({
       script: [{ calls: [{ callId: 'call-1', name: 'slow', input: {} }] }, { text: 'done' }],
       tools: [tool],
@@ -95,6 +112,39 @@ describe('a call the drain detaches', () => {
     const state = loopStateOf({ events })
     expect(crashedCallsOf(state)).toEqual([])
     expect(settleablePendingOf(state).map((call) => call.callId)).toEqual([CALL])
+  })
+
+  it('keeps a host-side result that finished before the drain reached it', async () => {
+    const tool = new GatedTool()
+    const rig = rigOf({
+      script: [{ calls: [{ callId: 'call-1', name: 'slow', input: {} }] }, { text: 'done' }],
+      tools: [tool],
+      overrides: { detachTool: () => false },
+    })
+    await rig.record.append({
+      threadId: THREAD,
+      runId: RUN,
+      drafts: [{ type: 'user-said', text: 'run it' }],
+    })
+
+    const abort = new AbortController()
+    const turn = rig.runner.runTurn({ threadId: THREAD, signal: abort.signal })
+    await until(() => tool.started)
+    abort.abort('handoff')
+    tool.releaseNow()
+    await turn
+
+    const events = rig.record.eventsOf(THREAD)
+    const results = events.filter((event) => event.type === 'tool-result')
+    expect(
+      results.map((event) => (event.type === 'tool-result' ? event.output : undefined)),
+    ).toEqual(['done'])
+    expect(
+      events.some((event) => event.type === 'tool-dispatched' && event.detached === true),
+    ).toBe(false)
+    const state = loopStateOf({ events })
+    expect(crashedCallsOf(state)).toEqual([])
+    expect(settleablePendingOf(state)).toEqual([])
   })
 
   it('leaves a daemon call on its plain dispatch so the next host reattaches it', async () => {
