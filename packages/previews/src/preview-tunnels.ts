@@ -1,27 +1,17 @@
 import { type Db, type Row } from '@dltech/atlas-db'
 import { type CloudflareTunnelClient } from './cloudflare-tunnel.client'
+import { PreviewTunnelClaimedError } from './errors'
 import { EPreviewTunnelState } from './preview-state'
-import {
-  type PreviewSecretCipher,
-  lockPreviews,
-  messageOf,
-  newPreviewLabel,
-  tunnelNameOf,
-} from './preview-rows'
+import { type PreviewSecretCipher, lockPreviews, newPreviewLabel } from './preview-rows'
 import {
   type PreviewReconcileDeps,
   type PreviewReconcileOutcome,
   reconcilePreviewTunnel,
 } from './preview-reconciler'
+import { EPreviewSeal, sealPreviewTunnel } from './preview-seal'
 
 export type { PreviewSecretCipher } from './preview-rows'
 export { lockPreviews, newPreviewLabel, tunnelNameOf } from './preview-rows'
-
-function sealedOf(row: Row<'PreviewTunnel'>): boolean {
-  return (
-    row.state === EPreviewTunnelState.Ready && row.tunnelId !== '' && row.sealedTunnelToken !== ''
-  )
-}
 
 export class PreviewTunnels {
   private readonly db: Db
@@ -70,6 +60,7 @@ export class PreviewTunnels {
   async clearDeleting(args: { podSessionId: string }): Promise<void> {
     await this.db.orm.public.PreviewTunnel.where({
       podSessionId: args.podSessionId,
+      state: EPreviewTunnelState.Deleting,
     }).updateAndCount({ state: EPreviewTunnelState.Ready })
   }
 
@@ -112,8 +103,9 @@ export class PreviewTunnels {
       if (existing.state !== EPreviewTunnelState.Deleting) return existing
       await tx.orm.public.PreviewTunnel.where({ id: existing.id }).updateAndCount({
         state: EPreviewTunnelState.Pending,
+        sealedTunnelToken: '',
       })
-      return { ...existing, state: EPreviewTunnelState.Pending }
+      return { ...existing, state: EPreviewTunnelState.Pending, sealedTunnelToken: '' }
     })
   }
 
@@ -133,26 +125,18 @@ export class PreviewTunnels {
     podSessionId: string
     row: Row<'PreviewTunnel'>
   }): Promise<string> {
-    const row = await this.db.orm.public.PreviewTunnel.where({ id: args.row.id }).first()
-    if (row === null) throw new Error(`preview tunnel ${args.row.id} disappeared`)
-    if (sealedOf(row)) return this.cipher.decrypt(row.sealedTunnelToken)
-    try {
-      const tunnel = await this.cloudflare.ensureTunnel({
-        name: tunnelNameOf(args.podSessionId),
-      })
-      await this.db.orm.public.PreviewTunnel.where({ id: row.id }).updateAndCount({
-        tunnelId: tunnel.id,
-        sealedTunnelToken: this.cipher.encrypt(tunnel.token),
-        state: EPreviewTunnelState.Ready,
-        lastError: null,
-      })
-      return tunnel.token
-    } catch (failure) {
-      await this.db.orm.public.PreviewTunnel.where({ id: row.id }).updateAndCount({
-        lastError: messageOf(failure),
-      })
-      throw failure
+    const outcome = await sealPreviewTunnel({
+      deps: this.reconcileDeps(),
+      podSessionId: args.podSessionId,
+      previewTunnelId: args.row.id,
+      seal: EPreviewSeal.Reuse,
+    })
+    if (outcome.kind === 'claimed-elsewhere') {
+      throw new PreviewTunnelClaimedError(
+        `another process is creating the tunnel of ${args.podSessionId}`,
+      )
     }
+    return outcome.tunnelToken
   }
 
   private reserveRoute(args: {

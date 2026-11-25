@@ -8,6 +8,7 @@ import {
   messageOf,
   tunnelNameOf,
 } from './preview-rows'
+import { EPreviewSeal, sealPreviewTunnel } from './preview-seal'
 
 const DEFAULT_PASS_LIMIT = 200
 const PREVIEW_TUNNEL_PREFIX = 'atlas-'
@@ -59,7 +60,7 @@ export async function previewPodsNeedingWork(
 ): Promise<string[]> {
   const rows = await deps.db.query(
     deps.db.raw.sql`SELECT "podSessionId" FROM "public"."PreviewTunnel"
-      WHERE "state" IN (${EPreviewTunnelState.Pending}, ${EPreviewTunnelState.Deleting})
+      WHERE "state" IN (${EPreviewTunnelState.Pending}, ${EPreviewTunnelState.Creating}, ${EPreviewTunnelState.Deleting})
          OR "syncedAt" IS NULL
       ORDER BY "updatedAt" ASC
       LIMIT ${Math.max(1, Math.trunc(args.limit))}`
@@ -132,14 +133,16 @@ async function syncPreview(
   row: Row<'PreviewTunnel'>,
 ): Promise<PreviewReconcileOutcome> {
   try {
-    const tunnel = await deps.cloudflare.ensureTunnel({ name: tunnelNameOf(row.podSessionId) })
-    const keepsSeal = row.tunnelId === tunnel.id && row.sealedTunnelToken !== ''
-    const sealedTunnelToken = keepsSeal ? row.sealedTunnelToken : deps.cipher.encrypt(tunnel.token)
-    const rules = await syncRoutes(deps, { previewTunnelId: row.id, tunnelId: tunnel.id })
-    await deps.cloudflare.putIngress({ tunnelId: tunnel.id, rules })
+    const sealed = await sealPreviewTunnel({
+      deps,
+      podSessionId: row.podSessionId,
+      previewTunnelId: row.id,
+      seal: EPreviewSeal.Verify,
+    })
+    if (sealed.kind === 'claimed-elsewhere') return { kind: 'skipped' }
+    const rules = await syncRoutes(deps, { previewTunnelId: row.id, tunnelId: sealed.tunnelId })
+    await deps.cloudflare.putIngress({ tunnelId: sealed.tunnelId, rules })
     await deps.db.orm.public.PreviewTunnel.where({ id: row.id }).updateAndCount({
-      tunnelId: tunnel.id,
-      sealedTunnelToken,
       state: EPreviewTunnelState.Ready,
       syncedAt: nowOf(deps),
       lastError: null,

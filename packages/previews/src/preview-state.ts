@@ -1,5 +1,6 @@
 export const EPreviewTunnelState = {
   Pending: 'Pending',
+  Creating: 'Creating',
   Ready: 'Ready',
   Deleting: 'Deleting',
 } as const
