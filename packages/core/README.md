@@ -58,8 +58,7 @@ assembly, settings, ports, and the record folds. It imports `zod` and nothing el
 - `ToolDefinition`: abstract class with `name`, `description`, `effect`, `inputSchema`, `invoke`.
 - `SchemaTool`: a `ToolDefinition` that parses its input against its schema.
 - `EToolEffect`: `Read`, `Write`, `Destructive`. `ToolCall`, `ToolRun`: a call and its run.
-- `ToolOutcome`, `ToolSpanDetail`, `ToolInvocation`, `ToolDeclaration`: the result, the detail a
-  result reports to a span, the call, and what the model sees.
+- `ToolOutcome`, `ToolSpanDetail`, `ToolInvocation`, `ToolDeclaration`: result, span detail, call, model view.
 - `typedDeferredInputOf({declaration, input})`, `toolJsonSchemaOf(declaration)`: the typed arguments of a deferred tool, and its JSON schema.
 
 ### Write a prompt fragment and order a hook
