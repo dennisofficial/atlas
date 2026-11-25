@@ -38,7 +38,7 @@ A main agent, a sub-agent and a teammate all run this loop. It knows nothing of 
   `failed`, `waiting-for-model`, `parked` or `relocation-paused`.
 - `PauseSignal`: pause a running turn at the next step boundary. `say`, `runTurn` and `resume` take it
   as `pause`; a paused turn ends `relocation-paused`.
-- `TurnDeps.uploads`: a `SaidUploadsPort` places the files of a said message on disk.
+- `TurnDeps.uploads`: a `SaidUploadsPort` places the files of a said message on disk. The loop asks it only for the files the log holds no placement fact for, and appends one `upload-placement` fact per placed file through `AgentRecordPort.appendFacts`.
 
 ### Trace a turn
 

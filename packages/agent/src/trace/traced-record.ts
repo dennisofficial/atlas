@@ -1,4 +1,4 @@
-import type { Event, LoopState, ThreadId } from '@dltech/atlas-core'
+import type { Event, FactRecord, LoopState, RunId, ThreadId } from '@dltech/atlas-core'
 import { ESpan, type TracePort } from '@dltech/atlas-observability'
 
 import { AgentRecordPort } from '../record/agent-record.port'
@@ -39,5 +39,17 @@ export class TracedRecord extends AgentRecordPort {
 
   override postedInputAts(args: { threadId: ThreadId }): Promise<ReadonlyMap<number, string>> {
     return this.inner.postedInputAts?.(args) ?? Promise.resolve(new Map())
+  }
+
+  override factsOfKind(args: { threadId: ThreadId; kind: string }): Promise<readonly FactRecord[]> {
+    return this.inner.factsOfKind?.(args) ?? Promise.resolve([])
+  }
+
+  override appendFacts(args: {
+    threadId: ThreadId
+    runId: RunId
+    facts: readonly FactRecord[]
+  }): Promise<void> {
+    return this.inner.appendFacts?.(args) ?? Promise.resolve()
   }
 }

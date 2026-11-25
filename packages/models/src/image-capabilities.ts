@@ -13,7 +13,7 @@ const BY_API: Readonly<Record<string, ImageCapabilities>> = {
   'anthropic-messages': { images: 'both', maxInlineBytes: MAX_INLINE_BYTES, maxEdge: MAX_API_EDGE },
   'openai-responses': { images: 'both', maxInlineBytes: 20 * MEGABYTE },
   [OPENAI_COMPLETIONS_API]: INLINE_ONLY,
-  'ai-gateway': INLINE_ONLY,
+  'ai-gateway': { images: 'both', maxInlineBytes: MAX_INLINE_BYTES },
 }
 
 const IMAGE_MODALITY = 'image'

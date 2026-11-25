@@ -3,6 +3,7 @@ import {
   rowsOwnedBy,
   toEventId,
   type Event,
+  type FactRecord,
   type IdPort,
   type ThreadId,
 } from '@dltech/atlas-core'
@@ -13,6 +14,7 @@ export type ContextWindow = (events: readonly Event[]) => readonly Event[]
 
 export class InMemoryAgentRecord extends AgentRecordPort {
   private readonly byThread = new Map<ThreadId, Event[]>()
+  private readonly factsByThread = new Map<ThreadId, FactRecord[]>()
   private failure: unknown
   private tick = 0
 
@@ -26,6 +28,10 @@ export class InMemoryAgentRecord extends AgentRecordPort {
 
   eventsOf(threadId: ThreadId): readonly Event[] {
     return this.byThread.get(threadId) ?? []
+  }
+
+  factsOf(threadId: ThreadId): readonly FactRecord[] {
+    return this.factsByThread.get(threadId) ?? []
   }
 
   append: AgentRecordPort['append'] = async ({ threadId, runId, parentRunId, depth, drafts }) => {
@@ -57,6 +63,13 @@ export class InMemoryAgentRecord extends AgentRecordPort {
   composedEvents: AgentRecordPort['composedEvents'] = async ({ threadId }) => [
     ...this.eventsOf(threadId),
   ]
+
+  override factsOfKind: AgentRecordPort['factsOfKind'] = async ({ threadId, kind }) =>
+    this.factsOf(threadId).filter((fact) => fact.kind === kind)
+
+  override appendFacts: AgentRecordPort['appendFacts'] = async ({ threadId, facts }) => {
+    this.factsByThread.set(threadId, [...this.factsOf(threadId), ...facts])
+  }
 
   loopState: AgentRecordPort['loopState'] = async ({ threadId }) =>
     loopStateOf({ events: rowsOwnedBy({ events: this.eventsOf(threadId), threadId }) })

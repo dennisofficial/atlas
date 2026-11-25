@@ -3,6 +3,7 @@ import {
   projectedEvents,
   toLoopEvent,
   type Event,
+  type FactRecord,
   type LoopState,
   type RunId,
   type ThreadId,
@@ -18,6 +19,7 @@ import type { HostTimers } from '../ports'
 import { AppendRetry, type DaemonAck } from './append-retry'
 import { LeaseLostError } from './lease-lost-error'
 import { RecordCache } from './record-cache'
+import { factsOfKindIn } from './record-facts'
 import { storePictures, type PictureStore } from './record-pictures'
 import { spillForAppend } from './record-spill'
 import { abortErrorOf, abortedOnHandoff, toRecordBody, type AppendBody } from './append-drafts'
@@ -147,6 +149,19 @@ export class SessionRecord implements AgentRecordPort, ModelContextPort {
 
   async read(_args: { threadId: ThreadId }): Promise<{ events: readonly Event[] }> {
     return { events: projectedEvents(this.cache.visibleLoopEvents()) }
+  }
+
+  async factsOfKind(args: { threadId: ThreadId; kind: string }): Promise<readonly FactRecord[]> {
+    return factsOfKindIn({ cache: this.cache, kind: args.kind })
+  }
+
+  async appendFacts(args: {
+    threadId: ThreadId
+    runId: RunId
+    facts: readonly FactRecord[]
+  }): Promise<void> {
+    if (args.facts.length === 0) return
+    await this.append({ threadId: args.threadId, runId: args.runId, drafts: [...args.facts] })
   }
 
   append(args: AppendArgs): Promise<Event[]> {
