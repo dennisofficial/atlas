@@ -5,7 +5,7 @@ import { describe, expect, it } from 'bun:test'
 import { toThreadId } from '@dltech/atlas-core'
 import { ScriptedModel } from '@dltech/atlas-agent/testing'
 import {
-  SANDBOX_OFFLINE_GUIDANCE,
+  SANDBOX_UNREACHABLE_GUIDANCE,
   SandboxUnavailableError,
   systemTimers,
   type HostTimers,
@@ -138,8 +138,9 @@ describe('sandbox loss while held', () => {
     )
     expect(outcome).toBeInstanceOf(SandboxUnavailableError)
     expect(String(outcome)).toContain(`after ${REWAKES_BEFORE_GIVING_UP} wakes`)
-    expect(String(outcome)).toContain(SANDBOX_OFFLINE_GUIDANCE)
-    expect(String(outcome)).not.toContain('wakes it again')
+    expect(String(outcome)).toContain(SANDBOX_UNREACHABLE_GUIDANCE)
+    expect(String(outcome)).not.toContain('offline')
+    expect(String(outcome)).not.toContain(' down')
     expect(sandbox.wakes).toBe(1 + REWAKES_BEFORE_GIVING_UP)
 
     const retried = await runtime.remoteCalls.ready().then(

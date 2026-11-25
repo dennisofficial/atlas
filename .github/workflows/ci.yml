@@ -422,7 +422,7 @@ jobs:
           if [[ -n "$PREV_TAG" ]]; then
             args+=(--notes-start-tag "$PREV_TAG")
           fi
-          gh release create "tui-v${VERSION}" dist/* "${args[@]}"
+          bun ../../scripts/gh-retry.ts --call=create -- gh release create "tui-v${VERSION}" dist/* "${args[@]}"
 
       # Three readers resolve releases/latest/download by name and none of them may 404: install.sh
       # with no version fetches the tui binaries, the site's download button fetches
@@ -459,12 +459,7 @@ jobs:
           zip=$(awk -F'"' '/^path:/{print $2}' "$assets/latest-mac.yml")
           [ -n "$zip" ] && [ -s "$assets/$zip" ] || { echo "::error::$previous is the latest release and holds no zip named by its latest-mac.yml; $tag stays off latest so the Mac feed keeps working"; exit 1; }
           ls -la "$assets"
-          for attempt in 1 2 3; do
-            if gh release upload "$tag" "$assets"/* --clobber --repo "$GITHUB_REPOSITORY"; then break; fi
-            if [ "$attempt" = 3 ]; then echo "::error::upload attempt $attempt failed"; exit 1; fi
-            echo "::warning::upload attempt $attempt failed; retrying"
-            sleep $((attempt * 15))
-          done
+          bun scripts/gh-retry.ts --call=upload -- gh release upload "$tag" "$assets"/* --clobber --repo "$GITHUB_REPOSITORY"
           gh release edit "$tag" --latest --repo "$GITHUB_REPOSITORY"
 
       # Every reader downloads from the mirror once this tag is latest. A missing upload or a byte
@@ -607,13 +602,8 @@ jobs:
         run: |
           set -euo pipefail
           ls -la apps/mac/release/*.dmg apps/mac/release/*.zip apps/mac/release/latest-mac.yml
-          for attempt in 1 2 3; do
-            if gh release upload "$TAG" apps/mac/release/*.dmg apps/mac/release/*.zip \
-              apps/mac/release/latest-mac.yml --clobber --repo "$GITHUB_REPOSITORY"; then break; fi
-            if [ "$attempt" = 3 ]; then echo "::error::upload attempt $attempt failed"; exit 1; fi
-            echo "::warning::upload attempt $attempt failed; retrying"
-            sleep $((attempt * 15))
-          done
+          bun scripts/gh-retry.ts --call=upload -- gh release upload "$TAG" apps/mac/release/*.dmg \
+            apps/mac/release/*.zip apps/mac/release/latest-mac.yml --clobber --repo "$GITHUB_REPOSITORY"
           gh release edit "$TAG" --latest --repo "$GITHUB_REPOSITORY"
 
       - name: mirror the release to install.byatlas.io

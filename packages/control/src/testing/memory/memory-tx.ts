@@ -110,6 +110,7 @@ import {
   setSessionReadSeqIn,
   setSessionTitleIfUntitledIn,
   setSessionTitleIn,
+  takeSessionPodWaitIn,
 } from './memory-sessions'
 import { refKey, type State } from './memory-state'
 import { resolveSessionModelIn, setSessionModelIn } from './memory-session-model'
@@ -199,6 +200,10 @@ export class MemoryTx extends MemoryTxViews implements ControlTx {
 
   async setSessionPodWaiting(params: Parameters<ControlTx['setSessionPodWaiting']>[0]) {
     return setSessionPodWaitingIn({ state: this.state, ...params })
+  }
+
+  async takeSessionPodWait(params: Parameters<ControlTx['takeSessionPodWait']>[0]) {
+    return takeSessionPodWaitIn({ state: this.state, ...params })
   }
 
   async setSessionPodWaitCancelled(params: Parameters<ControlTx['setSessionPodWaitCancelled']>[0]) {

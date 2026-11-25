@@ -13,7 +13,15 @@ const SessionsStack = () => {
         contentStyle: { backgroundColor: theme.background },
       }}
     >
-      <Stack.Screen name="index" options={{ headerShown: false }} />
+      <Stack.Screen
+        name="index"
+        options={{
+          title: '',
+          headerShadowVisible: false,
+          headerStyle: { backgroundColor: theme.sidebar },
+          headerTintColor: theme.foreground,
+        }}
+      />
       <Stack.Screen
         name="[id]"
         options={{

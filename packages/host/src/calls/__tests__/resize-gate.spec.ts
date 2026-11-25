@@ -226,4 +226,22 @@ describe('ResizeGate after a generation completed', () => {
     gate.hold({ open: { ...openAt(T0), generation: 4 }, reason: REASON })
     expect(gate.open?.generation).toBe(4)
   })
+
+  it('stays held for the newest generation when an older resize settles or arrives late', async () => {
+    const clock = clockOf()
+    const gate = new ResizeGate({
+      timers: clock.timers,
+      now: clock.timers.now,
+      probe: async () => EPodResizeProbe.Updating,
+    })
+    gate.hold(holdAt(T0))
+    gate.hold({ open: { ...openAt(T0), generation: 4 }, reason: REASON })
+    const waiting = gate.wait({})
+    gate.hold(holdAt(T0))
+    expect(gate.open?.generation).toBe(4)
+    expect(gate.settled({ generation: 3 })).toBe(false)
+    expect(await settledWithin(waiting)).toBe(false)
+    expect(gate.settled({ generation: 4 })).toBe(true)
+    expect(await settledWithin(waiting)).toBe(true)
+  })
 })

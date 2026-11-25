@@ -77,7 +77,7 @@ describe('resuming declared services after a daemon restart', () => {
         event: {
           type: 'service-ended',
           serviceId,
-          cause: EShellEndCause.SandboxStopped,
+          cause: EShellEndCause.PodRestarted,
           killedBy: EKilledBy.Unrecorded,
           status: EServiceStatus.Killed,
         },
@@ -147,7 +147,7 @@ describe('resuming declared services after a daemon restart', () => {
         event: {
           type: 'service-ended',
           serviceId,
-          cause: EShellEndCause.SandboxStopped,
+          cause: EShellEndCause.PodRestarted,
         },
       },
     ])

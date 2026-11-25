@@ -21,6 +21,7 @@ import type { SessionSubscription } from '@dltech/atlas-protocol'
 import type { z } from 'zod'
 import type { AppendHook } from './append-hooks'
 import { appendIn } from './append-ops'
+import type { ViewChangeHook } from './view-hooks'
 import { readBlobIn } from './blob-ops'
 import { UnknownThreadError } from './errors'
 import { postIn, withdrawIn } from './inbox-ops'
@@ -78,6 +79,7 @@ import { AppendAbort, type AppendOutcome } from './refusal'
 import {
   archiveIn,
   cancelPodWaitIn,
+  claimPodWaitIn,
   createSessionIn,
   markReadIn,
   recordPodAppliedIn,
@@ -105,6 +107,7 @@ export type ControlPlaneParams = {
   eventSchema?: z.ZodType<RecordEvent> | undefined
   pluginViews?: readonly PluginViewFold[] | undefined
   appendHooks?: readonly AppendHook[] | undefined
+  viewHooks?: readonly ViewChangeHook[] | undefined
   targetStates?: SubscriptionTargetStates | undefined
 }
 
@@ -125,6 +128,7 @@ export class ControlPlane {
   private readonly eventSchema: z.ZodType<RecordEvent> | undefined
   private readonly pluginViews: readonly PluginViewFold[]
   private readonly appendHooks: readonly AppendHook[]
+  private readonly viewHooks: readonly ViewChangeHook[]
   private readonly targetStates: SubscriptionTargetStates | undefined
 
   constructor(params: ControlPlaneParams) {
@@ -134,6 +138,7 @@ export class ControlPlane {
     this.eventSchema = params.eventSchema
     this.pluginViews = params.pluginViews ?? []
     this.appendHooks = params.appendHooks ?? []
+    this.viewHooks = params.viewHooks ?? []
     this.leases = new LeaseOps({ store: params.store })
   }
 
@@ -247,6 +252,14 @@ export class ControlPlane {
 
   async cancelPodWait(params: { sessionId: string }): Promise<boolean> {
     return this.store.transact((tx) => cancelPodWaitIn({ tx, ...params }))
+  }
+
+  async claimPodWait(params: {
+    sessionId: string
+    generation: number
+    since: string
+  }): Promise<boolean> {
+    return this.store.transact((tx) => claimPodWaitIn({ tx, ...params }))
   }
 
   async spawnPeer(params: {
@@ -486,6 +499,8 @@ export class ControlPlane {
           eventSchema: this.eventSchema,
           pluginViews: this.pluginViews,
           appendHooks: this.appendHooks,
+          viewHooks: this.viewHooks,
+          nowIn: () => this.nowIn(tx),
           ...params,
         }),
       )

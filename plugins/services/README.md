@@ -106,7 +106,7 @@ definePlugin({
 - `stop`, `restart` and the stale mark of a `name` act on the service of the current checkout. A list row names the worktree branch.
 - `start` takes a `name` or a `command`, never both.
 - When the daemon restarts, or a host reattaches after one, each declared service that was running
-  is stopped in the sandbox, ended in the transcript with cause `SandboxStopped` and started again in
+  is stopped in the sandbox, ended in the transcript with cause `PodRestarted` and started again in
   declaration order, on the same port and behind the same URL. A pid the record cannot prove was
   that service is left running, and may still hold the port. An ad-hoc `command`
   service stays ended: its env and its setup exist only in the call that started it.

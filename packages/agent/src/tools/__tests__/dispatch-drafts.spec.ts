@@ -71,7 +71,7 @@ describe('invalidInputDraft', () => {
 
 describe('the dispatch marker when the append fails', () => {
   const sandboxDown =
-    'sandbox for s-1 is unavailable: wake failed: its daemon did not answer on port 3000 within 30s. Nothing ran. The sandbox is offline, so retrying tool calls will not help: stop making sandbox tool calls, tell the operator the sandbox is down and why, and end your turn.'
+    "sandbox for s-1 is unavailable: wake failed: its daemon did not answer on port 3000 within 30s. Nothing ran. The sandbox did not answer, so more tool calls this turn will not help. Stop making sandbox tool calls, tell the operator what failed, and end your turn. The operator's next message wakes the sandbox again."
 
   const failingAppend = (error: Error) => async (): Promise<void> => {
     throw error

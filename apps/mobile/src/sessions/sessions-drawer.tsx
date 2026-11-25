@@ -8,12 +8,11 @@ import { usePosture } from '../layout/use-posture'
 import { applyNavigation } from '../navigation/apply-navigation'
 import { sessionOpenOf } from '../navigation/root-navigation'
 import { drawerGeometryOf, drawerSwipeEnabledOf } from './drawer-layout'
+import { DRAWER_PAN, tuneDrawerPan } from './drawer-pan'
 import type { ISessionEntry } from './session-groups'
 import { useSelectedSession } from './selected-session'
 import { SessionsDrawerShell } from './sessions-drawer-shell'
 import { useSessionsDrawer } from './sessions-drawer-state'
-
-const DRAWER_EDGE_WIDTH = 40
 
 export const SessionsDrawer = ({ children }: { children: ReactNode }) => {
   const theme = useTheme()
@@ -39,7 +38,9 @@ export const SessionsDrawer = ({ children }: { children: ReactNode }) => {
       onClose={handleClose}
       drawerType={geometry.permanent ? 'permanent' : 'front'}
       swipeEnabled={drawerSwipeEnabledOf({ geometry, open })}
-      swipeEdgeWidth={DRAWER_EDGE_WIDTH}
+      swipeEdgeWidth={DRAWER_PAN.edgeWidth}
+      swipeMinDistance={DRAWER_PAN.minDistance}
+      configureGestureHandler={tuneDrawerPan}
       overlayAccessibilityLabel="Close sessions"
       drawerStyle={{
         backgroundColor: theme.sidebar,

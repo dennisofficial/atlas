@@ -1,16 +1,27 @@
 import type { ControlPlane, ControlSessionRow } from '@dltech/atlas-control'
 import {
   podBusyFactsOf,
+  podBusyFactsOfView,
   podBusyOf,
   podResizeBusyOf,
   type PodBusy,
+  type PodBusyFacts,
   type PodRebootFacts,
+  type SessionViewState,
 } from '@dltech/atlas-core'
 import { shellRosterOf } from '@dltech/atlas-plugin-shells/client'
 import { servicesOfView } from '@dltech/atlas-plugin-services/client'
 
 const runningServicesOf = (views: Readonly<Record<string, unknown>>): number =>
   servicesOfView(views).filter((row) => row.status === 'running').length
+
+export const podBusyFactsOfState = (args: { state: SessionViewState; now: string }): PodBusyFacts =>
+  podBusyFactsOfView({
+    state: args.state,
+    now: args.now,
+    shellsRunning: shellRosterOf(args.state.pluginViews).running,
+    servicesRunning: runningServicesOf(args.state.pluginViews),
+  })
 
 type BusySession = Pick<ControlSessionRow, 'sessionId' | 'mainThreadId'>
 

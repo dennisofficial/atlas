@@ -18,7 +18,7 @@ const shell = (over: Partial<Parameters<typeof backgroundShellBlock>[0]> = {}) =
     command: 'bun test',
     status: EShellStatus.Killed,
     killedBy: EKilledBy.Unrecorded,
-    cause: EShellEndCause.SandboxStopped,
+    cause: EShellEndCause.PodRestarted,
     output: '',
     droppedCharacters: 0,
     remainingCharacters: 0,
@@ -38,31 +38,37 @@ const service = (over: Partial<Parameters<typeof serviceEndedBlock>[0]> = {}) =>
     command: 'bun dev',
     status: EServiceStatus.Killed,
     killedBy: EKilledBy.Unrecorded,
-    cause: EShellEndCause.SandboxStopped,
+    cause: EShellEndCause.PodRestarted,
     tail: '',
     ...over,
   }) as Parameters<typeof serviceEndedBlock>[0]
 
-describe('an ending the sandbox stop recorded', () => {
-  it('tells the model the shell went with the sandbox, in its next prompt', () => {
+describe('an ending the pod restart recorded', () => {
+  it('tells the model the shell ended with the restarted pod, in its next prompt', () => {
     const block = backgroundShellBlock(shell())
 
     expect(block).toContain('bash_1')
-    expect(block).toContain('sandbox')
+    expect(block).toContain('The pod restarted, so this shell ended with it.')
+    expect(block).toContain('Nothing it was doing failed on its own.')
     expect(block).toContain('Start it again')
+    expect(block).not.toContain('The sandbox it ran in stopped')
+    expect(block).not.toContain('ended with the sandbox')
   })
 
-  it('tells the model the service went with the sandbox, in its next prompt', () => {
+  it('tells the model the service ended with the restarted pod, in its next prompt', () => {
     const block = serviceEndedBlock(service())
 
     expect(block).toContain('svc_1')
-    expect(block).toContain('sandbox')
+    expect(block).toContain('The pod restarted, so this service ended with it.')
     expect(block).toContain('Start it again')
+    expect(block).not.toContain('The sandbox it ran in stopped')
+    expect(block).not.toContain('ended with the sandbox')
   })
 
-  it('says nothing about the sandbox for a shell that ended on its own', () => {
+  it('says nothing about a restart for a shell that ended on its own', () => {
     const block = backgroundShellBlock(shell({ cause: undefined, status: EShellStatus.Exited }))
 
     expect(block).not.toContain('Start it again')
+    expect(block).not.toContain('The pod restarted')
   })
 })

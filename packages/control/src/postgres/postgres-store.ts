@@ -104,6 +104,7 @@ import {
   setSessionPodWaitingIn,
   setSessionTitleIfUntitledIn,
   setSessionTitleIn,
+  takeSessionPodWaitIn,
 } from './postgres-session-writes'
 import { claimNeedingIn } from './postgres-claim-next'
 import {
@@ -252,6 +253,15 @@ export class PostgresTx implements ControlTx {
 
   async setSessionPodWaiting(params: Parameters<ControlTx['setSessionPodWaiting']>[0]) {
     return setSessionPodWaitingIn({
+      tx: this.tx,
+      sessionId: params.sessionId,
+      generation: params.generation,
+      since: params.since,
+    })
+  }
+
+  async takeSessionPodWait(params: Parameters<ControlTx['takeSessionPodWait']>[0]) {
+    return takeSessionPodWaitIn({
       tx: this.tx,
       sessionId: params.sessionId,
       generation: params.generation,

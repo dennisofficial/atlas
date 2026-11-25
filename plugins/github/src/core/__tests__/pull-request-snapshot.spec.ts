@@ -113,6 +113,24 @@ describe('pullRequestSnapshotOf', () => {
     })
   })
 
+  it('waits for a required check that has not reported yet, even when every reported check passed', () => {
+    expect(
+      pullRequestSnapshotOf({
+        ...PR,
+        checks: { tally: { passed: 1, failed: 0, running: 0, ignored: 0 }, failedNames: [] },
+        pendingSuites: 0,
+        missingRequired: ['ci'],
+      }),
+    ).toEqual({
+      facts: [
+        'ready for review, head a1b2c3d',
+        'CI is still running (1 passed, 0 failed, 0 running), waiting for required ci to report',
+        'mergeable',
+      ],
+      next: 'A CI notice follows when it settles.',
+    })
+  })
+
   it('does not claim CI finished when the check suites could not be read', () => {
     const snapshot = pullRequestSnapshotOf({
       ...PR,

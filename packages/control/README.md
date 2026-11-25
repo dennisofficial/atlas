@@ -45,8 +45,8 @@ a thread's event log.
   `readSessionBusy`. A digest listing can filter on archived, a title search and a keyset cursor.
 - `spawnPeer`, `messagePeer`, `reportToSpawner`, `podPeersPlaced`.
 - `setSandboxInstanceId`, `setSandboxStatus`, `recordPodDesired`, `recordPodApplied`,
-  `recordPodDisk`, `recordPodFailed`, `recordPodWaiting`. `cancelPodWait` reverts a resize that
-  waits for the pod to go idle and returns false when nothing is waiting.
+  `recordPodDisk`, `recordPodFailed`, `recordPodWaiting`. `claimPodWait` takes one recorded wait.
+  `cancelPodWait` reverts a resize that waits for the pod to go idle; both return false if none.
 
 ### Append to the thread record
 
@@ -56,7 +56,8 @@ a thread's event log.
 - `readEvents({ threadId, afterSeq, limit, visible, hiddenTypes?, maxBytes? })`, `readBlob`,
   `blobReferencedBy`. `MAX_READ_LIMIT` and `MAX_SESSION_LIST_LIMIT` cap a read. The page's
   `lastHash` is the stored hash of its last row, for a resume.
-- `AppendHook`, `ChangeFeed`: the hooks that an append calls, and the change pointer it sends.
+- `AppendHook`, `ViewChangeHook`, `ChangeFeed`: the hooks an append calls before it commits and
+  after it moves the session view, and the change pointer it sends.
 
 ### Read a session view
 

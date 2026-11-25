@@ -21,7 +21,7 @@ export enum EKilledBy {
 }
 
 export enum EShellEndCause {
-  SandboxStopped = 'sandbox-stopped',
+  PodRestarted = 'sandbox-stopped',
 }
 
 export type ShellEnding = {

@@ -28,11 +28,11 @@ import { settleInputRow } from './settle-input-row'
 import { encodeViewState } from './session-view-codec'
 import { appendToViewIn, branchRowsOf, catchUpSessionViewIn, foldEvents } from './session-view-ops'
 import { decodeVisibility, toStoredEvent } from './stored-event'
+import { runViewHooks, type ViewChangeHook } from './view-hooks'
 
-type ViewSeat = {
-  state: SessionViewState
-  row: SessionViewRow | undefined
-}
+type ViewSeat =
+  | { state: SessionViewState; after: SessionViewState; row: SessionViewRow }
+  | { state: SessionViewState; after: undefined; row: undefined }
 
 const viewSeatOf = (args: {
   state: SessionViewState | undefined
@@ -47,9 +47,10 @@ const viewSeatOf = (args: {
     events: args.events,
     pluginViews: args.pluginViews,
   })
-  if (folded.rebuild) return { state: args.state, row: undefined }
+  if (folded.rebuild) return { state: args.state, after: undefined, row: undefined }
   return {
     state: args.state,
+    after: folded.state,
     row: {
       sessionId: args.sessionId,
       threadId: args.threadId,
@@ -101,6 +102,8 @@ export const appendIn = async (params: {
   eventSchema?: z.ZodType<RecordEvent> | undefined
   pluginViews?: readonly PluginViewFold[] | undefined
   appendHooks?: readonly AppendHook[] | undefined
+  viewHooks?: readonly ViewChangeHook[] | undefined
+  nowIn?: (() => Promise<string>) | undefined
 }): Promise<AppendOutcome> => {
   const { tx } = params
   const opening = await tx.openAppend(params.threadId)
@@ -190,6 +193,16 @@ export const appendIn = async (params: {
       events: parsed.events,
       eventSchema: params.eventSchema,
       pluginViews: params.pluginViews,
+    })
+  }
+  if (seat?.row !== undefined) {
+    await runViewHooks({
+      tx,
+      sessionId: row.sessionId,
+      before: seat.state,
+      after: seat.after,
+      hooks: params.viewHooks,
+      nowIn: params.nowIn ?? (() => tx.now()),
     })
   }
   return { ok: true, head: accepted.head }

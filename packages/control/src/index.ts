@@ -1,4 +1,5 @@
 export type { AppendHook } from './append-hooks'
+export type { ViewChangeHook } from './view-hooks'
 export type { ChangeFeed } from './change-feed'
 export { ControlPlane, MAX_READ_LIMIT, MAX_SESSION_LIST_LIMIT } from './control-plane'
 export type { ControlPlaneParams, ReadEventsPage } from './control-plane'
@@ -145,7 +146,5 @@ export {
 export type { SubscribeToStateResult } from './subscription-completion'
 export type { SubscriptionEndingRow, UnsubscribeArgs } from './subscription-endings'
 export type { SubscriptionLeaseInput } from './subscription-rows'
-export { postQuietEndingsOf, quietEndingRecordsOf } from './quiet-endings'
-export type { QuietEndingRecord } from './quiet-endings'
 export { archiveSpawnedOf } from './spawned-archive'
 export type { SpawnedArchive } from './spawned-archive'

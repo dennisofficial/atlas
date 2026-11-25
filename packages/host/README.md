@@ -107,7 +107,7 @@ only what it can rebuild or drop.
 
 - `DRAIN_IN_FLIGHT_CAP_MS`, `DRAIN_DETACH_CAP_MS`, `LEASE_HAND_BACK_MARGIN_MS`,
   `DRAIN_HANDOFF_BUDGET_MS`: the drain budget.
-- `SandboxUnavailableError`, `SANDBOX_OFFLINE_GUIDANCE`, `ReadyTimeoutError`, `FencedError`,
+- `SandboxUnavailableError`, `SANDBOX_UNREACHABLE_GUIDANCE`, `ReadyTimeoutError`, `FencedError`,
   `OpMismatchError`, `ProtocolViolationError`: the failures of a lost, fenced or broken sandbox.
 - `isReadOnlyOp(op)`: whether an op reads only, so a retry is safe.
 
