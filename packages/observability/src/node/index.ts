@@ -1,4 +1,3 @@
-export * from './posthog-observability'
 export * from './posthog-error-reporter'
 export * from './posthog-product-analytics'
 export * from './posthog-telemetry'
