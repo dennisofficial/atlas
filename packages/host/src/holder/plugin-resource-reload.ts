@@ -4,7 +4,8 @@ import type { PluginPodContext, PodResource } from '@dltech/atlas-plugin-sdk'
 
 import { armOf, cloudStringOf, messageOf, statusOf, versionsOf } from './plugin-resource-probes'
 import { ELoadReason } from './plugin-resource-reason'
-import { appendOf, loadedDraftsOf, watchOf } from './plugin-resource-refresh'
+import { appendOf, loadedDraftsOf } from './plugin-resource-loads'
+import { watchOf } from './plugin-resource-refresh'
 
 type Ctx = PluginPodContext
 
@@ -26,13 +27,25 @@ export const reloadOne = async (args: {
       run: () => versionsOf({ ctx: args.ctx, needed: args.resource.cloud !== undefined }),
     }),
   ])
+  if (status.unreachable) {
+    args.ctx.log(
+      `plugin resource ${args.resource.name} left as it is: the sandbox did not answer the watch status call`,
+    )
+    return
+  }
   let seq = watch === undefined ? undefined : status.seqs.get(watch.id)
   if (watch !== undefined && seq === undefined) {
-    await spanWith(args.trace, {
+    const reachable = await spanWith(args.trace, {
       name: ESpan.ResourceArm,
       fields: { resource: args.resource.name },
       run: () => armOf({ ctx: args.ctx, watchId: watch.id, watch: watch.spec }),
     })
+    if (!reachable) {
+      args.ctx.log(
+        `plugin resource ${args.resource.name} left as it is: the sandbox did not answer the watch arm call`,
+      )
+      return
+    }
     seq = 0
   }
   const fingerprint = resourceFingerprintOf({

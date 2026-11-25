@@ -1,8 +1,6 @@
 import {
-  EMessageOrigin,
   ENoticeStage,
   isMessageInputKind,
-  saidBy,
   stampEvent,
   toEventId,
   toRunId,
@@ -14,6 +12,8 @@ import {
   type PendingInput,
   type PendingInputsState,
 } from '@dltech/atlas-core'
+
+import { operatorSaidOf } from '@dltech/atlas-client/session'
 
 import { reportItemsOf } from '@/features/threads/data/transcript-agents'
 import {
@@ -118,7 +118,7 @@ const turnOfEvent = (args: {
 }
 
 const withdrawFor = (args: { inboxId: number; event: Event }): QueuedWithdraw | undefined =>
-  args.event.type === 'user-said' && saidBy(args.event) === EMessageOrigin.Operator
+  args.event.type === 'user-said' && operatorSaidOf(args.event)
     ? { inboxId: String(args.inboxId), disabled: false }
     : undefined
 

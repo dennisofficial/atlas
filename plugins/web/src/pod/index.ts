@@ -1,12 +1,12 @@
 import { EMPTY_POD, type PodSlot } from '@dltech/atlas-plugin-sdk'
 
-import { BrowserTool } from './browser-tool'
+import { BrowserFragment } from './browser-fragment'
 import { WebFetchTool } from './fetch-tool'
 import { readerPortOf } from './read'
 import { searchPortOf } from './search'
 import { WebSearchTool } from './search-tool'
 
-export { BrowserTool } from './browser-tool'
+export { BrowserFragment } from './browser-fragment'
 export { CACHE_TTL_MS, PageCache } from './cache'
 export { htmlToMarkdown, htmlToText, titleOf } from './extract'
 export { WebFetchTool } from './fetch-tool'
@@ -24,7 +24,7 @@ export type { SearchOutcome, SearchPort, SearchRequest } from './search'
 export { EFreshness, jinaSearchOf, searchPortOf } from './search'
 export { WebSearchTool } from './search-tool'
 
-export const WEB_TOOLS = ['web_search', 'web_fetch', 'browser'] as const
+export const WEB_TOOLS = ['web_search', 'web_fetch'] as const
 
 export type WebPodArgs = {
   jinaKey: () => string | undefined
@@ -33,12 +33,12 @@ export type WebPodArgs = {
 
 export const webPodOf = (args: WebPodArgs): PodSlot => ({
   ...EMPTY_POD,
-  tools: (ctx) => {
+  tools: () => {
     const jinaKey = args.jinaKey()
     return [
       new WebSearchTool(searchPortOf({ jinaKey, fetcher: args.fetcher })),
       new WebFetchTool({ reader: readerPortOf({ jinaKey, fetcher: args.fetcher }) }),
-      new BrowserTool(ctx),
     ]
   },
+  prompts: [new BrowserFragment()],
 })

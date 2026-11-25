@@ -27,6 +27,12 @@ describe('DECISION_MODELS', () => {
     expect(gateway?.transport).toBe(EClassifierTransport.Jev)
     expect(gateway?.provider).toBe(EAuthProvider.Gateway)
   })
+
+  it('pins the gateway request model to a version instead of the moving alias', () => {
+    const gateway = decisionModelOf('gateway/typesafe-ai/jev')
+    expect(gateway?.model).toBe('typesafe-ai/jev-1.14.0')
+    expect(DECISION_MODELS.every((model) => model.model !== 'typesafe-ai/jev')).toBe(true)
+  })
 })
 
 describe('decisionModelOf', () => {

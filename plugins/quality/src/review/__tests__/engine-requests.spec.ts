@@ -89,7 +89,7 @@ describe('size bounds', () => {
   })
 
   it('falls back to per-policy requests when the shared request is over bound', async () => {
-    const rig = createRig({ policies: both(15 * KIB), classify: allPolicies })
+    const rig = createRig({ policies: both(40 * KIB), classify: allPolicies })
     const drafts = await rig.review()
     expect(rig.classifyCalls).toHaveLength(2)
     expect(recordsOf(drafts)).toHaveLength(1)
@@ -101,7 +101,7 @@ describe('size bounds', () => {
   })
 
   it('records OversizedRequest when a single-policy request is still over bound', async () => {
-    const rig = createRig({ policies: [policyNamed({ definitionBytes: 30 * KIB })] })
+    const rig = createRig({ policies: [policyNamed({ definitionBytes: 80 * KIB })] })
     const drafts = await rig.review()
     expect(rig.classifyCalls).toHaveLength(0)
     expect(recordsOf(drafts)[0]).toMatchObject({
@@ -113,8 +113,8 @@ describe('size bounds', () => {
 
   it('counts UTF-8 bytes, not characters', async () => {
     const rig = createRig({
-      policies: [policyNamed({ definitionBytes: 9 * KIB })],
-      scopes: [scopeNamed({ after: '€'.repeat(5 * KIB) })],
+      policies: [policyNamed({ definitionBytes: 1 * KIB })],
+      scopes: [scopeNamed({ after: '€'.repeat(30_000) })],
     })
     await rig.review()
     expect(rig.classifyCalls).toHaveLength(0)

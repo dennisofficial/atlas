@@ -234,7 +234,7 @@ export const DECISION_MODELS: readonly DecisionModel[] = [
     label: 'Jev through Vercel AI Gateway',
     transport: EClassifierTransport.Jev,
     endpoint: 'https://ai-gateway.vercel.sh/typesafe',
-    model: 'typesafe-ai/jev',
+    model: 'typesafe-ai/jev-1.14.0',
     provider: EAuthProvider.Gateway,
   },
   {
@@ -312,16 +312,17 @@ already read them. The narrowing is the `Extract<>` above.
 
 ### 4.2 What the outside services offer
 
-| Service                       | Endpoint                                                                                        | Answers                                                                                  | Source                                                                                                                                 |
-| ----------------------------- | ----------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------- |
-| Jev (TypeSafe)                | `POST /v1/systemone`, `Bearer` key                                                              | `noul` probability of yes; `choice` with `confidence` and per-option `probabilities`     | [docs.typesafe.ai/api/system-one](https://docs.typesafe.ai/api/system-one), [docs.typesafe.ai/models](https://docs.typesafe.ai/models) |
-| Jev through Vercel AI Gateway | `POST https://ai-gateway.vercel.sh/typesafe/v1/systemone`, gateway key, model `typesafe-ai/jev` | TypeSafe request and response shapes, `noul` included                                    | [vercel.com/docs/ai-gateway/modalities/decision](https://vercel.com/docs/ai-gateway/modalities/decision)                               |
-| OpenAI Decisions              | `POST /v1/decisions`, `Bearer` OpenAI API key, model `gpt-6-luna`                               | `predicate` probability, `choice` with `probabilities`, `score`; a `refusal` answer type | [developers.openai.com/api/docs/guides/decisions](https://developers.openai.com/api/docs/guides/decisions)                             |
+| Service                       | Endpoint                                                                                               | Answers                                                                                  | Source                                                                                                                                 |
+| ----------------------------- | ------------------------------------------------------------------------------------------------------ | ---------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------- |
+| Jev (TypeSafe)                | `POST /v1/systemone`, `Bearer` key                                                                     | `noul` probability of yes; `choice` with `confidence` and per-option `probabilities`     | [docs.typesafe.ai/api/system-one](https://docs.typesafe.ai/api/system-one), [docs.typesafe.ai/models](https://docs.typesafe.ai/models) |
+| Jev through Vercel AI Gateway | `POST https://ai-gateway.vercel.sh/typesafe/v1/systemone`, gateway key, model `typesafe-ai/jev-1.14.0` | TypeSafe request and response shapes, `noul` included                                    | [vercel.com/docs/ai-gateway/modalities/decision](https://vercel.com/docs/ai-gateway/modalities/decision)                               |
+| OpenAI Decisions              | `POST /v1/decisions`, `Bearer` OpenAI API key, model `gpt-6-luna`                                      | `predicate` probability, `choice` with `probabilities`, `score`; a `refusal` answer type | [developers.openai.com/api/docs/guides/decisions](https://developers.openai.com/api/docs/guides/decisions)                             |
 
 Facts that shape the design:
-- Jev prices **input only**: $42 per million tokens, output free, 64k per request, 32k per question
-  (`docs.typesafe.ai/models`). Questions fan out in parallel inside one request, so N questions cost
-  N evaluations of the same state.
+- Jev prices **input only**: $0.042 per million tokens ($42 per billion), output free, 64k per request,
+  32k per question (`docs.typesafe.ai/models`). Its 262k-token long-context mode is experimental and not
+  used: TypeSafe says it is less accurate and "not reliable enough to endorse for production". Questions
+  fan out in parallel inside one request, so N questions cost N evaluations of the same state.
 - OpenAI `gpt-6-luna` prices **$0.10 per 1M uncached input tokens**, output free, up to 400
   questions per request. About 400× cheaper per token than Jev.
 - Vercel AI Gateway serves a **Decision** modality over both a TypeSafe-compatible API and an

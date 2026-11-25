@@ -91,6 +91,30 @@ jobs:
           cache-from: type=registry,ref=${{ env.IMAGE }}:buildcache
           cache-to: type=registry,ref=${{ env.IMAGE }}:buildcache,mode=max
 
+      # The viewport is the one thing in this image that its ENV decides rather than its Dockerfile,
+      # so a drift there is invisible to a green build. This is smoke.sh's viewport check, run on a
+      # throwaway container of the amd64 leg before anything pins or promotes the image. The whole
+      # smoke suite is not run here: two of its checks need a docker socket that uid 501 can reach,
+      # and a runner mounts that socket for the runner's own docker group.
+      - name: check the browser viewport in the published image
+        if: steps.meta.outputs.prebuilt != 'true'
+        env:
+          SHA_TAG: ${{ steps.meta.outputs.sha_tag }}
+        run: |
+          set -euo pipefail
+          image="${IMAGE}:${SHA_TAG}"
+          docker pull --platform linux/amd64 "$image"
+          docker run -d --name image-viewport --platform linux/amd64 "$image" sleep infinity >/dev/null
+          trap 'docker rm -f image-viewport >/dev/null 2>&1 || true' EXIT
+          docker exec image-viewport sh -c 'mkdir -p /tmp/smoke-home /Users/smoke && chmod 777 /tmp/smoke-home'
+          viewport="$(docker exec --user 501:20 -e HOME=/tmp/smoke-home image-viewport sh -c \
+            "cd /tmp/smoke-home && agent-browser open 'data:text/html,<h1>v</h1>' >/dev/null && agent-browser eval 'innerWidth+\"x\"+innerHeight' && agent-browser close >/dev/null")"
+          echo "viewport: $viewport"
+          case "$viewport" in
+            *1920x1080*) ;;
+            *) echo "agent-browser did not open at a 1920x1080 viewport" >&2; exit 1 ;;
+          esac
+
       - uses: oven-sh/setup-bun@v2.2.0
 
       - run: bun install --frozen-lockfile

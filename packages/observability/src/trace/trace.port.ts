@@ -6,6 +6,7 @@ export enum ESpan {
   TurnHooks = 'turn.hooks',
   Hook = 'hook',
   ContextPrepare = 'context.prepare',
+  UploadsPlace = 'uploads.place',
   ModelCall = 'model.call',
   ModelResolve = 'model.resolve',
   ModelBackoff = 'model.backoff',
@@ -23,6 +24,13 @@ export enum ESpan {
   ResourceArm = 'resource.arm',
   ResourceLoad = 'resource.load',
   ResourceAppend = 'resource.append',
+  ResourceWait = 'resource.wait',
+}
+
+export enum EResourceWait {
+  InitialRefresh = 'initial-refresh',
+  BackgroundLoad = 'background-load',
+  Settle = 'settle',
 }
 
 export enum ESpanMark {
@@ -68,6 +76,7 @@ export type SpanFields = {
   readonly hook?: string | undefined
   readonly resource?: string | undefined
   readonly phase?: string | undefined
+  readonly waitFor?: EResourceWait | undefined
   readonly status?: string | undefined
   readonly failureKind?: string | undefined
   readonly verdict?: string | undefined
@@ -83,6 +92,8 @@ export type SpanFields = {
   readonly delayMs?: number | undefined
   readonly drafts?: number | undefined
   readonly events?: number | undefined
+  readonly files?: number | undefined
+  readonly fetched?: number | undefined
   readonly toolCalls?: number | undefined
   readonly inputTokens?: number | undefined
   readonly outputTokens?: number | undefined

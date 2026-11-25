@@ -36,6 +36,7 @@ const rowsOf = (args: {
   bodies?: readonly RecordEventBody[]
   staged?: readonly StagedMessage[]
   refused?: readonly StagedMessage[]
+  hiddenInboxIds?: ReadonlySet<number>
 }): readonly PendingRow[] =>
   pendingRowsOf({
     pending:
@@ -43,6 +44,7 @@ const rowsOf = (args: {
     staged: args.staged ?? [],
     refused: args.refused ?? [],
     working: true,
+    ...(args.hiddenInboxIds === undefined ? {} : { hiddenInboxIds: args.hiddenInboxIds }),
   })
 
 describe('pendingRowsOf', () => {
@@ -62,6 +64,26 @@ describe('pendingRowsOf', () => {
     const rows = rowsOf({
       bodies: [posted({ inboxId: 7, text: 'hello', clientId: 'c1' })],
       staged: [staged('c1', 'hello')],
+    })
+
+    expect(rows.map((row) => row.id)).toEqual(['c1'])
+  })
+
+  test('drops a staged row whose posted inbox a take-back hid', () => {
+    const rows = rowsOf({
+      bodies: [posted({ inboxId: 7, text: 'hello', clientId: 'c1' })],
+      staged: [staged('c1', 'hello')],
+      hiddenInboxIds: new Set([7]),
+    })
+
+    expect(rows).toEqual([])
+  })
+
+  test('keeps a staged row no take-back hid', () => {
+    const rows = rowsOf({
+      bodies: [posted({ inboxId: 7, text: 'hello', clientId: 'c1' })],
+      staged: [staged('c1', 'hello')],
+      hiddenInboxIds: new Set([8]),
     })
 
     expect(rows.map((row) => row.id)).toEqual(['c1'])

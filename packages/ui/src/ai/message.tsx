@@ -6,7 +6,6 @@ import {
   CheckIcon,
   CopyIcon,
   HistoryIcon,
-  MessageSquareShareIcon,
   PencilIcon,
   RefreshCcwIcon,
   Trash2Icon,
@@ -22,6 +21,7 @@ import { Marker, MarkerContent, MarkerIcon } from '#components/marker'
 import { Message, MessageContent, MessageFooter } from '#components/message'
 import { Tooltip, TooltipContent, TooltipTrigger } from '#components/tooltip'
 
+import { InboundBubble } from './internal/inbound-bubble'
 import {
   hasSummariseAction,
   SummariseAction,
@@ -280,23 +280,6 @@ export function AgentMessage({
         ) : null}
       </MessageContent>
     </Message>
-  )
-}
-
-function InboundBubble({ caption, children }: { caption: string; children: ReactNode }) {
-  return (
-    <Bubble variant="outline" data-inbound="">
-      <BubbleContent className="flex flex-col gap-1.5 text-pretty">
-        <span
-          data-slot="message-caption"
-          className="flex items-center gap-1.5 text-xs font-medium text-muted-foreground"
-        >
-          <MessageSquareShareIcon aria-hidden className="size-3.5" />
-          {caption}
-        </span>
-        <div>{children}</div>
-      </BubbleContent>
-    </Bubble>
   )
 }
 

@@ -113,7 +113,7 @@ The headless client library that web, the TUI and the mobile app share.
   `withProgress`, `withFailed`, `withoutAttachment`, `readyAttachments`, `isUploading`, `hasFailed`: the holder updates. `TOO_MANY_FILES`, `REMOVE_FAILED_FILES`, `tooLargeNotice(name)`, `uploadFailedNotice(name)`: the notices.
 - `sessionCreateInputOf(args)`, `initialProjectIdOf(args)`: a new session's create input and project.
 - `composerSendStateOf`, `contextPercentOf`, `createDraftSync(args)`: send, context, draft write.
-- `queuedMessagesOf`, `queuedNoticesOf`, `stagedQueuedMessagesOf`, `optimisticPlacementOf(args)`: the queued rows. `ToolPicture` and `firstPictureIn(args)` (in `transcript`) read the media ref a tool result carried.
+- `queuedMessagesOf`, `queuedNoticesOf`, `stagedQueuedMessagesOf`, `optimisticPlacementOf(args)`: the queued rows. `WithdrawTarget`, `WithdrawIntent` (a target plus the request id it was minted for), `WithdrawSettlement`, `withdrawSettlementsOf(args)`, `withdrawRefusalNoticeOf(reason)`: the Edit or Remove of one queued row, settled by the durable `input-withdrawn` or `input-refused`. `requestWithdraw(args)`, `createWithdrawStore()`, `withdrawStore`: the withdraw request and the in-memory per-session intents that hide a row until the settlement for its target arrives; an answer that belongs to an older request for the same target leaves the newer intent held. `operatorSaidOf(said)`, `withdrawOwnedInboxIdsOf(args)`: the messages the operator owns, so the withdraw path alone restores the text and reports a refusal. `ToolPicture` and `firstPictureIn(args)` (in `transcript`) read the media ref a tool result carried.
 
 ### Sign in to Atlas Cloud
 

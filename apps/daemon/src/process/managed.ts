@@ -177,7 +177,8 @@ export class ManagedProcess {
 
   async exit(): Promise<ManagedExit> {
     await this.child.exited
-    this.killGroupNow()
+    if (this.killing) this.killGroupNow()
+    else signalGroup({ pid: this.child.pid, signal: 'SIGKILL' })
     const drained = await Promise.race([
       this.pumps.then(() => true),
       new Promise<boolean>((resolve) => setTimeout(() => resolve(false), PIPE_DRAIN_MS)),

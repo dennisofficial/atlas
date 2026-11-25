@@ -2,7 +2,13 @@ import { useCallback, useEffect, useMemo, useRef, useSyncExternalStore } from 'r
 import { toast } from 'sonner'
 
 import type { Attachment, PendingInputsState } from '@dltech/atlas-core'
-import { EStagedOutcome, stagedOutcomesOf, type SessionSnapshot } from '@dltech/atlas-client/stream'
+import { withdrawOwnedInboxIdsOf, withdrawStore } from '@dltech/atlas-client/session'
+import {
+  EStagedOutcome,
+  stagedOutcomesOf,
+  stagedWithdrawOwnedIdsOf,
+  type SessionSnapshot,
+} from '@dltech/atlas-client/stream'
 
 import { mergeWithdrawnIntoDraft, type StagedMessage } from './queued-messages'
 import { settleMessages, stageMessage, stagedOf, subscribeStaged } from './staged-store'
@@ -24,6 +30,12 @@ export function useStagedMessages(args: {
   )
   const getSnapshot = useCallback(() => stagedOf(sessionId), [sessionId])
   const staged = useSyncExternalStore(subscribe, getSnapshot, getSnapshot)
+  const withdrawSubscribe = useCallback(
+    (listener: () => void) => withdrawStore.subscribe({ sessionId, listener }),
+    [sessionId],
+  )
+  const getIntents = useCallback(() => withdrawStore.intentsOf(sessionId), [sessionId])
+  const intents = useSyncExternalStore(withdrawSubscribe, getIntents, getIntents)
   const handled = useRef<ReadonlySet<string>>(new Set())
   const draftRef = useRef(draft)
   draftRef.current = draft
@@ -53,6 +65,11 @@ export function useStagedMessages(args: {
 
   useEffect(() => {
     if (staged.length === 0) return
+    const owned = stagedWithdrawOwnedIdsOf({
+      events,
+      clientIds: staged.map((entry) => entry.clientId),
+      ownedInboxIds: withdrawOwnedInboxIdsOf({ events, intents }),
+    })
     const settled = staged.flatMap((entry) => {
       const outcome = outcomes.get(entry.clientId)
       if (outcome === undefined || outcome.outcome === EStagedOutcome.Pending) return []
@@ -65,6 +82,7 @@ export function useStagedMessages(args: {
     for (const { entry, outcome } of settled) {
       if (handled.current.has(entry.clientId)) continue
       handled.current = new Set([...handled.current, entry.clientId])
+      if (owned.has(entry.clientId)) continue
       if (outcome.outcome === EStagedOutcome.Discarded) {
         texts.push(entry.text)
         attachments.push(...entry.attachments)
@@ -91,7 +109,7 @@ export function useStagedMessages(args: {
       sessionId,
       clientIds: new Set(settled.map(({ entry }) => entry.clientId)),
     })
-  }, [outcomes, unread, sessionId, staged])
+  }, [events, intents, outcomes, unread, sessionId, staged])
 
   return { staged, stage }
 }

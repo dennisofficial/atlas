@@ -8,7 +8,7 @@ import { ChatScreen } from './chat-screen'
 import { composerRestoreOf, type ComposerRestore } from './composer-restore'
 import { connectionViewOf } from './connection-view'
 import { pendingOperatorRequestOf } from './operator-request'
-import { pendingRowsOf } from './pending-rows'
+import { usePendingRows } from './use-pending-rows'
 import { useStagedMessages } from './staged-messages'
 import { useOperatorInput } from './use-operator-input'
 import { usePendingTakeBack } from './use-pending-take-back'
@@ -114,9 +114,9 @@ export function ChatScreenHost(props: ChatScreenHostProps): React.ReactNode {
     api: props.client.api,
     sessionId: props.sessionId,
     pending: transcript.pending,
-    staged,
+    foldable: transcript.foldable,
     draft: composer.draft,
-    tokens: composer.tokens,
+    restore: (restored) => restoreText.current(restored),
     onProblem: problemOf,
   })
 
@@ -200,16 +200,13 @@ export function ChatScreenHost(props: ChatScreenHostProps): React.ReactNode {
   })
   const menu = commands.menu
 
-  const pending = useMemo(
-    () =>
-      pendingRowsOf({
-        pending: transcript.pending,
-        staged: staged.staged,
-        refused: staged.refused,
-        working: transcript.working,
-      }),
-    [staged.refused, staged.staged, transcript.pending, transcript.working],
-  )
+  const pending = usePendingRows({
+    pending: transcript.pending,
+    staged: staged.staged,
+    refused: staged.refused,
+    working: transcript.working,
+    hiddenInboxIds: takeBack.hiddenInboxIds,
+  })
 
   const handleKey = useChatKeys({
     composer,

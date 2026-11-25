@@ -13,9 +13,19 @@ import {
 } from '@dltech/atlas-core'
 
 import { prepareQualityRequest, type QualityDecisionRequest } from './request'
+import { excerptOf } from './source/scope-excerpt'
 
-export const MAX_STATE_AND_LONGEST_QUESTION_BYTES = 24 * 1024
-export const MAX_STATE_AND_ALL_QUESTIONS_BYTES = 48 * 1024
+export const JEV_QUESTION_TOKENS = 32_000
+export const JEV_REQUEST_TOKENS = 64_000
+export const CONSERVATIVE_BYTES_PER_TOKEN = 2.4
+
+const TOKEN_HEADROOM = 0.05
+
+const bytesForTokens = (tokens: number): number =>
+  Math.floor(tokens * (1 - TOKEN_HEADROOM) * CONSERVATIVE_BYTES_PER_TOKEN)
+
+export const MAX_STATE_AND_LONGEST_QUESTION_BYTES = bytesForTokens(JEV_QUESTION_TOKENS)
+export const MAX_STATE_AND_ALL_QUESTIONS_BYTES = bytesForTokens(JEV_REQUEST_TOKENS)
 
 export type QualitySourceAdapter = {
   prepareQualityScopes(args: {
@@ -132,17 +142,33 @@ export function selectPolicyScopes({
 
 const byteLength = (text: string): number => Buffer.byteLength(text, 'utf8')
 
-function fitsBounds({ request }: { request: QualityDecisionRequest }): boolean {
-  const state = byteLength(request.state)
+type RequestSize = { state: number; longest: number; total: number }
+
+function sizeOf({ request }: { request: QualityDecisionRequest }): RequestSize {
   const sizes = Object.values(request.questions).map((question) =>
     byteLength(JSON.stringify(question)),
   )
-  const longest = sizes.reduce((max, size) => Math.max(max, size), 0)
-  const total = sizes.reduce((sum, size) => sum + size, 0)
+  return {
+    state: byteLength(request.state),
+    longest: sizes.reduce((max, size) => Math.max(max, size), 0),
+    total: sizes.reduce((sum, size) => sum + size, 0),
+  }
+}
+
+function fitsBounds({ request }: { request: QualityDecisionRequest }): boolean {
+  const size = sizeOf({ request })
   return (
-    state + longest <= MAX_STATE_AND_LONGEST_QUESTION_BYTES &&
-    state + total <= MAX_STATE_AND_ALL_QUESTIONS_BYTES
+    size.state + size.longest <= MAX_STATE_AND_LONGEST_QUESTION_BYTES &&
+    size.state + size.total <= MAX_STATE_AND_ALL_QUESTIONS_BYTES
   )
+}
+
+const estimateTokens = (bytes: number): number => Math.ceil(bytes / CONSERVATIVE_BYTES_PER_TOKEN)
+
+const describeSize = (size: RequestSize): string => {
+  const longest = size.state + size.longest
+  const all = size.state + size.total
+  return `state ${size.state} + longest question ${size.longest} + all questions ${size.total} bytes (about ${estimateTokens(longest)} tokens with the longest question, ${estimateTokens(all)} with all of them)`
 }
 
 function tryRequest({
@@ -155,11 +181,18 @@ function tryRequest({
   try {
     const request = prepareQualityRequest({ scope, policies })
     if (fitsBounds({ request })) return { request }
+    const excerpted = excerptOf({ scope })
+    const excerpt = prepareQualityRequest({
+      scope: excerpted.scope,
+      policies,
+      excerpt: excerpted.excerpt,
+    })
+    if (fitsBounds({ request: excerpt })) return { request: excerpt }
     return {
       rejected: {
         status: EQualityReviewStatus.Skipped,
         reason: EQualitySkipReason.OversizedRequest,
-        detail: `request for ${policies.map((policy) => policy.id).join(', ')} exceeds the review size bound`,
+        detail: `request for ${policies.map((policy) => policy.id).join(', ')} exceeds the classifier limit: ${describeSize(sizeOf({ request }))} full, ${describeSize(sizeOf({ request: excerpt }))} excerpted`,
       },
     }
   } catch (error) {

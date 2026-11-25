@@ -42,9 +42,17 @@ export function hostEnvironment({ base, paneOrigin, updateOrigin, webRoot, appVe
   return environment
 }
 
-export function sessionUrlIn(output) {
+function markerValue({ output, marker }) {
   for (const line of output.split('\n')) {
-    if (line.startsWith('ATLAS_URL=')) return line.slice('ATLAS_URL='.length).trim()
+    if (line.startsWith(marker)) return line.slice(marker.length).trim() || undefined
   }
   return undefined
+}
+
+export function hostMarkersIn(output) {
+  const url = markerValue({ output, marker: 'ATLAS_URL=' })
+  const httpOrigin = markerValue({ output, marker: 'ATLAS_HTTP_ORIGIN=' })
+  const fingerprint = markerValue({ output, marker: 'ATLAS_CERT=' })
+  if (url === undefined || httpOrigin === undefined || fingerprint === undefined) return undefined
+  return { url, httpOrigin, fingerprint }
 }

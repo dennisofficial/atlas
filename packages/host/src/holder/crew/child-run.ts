@@ -217,6 +217,11 @@ export class ChildRun {
     return this.pausing
   }
 
+  handoff(): void {
+    this.handingOff = true
+    this.abort?.abort('handoff')
+  }
+
   private async settleOrAbort(): Promise<void> {
     const settled = await settledWithin({
       timers: this.args.deps.timers,
@@ -267,7 +272,7 @@ export class ChildRun {
 
   private lost(error: LeaseLostError): void {
     this.args.onLeaseLost(error)
-    this.abort?.abort('lease_lost')
+    this.abort?.abort('handoff')
   }
 
   port(): PodCrew {

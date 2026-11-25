@@ -18,7 +18,7 @@ function harness() {
   let pathname = '/sessions/ses_a'
   let streams = 3
   const timers: { at: number; run: () => void; cancelled: boolean }[] = []
-  const events: { event: string; props: Record<string, unknown> }[] = []
+  const events: { event: string; props: Record<string, unknown>; atUnload: boolean }[] = []
   const tracker = createRouteNavigationTracker({
     now: () => clock,
     schedule: ({ delayMs, run }) => {
@@ -31,7 +31,7 @@ function harness() {
     openStreams: () => streams,
     currentPathname: () => pathname,
     origin: ORIGIN,
-    track: (event, props) => events.push({ event, props }),
+    track: ({ event, props, atUnload }) => events.push({ event, props, atUnload }),
   })
   const advance = (ms: number) => {
     clock += ms
@@ -101,6 +101,7 @@ describe('route navigation tracker', () => {
         event: ROUTE_NAVIGATED_EVENT,
         props: {
           route: '/sessions/[id]',
+          same_pattern: false,
           navigation_type: 'push',
           outcome: ERouteNavigationOutcome.Committed,
           ms_to_commit: 4140,
@@ -112,6 +113,7 @@ describe('route navigation tracker', () => {
           rsc_server_ms: 100,
           rsc_download_ms: 20,
         },
+        atUnload: false,
       },
     ])
   })
@@ -174,20 +176,69 @@ describe('route navigation tracker', () => {
     ])
   })
 
-  it('does not report a navigation that repeats the last committed route pattern', () => {
+  it('reports a second navigation to the same route pattern', () => {
     const h = harness()
     h.tracker.start({ url: '/sessions/ses_b', navigationType: 'push' })
     h.tracker.commit('/sessions/ses_b')
     h.advance(RSC_SETTLE_MS)
 
+    h.setPathname('/sessions/ses_b')
     h.tracker.start({ url: '/sessions/ses_c', navigationType: 'push' })
     h.advance(50)
     h.tracker.commit('/sessions/ses_c')
     h.advance(RSC_SETTLE_MS)
 
-    expect(h.events.map((e) => [e.props.route, e.props.outcome])).toEqual([
-      ['/sessions/[id]', ERouteNavigationOutcome.Committed],
+    expect(h.events.map((e) => [e.props.route, e.props.outcome, e.props.same_pattern])).toEqual([
+      ['/sessions/[id]', ERouteNavigationOutcome.Committed, false],
+      ['/sessions/[id]', ERouteNavigationOutcome.Committed, true],
     ])
+  })
+
+  it('reports a same-pattern navigation that never commits as timed_out', () => {
+    const h = harness()
+    h.tracker.start({ url: '/sessions/ses_b', navigationType: 'push' })
+    h.tracker.commit('/sessions/ses_b')
+    h.advance(RSC_SETTLE_MS)
+
+    h.setPathname('/sessions/ses_b')
+    h.tracker.start({ url: '/sessions/ses_c', navigationType: 'push' })
+    h.advance(NAVIGATION_TIMEOUT_MS)
+    h.advance(RSC_SETTLE_MS)
+
+    expect(h.events.map((e) => [e.props.outcome, e.props.same_pattern])).toEqual([
+      [ERouteNavigationOutcome.Committed, false],
+      [ERouteNavigationOutcome.TimedOut, true],
+    ])
+  })
+
+  it('reports a pending navigation as abandoned on abandon()', () => {
+    const h = harness()
+    h.tracker.start({ url: '/sessions/ses_b', navigationType: 'push' })
+    h.advance(1200)
+    h.tracker.abandon()
+
+    expect(h.events.map((e) => [e.props.outcome, e.props.ms_to_commit, e.atUnload])).toEqual([
+      [ERouteNavigationOutcome.Abandoned, 1200, true],
+    ])
+
+    h.advance(RSC_SETTLE_MS)
+    expect(h.events).toHaveLength(1)
+  })
+
+  it('reports a settling navigation at once on abandon()', () => {
+    const h = harness()
+    h.tracker.start({ url: '/sessions/ses_b', navigationType: 'push' })
+    h.advance(300)
+    h.tracker.commit('/sessions/ses_b')
+    expect(h.events).toEqual([])
+
+    h.tracker.abandon()
+    expect(h.events.map((e) => [e.props.outcome, e.props.ms_to_commit, e.atUnload])).toEqual([
+      [ERouteNavigationOutcome.Committed, 300, true],
+    ])
+
+    h.advance(RSC_SETTLE_MS)
+    expect(h.events).toHaveLength(1)
   })
 
   it('ignores navigations to the current path and commits for other paths', () => {

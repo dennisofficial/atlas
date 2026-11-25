@@ -182,6 +182,8 @@ export default function SessionScreen() {
                 threadId={id}
                 sessionId={id}
                 sessionNameOf={session.sessionNameOf}
+                onEdit={session.withdrawEdit}
+                onRemove={session.withdrawRemove}
               />
               {session.blocking === undefined ? null : (
                 <BlockingStrip command={session.blocking} now={session.now} />

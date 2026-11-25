@@ -45,8 +45,18 @@ describe('AccessGrantsContent', () => {
   it('teaches the feature and offers the first grant when there are none', () => {
     const html = render([])
     expect(html).toContain('No access grants yet')
-    expect(html).toContain('Group the secrets and files one job needs')
+    expect(html).toContain('A grant groups the secrets and files one job needs')
+    expect(html).toContain('Create a grant, then add its secrets')
     expect(html).toContain('New grant')
+    expect(html).not.toContain('Add secret')
+    expect(html).not.toContain('Add file')
+    expect(html).not.toContain('Bulk add')
+  })
+
+  it('offers only the grant actions at page level', () => {
+    const html = render([GRANT])
+    expect(html).toContain('New grant')
+    expect(html).not.toContain('A quick add makes a grant of one')
   })
 
   it('shows each grant with its instruction, its members and its row actions', () => {
@@ -58,6 +68,7 @@ describe('AccessGrantsContent', () => {
     expect(html).toContain('PlanetScale actions')
     expect(html).toContain('Add secret')
     expect(html).toContain('Add file')
+    expect(html).toContain('Bulk add')
   })
 
   it('marks an empty member section instead of hiding it', () => {

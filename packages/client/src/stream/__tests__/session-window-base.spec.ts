@@ -1,9 +1,17 @@
 import { describe, expect, it } from 'bun:test'
-import { foldableOf, isDurable, type RecordEvent } from '@dltech/atlas-core'
+import {
+  chainEvents,
+  foldableOf,
+  isDurable,
+  toRunId,
+  toThreadId,
+  type RecordEvent,
+  type RecordEventBody,
+} from '@dltech/atlas-core'
 import type { StreamServerMessage } from '@dltech/atlas-protocol'
 
 import { windowOfBase } from '../session-base'
-import { applyPage, type SessionWindow } from '../session-window'
+import { applyPageOutcome, EMPTY_WINDOW, applyPage, type SessionWindow } from '../session-window'
 import { pageOf, replayOf, TAIL_FROM, tailLogOf, TOTAL } from './tail-support'
 
 const setup = () => {
@@ -63,6 +71,37 @@ describe('the tail base', () => {
 })
 
 describe('the window foldable list', () => {
+  it('keeps a withdraw answer after the render window has dropped it', () => {
+    const at = '2026-11-25T10:00:00.000Z'
+    const bodies: RecordEventBody[] = [
+      {
+        type: 'input-posted',
+        inboxId: 4,
+        kind: 'message',
+        postedAt: at,
+        message: { text: 'ship it' },
+      },
+      { type: 'input-withdrawn', inboxId: 4 },
+      { type: 'user-said', text: 'next' },
+      { type: 'assistant-said', parts: [{ type: 'text', text: 'working' }] },
+    ]
+    const events = chainEvents({
+      threadId: toThreadId('thread-1'),
+      runId: toRunId('run-1'),
+      epoch: 1,
+      at,
+      from: undefined,
+      bodies,
+    })
+    const window = applyPageOutcome({
+      window: EMPTY_WINDOW,
+      page: pageOf(events),
+      renderLimit: 1,
+    }).window
+    expect(window.events.map((event) => event.type)).toEqual(['assistant-said'])
+    expect(window.foldable.some((event) => event.type === 'input-withdrawn')).toBe(true)
+  })
+
   it('counts the durable events of the prefix once', () => {
     const { all, tail, started } = setup()
     const based = applyPage({ window: started, page: pageOf(tail) })

@@ -11,6 +11,8 @@ import {
   type QualityScope,
 } from '@dltech/atlas-core'
 
+import type { QualityScopeExcerpt } from './source/scope-excerpt'
+
 export const JEV_QUALITY_MODEL = JEV_MODEL
 
 export const MAX_CHOICE_OPTIONS = 255
@@ -47,9 +49,11 @@ function assertChoiceWithinLimit({
 function serializeState({
   scope,
   policies,
+  excerpt,
 }: {
   scope: QualityScope
   policies: readonly QualityPolicy[]
+  excerpt: QualityScopeExcerpt | undefined
 }): string {
   return JSON.stringify({
     scope: {
@@ -58,6 +62,7 @@ function serializeState({
       diff: scope.diff,
       dependencyContext: scope.dependencyContext,
       evidence: scope.evidence,
+      ...(excerpt === undefined ? {} : { excerpt }),
     },
     policies: policies.map((policy) => ({
       id: policy.id,
@@ -70,9 +75,11 @@ function serializeState({
 export function prepareQualityRequest({
   scope,
   policies,
+  excerpt,
 }: {
   scope: QualityScope
   policies: readonly QualityPolicy[]
+  excerpt?: QualityScopeExcerpt | undefined
 }): QualityDecisionRequest {
   const questions: Record<string, DecisionQuestion> = {}
   const bindings: Record<string, QualityQuestionBinding> = {}
@@ -93,7 +100,12 @@ export function prepareQualityRequest({
     }
   }
 
-  return { state: serializeState({ scope, policies }), questions, bindings, policyVersions }
+  return {
+    state: serializeState({ scope, policies, excerpt }),
+    questions,
+    bindings,
+    policyVersions,
+  }
 }
 
 const isProbability = (value: number): boolean => Number.isFinite(value) && value >= 0 && value <= 1

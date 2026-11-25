@@ -188,6 +188,10 @@ RUN arch="$(uname -m)" \
   && if [ "$TARGETPLATFORM" = "$BUILDPLATFORM" ]; then agent-browser open 'data:text/html,<h1>atlas</h1>' && agent-browser get text h1 | grep -qx atlas && agent-browser close; fi \
   && rm -rf /root/.agent-browser
 
+# Headless Chrome's window frame takes 143 px, so a 1223 px window leaves a 1920x1080 viewport
+# (agent-browser 0.41.1).
+ENV AGENT_BROWSER_ARGS=--window-size=1920,1223
+
 RUN curl -fsSL https://mise.jdx.dev/gpg-key.pub -o /tmp/mise-key.pub \
   && gpg --dearmor --yes -o /etc/apt/keyrings/mise-archive-keyring.gpg /tmp/mise-key.pub \
   && rm /tmp/mise-key.pub \

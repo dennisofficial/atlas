@@ -164,6 +164,8 @@ expect 'agent-browser runs' 'agent-browser ' run 'agent-browser --version'
 expect 'agent-browser serves its bundled skills' 'name: core' run501 'agent-browser skills get core'
 expect 'agent-browser renders with the baked browser as uid 501' 'atlas' \
   run501 "cd /tmp/smoke-home && agent-browser open 'data:text/html,<h1>atlas</h1>' >/dev/null && agent-browser get text h1 && agent-browser close >/dev/null"
+expect 'agent-browser opens at a 1920x1080 viewport' '1920x1080' \
+  run501 "cd /tmp/smoke-home && agent-browser open 'data:text/html,<h1>v</h1>' >/dev/null && agent-browser eval 'innerWidth+\"x\"+innerHeight' && agent-browser close >/dev/null"
 
 run 'git init -q /opt/smoke-repo'
 expect_fail 'git refuses a root-owned repo without safe.directory (no blanket star baked)' \

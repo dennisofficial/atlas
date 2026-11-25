@@ -101,12 +101,12 @@ describe('SandboxSaidUploads', () => {
     expect(blobCalls.sizeOf).toEqual([])
   })
 
-  it('reuses its memory on a second place', async () => {
+  it('asks the pod again on a second place, because it keeps no memory', async () => {
     const upload = uploadOf(ID_A)
     const { uploads, log } = setup({ sizes: { [upload.pathname]: 5 } })
     await placeOf({ uploads, upload })
     await placeOf({ uploads, upload })
-    expect(log.stat).toHaveLength(1)
+    expect(log.stat).toHaveLength(2)
     expect(log.fetch).toHaveLength(1)
   })
 
@@ -122,12 +122,12 @@ describe('SandboxSaidUploads', () => {
     expect(blobCalls.sizeOf).toEqual([])
   })
 
-  it('marks an upload missing when its blob is gone, and remembers it', async () => {
+  it('marks an upload missing when its blob is gone', async () => {
     const upload = uploadOf(ID_A)
     const { uploads, blobCalls } = setup()
     expect(await placeOf({ uploads, upload })).toEqual({ state: EUploadState.Missing })
     expect(await placeOf({ uploads, upload })).toEqual({ state: EUploadState.Missing })
-    expect(blobCalls.sizeOf).toHaveLength(1)
+    expect(blobCalls.sizeOf).toHaveLength(2)
   })
 
   it('marks every upload missing when there is no blob access', async () => {
@@ -145,6 +145,18 @@ describe('SandboxSaidUploads', () => {
     await expect(
       placeOf({ uploads: current.uploads, upload, current: new Set([ID_A]) }),
     ).rejects.toThrow('boom')
+  })
+
+  it('leaves an older upload unsettled when its fetch fails, so no outcome is recorded', async () => {
+    const upload = uploadOf(ID_A)
+    const sizes = { [upload.pathname]: 5 }
+    const older = setup({ sizes, fetchFails: true })
+    const placed = await older.uploads.place({
+      threadId,
+      uploads: [upload],
+      currentFileIds: new Set(),
+    })
+    expect(placed.has(ID_A)).toBe(false)
   })
 
   it('places several uploads in one call', async () => {

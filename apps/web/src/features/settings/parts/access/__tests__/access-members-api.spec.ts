@@ -24,11 +24,6 @@ describe('personal members', () => {
     ])
   })
 
-  it('omits the grant for a quick add', async () => {
-    await personal.setSecret({ name: 'API_KEY', value: 'v' })
-    expect(trpcCalls[0]?.body).toEqual({ name: 'API_KEY', value: 'v' })
-  })
-
   it('reveals a secret by name', async () => {
     answerTrpc(() => trpcData({ value: 'hunter2' }))
     expect(await personal.revealSecret('API_KEY')).toBe('hunter2')
@@ -76,13 +71,14 @@ describe('project members', () => {
   })
 
   it('writes a repository file mount', async () => {
-    await project.setFile({ path: '.env.local', contents: 'c', mode: 384 })
+    await project.setFile({ grantId: 'g1', path: '.env.local', contents: 'c', mode: 384 })
     expect(trpcCalls[0]?.url).toBe('/v1/trpc/projectResources.setFileMount')
     expect(trpcCalls[0]?.body).toEqual({
       projectId: 'prj_1',
       path: '.env.local',
       contents: 'c',
       mode: 384,
+      grantId: 'g1',
     })
   })
 

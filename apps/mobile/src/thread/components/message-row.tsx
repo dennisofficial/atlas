@@ -25,6 +25,7 @@ import {
   type MessageRow,
   type SessionNameOf,
 } from '../rows'
+import { CollapsibleBody } from './collapsible-body'
 import { MessageAttachments } from './message-attachments'
 
 const renderDiagram = ({ source, closed }: IRenderDiagramArgs) => (
@@ -101,7 +102,13 @@ export const MessageRowView = ({
             {caption}
           </Text>
         )}
-        <Markdown value={row.text} selectable renderDiagram={renderDiagram} />
+        {caption === undefined ? (
+          <Markdown value={row.text} selectable renderDiagram={renderDiagram} />
+        ) : (
+          <CollapsibleBody>
+            <Markdown value={row.text} selectable renderDiagram={renderDiagram} />
+          </CollapsibleBody>
+        )}
         <SentAt at={row.at} />
       </View>
     )

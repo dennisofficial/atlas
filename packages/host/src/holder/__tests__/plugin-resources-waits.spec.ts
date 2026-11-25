@@ -1,0 +1,124 @@
+import { ECloudSetting, type PodResource } from '@dltech/atlas-plugin-sdk'
+import { EResourceWait, ESpan } from '@dltech/atlas-observability'
+import { RecordingTracer, type RecordedSpan } from '@dltech/atlas-observability/testing'
+import { describe, expect, it } from 'bun:test'
+import { z } from 'zod'
+
+import { pluginResourcesHook } from '../plugin-resources'
+import { DIRECTORY, agentsRootOf, rig, skillsOf, THREAD, versionsAt } from './plugin-resources-rig'
+
+const HOLD_MS = 120
+const TIMER_SLACK_MS = 20
+
+const sleep = (ms: number): Promise<undefined> =>
+  new Promise((resolve) => setTimeout(() => resolve(undefined), ms))
+
+const durationOf = (span: RecordedSpan | undefined): number =>
+  span === undefined || span.endedAtMs === undefined ? -1 : span.endedAtMs - span.startedAtMs
+
+type Gate = { readonly promise: Promise<string>; open(value: string): void }
+
+const gateOf = (): Gate => {
+  let open: (value: string) => void = () => undefined
+  const promise = new Promise<string>((resolve) => {
+    open = resolve
+  })
+  return { promise, open: (value) => open(value) }
+}
+
+const gatedToolsOf = (args: { gate: Gate; attempts: { count: number } }): PodResource<string> => ({
+  name: 'mcp-tools',
+  schema: z.string(),
+  watch: () => ({ roots: [agentsRootOf(DIRECTORY)] }),
+  background: true,
+  cloud: [ECloudSetting.Skills],
+  load: async () => {
+    args.attempts.count += 1
+    if (args.attempts.count === 1) return 'tools v1'
+    return await args.gate.promise
+  },
+})
+
+const waitSpanOf = (args: {
+  trace: RecordingTracer
+  waitFor: EResourceWait
+}): RecordedSpan | undefined =>
+  args.trace.named(ESpan.ResourceWait).find((span) => span.fields.waitFor === args.waitFor)
+
+describe('the turn times what it waits for on plugin resources', () => {
+  it('covers an initial refresh that started before the turn', async () => {
+    const trace = new RecordingTracer()
+    const turn = rig({
+      resources: [skillsOf([])],
+      trace,
+      beforeCall: async (op) => {
+        if (op.op === 'watch.status') await sleep(HOLD_MS)
+      },
+    })
+    turn.start()
+
+    const hook = pluginResourcesHook({ sync: turn.sync })
+    await trace.span({
+      name: ESpan.Turn,
+      root: true,
+      run: () => hook.run({ threadId: THREAD, projectDirectory: DIRECTORY }),
+    })
+
+    const wait = waitSpanOf({ trace, waitFor: EResourceWait.InitialRefresh })
+    expect(wait?.parent?.name).toBe(ESpan.Turn)
+    expect(durationOf(wait)).toBeGreaterThanOrEqual(HOLD_MS - TIMER_SLACK_MS)
+  }, 10_000)
+
+  it('covers a background load that was already in flight', async () => {
+    const trace = new RecordingTracer()
+    const gate = gateOf()
+    const attempts = { count: 0 }
+    const turn = rig({ resources: [skillsOf([]), gatedToolsOf({ gate, attempts })], trace })
+    turn.start()
+    await turn.sync.settled()
+    await sleep(10)
+
+    turn.daemon.setVersions(versionsAt('v2'))
+    turn.closed()
+    await turn.sync.settled()
+    expect(attempts.count).toBe(2)
+
+    const hook = pluginResourcesHook({ sync: turn.sync })
+    const running = trace.span({
+      name: ESpan.Turn,
+      root: true,
+      run: () => hook.run({ threadId: THREAD, projectDirectory: DIRECTORY }),
+    })
+    await sleep(HOLD_MS)
+    gate.open('tools v2')
+    await running
+    await sleep(20)
+
+    const wait = waitSpanOf({ trace, waitFor: EResourceWait.BackgroundLoad })
+    expect(wait?.fields.resource).toBe('mcp-tools')
+    expect(wait?.parent?.name).toBe(ESpan.Turn)
+    expect(durationOf(wait)).toBeGreaterThanOrEqual(HOLD_MS - TIMER_SLACK_MS)
+  }, 10_000)
+
+  it('opens a load span for a background resource', async () => {
+    const trace = new RecordingTracer()
+    const gate = gateOf()
+    const turn = rig({
+      resources: [skillsOf([]), gatedToolsOf({ gate, attempts: { count: 1 } })],
+      trace,
+    })
+
+    await trace.span({ name: ESpan.Turn, root: true, run: () => turn.run() })
+    gate.open('tools')
+    await sleep(20)
+
+    const loads = trace.named(ESpan.ResourceLoad).map((span) => span.fields)
+    expect(loads).toEqual([
+      { resource: 'mcp-tools', phase: 'missing' },
+      { resource: 'skills', phase: 'missing' },
+    ])
+    expect(trace.named(ESpan.ResourceLoad).every((span) => span.parent?.name === ESpan.Turn)).toBe(
+      true,
+    )
+  }, 10_000)
+})

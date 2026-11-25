@@ -7,7 +7,7 @@ const cleared: number[] = []
 let app: ReturnType<typeof Bun.serve>
 let host: IDesktopHost
 
-beforeAll(() => {
+beforeAll(async () => {
   app = Bun.serve({
     hostname: '127.0.0.1',
     port: 0,
@@ -17,7 +17,7 @@ beforeAll(() => {
         headers: { 'content-type': 'text/html' },
       }),
   })
-  host = createDesktopHost({
+  host = await createDesktopHost({
     appOrigin: `http://127.0.0.1:${app.port}`,
     apiOrigin: 'http://127.0.0.1:1',
     secret: SECRET,

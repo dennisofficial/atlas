@@ -71,7 +71,7 @@ describe('ClassifierService.test', () => {
 
     expect(result.ok).toBe(true)
     if (!result.ok) return
-    expect(result.model).toBe('typesafe-ai/jev')
+    expect(result.model).toBe('typesafe-ai/jev-1.14.0')
     expect(result.ms).toBeGreaterThanOrEqual(0)
   })
 

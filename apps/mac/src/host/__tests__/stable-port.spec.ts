@@ -3,7 +3,14 @@ import { mkdtempSync, readFileSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 
-import { HOST_PORT_FILE, readHostPort, startOnStablePort } from '../stable-port'
+import {
+  HOST_PORT_FILE,
+  HOST_TLS_PORT_FILE,
+  readHostPort,
+  readPort,
+  startOnStablePort,
+  startOnStablePortAsync,
+} from '../stable-port'
 
 const servers: ReturnType<typeof Bun.serve>[] = []
 
@@ -48,5 +55,48 @@ describe('startOnStablePort', () => {
     expect(readHostPort(home)).toBeUndefined()
     const started = startOnStablePort({ home, start: serve })
     expect(readHostPort(home)).toBe(started.port)
+  })
+})
+
+const serveAsync = async (port: number) => {
+  const server = Bun.serve({
+    hostname: '127.0.0.1',
+    port,
+    fetch: () => new Response('ok'),
+  })
+  servers.push(server)
+  return { port: server.port as number }
+}
+
+describe('startOnStablePortAsync', () => {
+  test('remembers the async listener port in its own file', async () => {
+    const home = freshHome()
+    const first = await startOnStablePortAsync({
+      home,
+      file: HOST_TLS_PORT_FILE,
+      start: serveAsync,
+    })
+    expect(readPort({ home, file: HOST_TLS_PORT_FILE })).toBe(first.port)
+    expect(readHostPort(home)).toBeUndefined()
+    await Promise.all(servers.splice(0).map((server) => server.stop(true)))
+    const second = await startOnStablePortAsync({
+      home,
+      file: HOST_TLS_PORT_FILE,
+      start: serveAsync,
+    })
+    expect(second.port).toBe(first.port)
+  })
+
+  test('takes a free port when the remembered one is taken', async () => {
+    const home = freshHome()
+    const squatter = serve(0)
+    writeFileSync(join(home, HOST_TLS_PORT_FILE), String(squatter.port))
+    const started = await startOnStablePortAsync({
+      home,
+      file: HOST_TLS_PORT_FILE,
+      start: serveAsync,
+    })
+    expect(started.port).not.toBe(squatter.port)
+    expect(readPort({ home, file: HOST_TLS_PORT_FILE })).toBe(started.port)
   })
 })
