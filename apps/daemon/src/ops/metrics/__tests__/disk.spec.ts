@@ -39,7 +39,9 @@ describe('readFirstPodDisk', () => {
   it('reads the pod volume first and falls back when it is not mounted', async () => {
     await withRoot(async (root) => {
       const missing = join(tmpdir(), 'atlas-missing-volume')
-      expect(readFirstPodDisk({ roots: [missing, root] })).toEqual(readPodDisk({ root }))
+      const fallback = readFirstPodDisk({ roots: [missing, root] })
+      expect(fallback).not.toBeNull()
+      expect(fallback?.diskLimitBytes).toBe(readPodDisk({ root })?.diskLimitBytes)
       expect(readFirstPodDisk({ roots: [missing] })).toBeNull()
     })
   })

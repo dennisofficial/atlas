@@ -56,7 +56,9 @@ export const chatPressHandled = (args: {
 }): boolean => {
   for (const binding of args.bindings) {
     if (!args.match({ chord: binding.chord, press: args.press })) continue
-    if (binding.run() !== false) return true
+    if (binding.run() === false) continue
+    args.press.preventDefault()
+    return true
   }
   return false
 }

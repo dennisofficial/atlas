@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'bun:test'
 
-import { EAttachmentStatus } from '@/features/threads/data/composer-attachments'
+import { EAttachmentStatus } from '@dltech/atlas-client/session'
 
 import {
   hasMediaFailed,

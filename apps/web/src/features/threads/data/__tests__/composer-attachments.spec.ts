@@ -1,24 +1,20 @@
 import { describe, expect, it } from 'bun:test'
 
-import { MAX_MESSAGE_UPLOADS, MAX_UPLOAD_BYTES, type SaidUpload } from '@dltech/atlas-core'
+import type { SaidUpload } from '@dltech/atlas-core'
 import { EPromptAttachmentStatus } from '@dltech/atlas-ui/ai/prompt-input'
 
+import { EAttachmentStatus } from '@dltech/atlas-client/session'
+
 import {
+  attachmentsOf,
   chipOf,
   contentTypeOf,
-  EAttachmentStatus,
   fitsInline,
-  hasFailed,
-  attachmentsOf,
-  sameAttachments,
-  isUploading,
-  planAttach,
   restoredAttachmentsOf,
+  sameAttachments,
   startedAttachment,
   uploadsOf,
-  withFailed,
   withInline,
-  withProgress,
   withReady,
 } from '../composer-attachments'
 
@@ -40,31 +36,6 @@ const file = (name: string, size = 1, type = 'text/plain') => {
 }
 const started = (id: string) => startedAttachment({ id, file: file(`${id}.pdf`) })
 
-describe('planAttach', () => {
-  it('accepts any file type up to the cap', () => {
-    const plan = planAttach({
-      files: [file('a.zip', 5, ''), file('b.png', 5, 'image/png')],
-      held: 0,
-    })
-    expect(plan.accepted).toHaveLength(2)
-    expect(plan.oversize).toEqual([])
-  })
-
-  it('flags files over the byte limit', () => {
-    const big = file('big.bin', MAX_UPLOAD_BYTES + 1)
-    const plan = planAttach({ files: [big, file('ok.txt')], held: 0 })
-    expect(plan.oversize).toEqual([big])
-    expect(plan.accepted.map((entry) => entry.name)).toEqual(['ok.txt'])
-  })
-
-  it('caps the held total at the message limit', () => {
-    const files = Array.from({ length: 3 }, (_, index) => file(`${index}.txt`))
-    const plan = planAttach({ files, held: MAX_MESSAGE_UPLOADS - 1 })
-    expect(plan.accepted).toHaveLength(1)
-    expect(plan.droppedOverflow).toBe(true)
-  })
-})
-
 describe('status transitions', () => {
   it('starts uploading with octet-stream for an untyped file', () => {
     const entry = startedAttachment({ id: 'x', file: file('x.bin', 1, '') })
@@ -73,21 +44,10 @@ describe('status transitions', () => {
     expect(contentTypeOf({ type: 'text/csv' })).toBe('text/csv')
   })
 
-  it('moves progress, then ready with the upload', () => {
-    let held = [started('a')]
-    held = withProgress({ held, id: 'a', progress: 0.5 })
-    expect(held[0]?.progress).toBe(0.5)
-    expect(isUploading(held)).toBe(true)
-    held = withReady({ held, id: 'a', upload: upload(UA) })
+  it('becomes ready with the upload', () => {
+    const held = withReady({ held: [started('a')], id: 'a', upload: upload(UA) })
     expect(held[0]?.status).toBe(EAttachmentStatus.Ready)
-    expect(isUploading(held)).toBe(false)
-    expect(withProgress({ held, id: 'a', progress: 0.1 })[0]?.progress).toBe(1)
-  })
-
-  it('fails and blocks send until removed', () => {
-    const held = withFailed({ held: [started('a'), started('b')], id: 'a' })
-    expect(hasFailed(held)).toBe(true)
-    expect(uploadsOf(held)).toEqual([])
+    expect(held[0]?.progress).toBe(1)
   })
 
   it('only ready attachments contribute uploads', () => {
@@ -97,7 +57,7 @@ describe('status transitions', () => {
 
   it('maps to chip statuses', () => {
     expect(chipOf(started('a')).status).toBe(EPromptAttachmentStatus.Uploading)
-    expect(chipOf(withFailed({ held: [started('a')], id: 'a' })[0]!).status).toBe(
+    expect(chipOf({ ...started('a'), status: EAttachmentStatus.Failed }).status).toBe(
       EPromptAttachmentStatus.Failed,
     )
   })

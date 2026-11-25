@@ -2,7 +2,7 @@ import type { Attachment } from '@dltech/atlas-core'
 import type { SessionPostMedia } from '@dltech/atlas-protocol'
 import { EPromptAttachmentStatus, type PromptAttachment } from '@dltech/atlas-ui/ai/prompt-input'
 
-import { EAttachmentStatus, planAttach } from '@/features/threads/data/composer-attachments'
+import { EAttachmentStatus, planAttach } from '@dltech/atlas-client/session'
 import { isImageFile } from '@/features/threads/data/composer-images'
 
 export const TOAST_IMAGES_ONLY = 'Only images can be attached here'
