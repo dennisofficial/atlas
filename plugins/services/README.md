@@ -59,6 +59,8 @@ its roster and its preview URLs.
 | `restart` | Stop the service if it runs, then start it under a new id. A `name` re-reads the declaration.                                                                                                                                                |
 | `list`    | Name each service with id, name, state and port. `runningOnly` leaves out ended services.                                                                                                                                                    |
 
+`start` also takes a `description` and a `workdir` for an ad-hoc `command`, and a `readyTimeoutMs` in either form.
+
 ### The core and client slots
 
 `servicesCoreSlots` gives the `service-ready` event, the `services` view and one command:

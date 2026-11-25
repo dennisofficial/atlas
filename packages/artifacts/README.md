@@ -2,8 +2,7 @@
 
 The artifact format. An artifact is a small app that an agent publishes to a fixed
 `<subdomain>.byatlas.site` URL. This package holds the spec, the manifest, the storage keys, the
-route resolution and the file selection. The API, the publishing tool and the serving worker all
-agree through it.
+route resolution and the file selection. The API and the serving worker agree through it.
 
 ## Owns
 
@@ -18,7 +17,7 @@ agree through it.
 
 - The object read and write. The API and the serving worker own their storage adapters.
 - The build of an artifact, and the `artifact_push` and `artifact_pull` tools: those were v1 tools,
-  deleted with the v1 agent host, and no v2 plugin replaced them.
+  deleted with the v1 agent host, and no plugin replaced them.
 - The HTTP serve of a request. `apps/artifacts-host` owns that.
 - The database rows. `apps/api` owns them.
 

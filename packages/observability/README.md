@@ -69,7 +69,7 @@ await trace.span({ name: ESpan.Turn, root: true, run: () => turn() })
 ### Report a server error
 
 - `ErrorReporter`: `report({ error, properties })` sends one error to server error tracking. The
-  `properties` are string, number or boolean values.
+  `properties` are string, number or boolean values. `ErrorReportProperties` is the type.
 - `NullErrorReporter`: an `ErrorReporter` that does nothing.
 - `PosthogErrorReporter({ client })`: the PostHog implementation. It calls `captureException`
   under the fixed `atlas-server` distinct id, so the daily telemetry routine finds it among
@@ -77,8 +77,9 @@ await trace.span({ name: ESpan.Turn, root: true, run: () => turn() })
 
 ### Use a real exporter
 
-- `serverObservability(args)`, `PosthogTracer`, `PosthogProductAnalytics`, `PosthogTelemetry`.
-  `serverObservability` returns `analytics`, `errors` and `traceFor` over one PostHog client.
+- `serverObservability(args)`, `ServerObservability`, `PosthogTracer`, `PosthogProductAnalytics`,
+  `PosthogTelemetry`. `serverObservability` returns `analytics`, `errors` and `traceFor` over one
+  PostHog client.
 - `telemetryDistinctId(args)`, `persistedTelemetryDistinctId({ atlasHome })`: the stable id, kept in
   `telemetry.json`.
 - `Observability`, `nullObservability()`: the pair of ports.

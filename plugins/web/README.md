@@ -13,8 +13,8 @@ what it returns inside the untrusted-content envelope. The API composes it as th
 
 ## Does not own
 
-- The Jina key. The API reads `JINA_API_KEY` from its tier and passes it to `webPodOf`. A pod never
-  holds it, so the agent cannot read it.
+- The Jina key. The API reads `JINA_API_KEY` from its tier and gives `webPodOf` a function that
+  returns it. A pod never holds it, so the agent cannot read it.
 - The direct fetch's redirect, body-size and content-type rules. `fetchPage` owns them.
 - The browser pane the operator watches. The host owns it.
 
@@ -27,7 +27,8 @@ what it returns inside the untrusted-content envelope. The API composes it as th
 | `@dltech/atlas-plugin-web/control` | `webControl`, an empty control slot.                                        |
 | `@dltech/atlas-plugin-web/client`  | `webClient`, an empty client slot.                                          |
 
-`webPodOf({ jinaKey })` builds the pod slot. Without a key, `web_search` answers one sentence and
+`webPodOf({ jinaKey })` builds the pod slot. `jinaKey` is a function that returns the key, or
+`undefined` when the host has none. Without a key, `web_search` answers one sentence and
 `web_fetch` reads pages directly.
 
 ## Capabilities
@@ -45,8 +46,9 @@ what it returns inside the untrusted-content envelope. The API composes it as th
 `SearchPort { search(request) }` is the one seam. `jinaSearchOf({ key, fetcher })` is the adapter, and
 `searchPortOf({ jinaKey, fetcher })` picks it. A later backend is one adapter and one line.
 
-The reader is the same shape: `ReaderPort { read(args) }` with `jinaReaderOf({ key, fetcher })`, now in
-`src/pod/read/`.
+The reader has the same shape. `ReaderPort { read(args) }` is the seam and
+`jinaReaderOf({ key, fetcher })` is the adapter. `readerPortOf({ jinaKey, fetcher })` picks it. The
+code is in `src/pod/read/`.
 
 ## Plugin contributions
 
@@ -75,7 +77,7 @@ import { webPodOf } from '@dltech/atlas-plugin-web/pod'
 definePlugin({
   name: 'web',
   ...webCoreSlots,
-  pod: webPodOf({ jinaKey: process.env['JINA_API_KEY'] }),
+  pod: webPodOf({ jinaKey: () => process.env['JINA_API_KEY'] }),
   control: webControl,
   client: webClient,
   transport: 'none',

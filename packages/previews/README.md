@@ -97,6 +97,7 @@ database transaction.
 ## Usage
 
 ```ts
+import { livePodSessionsIn } from '@dltech/atlas-control/postgres'
 import { CloudflareTunnelClient, PreviewTunnels } from '@dltech/atlas-previews'
 
 const tunnels = new PreviewTunnels({
@@ -104,7 +105,7 @@ const tunnels = new PreviewTunnels({
   cipher,
   domain: 'preview.example.dev',
   cloudflare: new CloudflareTunnelClient({ apiToken, accountId, zoneId }),
-  livePeersOf: (podSessionId) => livePreviewPeersOf({ reader: db, podSessionId }),
+  livePeersOf: (podSessionId) => db.transaction((tx) => livePodSessionsIn({ tx, podSessionId })),
 })
 
 const reply = await tunnels.expose({
@@ -130,6 +131,6 @@ await tunnels.markDeleting({ podSessionId: 'ses_pod' })
 
 ## See also
 
-- `apps/trigger/src/trigger/previews/preview-reconcile.ts` for the pass's timer.
+- `apps/trigger/src/previews/preview-reconcile.ts` for the pass's timer.
 - `packages/previews/src/__tests__/preview-tunnels.spec.ts` and
   `packages/previews/src/__tests__/preview-reconciler.spec.ts` for the behaviour of each path.

@@ -14,7 +14,7 @@ response payloads, the constants that both sides must agree on, and the sandbox 
   `agent-compat`.
 - The HTTP request and response schemas that the API and its clients share.
 - The sandbox SDK wrapper and its retry policies.
-- The pod paths and environment names in `serve-env`.
+- The workspace path and the pod environment names that the sandbox helpers read.
 
 ## Does not own
 
@@ -74,7 +74,12 @@ response payloads, the constants that both sides must agree on, and the sandbox 
 Encoding a frame for a peer:
 
 ```ts
-import { downgradeServeFrame, encodeFrame } from '@dltech/atlas-wire'
+import {
+  downgradeServeFrame,
+  encodeFrame,
+  type CapabilitySet,
+  type ServeFrame,
+} from '@dltech/atlas-wire'
 
 export const encodeForPeer = (args: { frame: ServeFrame; capabilities: CapabilitySet }): string =>
   encodeFrame(downgradeServeFrame(args))
@@ -102,9 +107,10 @@ export function threadPullRequestsOf(args: {
   `scripts/check-wire-skew.ts` fails a change that drops the protocol the base spoke.
 - Import `@dltech/atlas-wire/web` in a browser bundle. Do not import the root subpath there. It
   loads `@vercel/sandbox` and `zod` schemas for the server.
-- `apps/api` runs on Node with `module: NodeNext`, where a `.ts` specifier does not resolve. The
-  package builds with its own `tsconfig.build.json` to `dist/`. Run
-  `bun run build --filter @dltech/atlas-wire` before the API typecheck or test in a fresh checkout.
+- `apps/api` sets `moduleResolution: Bundler` and reads the `types` entry, which points at `src`.
+  The package also builds with its own `tsconfig.build.json` to `dist/`. Turbo builds it before the
+  typecheck or test of a dependent. To build it alone, run
+  `bun run build --filter @dltech/atlas-wire`.
 
 ## See also
 

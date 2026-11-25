@@ -80,7 +80,8 @@ package.
   accounts. `SHIPPED_DEFAULT_REF` is the fallback.
 - `sessionModelOf({ settings, accounts, activeAccounts, ask, current? })`: resolves an explicit
   request against the same settings. The `ask` is `{ ref?: string, effort?, fast? }`, where `ref`
-  is a stored `provider/model` string.
+  is a stored `provider/model` string. A `ref` that is not a `provider/model` string throws
+  `UnknownModelRefError` from `@dltech/atlas-core`.
 - `readOf`, `settingsWithProjectOverUser`, `fallbackRefOf`, `capabilitiesOver`: the smaller steps
   of the same resolution. The account steps come from `@dltech/atlas-credentials`.
 

@@ -30,7 +30,8 @@ Asks the operator for a value that only they have. The `operator_input` tool wri
 
 ### Ask the operator
 
-- `OPERATOR_INPUT_TOOL` and `OPERATOR_SHELL_INPUT_TOOL` name the two tools. `OPERATOR_TOOL_NAMES` holds both.
+- `OPERATOR_INPUT_TOOL` and `OPERATOR_SHELL_INPUT_TOOL` name the two tools. `OPERATOR_TOOL_NAMES` in
+  the core tier and `OPERATOR_TOOLS` in the pod tier hold both.
 - `OperatorInputTool` and `OperatorShellInputTool`: the tool classes themselves.
 - `EOperatorRequestKind`: the `input` and `shell` kinds. `operatorRequestSchema` is the request that the pod records. The `input` kind holds a prompt; the `shell` kind adds a `shellId`.
 
@@ -50,6 +51,9 @@ Asks the operator for a value that only they have. The `operator_input` tool wri
 | Tool       | `operator_shell_input` | Asks for a value and types it into the stdin of the named shell.                      |
 | Prompt     | `operator.input`       | Tells the model to ask for a secret and not to guess, and never to echo it.           |
 | Child deny | both tools             | A sub-agent cannot ask. It asks the parent thread to run the login.                   |
+
+`operator_shell_input` sets `deferred`, so the model loads its schema with `tool_search` and then
+calls it by name. `operator_input` is never deferred.
 
 ### Core tier (`operatorCoreSlots`)
 

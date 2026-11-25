@@ -73,6 +73,7 @@ the classifier from it, and a plugin reaches it through the pod context.
 ## Usage
 
 ```ts
+import { ESettingId } from '@dltech/atlas-core'
 import {
   classifierAvailabilityOf,
   classifierConfigFrom,
@@ -81,8 +82,9 @@ import {
 import { classifierCredentialOf } from '@dltech/atlas-credentials'
 import { readOf } from '@dltech/atlas-models'
 
+const stored = readOf(settings)(ESettingId.ClassifierModel)
 const availability = classifierAvailabilityOf({
-  stored: readOf(settings)(ESettingId.ClassifierModel),
+  stored: typeof stored === 'string' ? stored : undefined,
   credentialOf: (provider) =>
     classifierCredentialOf({
       provider,

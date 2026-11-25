@@ -20,12 +20,12 @@ its roster view.
 
 ## Entry points
 
-| Import                                | Use it for                                                                  |
-| ------------------------------------- | --------------------------------------------------------------------------- |
-| `@dltech/atlas-plugin-shells/core`    | `shellsCoreSlots`, the `shells` view fold, its schemas and `ShellRow`.      |
-| `@dltech/atlas-plugin-shells/pod`     | `shellsPod`: four tools, the hooks and the prompt fragment.                 |
-| `@dltech/atlas-plugin-shells/control` | `shellsControl`, an empty control slot.                                     |
-| `@dltech/atlas-plugin-shells/client`  | `shellsClient`, `shellsOfView`, `shellRosterOf` and the `ShellRoster` type. |
+| Import                                | Use it for                                                                                        |
+| ------------------------------------- | ------------------------------------------------------------------------------------------------- |
+| `@dltech/atlas-plugin-shells/core`    | `shellsCoreSlots`, the `shells` view fold, its schemas and `ShellRow`.                            |
+| `@dltech/atlas-plugin-shells/pod`     | `shellsPod`: four tools, the hooks and the prompt fragment.                                       |
+| `@dltech/atlas-plugin-shells/control` | `shellsControl`, an empty control slot.                                                           |
+| `@dltech/atlas-plugin-shells/client`  | `shellsClient`, `shellsOfView`, `shellRosterOf` and the `ShellRoster` and `ShellRosterRow` types. |
 
 ## Capabilities
 

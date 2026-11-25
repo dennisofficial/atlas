@@ -59,6 +59,7 @@ a thread's event log.
 
 ### Read a session view
 
+- `readSessionView({ sessionId, threadId })`: the session view that a follow stream reads.
 - `pricedView({ at, value, compute? })`: the priced `SessionViewOutput` of a control session value.
 - `sessionSummaryOf({ digest, now })`: returns the `SessionSummary` of a session digest.
 - `readSessionStatus({ plane, sessionId, threadId })`: returns the status of a session view.
@@ -115,7 +116,7 @@ a thread's event log.
 
 ## Usage
 
-Build a plane over the Postgres store, from `apps/trigger/src/trigger/changes/changes-gc.ts`:
+Build a plane over the Postgres store, from `apps/trigger/src/changes/changes-gc.ts`:
 
 ```ts
 import { ControlPlane, runChangesGc } from '@dltech/atlas-control'
