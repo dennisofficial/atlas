@@ -122,6 +122,10 @@ export class RemoteCalls {
     return this.state.bootId()
   }
 
+  linked(): boolean {
+    return this.state.linked()
+  }
+
   handoff(): void {
     this.gate.release()
     this.state.handoff()

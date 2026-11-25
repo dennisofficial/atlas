@@ -45,18 +45,19 @@ A hook is its own span. It nests in `turn.hooks`, `tool.hooks`, `tool.after-hook
 
 ```
 hook                            one per hook (hook, phase)
+└ resource.wait               (waitFor, resource)
 └ resource.status / resource.versions
 └ resource.arm
 └ resource.load               (resource, phase)
-└ resource.wait               (waitFor, resource)
 └ resource.append             (drafts)
 ```
 
 The `resource.*` spans are plugin resources refreshing. They also appear under `tool.invoke` when
 a tool triggers the refresh. `resource.wait` times what a reload or a turn-start waited for: the
-initial refresh, a background load of one resource, or every attempt to settle. It is recorded in
-the waiting context, so it appears under the `turn` or `hook` that waited even when the refresh
-itself started before that turn, outside any trace.
+initial refresh, a background load of one resource, the load of the resource whose cloud setting
+changed, or every attempt to settle. It is recorded in the waiting context, so it appears under
+the `turn` or `hook` that waited even when the refresh itself started before that turn, outside any
+trace.
 
 Two more root spans carry the same service:
 
@@ -92,7 +93,7 @@ one back.
 | `provider`, `model` | `turn`, `model.call`, `model.resolve` | Which model ran |
 | `auth` | `model.call` | `oauth` or the API-key kind |
 | `phase` | `model.resolve`, `resource.load`, `resource.status` | `kept`, `timed-out` or `read-failed` on a resolve; the refresh reason on a resource span |
-| `waitFor` | `resource.wait` | What the caller waited for: `initial-refresh`, `background-load` or `settle`; `resource` names the resource for a background load |
+| `waitFor` | `resource.wait` | What the caller waited for: `initial-refresh`, `background-load`, `changed-resource` or `settle`; `resource` names the resource for a background load or the changed setting |
 | `first_chunk_ms` | `model.call` | Request to the first streamed chunk of any kind |
 | `first_reasoning_ms` | `model.call` | Request to the first thinking chunk; absent when the model did not think |
 | `first_output_ms` | `model.call` | Request to the first visible text or tool-call chunk |

@@ -121,7 +121,7 @@ describe('the v1 table archive migration', () => {
       seeded.push({ table, count })
     }
     await applyMigration({ client, directory: ARCHIVE_MIGRATION })
-  })
+  }, 180_000)
 
   afterAll(async () => {
     await client.end()

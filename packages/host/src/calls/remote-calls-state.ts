@@ -149,6 +149,10 @@ export class RemoteCallsState {
     return this.linkBootId
   }
 
+  linked(): boolean {
+    return this.link.ready && !this.fenced && !this.closed
+  }
+
   handoff(): void {
     this.detached = true
     this.args.releaseResize()

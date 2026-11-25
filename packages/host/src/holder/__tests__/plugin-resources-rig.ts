@@ -37,9 +37,11 @@ export type Daemon = {
   instance(): string
   readVersions(): Promise<Record<ECloudSetting, string>>
   versionReads(): number
+  statusFailure(): Error | undefined
   setInstance(instance: string): void
   setVersions(versions: Record<ECloudSetting, string>): void
   failVersions(failure: Error | undefined): void
+  failStatus(failure: Error | undefined): void
 }
 
 export const daemonOf = (): Daemon => {
@@ -47,6 +49,7 @@ export const daemonOf = (): Daemon => {
   let instance = 'instance-1'
   let versions = versionsAt('v1')
   let failure: Error | undefined
+  let statusFailure: Error | undefined
   let reads = 0
   return {
     seqs,
@@ -57,6 +60,7 @@ export const daemonOf = (): Daemon => {
       return versions
     },
     versionReads: () => reads,
+    statusFailure: () => statusFailure,
     setInstance: (next) => {
       instance = next
       seqs.clear()
@@ -66,6 +70,9 @@ export const daemonOf = (): Daemon => {
     },
     failVersions: (next) => {
       failure = next
+    },
+    failStatus: (next) => {
+      statusFailure = next
     },
   }
 }
@@ -82,6 +89,7 @@ export type Rig = {
   closed(): Promise<void>
   changed(watchId: string): void
   reconnect(restart: boolean): void
+  setPodReady(ready: boolean): void
   settled(): Promise<void>
 }
 
@@ -109,7 +117,10 @@ export const rig = (args: {
   daemon?: Daemon | undefined
   shared?: (() => readonly RecordEvent[]) | undefined
   trace?: TracePort | undefined
+  podReady?: boolean | undefined
   beforeCall?: ((op: CallOp) => Promise<void>) | undefined
+  beforeAppend?: ((drafts: Parameters<PluginPodContext['append']>[0]) => Promise<void>) | undefined
+  beforeVersions?: (() => Promise<void>) | undefined
 }): Rig => {
   const daemon = args.daemon ?? daemonOf()
   const events: RecordEvent[] = []
@@ -118,10 +129,17 @@ export const rig = (args: {
   const daemonListeners = new Set<(frame: DaemonEventFrame) => void>()
   const readyListeners = new Set<(hello: { restart: boolean }) => void>()
   let directory = DIRECTORY
+  let ready = args.podReady ?? true
 
   const ctx: PluginPodContext = {
     sessionId: 'session-1',
-    control: { ...podControlStub, settingsVersions: () => daemon.readVersions() },
+    control: {
+      ...podControlStub,
+      settingsVersions: async () => {
+        await args.beforeVersions?.()
+        return daemon.readVersions()
+      },
+    },
     crew: EMPTY_CREW,
     messages: EMPTY_MESSAGES,
     classifier: EMPTY_CLASSIFIER,
@@ -131,6 +149,7 @@ export const rig = (args: {
     resources: EMPTY_POD_RESOURCES,
     events: () => events,
     append: async (drafts) => {
+      await args.beforeAppend?.(drafts)
       for (const draft of drafts) events.push(stamp(draft, events.length + 1))
     },
     notify: async () => undefined,
@@ -146,6 +165,8 @@ export const rig = (args: {
       await args.beforeCall?.(op)
       calls.push(op)
       if (op.op === 'watch.status') {
+        const failure = daemon.statusFailure()
+        if (failure !== undefined) throw failure
         return {
           status: ECallStatus.Ok,
           op: 'watch.status',
@@ -176,6 +197,7 @@ export const rig = (args: {
     directory: () => directory,
     trace: args.trace,
     shared: args.shared,
+    podReady: () => ready,
     reconnect: (listener) => {
       readyListeners.add(listener)
       return () => {
@@ -212,6 +234,9 @@ export const rig = (args: {
     },
     reconnect: (restart) => {
       for (const listener of readyListeners) listener({ restart })
+    },
+    setPodReady: (next) => {
+      ready = next
     },
     settled: () => sync.settled(),
   }

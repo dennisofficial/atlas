@@ -31,6 +31,7 @@ export enum ESpan {
 export enum EResourceWait {
   InitialRefresh = 'initial-refresh',
   BackgroundLoad = 'background-load',
+  ChangedResource = 'changed-resource',
   Settle = 'settle',
 }
 

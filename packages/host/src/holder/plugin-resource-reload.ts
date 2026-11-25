@@ -15,6 +15,7 @@ export const reloadOne = async (args: {
   resource: PodResource<unknown>
   directory: string
   reason: ELoadReason
+  onUnreached?: (() => void) | undefined
 }): Promise<void> => {
   const watch = watchOf({ resource: args.resource, directory: args.directory })
   const [status, versions] = await Promise.all([
@@ -31,6 +32,7 @@ export const reloadOne = async (args: {
     args.ctx.log(
       `plugin resource ${args.resource.name} left as it is: the sandbox did not answer the watch status call`,
     )
+    args.onUnreached?.()
     return
   }
   let seq = watch === undefined ? undefined : status.seqs.get(watch.id)
@@ -44,6 +46,7 @@ export const reloadOne = async (args: {
       args.ctx.log(
         `plugin resource ${args.resource.name} left as it is: the sandbox did not answer the watch arm call`,
       )
+      args.onUnreached?.()
       return
     }
     seq = 0

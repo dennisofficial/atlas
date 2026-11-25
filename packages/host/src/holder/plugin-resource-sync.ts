@@ -1,15 +1,15 @@
-import { latestResourceOf, loadedUnderCloudOf, type RecordEvent } from '@dltech/atlas-core'
+import { latestResourceOf, type RecordEvent } from '@dltech/atlas-core'
 import { EResourceWait, ESpan, spanWith, type TracePort } from '@dltech/atlas-observability'
-import type { ECloudSetting, PluginPodContext, PodResource } from '@dltech/atlas-plugin-sdk'
+import type { PluginPodContext, PodResource } from '@dltech/atlas-plugin-sdk'
 
-import { cloudStringOf, messageOf, versionsKnownOf, versionsOf } from './plugin-resource-probes'
+import { appendOf, draftsOf } from './plugin-resource-loads'
+import { messageOf } from './plugin-resource-probes'
 import { ELoadReason } from './plugin-resource-reason'
-import { refresh, watchOf } from './plugin-resource-refresh'
+import { refresh, watchOf, type Adoption } from './plugin-resource-refresh'
 import { reloadOne } from './plugin-resource-reload'
+import { ResourceTurn } from './plugin-resource-turn'
 
 type Ctx = PluginPodContext
-
-type Versions = Readonly<Record<ECloudSetting, string>>
 
 export type ReconnectWatch = (listener: (hello: { restart: boolean }) => void) => () => void
 
@@ -20,21 +20,44 @@ export type ResourceSyncArgs = {
   trace: TracePort | undefined
   shared: (() => readonly RecordEvent[]) | undefined
   reconnect: ReconnectWatch
+  podReady(): boolean
   signal?: AbortSignal | undefined
 }
 
 export class ResourceSync {
   private readonly args: ResourceSyncArgs
+  private readonly turn: ResourceTurn
   private readonly running = new Map<string, Promise<void>>()
   private readonly queued = new Set<string>()
   private readonly backgroundLoads = new Map<string, Promise<void>>()
+  private readonly refreshLoads = new Map<string, Promise<void>>()
+  private readonly adoptions = new Map<string, Promise<void>>()
   private readonly offs: (() => void)[] = []
   private initial: Promise<void> | undefined
   private refreshing: Promise<void> | undefined
+  private planned: Promise<void> | undefined
+  private retryOnReady = false
+  private retryQueued = false
+  private helloDuringRound = false
   private started = false
 
   constructor(args: ResourceSyncArgs) {
     this.args = args
+    this.turn = new ResourceTurn({
+      ctx: args.ctx,
+      resources: args.resources,
+      directory: () => this.args.directory(),
+      trace: args.trace,
+      shared: args.shared,
+      podReady: () => this.args.podReady(),
+      waitOn: (wait) => this.waitOn(wait),
+      initialOf: () => this.initial ?? this.refreshStart(),
+      plannedOf: () => (this.refreshing === undefined ? undefined : this.planned),
+      refreshLoadOf: (name) => this.refreshLoads.get(name),
+      backgroundLoadOf: (name) => this.backgroundLoads.get(name),
+      adoptOf: (adoption) => this.adoptOf(adoption),
+      reload: (reload) => this.reload(reload),
+    })
     args.signal?.addEventListener('abort', () => this.stop(), { once: true })
   }
 
@@ -47,12 +70,7 @@ export class ResourceSync {
         this.handleChanged(frame.event.watchId)
       }),
     )
-    this.offs.push(
-      this.args.reconnect((hello) => {
-        if (!hello.restart) return
-        this.refreshInBackground()
-      }),
-    )
+    this.offs.push(this.args.reconnect((hello) => this.handleReady(hello)))
     this.initial = this.refreshStart()
   }
 
@@ -61,19 +79,37 @@ export class ResourceSync {
     this.started = false
   }
 
-  async turnStart(): Promise<void> {
-    if (!this.args.resources.every((resource) => this.recordedOf(resource))) {
-      await this.waitOn({
-        waitFor: EResourceWait.InitialRefresh,
-        work: () => this.initial ?? this.refreshStart(),
-      })
-      return
-    }
-    await this.reloadCloudChanged()
+  turnStart(): Promise<void> {
+    return this.turn.start()
   }
 
   refreshInBackground(): void {
     void this.refreshStart()
+  }
+
+  adoptOf(adoption: Adoption): Promise<boolean> {
+    const key = `${adoption.resource.name}:${adoption.fingerprint}`
+    const running = this.adoptions.get(key)
+    if (running !== undefined) return running.then(() => true).catch(() => false)
+    const latest = latestResourceOf({
+      events: this.args.ctx.events(),
+      resource: adoption.resource.name,
+    })
+    if (latest?.fingerprint === adoption.fingerprint) return Promise.resolve(true)
+    const attempt = appendOf({
+      ctx: this.args.ctx,
+      trace: this.args.trace,
+      drafts: draftsOf({
+        resource: adoption.resource,
+        ctx: this.args.ctx,
+        value: adoption.value,
+        fingerprint: adoption.fingerprint,
+      }),
+    }).finally(() => {
+      if (this.adoptions.get(key) === attempt) this.adoptions.delete(key)
+    })
+    this.adoptions.set(key, attempt)
+    return attempt.then(() => true).catch(() => false)
   }
 
   async settled(): Promise<void> {
@@ -86,104 +122,6 @@ export class ResourceSync {
         work: () => Promise.all(running.map((attempt) => attempt.catch(() => undefined))),
       })
     }
-  }
-
-  private recordedOf(resource: PodResource<unknown>): boolean {
-    if (resource.background === true) return true
-    const latest = latestResourceOf({ events: this.args.ctx.events(), resource: resource.name })
-    if (latest === undefined) return false
-    const parsed = resource.schema.safeParse(latest.value)
-    return parsed.success && resource.stale?.(parsed.data) !== true
-  }
-
-  private async reloadCloudChanged(): Promise<void> {
-    const cloud = this.args.resources.filter((resource) => resource.cloud !== undefined)
-    if (cloud.length === 0) return
-    const versions = await spanWith(this.args.trace, {
-      name: ESpan.ResourceVersions,
-      run: () => versionsOf({ ctx: this.args.ctx, needed: true }),
-    })
-    if (!versionsKnownOf(versions)) return
-    const changed = cloud.filter((resource) => this.cloudChangedOf({ resource, versions }))
-    await Promise.all(
-      changed.map((resource) => {
-        const reloading = this.reloadIfStillChanged({ resource, versions })
-        if (resource.background === true) return undefined
-        return reloading
-      }),
-    )
-  }
-
-  private async reloadIfStillChanged(args: {
-    resource: PodResource<unknown>
-    versions: Versions
-  }): Promise<void> {
-    const initial = this.initial
-    if (initial !== undefined) {
-      await this.waitOn({ waitFor: EResourceWait.InitialRefresh, work: () => initial })
-    }
-    const loading = this.backgroundLoadOf(args.resource.name)
-    if (loading !== undefined) {
-      await this.waitOn({
-        waitFor: EResourceWait.BackgroundLoad,
-        resource: args.resource.name,
-        work: () => loading,
-      })
-    }
-    if (!this.cloudChangedOf(args)) return
-    await this.reload({
-      resource: args.resource,
-      directory: this.args.directory(),
-      reason: ELoadReason.Cloud,
-    })
-  }
-
-  private cloudChangedOf(args: { resource: PodResource<unknown>; versions: Versions }): boolean {
-    const latest = latestResourceOf({
-      events: this.args.ctx.events(),
-      resource: args.resource.name,
-    })
-    if (latest === undefined) return false
-    return !loadedUnderCloudOf({
-      fingerprint: latest.fingerprint,
-      cloud: cloudStringOf({ settings: args.resource.cloud, versions: args.versions }),
-      directory: this.args.directory(),
-    })
-  }
-
-  private refreshStart(): Promise<void> {
-    const running = this.refreshing
-    if (running !== undefined) return running
-    const attempt = refresh({
-      ctx: this.args.ctx,
-      resources: this.args.resources,
-      projectDirectory: this.args.directory(),
-      trace: this.args.trace,
-      shared: this.args.shared,
-      loadingOf: (resource) => this.backgroundLoads.has(resource),
-      onBackground: (args) => this.trackBackground(args),
-    })
-      .catch((failure: unknown) => {
-        this.args.ctx.log(`plugin resources could not refresh: ${messageOf(failure)}`)
-      })
-      .finally(() => {
-        this.refreshing = undefined
-      })
-    this.refreshing = attempt
-    return attempt
-  }
-
-  private trackBackground(args: { resource: string; loading: Promise<void> }): void {
-    const tracked = args.loading.finally(() => {
-      if (this.backgroundLoads.get(args.resource) !== tracked) return
-      this.backgroundLoads.delete(args.resource)
-      this.reloadQueued(args.resource)
-    })
-    this.backgroundLoads.set(args.resource, tracked)
-  }
-
-  private backgroundLoadOf(name: string): Promise<void> | undefined {
-    return this.backgroundLoads.get(name)
   }
 
   private waitOn<T>(args: {
@@ -199,6 +137,81 @@ export class ResourceSync {
       },
       run: args.work,
     })
+  }
+
+  private handleReady(hello: { restart: boolean }): void {
+    if (this.refreshing !== undefined) {
+      this.helloDuringRound = true
+      if (hello.restart) this.retryQueued = true
+      return
+    }
+    if (!hello.restart && !this.retryOnReady) return
+    this.retryOnReady = false
+    this.refreshInBackground()
+  }
+
+  private retryRound(): void {
+    const hello = this.helloDuringRound
+    const restarted = this.retryQueued
+    this.helloDuringRound = false
+    this.retryQueued = false
+    if (!restarted && !(hello && this.retryOnReady)) return
+    this.retryOnReady = false
+    this.refreshInBackground()
+  }
+
+  private refreshStart(): Promise<void> {
+    const running = this.refreshing
+    if (running !== undefined) return running
+    let planned: () => void = () => undefined
+    const decided = new Promise<void>((resolve) => {
+      planned = resolve
+    })
+    this.planned = decided
+    const attempt = refresh({
+      ctx: this.args.ctx,
+      resources: this.args.resources,
+      projectDirectory: this.args.directory(),
+      trace: this.args.trace,
+      shared: this.args.shared,
+      adopt: (adoption) => this.adoptOf(adoption),
+      loadingOf: (resource) => this.backgroundLoads.has(resource),
+      onBackground: (background) => this.trackBackground(background),
+      onLoad: (load) => this.trackRefreshLoad(load),
+      onPlanned: planned,
+      onUnreached: () => {
+        this.retryOnReady = true
+      },
+    })
+      .catch((failure: unknown) => {
+        this.args.ctx.log(`plugin resources could not refresh: ${messageOf(failure)}`)
+      })
+      .finally(() => {
+        planned()
+        this.refreshing = undefined
+        this.retryRound()
+      })
+    this.refreshing = attempt
+    return attempt
+  }
+
+  private trackBackground(args: { resource: string; loading: Promise<void> }): void {
+    const tracked = args.loading.finally(() => {
+      if (this.backgroundLoads.get(args.resource) !== tracked) return
+      this.backgroundLoads.delete(args.resource)
+      this.reloadQueued(args.resource)
+    })
+    this.backgroundLoads.set(args.resource, tracked)
+  }
+
+  private trackRefreshLoad(args: { resource: string; loading: Promise<void> }): void {
+    const tracked = args.loading
+      .catch(() => undefined)
+      .finally(() => {
+        if (this.refreshLoads.get(args.resource) !== tracked) return
+        this.refreshLoads.delete(args.resource)
+      })
+    this.refreshLoads.set(args.resource, tracked)
   }
 
   private busyOf(name: string): boolean {
@@ -250,14 +263,19 @@ export class ResourceSync {
     directory: string
     reason: ELoadReason
   }): Promise<void> {
-    const initial = this.initial
-    if (initial !== undefined) {
+    const planned = this.refreshing === undefined ? undefined : this.planned
+    const refreshed = this.refreshLoads.get(args.resource.name)
+    if (planned !== undefined || refreshed !== undefined) {
       await this.waitOn({
-        waitFor: EResourceWait.InitialRefresh,
-        work: () => initial.catch(() => undefined),
+        waitFor: EResourceWait.ChangedResource,
+        resource: args.resource.name,
+        work: async () => {
+          if (planned !== undefined) await planned.catch(() => undefined)
+          if (refreshed !== undefined) await refreshed.catch(() => undefined)
+        },
       })
     }
-    const background = this.backgroundLoadOf(args.resource.name)
+    const background = this.backgroundLoads.get(args.resource.name)
     if (background !== undefined) {
       await this.waitOn({
         waitFor: EResourceWait.BackgroundLoad,
@@ -271,6 +289,9 @@ export class ResourceSync {
       resource: args.resource,
       directory: this.args.directory(),
       reason: args.reason,
+      onUnreached: () => {
+        this.retryOnReady = true
+      },
     })
   }
 }

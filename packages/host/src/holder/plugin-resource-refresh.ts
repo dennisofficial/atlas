@@ -7,15 +7,13 @@ import type {
   ResourceWatch,
 } from '@dltech/atlas-plugin-sdk'
 
-import { appendOf, draftsOf, loadOf, startInBackground } from './plugin-resource-loads'
+import { appendOf, loadOf, startInBackground } from './plugin-resource-loads'
 import { armOf, cloudStringOf, statusOf, versionsOf, watchIdOf } from './plugin-resource-probes'
 import { ELoadReason, reasonOf } from './plugin-resource-reason'
 
 export const RELOADED = 'reloaded'
 
 type Ctx = PluginPodContext
-
-type Appended = Parameters<PluginPodContext['append']>[0][number]
 
 type Watch = { readonly spec: ResourceWatch; readonly id: string }
 
@@ -28,6 +26,14 @@ type Candidate = Entry & {
 }
 
 type Prepared = Candidate & { readonly fingerprint: string }
+
+export type Adoption = {
+  readonly resource: PodResource<unknown>
+  readonly fingerprint: string
+  readonly value: unknown
+}
+
+export type Adopt = (adoption: Adoption) => Promise<boolean>
 
 export const watchOf = (args: {
   resource: PodResource<unknown>
@@ -86,14 +92,114 @@ const sharedValueOf = (args: {
   return { value: parsed.data }
 }
 
+const adoptOf = async (args: {
+  adopt: Adopt
+  candidate: Candidate
+  sharedEvents: readonly RecordEvent[]
+  instance: string
+  directory: string
+}): Promise<boolean> => {
+  const known = resourceFingerprintOf({
+    instance: args.instance,
+    seq: args.candidate.seq,
+    cloud: args.candidate.cloud,
+    directory: args.directory,
+  })
+  const snapshot = sharedValueOf({
+    resource: args.candidate.resource,
+    events: args.sharedEvents,
+    fingerprint: known,
+    live: args.candidate.watch === undefined || args.candidate.seq !== undefined,
+  })
+  if (snapshot === undefined) return false
+  return args.adopt({
+    resource: args.candidate.resource,
+    fingerprint: known,
+    value: snapshot.value,
+  })
+}
+
+const armedOf = (args: {
+  ctx: Ctx
+  trace: TracePort | undefined
+  watch: Watch
+  resource: string
+  armed: Map<string, Promise<boolean>>
+}): Promise<boolean> => {
+  const running = args.armed.get(args.watch.id)
+  if (running !== undefined) return running
+  const attempt = spanWith(args.trace, {
+    name: ESpan.ResourceArm,
+    fields: { resource: args.resource },
+    run: () => armOf({ ctx: args.ctx, watchId: args.watch.id, watch: args.watch.spec }),
+  })
+  args.armed.set(args.watch.id, attempt)
+  return attempt
+}
+
+const workOf = async (args: {
+  ctx: Ctx
+  trace: TracePort | undefined
+  candidate: Candidate
+  instance: string
+  directory: string
+  armed: Map<string, Promise<boolean>>
+  unreached: { value: boolean }
+  onUnreached: () => void
+}): Promise<void> => {
+  const { candidate } = args
+  const watch = candidate.watch
+  if (watch !== undefined && candidate.seq === undefined) {
+    const reachable = await armedOf({
+      ctx: args.ctx,
+      trace: args.trace,
+      watch,
+      resource: candidate.resource.name,
+      armed: args.armed,
+    })
+    if (!reachable) {
+      args.unreached.value = true
+      args.onUnreached()
+      return
+    }
+  }
+  if (args.unreached.value) return
+  const seq = watch === undefined ? candidate.seq : (candidate.seq ?? 0)
+  const entry: Prepared = {
+    ...candidate,
+    seq,
+    fingerprint: resourceFingerprintOf({
+      instance: args.instance,
+      seq,
+      cloud: candidate.cloud,
+      directory: args.directory,
+    }),
+  }
+  if (candidate.resource.background === true) {
+    await startInBackground({ ctx: args.ctx, trace: args.trace, entry, directory: args.directory })
+    return
+  }
+  const drafts = await loadOf({
+    ctx: args.ctx,
+    trace: args.trace,
+    entry,
+    directory: args.directory,
+  })
+  await appendOf({ ctx: args.ctx, trace: args.trace, drafts })
+}
+
 export const refresh = async (args: {
   ctx: Ctx
   resources: readonly PodResource<unknown>[]
   projectDirectory: string
   trace: TracePort | undefined
   shared: (() => readonly RecordEvent[]) | undefined
+  adopt: Adopt
   loadingOf?: ((resource: string) => boolean) | undefined
   onBackground?: ((background: { resource: string; loading: Promise<void> }) => void) | undefined
+  onLoad?: ((load: { resource: string; loading: Promise<void> }) => void) | undefined
+  onPlanned?: (() => void) | undefined
+  onUnreached?: (() => void) | undefined
 }): Promise<void> => {
   const { ctx, resources, projectDirectory, trace, shared } = args
   const entries: Entry[] = resources.map((resource) => ({
@@ -113,6 +219,7 @@ export const refresh = async (args: {
   ])
   if (status.unreachable) {
     ctx.log('plugin resources left as they are: the sandbox did not answer the watch status call')
+    args.onUnreached?.()
     return
   }
   const candidates = staleOf({
@@ -125,85 +232,54 @@ export const refresh = async (args: {
   })
   const sharedEvents = shared?.() ?? []
 
-  const adopted: Appended[] = []
-  const arms = new Map<string, { watch: Watch; resource: string }>()
   const loadable: Candidate[] = []
   for (const candidate of candidates) {
-    const known = resourceFingerprintOf({
-      instance: status.instance,
-      seq: candidate.seq,
-      cloud: candidate.cloud,
-      directory: projectDirectory,
-    })
-    const snapshot =
-      shared === undefined
-        ? undefined
-        : sharedValueOf({
-            resource: candidate.resource,
-            events: sharedEvents,
-            fingerprint: known,
-            live: candidate.watch === undefined || candidate.seq !== undefined,
-          })
-    if (snapshot !== undefined) {
-      adopted.push(
-        ...draftsOf({
-          resource: candidate.resource,
-          ctx,
-          value: snapshot.value,
-          fingerprint: known,
-        }),
-      )
-      continue
-    }
-    const watch = candidate.watch
-    if (watch !== undefined && candidate.seq === undefined && !arms.has(watch.id)) {
-      arms.set(watch.id, { watch, resource: candidate.resource.name })
+    if (shared !== undefined) {
+      const adopted = await adoptOf({
+        adopt: args.adopt,
+        candidate,
+        sharedEvents,
+        instance: status.instance,
+        directory: projectDirectory,
+      })
+      if (adopted) continue
     }
     loadable.push(candidate)
   }
 
-  const reachable = await Promise.all(
-    [...arms.values()].map(({ watch, resource }) =>
-      spanWith(trace, {
-        name: ESpan.ResourceArm,
-        fields: { resource },
-        run: () => armOf({ ctx, watchId: watch.id, watch: watch.spec }),
-      }),
-    ),
-  )
-  await appendOf({ ctx, trace, drafts: adopted })
-  if (reachable.includes(false)) {
-    ctx.log('plugin resources left as they are: the sandbox did not answer the watch arm call')
-    return
+  const armed = new Map<string, Promise<boolean>>()
+  const unreached = { value: false }
+  const awaited: Promise<void>[] = []
+  for (const candidate of loadable) {
+    if (candidate.resource.background !== true) continue
+    if (args.loadingOf?.(candidate.resource.name) === true) continue
+    const loading = workOf({
+      ctx,
+      trace,
+      candidate,
+      instance: status.instance,
+      directory: projectDirectory,
+      armed,
+      unreached,
+      onUnreached: () => args.onUnreached?.(),
+    })
+    args.onBackground?.({ resource: candidate.resource.name, loading })
   }
-
-  const prepared: Prepared[] = loadable.map((candidate) => {
-    const seq = candidate.watch === undefined ? candidate.seq : (candidate.seq ?? 0)
-    return {
-      ...candidate,
-      seq,
-      fingerprint: resourceFingerprintOf({
-        instance: status.instance,
-        seq,
-        cloud: candidate.cloud,
-        directory: projectDirectory,
-      }),
-    }
-  })
-
-  for (const entry of prepared) {
-    if (entry.resource.background !== true) continue
-    if (args.loadingOf?.(entry.resource.name) === true) continue
-    const loading = startInBackground({ ctx, trace, entry, directory: projectDirectory })
-    args.onBackground?.({ resource: entry.resource.name, loading })
+  for (const candidate of loadable) {
+    if (candidate.resource.background === true) continue
+    const loading = workOf({
+      ctx,
+      trace,
+      candidate,
+      instance: status.instance,
+      directory: projectDirectory,
+      armed,
+      unreached,
+      onUnreached: () => args.onUnreached?.(),
+    })
+    args.onLoad?.({ resource: candidate.resource.name, loading })
+    awaited.push(loading)
   }
-
-  await Promise.all(
-    prepared
-      .filter((entry) => entry.resource.background !== true)
-      .map(async (entry) => {
-        const drafts = await loadOf({ ctx, trace, entry, directory: projectDirectory })
-        await appendOf({ ctx, trace, drafts })
-      }),
-  )
+  args.onPlanned?.()
+  await Promise.all(awaited)
 }
