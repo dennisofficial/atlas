@@ -24,13 +24,10 @@ export type ClassifierStatus =
   | { on: true; model: string; provider: string }
   | { on: false; reason: string }
 
-export type ClassifierCall = {
-  state: string
-  questions: Record<string, ClassifierQuestion>
-  signal: AbortSignal
-  longContext?: boolean | undefined
-}
-
 export abstract class ClassifierPort {
-  abstract classify(args: ClassifierCall): Promise<ClassifierOutcome>
+  abstract classify(args: {
+    state: string
+    questions: Record<string, ClassifierQuestion>
+    signal: AbortSignal
+  }): Promise<ClassifierOutcome>
 }

@@ -108,7 +108,6 @@ export async function executeUnit({
         state: unit.request.state,
         questions: classifierQuestionsOf({ questions: unit.request.questions }),
         signal: inner,
-        longContext: unit.longContext,
       }),
   })
   if (raced.kind === 'deadline') return deadlineFailure({ error: raced.error })

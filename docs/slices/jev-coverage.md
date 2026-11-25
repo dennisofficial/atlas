@@ -77,9 +77,9 @@ Other facts:
    never selects the module scope or a method on its own
    (`plugins/quality/src/policies/single-responsibility/select.ts:29-61`). A file of object
    literals, types, constants or `export default` arrows reaches no classifier. That is the 936.
-5. Request bound: the request is sized against Jev's 262k-token long-context limit, 597,688 bytes for
-   both `state + longest question` and `state + all questions`
-   (`plugins/quality/src/review/review-scopes.ts:18-32`).
+5. Request bound: Jev's default limits, 32k tokens per question and 64k per request, expressed as
+   72,960 bytes for `state + longest question` and 145,920 bytes for `state + all questions`
+   (`plugins/quality/src/review/review-scopes.ts:18-28`).
 6. Budget 1000 ms + 10 ms grace (`hook.ts:29`, `plugins/quality/src/review/deadline.ts:1`). A late
    review is recorded and never nudges (`plugins/quality/src/pod/review-outcome.ts:137-192`).
 7. Nudge only on `introduce`: concern ≥ 0.8 **and** impact confidence ≥ 0.8 **and** impact
@@ -144,8 +144,8 @@ Facts that shape the design:
   `events`. Datasets expire after 90 days with no write.
 - 100k `$ai_*` events per month are free, then $0.00035 per event and less at volume. Jev makes
   about 1,500 calls per day today: about 45k per month.
-- The regular capture limit is 1 MB per event. A Jev request carries at most 584 KiB of state and is
-  usually a few KB.
+- The regular capture limit is 1 MB per event. A Jev request carries at most 143 KiB of state and
+  questions together, and is usually a few KB.
 
 What our own product events still must cover: the review funnel (skips and their reasons, which
 never reach a model), the nudge decision, the agent's reaction, and the link from a label to the
@@ -250,97 +250,84 @@ p90 1,540, max 1,855.
 30 of the 200 were rebuilt exactly and checked against the record's before and after hashes. Their
 request state is 20.4–92.3 KB (p50 28.5 KB, p90 54.5 KB), with before p50 8.1 KB and after p50
 8.6 KB. All 30 failed the old 24 KB bound (`state + longest question`), and 5 also failed the 48 KB
-bound, so with one policy the 24 KB bound was the binding one. Neither the provider nor the deadline
-set it: at about 2.7 bytes per token the 24 KB bound was roughly 9k tokens of Jev's 32k per-question
-allowance.
+bound, so with one policy the 24 KB bound was the binding one.
 
-**The classifier's limit and price.** Jev prices input only at **$0.042 per million tokens** ($42 per
-billion), output free. Default context is **64k tokens per request** (state + all questions) and **32k
-per question** (state + any one question). With the request header `TypeSafe-Danger-Zone-Long-Context:
-true` both limits become **262k tokens**, same price, "slower and less accurate"
-(`docs.typesafe.ai/models`).
+**The classifier's limits.** Default context is **32k tokens per question** (state + any one question)
+and **64k per request** (state + all questions), input at **$0.042 per million tokens**, output free
+(`docs.typesafe.ai/models`). TypeSafe offers a 262k-token mode behind the
+`TypeSafe-Danger-Zone-Long-Context: true` header, and the gateway forwards it, but it is not used:
+TypeSafe calls that mode experimental and less accurate, says it is "not reliable enough to endorse for
+production", and publishes no accuracy numbers for it (`docs.typesafe.ai/models`,
+`docs.typesafe.ai/model-jaggedness`). A scope that needs more than the default limits is reviewed as
+an excerpt instead. That is Dennis's decision of 2026-11-25.
+
+The production model is pinned to **`typesafe-ai/jev-1.14.0`** (`packages/classifier/src/models.ts`),
+not the moving `typesafe-ai/jev` alias; both ids answer 200 on the gateway, and `typesafe-ai/jev-latest`
+is a 404 there. The model ref stays `gateway/typesafe-ai/jev`, so a stored `ClassifierModel` setting
+keeps resolving and no account has to pick the model again.
 
 **Live probe, 2026-11-25.** Requests built with the real source adapter and `prepareQualityRequest`
-from a synthetic `Ledger` class whose one changed line sits in the middle, and from
-`packages/db/migrations/app/20261022T0209_baseline/migration.ts` (70 KB, a 1,739-line module scope).
-Posted to `https://ai-gateway.vercel.sh/typesafe/v1/systemone`, model `typesafe-ai/jev`. Latency is
-the median of 5 runs, one client at a time.
+from a synthetic `Ledger` class whose one changed line sits in the middle, and posted to
+`https://ai-gateway.vercel.sh/typesafe/v1/systemone` with the pinned model and no header. Latency is
+the median of 5 runs (3 for the last row), one client at a time.
 
-| Source lines | State bytes | Input tokens | Bytes/token | Median ms | Status |
-| -----------: | ----------: | -----------: | ----------: | --------: | -----: |
-|          412 |      28,619 |       11,722 |        2.44 |       373 |    200 |
-|          812 |      55,819 |       21,322 |        2.62 |       361 |    200 |
-|        1,612 |     111,419 |       41,722 |        2.67 |       577 |    200 |
-|        3,012 |     209,429 |       78,132 |        2.68 |     1,044 |    200 |
-|        3,212 |     223,429 |       83,332 |        2.68 |       987 |    200 |
-|        5,612 |     391,429 |      145,732 |        2.69 |     2,210 |    200 |
-|        7,612 |     531,429 |      197,732 |        2.69 |     3,031 |    200 |
-|        9,612 |     671,429 |      249,732 |        2.69 |     4,321 |    200 |
-|       10,812 |     757,029 |    over 262k |           — |       443 |    400 |
-|  1,739, real |     145,691 |       50,010 |        2.91 |       731 |    200 |
+| Source lines | State bytes | Input tokens | Median ms |
+| -----------: | ----------: | -----------: | --------: |
+|          398 |      27,667 |       11,386 |       335 |
+|          783 |      53,847 |       20,626 |       364 |
+|        1,053 |      72,289 |       27,188 |       361 |
+|        1,169 |      80,409 |       30,204 |       472 |
+|  3 questions |      38,139 |       50,960 |       710 |
 
-Measured bytes per token: **2.44 at the small end, 2.69 in the range that matters, 2.91 on real
-code**. The 757 KB request fails in 443 ms with `{"error_type":"max_tokens_exceeded"}`, so the 262k
-ceiling is enforced by TypeSafe and not only documented.
+The last row is the largest legal request: a 14k-token state with three 12.5k-token questions, which
+is 26.5k per question and 51k in total. **Measured 2.44 bytes per token at the small end, 2.66 in the
+range that matters**, and 2.91 on real code (`packages/db/migrations/app/20261022T0209_baseline/migration.ts`,
+70 KB, a 1,739-line module scope at 145,691 bytes and 50,010 tokens).
 
-The gateway **forwards the long-context header**: the same 83,332-token request answers 400
-`max_tokens_exceeded` without it and 200 with it.
+**The bounds.** `plugins/quality/src/review/review-scopes.ts:18-28`:
+- `MAX_STATE_AND_LONGEST_QUESTION_BYTES` = `floor(32,000 × 0.95 × 2.4)` = **72,960 bytes**.
+- `MAX_STATE_AND_ALL_QUESTIONS_BYTES` = `floor(64,000 × 0.95 × 2.4)` = **145,920 bytes**.
+- The 0.95 headroom and the 2.4 bytes per token are the safety margin: at the bound the request is about
+  27.2k tokens by the measured ratio (85% of 32k), and 30.4k tokens if the tokenizer is as dense as
+  2.4.
+- The 1 MiB source cap stays. It is not the binding limit: a scope over the request bound is excerpted
+  long before a file reaches 1 MiB.
 
-**The bounds.** `plugins/quality/src/review/review-scopes.ts` derives both byte bounds from the
-long-context limit, so no small constant survives:
-- `MAX_STATE_AND_LONGEST_QUESTION_BYTES` and `MAX_STATE_AND_ALL_QUESTIONS_BYTES` are
-  `floor(262,144 × 0.95 × 2.4)` = **597,688 bytes (584 KiB) each**: 5% headroom under the 262k ceiling,
-  and 2.4 bytes per token (the measured minimum) rather than the measured 2.69, so a request at the
-  bound is about 223k tokens by the measured ratio and 249k if the tokenizer is as dense as 2.4. That
-  is **24×** the old 24 KB bound.
-- The default limits keep their own byte thresholds: `floor(32,000 × 0.95 × 2.4)` = 72,960 bytes per
-  question and `floor(64,000 × 0.95 × 2.4)` = 145,920 bytes per request. A request inside them is sent
-  plain, one above them but inside 597,688 bytes is sent whole with the header, and only one above that
-  falls back to the excerpt.
-- The 1 MiB source cap stays and is not the binding limit: a 1 MiB file yields about 2.7 MiB of state
-  (before + after + diff), near 1M tokens, so the request bound fires first.
+A request inside the bounds is sent whole. One above them is rebuilt by `source/scope-excerpt.ts` as the
+changed lines with 25 lines of context (capped at 90 per side), the member outline (capped at 60
+entries) and the changed evidence (capped at 32), and the state flags `scope.excerpt` with the context
+size, the start line and the omitted line counts so the labelling loop can measure that stratum. An
+excerpt that still does not fit is skipped as `oversized_request`, as before; that now needs a single
+line over 70 KB, because the excerpt cuts by line.
+
+**Latency and the budget.** Every legal request measured finishes inside the 1,000 ms review budget
+(`plugins/quality/src/pod/hook.ts:29`): 361 ms at the per-question bound and 710 ms at the largest
+legal request. The budget is therefore not the constraint at these limits, and `JEV_TIMEOUT_MS` 2,000 ms
+is not either.
 
 **Cost.** Production on 2026-11-25 (about 21 h, PostHog `quality review completed.input_tokens`): 1,003
 reviews, 5.76M input tokens, p50 4,516 and p95 15,545 tokens per review → **about $0.24/day, about
 $7–10/month**. Per review: p50 $0.00019, p95 $0.00065.
 
-The extra is those 200 skips in 28 h, about 171 a day. At the population's p50 of 509 scope lines and
-the measured 2.69 bytes per token they carry about 20.5k tokens each (p90 1,540 lines → about 62k), so
-171 × 20.5k ≈ 3.5M tokens a day → **about $0.15/day, about $4.40/month**, with a range of $4–13 as the
-mean scope size is uncertain. Total projected: **about $11–16 a month at the midpoint, at most about
-$23**.
+The newly reviewed scopes are those 200 skips in 28 h, about 171 a day. At the population's line span
+and 108.8 bytes of state per line, about 6 in 10 fit whole (a mean of roughly 45 KB of state, or 17k
+tokens) and 4 in 10 go as an excerpt (about 4k tokens). That is about 2.0M tokens a day → **about
+$0.08/day, about $2.50/month**, with a range of $2.50–4.40 across the rebuilt sample and the population
+projection. Total projected: **about $10–13 a month**.
 
-**Latency, and what the budget covers.** The 1,000 ms review budget
-(`plugins/quality/src/pod/hook.ts:29`) is crossed between 78k and 83k tokens, which is a **3,000-line
-file**: 1,044 ms at 3,012 lines, 987 ms at 3,212. Above that the curve is steep: 2,210 ms at 145k
-tokens, 3,031 ms at 197k, 4,321 ms at 249k. `JEV_TIMEOUT_MS` 2,000 ms is crossed at about 110k tokens,
-but it cannot bind inside a review, where the 1,000 ms budget aborts first; it binds only for a caller
-that gives a longer budget, such as an eval.
+**Before and after.** Rebuilt set, 30 cases. Every one is reviewed now; how many go whole follows
+from the 72,960-byte bound, and the sample's p90 state of 54.5 KB puts at most 3 of the 30 (those above
+the p90, up to the 92.3 KB max) on the excerpt path:
 
-Dennis's decision on 2026-11-25: hold the bound at the classifier's limit and publish the curve. So a
-scope above 3,000 lines is still sent whole, and a review that misses the budget ends as
-`review_deadline` with that reason on the record. The alternatives are to raise the budget, which needs
-his agreement, or to derive the bound from latency instead of the provider limit.
+| Path                        | Before | After                                     |
+| --------------------------- | ------ | ----------------------------------------- |
+| Sent whole                  | 0      | at least 27 (state at the p90 is 54.5 KB) |
+| Sent as an excerpt          | 0      | at most 3 (state up to 92.3 KB)           |
+| Skipped `oversized_request` | 30     | 0                                         |
 
-**Before and after.**
-- Rebuilt set: 30 of 30 were skipped before; **all 30 now go whole**, their states being 20.4–92.3 KB
-  against a 584 KiB bound.
-- Population: the 200 `oversized_request` skips in 28 h become **0** unless a scope exceeds 584 KiB of
-  state, which needs about 8,600 lines in one declaration.
-- The header path covers the largest scopes: a request needs it when `state + longest question` is over
-  72,960 bytes. The rebuilt set's p90 is 54.5 KB and its max 92.3 KB; the population's p90 span
-  projects to about 106 KB.
-- No scope that fits today changes: the planner returns its request byte-identical, and a spec pins it.
-- A pathological 900 KB change is still skipped as `oversized_request`: the excerpt cuts by line, and
-  one line cannot be cut.
-
-**The excerpt stays as the fallback.** Above 584 KiB of state the planner still sends `excerptOf`'s
-excerpt: the changed lines with 25 lines of context capped at 90 per side, the member outline capped at
-60 entries, and the changed evidence capped at 32. It was kept rather than replaced by a plain skip
-because a skip reviews nothing at all for the scopes most at risk of doing too much, the outline answers
-the SRP question for a scope of thousands of lines, and the state flags the stratum
-(`scope.excerpt`) for the labelling loop.
-
+Population: the 200 skips become 0 unless a scope's excerpt cannot fit, which needs one line over
+70 KB. No scope that fits today changes: the planner returns its request byte-identical and a spec pins
+it. A pathological 900 KB single-line change is still skipped as `oversized_request`.
 
 ### 5.4 Dashboard "Jev quality" (2407147) — insights to add
 

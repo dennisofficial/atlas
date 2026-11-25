@@ -115,30 +115,6 @@ describe('JevClassifier', () => {
     expect(calls[0]?.url).toBe('https://ai-gateway.vercel.sh/typesafe/v1/systemone')
   })
 
-  it('sends the long-context header only when the caller asks for it', async () => {
-    const { calls, fetch: fetchImpl } = recordingFetch(() =>
-      json({ answers: { danger: { noul: 0.2 } } }),
-    )
-    const classifier = classifierOf(fetchImpl)
-
-    await classifier.classify({
-      state: 's',
-      questions: { danger: DANGER },
-      signal: new AbortController().signal,
-    })
-    await classifier.classify({
-      state: 's',
-      questions: { danger: DANGER },
-      signal: new AbortController().signal,
-      longContext: true,
-    })
-
-    const headers = (index: number): Record<string, string> =>
-      calls[index]?.init?.headers as Record<string, string>
-    expect(headers(0)['TypeSafe-Danger-Zone-Long-Context']).toBeUndefined()
-    expect(headers(1)['TypeSafe-Danger-Zone-Long-Context']).toBe('true')
-  })
-
   it('answers Rejected with the status and the body on a 429', async () => {
     const { fetch: fetchImpl } = recordingFetch(() => new Response('slow down', { status: 429 }))
 
