@@ -58,7 +58,7 @@ describe('sharedReads', () => {
     void shared.readEvents({ ...read(5), visible: true })
     void shared.readEvents({ ...read(5), maxBytes: 2048 })
     void shared.readEvents({ ...read(5), limit: 10 })
-    void shared.readEvents({ ...read(5), withholdPictures: true })
+    void shared.readEvents({ ...read(5), hiddenTypes: ['tool-result'] })
     expect(calls).toHaveLength(6)
   })
 

@@ -3,8 +3,8 @@ import { EStage, type AfterTurn, type BeforeTurn } from '@dltech/atlas-core'
 import type { PluginPodContext, PodResource } from '@dltech/atlas-plugin-sdk'
 
 import { messageOf } from './plugin-resource-probes'
-import { ERefreshTrigger } from './plugin-resource-reason'
-import { loadedDraftsOf, RELOADED } from './plugin-resource-drafts'
+import { loadedDraftsOf } from './plugin-resource-loads'
+import { RELOADED } from './plugin-resource-refresh'
 import type { ResourceSync } from './plugin-resource-sync'
 
 type Ctx = PluginPodContext
@@ -44,7 +44,7 @@ export const pluginResourcesClosedHook = (args: {
   order: { stage: EStage.Guard, nudge: 0 },
   awaited: true,
   run: async () => {
-    args.sync.refreshInBackground(ERefreshTrigger.AfterTurn)
+    args.sync.refreshInBackground()
     return {}
   },
 })

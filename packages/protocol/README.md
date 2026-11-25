@@ -84,7 +84,7 @@ The ops are `exec`, `exec.background`, `stat`, `readFile`, `readBytes`, `readTex
 
 - `sessionListInputSchema`, `sessionSummarySchema`, `sessionListOutputSchema`: the session list.
 - `sessionCreateInputSchema`, `sessionPostInputSchema`, `sessionEventsOutputSchema`: create, post, read.
-- `sessionSubscriptionSchema`, `sessionSubscribeInputSchema`, `sessionUnsubscribeInputSchema`: a subscription has no expiry. `mediaPresignInputSchema`, `mediaConfirmInputSchema`, `mediaUrlInputSchema`, `mediaToolPictureInputSchema`: a composer upload, its confirmation, the signed read of a stored picture, and one inline picture a `tool-result` still carries (`{sessionId, threadId, seq, part}` answered as base64 `{mediaType, data}`).
+- `sessionSubscriptionSchema`, `sessionSubscribeInputSchema`, `sessionUnsubscribeInputSchema`: a subscription has no expiry. `mediaPresignInputSchema`, `mediaConfirmInputSchema`, `mediaUrlInputSchema`: a composer upload, its confirmation, and the signed read of a stored picture.
 - `ESandboxProvider`, `ECredentialSource`, `ESandboxStatus`: the sandbox provider, its source and status.
 - `usageReportInputSchema`, `usageReportDtoSchema`, `usageWindowDtoSchema`: a plan account's usage
   as the API reports it, by account id or by provider, with the age of the reading.

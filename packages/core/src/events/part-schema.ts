@@ -36,7 +36,6 @@ export const assistantPartSchema = z.discriminatedUnion('type', [
 const imageBytesSchema = z.discriminatedUnion('kind', [
   z.object({ kind: z.literal('inline'), data: z.string() }),
   z.object({ kind: z.literal('url'), url: z.string() }),
-  z.object({ kind: z.literal('withheld') }),
 ])
 
 const imagePartSchema = z.object({
@@ -49,17 +48,7 @@ const imagePartSchema = z.object({
   providerOptions: providerOptionsSchema.optional(),
 })
 
-const isRecord = (value: unknown): value is Record<string, unknown> =>
-  typeof value === 'object' && value !== null
-
-function withCurrentImageShape(part: unknown): unknown {
-  if (!isRecord(part) || part['type'] !== 'image') return part
-  if (typeof part['data'] !== 'string' || 'bytes' in part) return part
-  const { data, ...rest } = part
-  return { ...rest, bytes: { kind: 'inline', data } }
-}
-
-const toolResultPartUnion = z.discriminatedUnion('type', [
+export const toolResultPartSchema = z.discriminatedUnion('type', [
   z.object({
     type: z.literal('text'),
     text: z.string(),
@@ -81,8 +70,6 @@ const toolResultPartUnion = z.discriminatedUnion('type', [
     providerOptions: providerOptionsSchema.optional(),
   }),
 ])
-
-export const toolResultPartSchema = z.preprocess(withCurrentImageShape, toolResultPartUnion)
 
 export const saidImageSchema = z.object({
   path: z.string(),

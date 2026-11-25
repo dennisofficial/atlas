@@ -96,6 +96,7 @@ export class HeldSession {
       lifetimeAbort: this.lifetimeAbort,
       turns: this.turns,
       isDraining: () => this.draining,
+      childrenHandoff: () => this.crew?.handoffAll(),
       branches: () => this.observation?.observer,
       record: () => this.record,
       runtime: () => this.runtime,
@@ -125,6 +126,7 @@ export class HeldSession {
       record: () => this.record,
       runtime: () => this.runtime,
       childrenPause: () => this.crew?.pauseAll(),
+      pendingHandoff: () => this.runtime?.remoteCalls.handoff(),
     })
   }
 
@@ -160,7 +162,6 @@ export class HeldSession {
 
   async handoff(): Promise<void> {
     this.beginDrain()
-    this.runtime?.remoteCalls.handoff()
     await this.drain.handoff()
   }
 

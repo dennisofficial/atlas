@@ -1,6 +1,6 @@
 import { spawn } from 'node:child_process'
 
-import { sessionUrlIn } from './host-paths.js'
+import { hostMarkersIn } from './host-paths.js'
 
 const START_TIMEOUT_MS = 20_000
 const OUTPUT_LIMIT = 8_000
@@ -9,7 +9,7 @@ export function startHost({ script, bun, environment, timeoutMs = START_TIMEOUT_
   const child = spawn(bun, [script], { env: environment, stdio: ['ignore', 'pipe', 'pipe'] })
   let output = ''
   let settled = false
-  const url = new Promise((resolve, reject) => {
+  const host = new Promise((resolve, reject) => {
     const fail = (error) => {
       if (settled) return
       settled = true
@@ -19,12 +19,14 @@ export function startHost({ script, bun, environment, timeoutMs = START_TIMEOUT_
     const timer = setTimeout(() => {
       child.kill('SIGTERM')
       fail(
-        new Error(`the desktop host did not report a session URL within ${timeoutMs}ms\n${output}`),
+        new Error(
+          `the desktop host did not report its session URL, HTTP origin and certificate within ${timeoutMs}ms\n${output}`,
+        ),
       )
     }, timeoutMs)
     const collect = (chunk) => {
       output = (output + chunk.toString()).slice(-OUTPUT_LIMIT)
-      const found = sessionUrlIn(output)
+      const found = hostMarkersIn(output)
       if (found === undefined || settled) return
       settled = true
       clearTimeout(timer)
@@ -35,5 +37,5 @@ export function startHost({ script, bun, environment, timeoutMs = START_TIMEOUT_
     child.on('error', (error) => fail(error))
     child.on('exit', (code) => fail(new Error(`the desktop host exited with ${code}\n${output}`)))
   })
-  return { child, url, output: () => output }
+  return { child, host, output: () => output }
 }

@@ -8,8 +8,8 @@ let doubleClicks = 0
 const previewOrigins: string[][] = []
 const ORIGINS_PATH = '/desktop/window/preview-origins'
 
-beforeAll(() => {
-  host = createDesktopHost({
+beforeAll(async () => {
+  host = await createDesktopHost({
     appOrigin: 'http://127.0.0.1:1',
     apiOrigin: 'http://127.0.0.1:1',
     secret: SECRET,

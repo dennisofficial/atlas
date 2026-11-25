@@ -22,7 +22,7 @@ let upstreamSeen: { path: string; authorization: string | null }[]
 let seenProxy: Headers | undefined
 let signInStatus: number
 
-beforeAll(() => {
+beforeAll(async () => {
   upstream = Bun.serve({
     port: 0,
     hostname: '127.0.0.1',
@@ -52,7 +52,7 @@ beforeAll(() => {
       return Response.json({ ok: true })
     },
   })
-  host = createDesktopHost({
+  host = await createDesktopHost({
     appOrigin: 'http://127.0.0.1:1',
     secret: SECRET,
     apiOrigin: `http://127.0.0.1:${upstream.port}`,

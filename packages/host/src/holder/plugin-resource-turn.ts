@@ -1,14 +1,20 @@
 import { latestResourceOf, loadedUnderCloudOf, type RecordEvent } from '@dltech/atlas-core'
-import { ESpan, spanWith, type TracePort } from '@dltech/atlas-observability'
+import { EResourceWait, ESpan, spanWith, type TracePort } from '@dltech/atlas-observability'
 import type { ECloudSetting, PluginPodContext, PodResource } from '@dltech/atlas-plugin-sdk'
 
 import type { Adoption } from './plugin-resource-refresh'
 import { cloudStringOf, versionsKnownOf, versionsOf } from './plugin-resource-probes'
-import { ELoadReason, EWaitReason } from './plugin-resource-reason'
+import { ELoadReason } from './plugin-resource-reason'
 
 type Ctx = PluginPodContext
 
 type Versions = Readonly<Record<ECloudSetting, string>>
+
+export type ResourceWait = <T>(args: {
+  waitFor: EResourceWait
+  resource?: string | undefined
+  work: () => Promise<T>
+}) => Promise<T>
 
 const recordedOf = (args: {
   events: readonly RecordEvent[]
@@ -28,6 +34,7 @@ export type ResourceTurnArgs = {
   trace: TracePort | undefined
   shared: (() => readonly RecordEvent[]) | undefined
   podReady(): boolean
+  waitOn: ResourceWait
   initialOf(): Promise<void> | undefined
   plannedOf(): Promise<void> | undefined
   refreshLoadOf(name: string): Promise<void> | undefined
@@ -51,10 +58,11 @@ export class ResourceTurn {
     const versions = await this.versionsForTurn()
     const waiting = await this.adoptMissing({ versions })
     if (waiting.length > 0) {
-      await this.waitFor({
-        reason: EWaitReason.Missing,
-        names: waiting.map((resource) => resource.name),
-        run: () => this.args.initialOf(),
+      await this.args.waitOn({
+        waitFor: EResourceWait.InitialRefresh,
+        work: async () => {
+          await this.args.initialOf()
+        },
       })
       return
     }
@@ -120,24 +128,6 @@ export class ResourceTurn {
     return { fingerprint: latest.fingerprint, value: parsed.data }
   }
 
-  private async waitFor(args: {
-    reason: EWaitReason
-    names: readonly string[]
-    run: () => Promise<void> | undefined
-  }): Promise<void> {
-    await spanWith(this.args.trace, {
-      name: ESpan.ResourceWait,
-      fields: {
-        reason: args.reason,
-        resources: args.names.join(','),
-        pod: this.args.podReady() ? 'ready' : 'waking',
-      },
-      run: async () => {
-        await args.run()
-      },
-    })
-  }
-
   private async reloadCloudChanged(args: { versions: Versions }): Promise<void> {
     const cloud = this.args.resources.filter((resource) => resource.cloud !== undefined)
     if (cloud.length === 0) return
@@ -151,20 +141,15 @@ export class ResourceTurn {
     }
     const awaited = changed.filter((resource) => resource.background !== true)
     if (awaited.length === 0) return
-    const reloadAll = async (): Promise<void> => {
-      for (const resource of awaited) {
-        await this.reloadWhenSettled({ resource, versions: args.versions })
-      }
+    for (const resource of awaited) {
+      const waiting = this.args.waitOn({
+        waitFor: EResourceWait.ChangedResource,
+        resource: resource.name,
+        work: () => this.reloadWhenSettled({ resource, versions: args.versions }),
+      })
+      if (this.args.podReady()) await waiting
+      else void waiting
     }
-    if (!this.args.podReady()) {
-      void reloadAll()
-      return
-    }
-    await this.waitFor({
-      reason: EWaitReason.Cloud,
-      names: awaited.map((resource) => resource.name),
-      run: reloadAll,
-    })
   }
 
   private async reloadWhenSettled(args: {
@@ -173,9 +158,19 @@ export class ResourceTurn {
   }): Promise<void> {
     const planned = this.args.plannedOf()
     if (planned !== undefined) await planned.catch(() => undefined)
-    const loading = this.args.refreshLoadOf(args.resource.name)
-    const load = loading ?? this.args.backgroundLoadOf(args.resource.name)
-    if (load !== undefined) await load.catch(() => undefined)
+    if (args.resource.background === true) {
+      const background = this.args.backgroundLoadOf(args.resource.name)
+      if (background !== undefined) {
+        await this.args.waitOn({
+          waitFor: EResourceWait.BackgroundLoad,
+          resource: args.resource.name,
+          work: () => background.catch(() => undefined),
+        })
+      }
+    } else {
+      const refreshed = this.args.refreshLoadOf(args.resource.name)
+      if (refreshed !== undefined) await refreshed.catch(() => undefined)
+    }
     if (!this.cloudChangedOf(args)) return
     await this.reloadOf(args.resource)
   }

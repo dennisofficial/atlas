@@ -1,10 +1,10 @@
 import { latestResourceOf, type RecordEvent } from '@dltech/atlas-core'
-import { ESpan, spanWith, type TracePort } from '@dltech/atlas-observability'
+import { EResourceWait, ESpan, spanWith, type TracePort } from '@dltech/atlas-observability'
 import type { PluginPodContext, PodResource } from '@dltech/atlas-plugin-sdk'
 
-import { appendOf, draftsOf } from './plugin-resource-drafts'
+import { appendOf, draftsOf } from './plugin-resource-loads'
 import { messageOf } from './plugin-resource-probes'
-import { ELoadReason, ERefreshTrigger } from './plugin-resource-reason'
+import { ELoadReason } from './plugin-resource-reason'
 import { refresh, watchOf, type Adoption } from './plugin-resource-refresh'
 import { reloadOne } from './plugin-resource-reload'
 import { ResourceTurn } from './plugin-resource-turn'
@@ -50,7 +50,8 @@ export class ResourceSync {
       trace: args.trace,
       shared: args.shared,
       podReady: () => this.args.podReady(),
-      initialOf: () => this.initial ?? this.refreshStart(ERefreshTrigger.Start),
+      waitOn: (wait) => this.waitOn(wait),
+      initialOf: () => this.initial ?? this.refreshStart(),
       plannedOf: () => (this.refreshing === undefined ? undefined : this.planned),
       refreshLoadOf: (name) => this.refreshLoads.get(name),
       backgroundLoadOf: (name) => this.backgroundLoads.get(name),
@@ -70,7 +71,7 @@ export class ResourceSync {
       }),
     )
     this.offs.push(this.args.reconnect((hello) => this.handleReady(hello)))
-    this.initial = this.refreshStart(ERefreshTrigger.Start)
+    this.initial = this.refreshStart()
   }
 
   stop(): void {
@@ -80,6 +81,10 @@ export class ResourceSync {
 
   turnStart(): Promise<void> {
     return this.turn.start()
+  }
+
+  refreshInBackground(): void {
+    void this.refreshStart()
   }
 
   adoptOf(adoption: Adoption): Promise<boolean> {
@@ -107,20 +112,55 @@ export class ResourceSync {
     return attempt.then(() => true).catch(() => false)
   }
 
-  refreshInBackground(trigger: ERefreshTrigger): void {
-    void this.refreshStart(trigger)
-  }
-
   async settled(): Promise<void> {
     for (;;) {
       const running = [...this.running.values()]
       if (this.refreshing !== undefined) running.push(this.refreshing)
       if (running.length === 0) return
-      await Promise.all(running.map((attempt) => attempt.catch(() => undefined)))
+      await this.waitOn({
+        waitFor: EResourceWait.Settle,
+        work: () => Promise.all(running.map((attempt) => attempt.catch(() => undefined))),
+      })
     }
   }
 
-  private refreshStart(trigger: ERefreshTrigger): Promise<void> {
+  private waitOn<T>(args: {
+    waitFor: EResourceWait
+    resource?: string | undefined
+    work: () => Promise<T>
+  }): Promise<T> {
+    return spanWith(this.args.trace, {
+      name: ESpan.ResourceWait,
+      fields: {
+        waitFor: args.waitFor,
+        ...(args.resource === undefined ? {} : { resource: args.resource }),
+      },
+      run: args.work,
+    })
+  }
+
+  private handleReady(hello: { restart: boolean }): void {
+    if (this.refreshing !== undefined) {
+      this.helloDuringRound = true
+      if (hello.restart) this.retryQueued = true
+      return
+    }
+    if (!hello.restart && !this.retryOnReady) return
+    this.retryOnReady = false
+    this.refreshInBackground()
+  }
+
+  private retryRound(): void {
+    const hello = this.helloDuringRound
+    const restarted = this.retryQueued
+    this.helloDuringRound = false
+    this.retryQueued = false
+    if (!restarted && !(hello && this.retryOnReady)) return
+    this.retryOnReady = false
+    this.refreshInBackground()
+  }
+
+  private refreshStart(): Promise<void> {
     const running = this.refreshing
     if (running !== undefined) return running
     let planned: () => void = () => undefined
@@ -128,27 +168,20 @@ export class ResourceSync {
       planned = resolve
     })
     this.planned = decided
-    const attempt = spanWith(this.args.trace, {
-      name: ESpan.ResourceRefresh,
-      root: true,
-      fields: { trigger },
-      run: (span) =>
-        refresh({
-          ctx: this.args.ctx,
-          resources: this.args.resources,
-          projectDirectory: this.args.directory(),
-          trace: this.args.trace,
-          shared: this.args.shared,
-          adopt: (adoption) => this.adoptOf(adoption),
-          loadingOf: (resource) => this.backgroundLoads.has(resource),
-          onBackground: (background) => this.trackBackground(background),
-          onLoad: (load) => this.trackRefreshLoad(load),
-          onPlanned: planned,
-          onReached: (reached) => {
-            span.set({ reached })
-            if (!reached) this.retryOnReady = true
-          },
-        }),
+    const attempt = refresh({
+      ctx: this.args.ctx,
+      resources: this.args.resources,
+      projectDirectory: this.args.directory(),
+      trace: this.args.trace,
+      shared: this.args.shared,
+      adopt: (adoption) => this.adoptOf(adoption),
+      loadingOf: (resource) => this.backgroundLoads.has(resource),
+      onBackground: (background) => this.trackBackground(background),
+      onLoad: (load) => this.trackRefreshLoad(load),
+      onPlanned: planned,
+      onUnreached: () => {
+        this.retryOnReady = true
+      },
     })
       .catch((failure: unknown) => {
         this.args.ctx.log(`plugin resources could not refresh: ${messageOf(failure)}`)
@@ -160,27 +193,6 @@ export class ResourceSync {
       })
     this.refreshing = attempt
     return attempt
-  }
-
-  private handleReady(hello: { restart: boolean }): void {
-    if (this.refreshing !== undefined) {
-      this.helloDuringRound = true
-      if (hello.restart) this.retryQueued = true
-      return
-    }
-    if (!hello.restart && !this.retryOnReady) return
-    this.retryOnReady = false
-    this.refreshInBackground(ERefreshTrigger.Reconnect)
-  }
-
-  private retryRound(): void {
-    const hello = this.helloDuringRound
-    const restarted = this.retryQueued
-    this.helloDuringRound = false
-    this.retryQueued = false
-    if (!restarted && !(hello && this.retryOnReady)) return
-    this.retryOnReady = false
-    this.refreshInBackground(ERefreshTrigger.Reconnect)
   }
 
   private trackBackground(args: { resource: string; loading: Promise<void> }): void {
@@ -252,11 +264,25 @@ export class ResourceSync {
     reason: ELoadReason
   }): Promise<void> {
     const planned = this.refreshing === undefined ? undefined : this.planned
-    if (planned !== undefined) await planned.catch(() => undefined)
     const refreshed = this.refreshLoads.get(args.resource.name)
-    if (refreshed !== undefined) await refreshed.catch(() => undefined)
+    if (planned !== undefined || refreshed !== undefined) {
+      await this.waitOn({
+        waitFor: EResourceWait.ChangedResource,
+        resource: args.resource.name,
+        work: async () => {
+          if (planned !== undefined) await planned.catch(() => undefined)
+          if (refreshed !== undefined) await refreshed.catch(() => undefined)
+        },
+      })
+    }
     const background = this.backgroundLoads.get(args.resource.name)
-    if (background !== undefined) await background.catch(() => undefined)
+    if (background !== undefined) {
+      await this.waitOn({
+        waitFor: EResourceWait.BackgroundLoad,
+        resource: args.resource.name,
+        work: () => background.catch(() => undefined),
+      })
+    }
     await reloadOne({
       ctx: this.args.ctx,
       trace: this.args.trace,

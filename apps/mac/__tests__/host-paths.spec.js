@@ -7,9 +7,9 @@ import { afterEach, beforeEach, describe, expect, test } from 'bun:test'
 import {
   HostMissingError,
   hostEnvironment,
+  hostMarkersIn,
   resolveBun,
   resolveHostScript,
-  sessionUrlIn,
   webRootAt,
 } from '../host-paths.js'
 
@@ -118,7 +118,28 @@ test('hostEnvironment leaves the pane origin unset without a listener', () => {
   expect(environment.ATLAS_VERSION).toBeUndefined()
 })
 
-test('sessionUrlIn reads the marker line only', () => {
-  expect(sessionUrlIn('booting\nATLAS_URL=http://127.0.0.1:1/x\n')).toBe('http://127.0.0.1:1/x')
-  expect(sessionUrlIn('booting\n')).toBeUndefined()
+describe('hostMarkersIn', () => {
+  const lines = [
+    'booting',
+    'ATLAS_URL=https://127.0.0.1:2/desktop/session?secret=s',
+    'ATLAS_HTTP_ORIGIN=http://127.0.0.1:1',
+    'ATLAS_CERT=sha256/AbC=',
+  ].join('\n')
+
+  test('waits for the session URL, the HTTP origin and the certificate together', () => {
+    expect(hostMarkersIn('booting\nATLAS_URL=https://127.0.0.1:2/x\n')).toBeUndefined()
+    expect(hostMarkersIn(lines)).toEqual({
+      url: 'https://127.0.0.1:2/desktop/session?secret=s',
+      httpOrigin: 'http://127.0.0.1:1',
+      fingerprint: 'sha256/AbC=',
+    })
+  })
+
+  test('ignores a marker line with nothing after it', () => {
+    expect(hostMarkersIn(`${lines}\nATLAS_CERT=\n`)).toEqual({
+      url: 'https://127.0.0.1:2/desktop/session?secret=s',
+      httpOrigin: 'http://127.0.0.1:1',
+      fingerprint: 'sha256/AbC=',
+    })
+  })
 })

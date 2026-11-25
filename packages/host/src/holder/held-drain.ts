@@ -20,11 +20,13 @@ export class HeldDrain {
       record(): SessionRecord | undefined
       runtime(): SessionRuntime | undefined
       childrenPause(): Promise<void> | undefined
+      pendingHandoff(): void
     },
   ) {}
 
   async handoff(): Promise<void> {
     const children = this.args.childrenPause()
+    this.args.pendingHandoff()
     await this.settleInFlight()
     await children
     const record = this.args.record()

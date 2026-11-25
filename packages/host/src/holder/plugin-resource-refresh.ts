@@ -7,16 +7,11 @@ import type {
   ResourceWatch,
 } from '@dltech/atlas-plugin-sdk'
 
-import { appendOf, loadedDraftsOf } from './plugin-resource-drafts'
-import {
-  armOf,
-  cloudStringOf,
-  messageOf,
-  statusOf,
-  versionsOf,
-  watchIdOf,
-} from './plugin-resource-probes'
+import { appendOf, loadOf, startInBackground } from './plugin-resource-loads'
+import { armOf, cloudStringOf, statusOf, versionsOf, watchIdOf } from './plugin-resource-probes'
 import { ELoadReason, reasonOf } from './plugin-resource-reason'
+
+export const RELOADED = 'reloaded'
 
 type Ctx = PluginPodContext
 
@@ -129,8 +124,8 @@ const armedOf = (args: {
   trace: TracePort | undefined
   watch: Watch
   resource: string
-  armed: Map<string, Promise<void>>
-}): Promise<void> => {
+  armed: Map<string, Promise<boolean>>
+}): Promise<boolean> => {
   const running = args.armed.get(args.watch.id)
   if (running !== undefined) return running
   const attempt = spanWith(args.trace, {
@@ -142,41 +137,33 @@ const armedOf = (args: {
   return attempt
 }
 
-const startInBackground = (args: { ctx: Ctx; entry: Prepared; directory: string }): Promise<void> =>
-  loadedDraftsOf({
-    resource: args.entry.resource,
-    ctx: args.ctx,
-    directory: args.directory,
-    fingerprint: args.entry.fingerprint,
-  })
-    .then(async (drafts) => {
-      await args.ctx.append(drafts)
-    })
-    .catch((failure: unknown) => {
-      args.ctx.log(
-        `plugin resource ${args.entry.resource.name} could not load in the background: ${messageOf(failure)}`,
-      )
-    })
-
 const workOf = async (args: {
   ctx: Ctx
   trace: TracePort | undefined
   candidate: Candidate
   instance: string
   directory: string
-  armed: Map<string, Promise<void>>
+  armed: Map<string, Promise<boolean>>
+  unreached: { value: boolean }
+  onUnreached: () => void
 }): Promise<void> => {
   const { candidate } = args
   const watch = candidate.watch
   if (watch !== undefined && candidate.seq === undefined) {
-    await armedOf({
+    const reachable = await armedOf({
       ctx: args.ctx,
       trace: args.trace,
       watch,
       resource: candidate.resource.name,
       armed: args.armed,
     })
+    if (!reachable) {
+      args.unreached.value = true
+      args.onUnreached()
+      return
+    }
   }
+  if (args.unreached.value) return
   const seq = watch === undefined ? candidate.seq : (candidate.seq ?? 0)
   const entry: Prepared = {
     ...candidate,
@@ -189,22 +176,14 @@ const workOf = async (args: {
     }),
   }
   if (candidate.resource.background === true) {
-    await startInBackground({ ctx: args.ctx, entry, directory: args.directory })
+    await startInBackground({ ctx: args.ctx, trace: args.trace, entry, directory: args.directory })
     return
   }
-  const drafts = await spanWith(args.trace, {
-    name: ESpan.ResourceLoad,
-    fields: { resource: entry.resource.name, phase: entry.reason },
-    run: () =>
-      loadedDraftsOf({
-        resource: entry.resource,
-        ctx: args.ctx,
-        directory: args.directory,
-        fingerprint: entry.fingerprint,
-      }),
-  }).catch((failure: unknown) => {
-    args.ctx.log(`plugin resource ${entry.resource.name} could not load: ${messageOf(failure)}`)
-    return []
+  const drafts = await loadOf({
+    ctx: args.ctx,
+    trace: args.trace,
+    entry,
+    directory: args.directory,
   })
   await appendOf({ ctx: args.ctx, trace: args.trace, drafts })
 }
@@ -220,7 +199,7 @@ export const refresh = async (args: {
   onBackground?: ((background: { resource: string; loading: Promise<void> }) => void) | undefined
   onLoad?: ((load: { resource: string; loading: Promise<void> }) => void) | undefined
   onPlanned?: (() => void) | undefined
-  onReached?: ((reached: boolean) => void) | undefined
+  onUnreached?: (() => void) | undefined
 }): Promise<void> => {
   const { ctx, resources, projectDirectory, trace, shared } = args
   const entries: Entry[] = resources.map((resource) => ({
@@ -238,7 +217,11 @@ export const refresh = async (args: {
         versionsOf({ ctx, needed: resources.some((resource) => resource.cloud !== undefined) }),
     }),
   ])
-  args.onReached?.(status.reached)
+  if (status.unreachable) {
+    ctx.log('plugin resources left as they are: the sandbox did not answer the watch status call')
+    args.onUnreached?.()
+    return
+  }
   const candidates = staleOf({
     entries,
     events: ctx.events(),
@@ -261,19 +244,15 @@ export const refresh = async (args: {
       })
       if (adopted) continue
     }
-    if (candidate.watch !== undefined && !status.reached) continue
     loadable.push(candidate)
   }
 
-  const armed = new Map<string, Promise<void>>()
+  const armed = new Map<string, Promise<boolean>>()
+  const unreached = { value: false }
   const awaited: Promise<void>[] = []
   for (const candidate of loadable) {
-    if (
-      candidate.resource.background === true &&
-      args.loadingOf?.(candidate.resource.name) === true
-    ) {
-      continue
-    }
+    if (candidate.resource.background !== true) continue
+    if (args.loadingOf?.(candidate.resource.name) === true) continue
     const loading = workOf({
       ctx,
       trace,
@@ -281,11 +260,23 @@ export const refresh = async (args: {
       instance: status.instance,
       directory: projectDirectory,
       armed,
+      unreached,
+      onUnreached: () => args.onUnreached?.(),
     })
-    if (candidate.resource.background === true) {
-      args.onBackground?.({ resource: candidate.resource.name, loading })
-      continue
-    }
+    args.onBackground?.({ resource: candidate.resource.name, loading })
+  }
+  for (const candidate of loadable) {
+    if (candidate.resource.background === true) continue
+    const loading = workOf({
+      ctx,
+      trace,
+      candidate,
+      instance: status.instance,
+      directory: projectDirectory,
+      armed,
+      unreached,
+      onUnreached: () => args.onUnreached?.(),
+    })
     args.onLoad?.({ resource: candidate.resource.name, loading })
     awaited.push(loading)
   }

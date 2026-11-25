@@ -1,4 +1,4 @@
-import type { Event, EventDraft, LoopState, RunId, ThreadId } from '@dltech/atlas-core'
+import type { Event, EventDraft, FactRecord, LoopState, RunId, ThreadId } from '@dltech/atlas-core'
 
 export abstract class AgentRecordPort {
   abstract append(args: {
@@ -23,6 +23,16 @@ export abstract class AgentRecordPort {
   async postedInputAts(_args: { threadId: ThreadId }): Promise<ReadonlyMap<number, string>> {
     return new Map()
   }
+
+  async factsOfKind(_args: { threadId: ThreadId; kind: string }): Promise<readonly FactRecord[]> {
+    return []
+  }
+
+  async appendFacts(_args: {
+    threadId: ThreadId
+    runId: RunId
+    facts: readonly FactRecord[]
+  }): Promise<void> {}
 }
 
 export abstract class ModelContextPort {

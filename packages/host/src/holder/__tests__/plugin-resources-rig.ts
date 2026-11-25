@@ -84,6 +84,7 @@ export type Rig = {
   logs: string[]
   daemon: Daemon
   sync: ResourceSync
+  start(): void
   run(directory?: string): Promise<void>
   closed(): Promise<void>
   changed(watchId: string): void
@@ -213,6 +214,7 @@ export const rig = (args: {
     logs,
     daemon,
     sync,
+    start: () => sync.start(),
     run: async (next = DIRECTORY) => {
       directory = next
       sync.start()

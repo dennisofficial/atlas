@@ -6,6 +6,7 @@ export {
   createApiClient,
   detailsOf,
   httpStatusOf,
+  QUERY_DEADLINE_MS,
 } from './client'
 export {
   type SessionStreamFollowInput,

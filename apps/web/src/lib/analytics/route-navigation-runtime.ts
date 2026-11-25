@@ -1,4 +1,4 @@
-import { track } from './analytics'
+import { track, trackBeforeUnload } from './analytics'
 import { installOpenStreamCounter } from './open-streams'
 import {
   createRouteNavigationTracker,
@@ -7,6 +7,10 @@ import {
 } from './route-navigation'
 
 let tracker: RouteNavigationTracker | undefined
+
+function handlePageHide(): void {
+  tracker?.abandon()
+}
 
 function observeRscFetches(onTiming: RouteNavigationTracker['handleRscTiming']): void {
   if (typeof PerformanceObserver === 'undefined') return
@@ -31,9 +35,11 @@ export function startRouteNavigationTracking(): void {
     openStreams: streams.count,
     currentPathname: () => window.location.pathname,
     origin: window.location.origin,
-    track,
+    track: ({ event, props, atUnload }) =>
+      atUnload ? trackBeforeUnload(event, props) : track(event, props),
   })
   observeRscFetches(tracker.handleRscTiming)
+  window.addEventListener('pagehide', handlePageHide)
 }
 
 export function markRouteNavigationStart(args: { url: string; navigationType: string }): void {

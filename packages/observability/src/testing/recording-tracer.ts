@@ -15,6 +15,8 @@ export type RecordedSpan = {
   fields: SpanFields
   readonly marks: ESpanMark[]
   readonly parent: RecordedSpan | undefined
+  readonly startedAtMs: number
+  endedAtMs: number | undefined
   errorClass?: string
   ended: boolean
 }
@@ -31,6 +33,8 @@ export class RecordingTracer extends TracePort {
       fields: { ...fields },
       marks: [],
       parent: root === true ? undefined : active,
+      startedAtMs: performance.now(),
+      endedAtMs: undefined,
       ended: false,
     }
     this.spans.push(span)
@@ -49,6 +53,7 @@ export class RecordingTracer extends TracePort {
       span.errorClass = errorClassOf(error)
       throw error
     } finally {
+      span.endedAtMs = performance.now()
       span.ended = true
     }
   }

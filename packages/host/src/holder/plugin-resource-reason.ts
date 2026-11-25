@@ -8,17 +8,6 @@ export enum ELoadReason {
   ValueStale = 'value-stale',
 }
 
-export enum ERefreshTrigger {
-  Start = 'start',
-  Reconnect = 'reconnect',
-  AfterTurn = 'after-turn',
-}
-
-export enum EWaitReason {
-  Missing = 'missing',
-  Cloud = 'cloud',
-}
-
 const UNARMED = 'unarmed'
 
 const componentOf = (args: { fingerprint: string; index: number }): string | undefined =>

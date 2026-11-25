@@ -1,44 +1,15 @@
 import { ECloudSetting } from '@dltech/atlas-plugin-sdk'
-import { ESpan } from '@dltech/atlas-observability'
-import { RecordingTracer } from '@dltech/atlas-observability/testing'
+import { EResourceWait, ESpan } from '@dltech/atlas-observability'
+import { RecordingTracer, type RecordedSpan } from '@dltech/atlas-observability/testing'
 import { describe, expect, it } from 'bun:test'
 
 import { rig, skillsOf, stringResource, versionsAt } from './plugin-resources-rig'
 
-describe('the plugin-resources spans of a turn', () => {
-  it('opens one root resource.refresh per round, with its trigger', async () => {
-    const trace = new RecordingTracer()
-    const turn = rig({ resources: [skillsOf([])], trace })
+const waitSpansOf = (trace: RecordingTracer, waitFor: EResourceWait): RecordedSpan[] =>
+  trace.named(ESpan.ResourceWait).filter((span) => span.fields.waitFor === waitFor)
 
-    await trace.span({ name: ESpan.TurnHooks, root: true, run: () => turn.run() })
-    await turn.closed()
-    await trace.span({
-      name: ESpan.TurnHooks,
-      root: true,
-      run: async () => {
-        turn.reconnect(true)
-        await turn.settled()
-      },
-    })
-
-    const rounds = trace.named(ESpan.ResourceRefresh)
-    expect(rounds.map((span) => span.fields.trigger)).toEqual(['start', 'after-turn', 'reconnect'])
-    expect(rounds.every((span) => span.parent === undefined)).toBe(true)
-    expect(rounds.map((span) => span.fields.reached)).toEqual([true, true, true])
-  })
-
-  it('records a turn that waited for a missing snapshot', async () => {
-    const trace = new RecordingTracer()
-    const turn = rig({ resources: [skillsOf([])], trace })
-
-    await trace.span({ name: ESpan.TurnHooks, root: true, run: () => turn.run() })
-
-    expect(trace.named(ESpan.ResourceWait).map((span) => span.fields)).toEqual([
-      { reason: 'missing', resources: 'skills', pod: 'ready' },
-    ])
-  })
-
-  it('records a turn that waited for a changed cloud setting', async () => {
+describe('the wait span of a turn that waits on a changed cloud setting', () => {
+  it('names the changed resource', async () => {
     const loads: string[] = []
     let value = 'one'
     const skills = stringResource({
@@ -55,22 +26,22 @@ describe('the plugin-resources spans of a turn', () => {
     value = 'two'
     turn.daemon.setVersions({ ...versionsAt('v1'), [ECloudSetting.Skills]: 'v2' })
     trace.spans.length = 0
-    await trace.span({ name: ESpan.TurnHooks, root: true, run: () => turn.run() })
+    await trace.span({ name: ESpan.Turn, root: true, run: () => turn.run() })
 
-    expect(trace.named(ESpan.ResourceWait).map((span) => span.fields)).toEqual([
-      { reason: 'cloud', resources: 'skills', pod: 'ready' },
-    ])
+    const waits = waitSpansOf(trace, EResourceWait.ChangedResource)
+    expect(waits.map((span) => span.fields.resource)).toEqual(['skills'])
+    expect(waits.every((span) => span.parent?.name === ESpan.Turn)).toBe(true)
     expect(loads).toEqual(['skills', 'skills'])
   })
 
-  it('records no resource.wait for a turn that waits on nothing', async () => {
+  it('records no changed-resource wait for a turn that waits on nothing', async () => {
     const trace = new RecordingTracer()
     const turn = rig({ resources: [skillsOf([])], trace })
     await turn.run()
 
     trace.spans.length = 0
-    await trace.span({ name: ESpan.TurnHooks, root: true, run: () => turn.run() })
+    await trace.span({ name: ESpan.Turn, root: true, run: () => turn.run() })
 
-    expect(trace.named(ESpan.ResourceWait)).toEqual([])
+    expect(waitSpansOf(trace, EResourceWait.ChangedResource)).toEqual([])
   })
 })
