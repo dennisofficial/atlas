@@ -319,18 +319,21 @@ only the schemas the contract declares, so an undeclared `v1_archive` passes ver
    - `SET LOCAL lock_timeout = '5s'`.
    - `CREATE SCHEMA v1_archive`, then `ALTER TABLE public."<T>" SET SCHEMA v1_archive` for
      `Session`, `Thread`, `Event`, `Turn`, `ThreadRead`, `ContextFile`, `SandboxBootStep`,
-     `CloudSandbox`, `LocalPodLease`, `PushDevice`. This is a catalog change: it does not copy the
-     2.8 GB. Indexes, constraints, owned sequences and foreign keys move with the table.
+     `CloudSandbox`, `LocalPodLease`, `PushDevice`, `ComposerDraft`, `OauthConnectionSandbox`. This
+     is a catalog change: it does not copy the 2.8 GB. Indexes, constraints, owned sequences and
+     foreign keys move with the table.
    - `COMMENT ON TABLE` and `COMMENT ON COLUMN` for every archived table and column, so the
      database documents itself.
-2. The contract deletes `packages/db/src/prisma/schema/threads/{session,thread,event,turn,thread-read,context-file,sandbox-boot-step}.prisma`,
-   `sandboxes/{cloud-sandbox,local-pod-lease}.prisma`, `user-config/push-device.prisma`, and the
-   relation fields that point at them (`auth/user.prisma:37-40` and the other v1 relations there,
-   `projects/project.prisma:21`).
-3. These tables stay in `public` because a live client reads them: `ComposerDraft` (the TUI calls
-   `composerDrafts`, `apps/tui/src/app/session-api.ts:172-181`), `PreviewTunnel`, `PreviewRoute`.
-   `ComposerDraft.threadId` keeps its foreign key into `v1_archive."Thread"`. The contract keeps the
-   relation as a plain column.
+2. The contract deletes `packages/db/src/prisma/schema/threads/{session,thread,event,turn,thread-read,context-file,sandbox-boot-step,composer-draft}.prisma`,
+   `sandboxes/{cloud-sandbox,local-pod-lease}.prisma`, `user-config/push-device.prisma`,
+   `provider-accounts/oauth-connection-sandbox.prisma`, and the relation fields that point at them
+   (`auth/user.prisma`, `projects/project.prisma:22`, `provider-accounts/oauth-connection.prisma:14`).
+   The one v1 reader left in code, the sandbox assignment gate in
+   `apps/api/src/api/platform/oauth-connections/oauth-connections.service.ts`, is removed in the
+   same PR.
+3. `ComposerDraft` is archived too: slice 4c deleted the v1 `composerDrafts` router, and the TUI
+   composer draft is local state. `PreviewTunnel` and `PreviewRoute` stay in `public` because v2
+   reads them.
 4. `GithubSubscription`, `GithubTrackingTarget` and `GithubPrEventDelivery` rows that name a v1
    thread id stay. Add a spec that proves the v2 GitHub sweeps skip a thread id that has no
    `V2Thread` row.

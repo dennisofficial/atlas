@@ -115,7 +115,6 @@ export class OauthConnectionsService {
   async issueAccessToken(args: {
     userId: string
     connectionId: string
-    sandboxId?: string
     rejectedAccessToken?: string
   }): Promise<AccessTokenDto> {
     const row = await this.authorizedRow(args)
@@ -132,7 +131,6 @@ export class OauthConnectionsService {
   private async refreshLocked(args: {
     userId: string
     connectionId: string
-    sandboxId?: string
     rejectedAccessToken?: string
   }): Promise<AccessTokenDto> {
     const row = await this.authorizedRow(args)
@@ -149,7 +147,6 @@ export class OauthConnectionsService {
   private async afterLostFence(args: {
     userId: string
     connectionId: string
-    sandboxId?: string
     rejectedAccessToken?: string
   }): Promise<AccessTokenDto> {
     const row = await this.authorizedRow(args)
@@ -172,17 +169,10 @@ export class OauthConnectionsService {
   private async authorizedRow(args: {
     userId: string
     connectionId: string
-    sandboxId?: string
   }): Promise<ConnectionRow> {
     const row = await this.store.find({ id: args.connectionId })
     if (row === null || row.userId !== args.userId)
       throw new NotFoundException('connection not found')
-    if (args.sandboxId === undefined) return row
-    const assigned = await this.store.isAssigned({
-      connectionId: args.connectionId,
-      sandboxId: args.sandboxId,
-    })
-    if (!assigned) throw new NotFoundException('connection not found')
     return row
   }
 

@@ -103,6 +103,14 @@ The `migrate-production` job in `.github/workflows/release.yml` runs
   database is truncated before every test. Start the lane with `bun run db:test:up`. CI runs it as a
   service container.
 
+## The v1 archive
+
+The twelve v1 tables (`Session`, `Thread`, `Event`, `Turn`, `ThreadRead`, `ContextFile`,
+`SandboxBootStep`, `CloudSandbox`, `LocalPodLease`, `PushDevice`, `ComposerDraft`,
+`OauthConnectionSandbox`) sit in the `v1_archive` schema: out of the contract, frozen, and readable
+by SQL only. `docs/data/v1-archive.md` documents their columns and the analytics queries that read
+them. Do not declare the schema in the contract, and do not move the tables back to `public`.
+
 ## Version pins
 
 - `prisma` 8.0.0-rc.24 (CLI) and `@prisma/orm-postgres` 8.0.0-rc.19 (runtime).

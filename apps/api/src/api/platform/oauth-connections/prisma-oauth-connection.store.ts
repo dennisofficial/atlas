@@ -139,19 +139,6 @@ export class PrismaOauthConnectionStore implements OauthConnectionStore {
     }
   }
 
-  async assign(args: { connectionId: string; sandboxId: string }): Promise<void> {
-    await db.orm.public.OauthConnectionSandbox.upsert({
-      create: args,
-      update: {},
-      conflictOn: args,
-    })
-  }
-
-  async isAssigned(args: { connectionId: string; sandboxId: string }): Promise<boolean> {
-    const row = await db.orm.public.OauthConnectionSandbox.select('connectionId').first(args)
-    return row !== null
-  }
-
   async remove(args: { id: string; userId: string }): Promise<boolean> {
     const count = await db.orm.public.OauthConnection.where(args).deleteAndCount()
     return count === 1

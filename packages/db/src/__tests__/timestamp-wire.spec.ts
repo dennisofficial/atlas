@@ -49,8 +49,8 @@ describe('timestamp wire format', () => {
       }
       checked.push(table)
     }
-    expect(checked).toContain('Thread')
-    expect(checked).toContain('CloudSandbox')
+    expect(checked).toContain('User')
+    expect(checked).toContain('PreviewTunnel')
     expect(checked.length).toBeGreaterThan(30)
   })
 })
