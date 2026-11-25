@@ -145,6 +145,6 @@ export function frameOf(text: string): DaemonFrame {
 
 ## See also
 
-- [docs/v2/architecture.md](../../docs/v2/architecture.md) for the daemon and the link.
+- [docs/architecture.md](../../docs/architecture.md) for the daemon and the link.
 - [docs/decisions/0017-wire-protocol-skew.md](../../docs/decisions/0017-wire-protocol-skew.md).
 - `apps/daemon` for the op implementations, and `@dltech/atlas-host` for the other end.

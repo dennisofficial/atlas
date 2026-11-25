@@ -74,9 +74,6 @@ export abstract class OauthConnectionStore {
     userId: string
   }): Promise<{ id: string; sealedSecret: string }[]>
   abstract markExpired(args: { ids: string[] }): Promise<void>
-  abstract ownedSandboxId(args: { userId: string; threadId: string }): Promise<string | null>
-  abstract assign(args: { connectionId: string; sandboxId: string }): Promise<void>
-  abstract isAssigned(args: { connectionId: string; sandboxId: string }): Promise<boolean>
   abstract remove(args: { id: string; userId: string }): Promise<boolean>
 }
 

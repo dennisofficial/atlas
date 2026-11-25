@@ -1,40 +1,12 @@
 import { EGithubPrStatesFrame, type GithubPrStatesFrame } from '@dltech/atlas-wire'
 import type { Logger } from '@nestjs/common'
-import type { ThreadSignalsService } from '../../platform/sessions/thread-signals.service'
-import type { ThreadChangedSignal } from '../../platform/sessions/thread-signal.bus'
-import type { PrKeyWatch } from '@dltech/atlas-github'
 import type { GithubPrFanoutService } from '@dltech/atlas-github'
-import { ELinkedPrAccess, type LinkedPrAccess } from '@dltech/atlas-github'
-import { cachedPrStates, type LinkedPr } from '@dltech/atlas-github'
-import { linkedPrs } from './github-linked-prs-of-user'
-import { normalizedRepo, prIdentity } from '@dltech/atlas-github'
-import type { PrFrameSink } from '@dltech/atlas-github'
+import { prIdentity } from '@dltech/atlas-github'
 import type { GithubPrStateDto } from '@dltech/atlas-github'
 import type { GithubSubscriptionsService } from '@dltech/atlas-github'
+import type { PrFrameSink } from '@dltech/atlas-github'
 
 export const PR_STATES_HEARTBEAT_MS = 30_000
-export const LINKED_PR_PENDING_RETRY_MS = 60_000
-
-type PrRef = { repoFullName: string; prNumber: number }
-
-const isValidRepo = (repoFullName: string): boolean => /^[\w.-]+\/[\w.-]+$/.test(repoFullName)
-
-const prOf = (link: { repo: string; number: number }): PrRef | undefined => {
-  const repoFullName = normalizedRepo(link.repo)
-  if (!isValidRepo(repoFullName)) return undefined
-  if (!Number.isSafeInteger(link.number) || link.number < 1) return undefined
-  return { repoFullName, prNumber: link.number }
-}
-
-const groupedByRepo = (prs: readonly PrRef[]): Map<string, PrRef[]> => {
-  const byRepo = new Map<string, PrRef[]>()
-  for (const pr of prs) {
-    const held = byRepo.get(pr.repoFullName)
-    if (held === undefined) byRepo.set(pr.repoFullName, [pr])
-    else held.push(pr)
-  }
-  return byRepo
-}
 
 export function attachPrStates(args: {
   userId: string
@@ -42,16 +14,10 @@ export function attachPrStates(args: {
   sink: PrFrameSink<GithubPrStatesFrame>
   fanout: GithubPrFanoutService
   subscriptions: GithubSubscriptionsService
-  access: LinkedPrAccess
-  signals: ThreadSignalsService
   logger: Logger
 }): () => void {
   const seen = new Map<string, number>()
-  const verdicts = new Map<string, ELinkedPrAccess>()
-  const linked = new Map<string, PrRef>()
-  const known = new Map<string, PrRef[]>()
   let disposed = false
-  let pendingRetry: ReturnType<typeof setTimeout> | undefined
 
   const push = (state: GithubPrStateDto): void => {
     const key = prIdentity(state)
@@ -59,92 +25,6 @@ export function attachPrStates(args: {
     if (held !== undefined && state.version <= held) return
     seen.set(key, state.version)
     args.sink.push({ type: EGithubPrStatesFrame.PrState, state })
-  }
-
-  const watch: PrKeyWatch = args.fanout.watchPrKeys({
-    handler: push,
-    onClosed: () => args.sink.close(),
-  })
-
-  const allow = async (repoFullName: string): Promise<boolean> => {
-    const held = verdicts.get(repoFullName)
-    if (held !== undefined) return held === ELinkedPrAccess.Allowed
-    const verdict = await args.access.check({ userId: args.userId, repoFullName })
-    verdicts.set(repoFullName, verdict)
-    return verdict === ELinkedPrAccess.Allowed
-  }
-
-  const hold = (prs: readonly PrRef[]): number => {
-    let added = 0
-    for (const pr of prs) {
-      const key = prIdentity(pr)
-      if (linked.has(key)) continue
-      linked.set(key, pr)
-      added += 1
-    }
-    if (added > 0) watch.setKeys([...linked.keys()])
-    return added
-  }
-
-  const replay = async (prs: readonly PrRef[]): Promise<void> => {
-    if (prs.length === 0) return
-    const states = await cachedPrStates(prs)
-    if (disposed) return
-    for (const state of states) push(state)
-  }
-
-  const remember = (args: { repoFullName: string; prs: readonly PrRef[] }): void => {
-    const held = new Map((known.get(args.repoFullName) ?? []).map((pr) => [prIdentity(pr), pr]))
-    for (const pr of args.prs) held.set(prIdentity(pr), pr)
-    known.set(args.repoFullName, [...held.values()])
-  }
-
-  const retryPendingLater = (): void => {
-    if (disposed || pendingRetry !== undefined) return
-    if (![...verdicts.values()].includes(ELinkedPrAccess.Pending)) return
-    pendingRetry = setTimeout(() => {
-      pendingRetry = undefined
-      void retryPending()
-    }, LINKED_PR_PENDING_RETRY_MS)
-  }
-
-  const retryPending = async (): Promise<void> => {
-    const pending = [...verdicts].filter(([, verdict]) => verdict === ELinkedPrAccess.Pending)
-    for (const [repoFullName] of pending) {
-      const verdict = await args.access.check({ userId: args.userId, repoFullName })
-      if (disposed) return
-      verdicts.set(repoFullName, verdict)
-      if (verdict !== ELinkedPrAccess.Allowed) continue
-      hold(known.get(repoFullName) ?? [])
-      await replay(known.get(repoFullName) ?? [])
-    }
-    if (disposed) return
-    retryPendingLater()
-  }
-
-  const addLinked = async (prs: readonly PrRef[]): Promise<void> => {
-    const fresh = prs.filter((pr) => !linked.has(prIdentity(pr)))
-    for (const [repoFullName, ofRepo] of groupedByRepo(fresh)) {
-      remember({ repoFullName, prs: ofRepo })
-      if (!(await allow(repoFullName))) continue
-      if (disposed) return
-      hold(ofRepo)
-      await replay(ofRepo)
-      if (disposed) return
-    }
-    retryPendingLater()
-  }
-
-  const handleThreadChanged = (signal: ThreadChangedSignal): void => {
-    if (disposed) return
-    const linkedNow = (signal.thread.pullRequests ?? [])
-      .map((link) => prOf({ repo: link.repo, number: link.number }))
-      .filter((pr): pr is PrRef => pr !== undefined)
-      .filter((pr) => !linked.has(prIdentity(pr)))
-    if (linkedNow.length === 0) return
-    void addLinked(linkedNow).catch((failure: unknown) =>
-      args.logger.warn(`adding a linked PR named by a thread change failed: ${String(failure)}`),
-    )
   }
 
   const handleConnect = async (): Promise<void> => {
@@ -155,13 +35,6 @@ export function attachPrStates(args: {
     } catch (failure) {
       args.logger.warn(`replaying subscribed PR states failed: ${String(failure)}`)
     }
-    try {
-      const prs = await linkedPrs({ userId: args.userId })
-      if (disposed) return
-      await addLinked(prs)
-    } catch (failure) {
-      args.logger.warn(`replaying linked PR states failed: ${String(failure)}`)
-    }
   }
 
   args.sink.push({ type: EGithubPrStatesFrame.Heartbeat })
@@ -169,10 +42,6 @@ export function attachPrStates(args: {
     userId: args.userId,
     handler: push,
     onClosed: () => args.sink.close(),
-  })
-  const unwatchThreads = args.signals.watchThreadChanges({
-    userId: args.userId,
-    onChanged: handleThreadChanged,
   })
   void handleConnect()
   const heartbeat = setInterval(() => {
@@ -183,9 +52,6 @@ export function attachPrStates(args: {
     if (disposed) return
     disposed = true
     clearInterval(heartbeat)
-    if (pendingRetry !== undefined) clearTimeout(pendingRetry)
-    unwatchThreads()
-    watch.close()
     closeStream()
     args.signal?.removeEventListener('abort', detach)
   }
@@ -193,5 +59,3 @@ export function attachPrStates(args: {
   if (args.signal?.aborted === true) detach()
   return detach
 }
-
-export type { LinkedPr }

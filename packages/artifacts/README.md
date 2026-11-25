@@ -17,8 +17,8 @@ agree through it.
 ## Does not own
 
 - The object read and write. The API and the serving worker own their storage adapters.
-- The build of an artifact, and the `artifact_push` and `artifact_pull` tools. `apps/api` owns
-  them.
+- The build of an artifact, and the `artifact_push` and `artifact_pull` tools: those were v1 tools,
+  deleted with the v1 agent host, and no v2 plugin replaced them.
 - The HTTP serve of a request. `apps/artifacts-host` owns that.
 - The database rows. `apps/api` owns them.
 

@@ -3,6 +3,7 @@ import { describe, expect, it } from 'bun:test'
 import {
   EAgentStart,
   EAgentStatus,
+  EKilledBy,
   INBOX_KIND_EVENT,
   chainEvents,
   inboxEventPayloadOf,
@@ -77,7 +78,16 @@ const appendSeeded = async (args: {
   if (!outcome.ok) throw new Error(`seed refused: ${JSON.stringify(outcome.refusal)}`)
 }
 
-const postPendingEnding = async (args: { rig: Rig; seq: number }): Promise<void> => {
+const INTERRUPTED_LOG: readonly V2Body[] = [
+  { type: 'user-said', text: BRIEF },
+  { type: 'input-consumed', inboxId: 91 },
+]
+
+const postPendingEnding = async (args: {
+  rig: Rig
+  seq: number
+  status?: EAgentStatus
+}): Promise<void> => {
   await args.rig.plane.post({
     sessionId: SESSION,
     kind: INBOX_KIND_EVENT,
@@ -87,7 +97,8 @@ const postPendingEnding = async (args: { rig: Rig; seq: number }): Promise<void>
         agentId: CHILD,
         agentType: 'general-purpose',
         intent: 'pending ending',
-        status: EAgentStatus.Finished,
+        status: args.status ?? EAgentStatus.Finished,
+        ...(args.status === EAgentStatus.Stopped ? { killedBy: EKilledBy.SessionEnd } : {}),
         prose: ANSWER,
         turns: 1,
         toolCalls: 0,
@@ -134,5 +145,38 @@ describe('a takeover over a child whose ending is still in the inbox', () => {
     expect(endingsOf(await eventsIn({ rig, threadId: THREAD_ID }))).toMatchObject([
       { status: EAgentStatus.Finished, prose: ANSWER, turns: 1 },
     ])
+  }, 20_000)
+
+  it('leaves an interrupted child stopped instead of restarting it to be stopped again', async () => {
+    const rig = await makeRig({ script: [{ text: 'parent acknowledged' }] })
+    await seedSession(rig)
+    const lease = await rig.plane.grant({ sessionId: SESSION, hostId: 1 })
+    await rig.plane.createThread({ threadId: CHILD, sessionId: SESSION })
+    await appendSeeded({ rig, threadId: THREAD_ID, epoch: lease.epoch, bodies: [SPAWN] })
+    await appendSeeded({ rig, threadId: CHILD, epoch: lease.epoch, bodies: INTERRUPTED_LOG })
+    await postPendingEnding({ rig, seq: 2, status: EAgentStatus.Stopped })
+    await rig.plane.revoke({ sessionId: SESSION, wantsHolder: true })
+    await rig.holder.start()
+    await rig.wake()
+
+    const drained = await waitFor({
+      rig,
+      check: async () => endingsOf(await eventsIn({ rig, threadId: THREAD_ID })).length > 0,
+    })
+    expect(drained).toBe(true)
+    await rig.flush()
+    const settled = await waitFor({
+      rig,
+      check: async () => endingsOf(await eventsIn({ rig, threadId: THREAD_ID })).length > 1,
+      attempts: 20,
+    })
+
+    const parent = await eventsIn({ rig, threadId: THREAD_ID })
+    expect(settled).toBe(false)
+    expect(endingsOf(parent)).toMatchObject([
+      { status: EAgentStatus.Stopped, killedBy: EKilledBy.SessionEnd },
+    ])
+    expect(parent.filter((event) => event.type === 'agent-restarted')).toEqual([])
+    expect(await eventsIn({ rig, threadId: CHILD })).toHaveLength(INTERRUPTED_LOG.length)
   }, 20_000)
 })

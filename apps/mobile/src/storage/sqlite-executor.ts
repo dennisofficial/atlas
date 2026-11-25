@@ -1,13 +1,5 @@
+import type { SqliteExecutor } from '@dltech/atlas-client/stream'
 import { openDatabaseAsync } from 'expo-sqlite'
-
-export type SqlValue = string | number | null
-
-export type SqliteExecutor = {
-  execAsync(sql: string): Promise<void>
-  runAsync(sql: string, ...params: readonly SqlValue[]): Promise<void>
-  getAllAsync(sql: string, ...params: readonly SqlValue[]): Promise<readonly unknown[]>
-  withTransactionAsync(run: () => Promise<void>): Promise<void>
-}
 
 export const openSqliteExecutor = async (database: string): Promise<SqliteExecutor> => {
   const db = await openDatabaseAsync(database)

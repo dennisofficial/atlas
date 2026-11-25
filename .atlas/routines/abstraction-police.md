@@ -7,19 +7,18 @@
 3. `apps/api/src/_module/trpc/api-latency.middleware.spec.ts:7` (infra) imports `api/platform/control/pod-errors`; `architecture.spec.ts` "shared infrastructure" fails on main, hidden by incremental CI.
 4. `packages/github` imports v1 `@dltech/atlas-wire` (`ERepoTracking`, `GithubPrStreamFrame`, device-code types) in 7 files. Move the vocabulary to core.
 5. `packages/client/src/channel/*` (~15 files) and `transcript/events-from-wire.ts` import `@dltech/atlas-wire/web`. Retarget onto `protocol` or split out a v1-compat module. Large.
-6. `apps/tui` imports `@dltech/atlas-wire` in 12 production files. v1-only, deleted with v1. Low value.
-7. `packages/api-router/src/generated/server.ts:16` pulls ~200 wire schemas; moves with v1 deletion.
-8. Test-only deep relative imports across package roots: `apps/serve/src/__tests__` → `packages/harness/src`, `apps/api` specs → `packages/api-router/src/generated/server`, `apps/tui/scripts`, `apps/mac/scripts/pack-host.ts:4`. Add `exports` subpaths.
+6. `apps/tui` imports `@dltech/atlas-wire` in 12 production files. `wire` survived the v1 deletion, so this is a live retarget onto `protocol`. Low value.
+7. `packages/api-router/src/generated/server.ts:16` pulls ~200 wire schemas.
+8. Test-only deep relative imports across package roots: `apps/api` specs → `packages/api-router/src/generated/server`, `apps/tui/scripts`, `apps/mac/scripts/pack-host.ts:4`. Add `exports` subpaths.
 9. `packages/host/__tests__/remote-calls-real.spec.ts:7` imports app `@dltech/atlas-daemon/testing`.
 
 ## Ruled out
 
 - `packages/core` purity, `packages/ui` Atlas imports, plugin→plugin imports, clients importing `apps/api`: all clean (2026-11-19 sweep).
 - `apps/tui` importing `core`/`client`/`observability`/`syntax`/`models`: v2 §7 lets apps compose tier packages.
-- `packages/client/src/__tests__/browser-safe.spec.ts` importing harness/wire: deliberate guard.
-- `apps/api` → `harness`, `harness` → `agent-v1`: v1-internal.
+- `packages/client/src/__tests__/browser-safe.spec.ts` importing wire: deliberate guard.
 - Terminal not-found: API matches `ECallFailure.NotFound` since 2026-11-23; daemon and fake messages are display text only.
-- Error-string matches in `packages/db/src/pool.ts:91`, harness `docker-process.ts`, `cloud-birth.ts`: external APIs.
+- Error-string matches in `packages/db/src/pool.ts:91`: external APIs.
 - `packages/plugin-sdk/src/memory.ts` duplicating the memory summary shape as string unions: structural, kept so plugins need no core enums.
 
 ## Log

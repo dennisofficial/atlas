@@ -142,5 +142,5 @@ const qualityPod = qualityPodOf({
 
 ## See also
 
-- [`docs/v2/slices/jev-quality.md`](../../docs/v2/slices/jev-quality.md) explains the design and the state it dropped.
+- [`docs/slices/jev-quality.md`](../../docs/slices/jev-quality.md) explains the design and the state it dropped.
 - [`packages/core/src/quality`](../../packages/core/src/quality) holds the shared types and the record schema.

@@ -51,8 +51,7 @@ Atlas Cloud's Postgres contract, migrations and runtime client, on Prisma 8. Ser
 
 - `useTestDatabase()`: registers `beforeAll` and `beforeEach`. It builds one template database per
   migration set, and it truncates every table before each test.
-- `ensureTestDatabase()`, `truncateAll()`, `countQueries()`, `seedUser`, `seedThread`,
-  `seedSession`.
+- `ensureTestDatabase()`, `truncateAll()`, `countQueries()`, `seedUser`.
 - The lane is `ATLAS_TEST_DATABASE_URL`, default
   `postgresql://atlas:atlas@localhost:55441/atlas_test`.
 
@@ -73,15 +72,13 @@ bun run db:migrate           # prisma db migrate, advancing the db ref
 bun run db:seed
 ```
 
-From `apps/api/test/session-seed.ts`:
+Seed the users a spec needs:
 
 ```ts
-import { db, type Row } from '@dltech/atlas-db'
+import { db } from '@dltech/atlas-db'
 import { seedUser } from '@dltech/atlas-db/testing'
 
-export async function seedUsers(...ids: string[]): Promise<void> {
-  for (const id of ids) await seedUser({ db, id })
-}
+for (const id of ['user-a', 'user-b']) await seedUser({ db, id })
 ```
 
 ## Rules

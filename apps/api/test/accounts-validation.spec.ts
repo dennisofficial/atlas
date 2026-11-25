@@ -1,6 +1,7 @@
 import type { INestApplication } from '@nestjs/common'
 import request from 'supertest'
-import { useTestDatabase } from '@dltech/atlas-db/testing'
+import { db } from '@dltech/atlas-db'
+import { seedUser, useTestDatabase } from '@dltech/atlas-db/testing'
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from 'bun:test'
 import { EnvService } from '../src/_core/config/env/env.service'
 import { SESSION_VERIFIER } from '../src/_core/ports/session-verifier'
@@ -10,7 +11,6 @@ import { as, createMiddlewareApp } from '../src/_module/trpc/trpc-middleware.fix
 import { AccountsRouter } from '../src/api/platform/accounts/accounts.router'
 import { AccountsService } from '../src/api/platform/accounts/accounts.service'
 import { ProviderKeyCheckService } from '../src/api/platform/accounts/provider-key-check.service'
-import { seedUsers } from './session-seed'
 
 const validBody = {
   provider: 'anthropic',
@@ -59,7 +59,7 @@ describe('AccountsRouter validation (in-process)', () => {
   })
 
   beforeEach(async () => {
-    await seedUsers('user-a')
+    await seedUser({ db, id: 'user-a' })
   })
 
   afterAll(async () => {

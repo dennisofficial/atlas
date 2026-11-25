@@ -14,7 +14,7 @@ a higher out-of-memory score. `apps/daemon` calls it.
 
 ## Does not own
 
-- Which commands a thread runs. The harness and the daemon own them.
+- Which commands a thread runs. The agent's tool plugins and the daemon own them.
 - The decision that a pod must write its state to disk. `@dltech/atlas-core` owns
   `mirrorsThreadState`, and this package only reads it.
 - Container creation and the sandbox image. The API and the pod bootstrap own them.
@@ -90,4 +90,4 @@ const child = Bun.spawn(workloadCommand({ cmd: ['bash'], cwd, env }), { cwd, env
 ## See also
 
 - `apps/daemon/src/protection.ts` for the daemon that reports the result to the API.
-- `docs/pods.md` for the pod model.
+- `docs/architecture.md` for the pod model.

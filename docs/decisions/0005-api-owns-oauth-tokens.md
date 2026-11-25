@@ -13,9 +13,10 @@ the copy everyone else holds.
 Atlas Cloud holds the refresh token. A pod leases short-lived access tokens with
 the tRPC procedure `oauthConnections.accessToken`, and the API refreshes as needed
 (`apps/api/src/api/platform/oauth-connections/oauth-connections.service.ts`). This applies to local
-pods as well as Vercel ones. No token rides in the birth bundle: a pod starts with the access token
-from its account lease at boot and leases a new one when that is stale or rejected
-(`packages/harness/src/credentials/cloud-managed-credential-port.ts`).
+pods as well as cloud ones. No token rides in the pod's birth bundle (see the pod boundary in
+[architecture.md](../architecture.md) §3): the credential port that leased a fresh access token was a
+v1 class (`packages/harness/src/credentials/cloud-managed-credential-port.ts`), and the rule it
+applied is unchanged.
 
 ## Why
 

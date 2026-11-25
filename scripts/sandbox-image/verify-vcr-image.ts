@@ -1,12 +1,9 @@
 #!/usr/bin/env bun
 
-import { $ } from 'bun'
 import { randomBytes } from 'node:crypto'
 
 const CREATE_BUDGET_MS = 10 * 60 * 1000
 const POLL_DELAY_MS = 20_000
-const HEAL_ATTEMPTS = 2
-const BAKE_ID_PATH = 'infra/sandbox-image/atlas-serve.bake-id'
 
 export type ImageReadiness = 'ready' | 'not-ready' | 'poisoned' | 'unexpected'
 
@@ -106,26 +103,6 @@ async function waitForOptimization(args: {
   }
 }
 
-/**
- * Forces a fresh manifest digest: the bake stamp is a layer in the image, so rewriting it and
- * rebuilding changes the digest even when the rebuild is fully cached. The poisoned optimization
- * result lives on the digest, so a fresh digest gets a fresh roll of the dice.
- */
-async function republishUnderFreshDigest(args: {
-  vcrImage: string
-  tag: string
-  ghcrImage: string
-}): Promise<void> {
-  await Bun.write(BAKE_ID_PATH, `${Date.now()}\n`)
-  await $`docker buildx build
-    --platform linux/amd64
-    --provenance=false
-    --tag ${`${args.vcrImage}:${args.tag}`}
-    --cache-from type=registry,ref=${`${args.ghcrImage}:buildcache`}
-    --output type=image,push=true,oci-mediatypes=true,compression=zstd,compression-level=3,force-compression=true
-    infra/sandbox-image`.quiet()
-}
-
 async function main(): Promise<number> {
   const image = process.argv[2]
   if (image === undefined) {
@@ -135,41 +112,29 @@ async function main(): Promise<number> {
   const token = process.env.VERCEL_TOKEN
   const teamId = process.env.VERCEL_TEAM_ID
   const projectId = process.env.VERCEL_PROJECT_ID
-  const vcrImage = process.env.VCR_IMAGE
-  const ghcrImage = process.env.IMAGE
-  if (!token || !teamId || !projectId || !vcrImage || !ghcrImage) {
-    console.error(
-      'VERCEL_TOKEN, VERCEL_TEAM_ID, VERCEL_PROJECT_ID, VCR_IMAGE and IMAGE are required',
-    )
+  if (!token || !teamId || !projectId) {
+    console.error('VERCEL_TOKEN, VERCEL_TEAM_ID and VERCEL_PROJECT_ID are required')
     return 2
   }
-  const tag = image.split(':').at(-1) ?? image
   const probe = { api: 'https://vercel.com/api', token, teamId, projectId, image }
 
-  for (let heal = 0; ; heal++) {
-    const readiness = await waitForOptimization(probe)
-    if (readiness === 'ready') {
-      console.log(`image ${image} optimizes and boots`)
-      return 0
-    }
-    if (readiness === 'not-ready') {
-      console.log(
-        `::error::image ${image} still not ready after ${CREATE_BUDGET_MS / 60_000} minutes`,
-      )
-      return 1
-    }
-    if (readiness === 'unexpected') return 1
-    if (heal >= HEAL_ATTEMPTS) {
-      console.log(
-        `::error::image ${image} failed Vercel's optimization ${heal + 1} times across fresh digests — this is a Vercel-side rejection, not a flake`,
-      )
-      return 1
-    }
-    console.log(
-      `optimization failed for the published digest — republishing under a fresh one (heal ${heal + 1}/${HEAL_ATTEMPTS})`,
-    )
-    await republishUnderFreshDigest({ vcrImage, tag, ghcrImage })
+  const readiness = await waitForOptimization(probe)
+  if (readiness === 'ready') {
+    console.log(`image ${image} optimizes and boots`)
+    return 0
   }
+  if (readiness === 'not-ready') {
+    console.log(
+      `::error::image ${image} still not ready after ${CREATE_BUDGET_MS / 60_000} minutes`,
+    )
+    return 1
+  }
+  if (readiness === 'poisoned') {
+    console.log(
+      `::error::image ${image} failed Vercel's optimization — a poisoned digest answers that way for good, so this is a Vercel-side rejection, not a flake`,
+    )
+  }
+  return 1
 }
 
 if (import.meta.main) process.exit(await main())

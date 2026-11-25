@@ -12,9 +12,6 @@ import {
 } from '../session-trpc-test-app'
 import { GithubService } from '@dltech/atlas-github'
 import { ProjectsService } from '../projects/projects.service'
-import { appendStoredWithin } from '../../platform/sessions/append'
-import { ThreadSignalsService } from '../../platform/sessions/thread-signals.service'
-import { inertSignals } from '../../platform/sessions/thread-signals.fixture'
 import { SkillUsageService } from './skill-usage.service'
 import { SkillsRouter } from './skills.router'
 import { SkillsService } from './skills.service'
@@ -50,62 +47,56 @@ describe('SkillsRouter', () => {
     })
   }
 
-  const seedEvents = async (args: {
+  const seedLoads = async (args: {
     userId: string
+    projectId?: string
     events: {
-      type: string
-      body: string
-      contextSlot?: string
-      contextKey?: string
-      projectId?: string
+      type: 'context-loaded' | 'tool-called'
+      body: Record<string, unknown>
       at?: Date
     }[]
   }) => {
+    const sessionId = `ses-${args.userId}-${args.projectId ?? 'personal'}`
+    const threadId = `thr-${args.userId}-${args.projectId ?? 'personal'}`
+    const at = new Date()
+    if ((await db.orm.v2.V2Session.first({ id: sessionId })) === null) {
+      await db.orm.v2.V2Session.create({
+        id: sessionId,
+        userId: args.userId,
+        projectId: args.projectId ?? null,
+        mainThreadId: threadId,
+        nextInboxId: 1,
+        createdAt: at,
+        modelRef: 'anthropic/claude-haiku-4-5',
+        modelEffort: 'medium',
+        modelFast: false,
+      })
+    }
+    if ((await db.orm.v2.V2Thread.first({ id: threadId })) === null) {
+      await db.orm.v2.V2Thread.create({
+        id: threadId,
+        sessionId,
+        headSeq: 0,
+        headHash: '',
+        visibility: 'visible',
+        createdAt: at,
+      })
+    }
     let seq = 0
     for (const event of args.events) {
-      const projectId = event.projectId
-      const threadId = `thr-${args.userId}-${projectId ?? 'personal'}-${seq}`
-      const sessionId = `ses-${args.userId}-${projectId ?? 'personal'}`
-      const existingSession = await db.orm.public.Session.first({ id: sessionId })
-      if (existingSession === null) {
-        await db.orm.public.Session.create({
-          id: sessionId,
-          userId: args.userId,
-          createdAt: new Date(),
-          updatedAt: new Date(),
-          ...(projectId === undefined ? {} : { projectId }),
-        })
-      }
-      const existingThread = await db.orm.public.Thread.first({ id: threadId })
-      if (existingThread === null) {
-        await db.orm.public.Thread.create({
-          id: threadId,
-          userId: args.userId,
-          sessionId,
-          createdAt: new Date(),
-          updatedAt: new Date(),
-        })
-      }
       seq += 1
-      await db.transaction((tx) =>
-        appendStoredWithin({
-          tx,
-          threadId,
-          userId: args.userId,
-          runId: `run-${seq}`,
-          drafts: [
-            {
-              type: event.type,
-              body: event.body,
-              ...(event.contextSlot === undefined ? {} : { contextSlot: event.contextSlot }),
-              ...(event.contextKey === undefined ? {} : { contextKey: event.contextKey }),
-            },
-          ],
-        }),
-      )
-      if (event.at !== undefined) {
-        await db.orm.public.Event.where({ threadId }).update({ at: event.at })
-      }
+      await db.orm.v2.V2Event.create({
+        threadId,
+        seq,
+        id: `evt-${threadId}-${seq}`,
+        epoch: 1,
+        type: event.type,
+        runId: `run-${seq}`,
+        at: event.at ?? at,
+        prevHash: '',
+        hash: `hash-${seq}`,
+        canonical: JSON.stringify(event.body),
+      })
     }
   }
 
@@ -116,7 +107,6 @@ describe('SkillsRouter', () => {
         SkillsService,
         SkillUsageService,
         ProjectsService,
-        { provide: ThreadSignalsService, useValue: inertSignals() },
         { provide: GithubService, useValue: { findToken: async () => undefined } },
       ],
     })
@@ -356,62 +346,63 @@ describe('SkillsRouter', () => {
       ...fileOf(skillMd({ name: 'deploy', description: 'd' })),
     }).expect(200)
 
-    const old = new Date(Date.now() - 45 * 24 * 60 * 60 * 1000)
-    await seedEvents({
+    const recent = new Date(Date.now() - 60 * 60 * 1_000)
+    const earlier = new Date(Date.now() - 2 * 60 * 60 * 1_000)
+    const old = new Date(Date.now() - 45 * 24 * 60 * 60 * 1_000)
+    await seedLoads({
       userId: USER_A,
       events: [
-        { type: 'context-loaded', body: '{}', contextSlot: 'skill', contextKey: 'review' },
         {
-          type: 'tool-called',
-          body: JSON.stringify({ name: 'skill', input: { name: 'review' } }),
+          type: 'context-loaded',
+          body: { slot: 'skill', key: 'review', content: 'body' },
+          at: earlier,
         },
         {
           type: 'tool-called',
-          body: JSON.stringify({ name: 'skill', input: { name: 'deploy' } }),
-          projectId: 'proj-a',
+          body: { name: 'skill', input: { name: 'review' }, ordinal: 0 },
+          at: recent,
         },
         {
           type: 'tool-called',
-          body: JSON.stringify({ name: 'skill', input: { name: 'stale' } }),
+          body: { name: 'skill', input: { name: 'stale' }, ordinal: 0 },
           at: old,
         },
-        { type: 'tool-called', body: JSON.stringify({ name: 'bash', input: {} }) },
+        { type: 'tool-called', body: { name: 'bash', input: {}, ordinal: 0 } },
         {
           type: 'tool-called',
-          body: '{"name":"skill","input":{"name":"review"},"output":"nul \\u0000 byte"}',
+          body: { name: 'skill', input: { name: 'review' }, ordinal: 0, output: 'nul \u0000 byte' },
         },
       ],
     })
-    await seedEvents({
+    await seedLoads({
+      userId: USER_A,
+      projectId: 'proj-a',
+      events: [
+        {
+          type: 'tool-called',
+          body: { name: 'skill', input: { name: 'deploy' }, ordinal: 0 },
+          at: recent,
+        },
+      ],
+    })
+    await seedLoads({
       userId: USER_B,
       events: [
         {
           type: 'tool-called',
-          body: JSON.stringify({ name: 'skill', input: { name: 'review' } }),
+          body: { name: 'skill', input: { name: 'review' }, ordinal: 0 },
+          at: recent,
         },
       ],
     })
 
     const personal = await list('session-a', { scope: 'personal' }).expect(200)
     const review = (dataOf(personal.body) as { skills: { usage: unknown }[] }).skills[0]
-    expect(review?.usage).toEqual({ usedCount30d: 2, lastUsedAt: expect.any(String) })
+    expect(review?.usage).toEqual({ usedCount30d: 2, lastUsedAt: recent.toISOString() })
 
     const project = await list('session-a', { scope: 'project', projectId: 'proj-a' }).expect(200)
     const deploy = (dataOf(project.body) as { skills: { usage: unknown }[] }).skills[0]
-    expect(deploy?.usage).toMatchObject({ usedCount30d: 1 })
-  })
-
-  it('denormalises the tool name onto an event appended through the writer', async () => {
-    await seedEvents({
-      userId: USER_A,
-      events: [
-        { type: 'tool-called', body: JSON.stringify({ name: 'skill', input: { name: 'review' } }) },
-        { type: 'tool-called', body: JSON.stringify({ name: 'bash', input: {} }) },
-      ],
-    })
-
-    const rows = await db.orm.public.Event.where({ userId: USER_A, type: 'tool-called' }).all()
-    expect(rows.map((row) => row.toolName).sort()).toEqual(['bash', 'skill'])
+    expect(deploy?.usage).toEqual({ usedCount30d: 1, lastUsedAt: recent.toISOString() })
   })
 
   it('derives and persists an empty description from SKILL.md on list', async () => {

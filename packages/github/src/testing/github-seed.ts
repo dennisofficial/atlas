@@ -1,11 +1,7 @@
 import { randomUUID } from 'node:crypto'
 import { db, type Row } from '@dltech/atlas-db'
 
-type JsonColumn = NonNullable<Row<'CloudSandbox'>['runtimeCheckpoint']>
-
 const FAR = 60_000
-
-export const asJson = (value: unknown): JsonColumn => JSON.parse(JSON.stringify(value))
 
 export async function ensureUser(id: string): Promise<void> {
   await db.orm.public.User.upsert({

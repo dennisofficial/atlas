@@ -82,9 +82,9 @@ describe('createApiClient', () => {
       fetchFn: recordingFetch(seen),
     })
 
-    await client.sandboxSelf.events.mutate({ events: [] }).catch(() => undefined)
+    await client.secrets.details.query().catch(() => undefined)
 
-    expect(seen[0]?.url).toBe('https://api.atlas.test/v1/trpc/sandboxSelf.events')
+    expect(seen[0]?.url).toBe('https://api.atlas.test/v1/trpc/secrets.details')
     expect(seen[0]?.headers.get('authorization')).toBe('Bearer tok')
     expect(seen[0]?.headers.get('atlas-client-version')).toBe('1.2.3')
   })
@@ -93,9 +93,9 @@ describe('createApiClient', () => {
     const seen: Seen[] = []
     const client = createApiClient({ baseUrl: '', fetchFn: recordingFetch(seen) })
 
-    await client.sandboxSelf.events.mutate({ events: [] }).catch(() => undefined)
+    await client.secrets.details.query().catch(() => undefined)
 
-    expect(seen[0]?.url).toBe('/v1/trpc/sandboxSelf.events')
+    expect(seen[0]?.url).toBe('/v1/trpc/secrets.details')
     expect(seen[0]?.headers.has('authorization')).toBe(false)
     expect(seen[0]?.headers.has('atlas-client-version')).toBe(false)
     expect(seen[0]?.credentials).toBe('same-origin')
@@ -111,7 +111,7 @@ describe('createApiClient', () => {
       fetchFn: recordingFetch(seen),
       EventSource: fakeEventSource(constructed),
     })
-    const subscription = client.threadEvents.stream.subscribe({ threadId: 'thr_1' }, {})
+    const subscription = client.githubPrs.states.subscribe(undefined, {})
 
     await untilConstructed(constructed)
     const [source] = constructed
@@ -120,7 +120,7 @@ describe('createApiClient', () => {
     })
     subscription.unsubscribe()
 
-    expect(source?.url).toStartWith('https://api.atlas.test/v1/trpc/threadEvents.stream')
+    expect(source?.url).toStartWith('https://api.atlas.test/v1/trpc/githubPrs.states')
     expect(seen[0]?.headers.get('authorization')).toBe('Bearer secret-bearer')
     expect(seen[0]?.headers.get('atlas-client-version')).toBe('1.2.3')
     expect(seen[0]?.headers.get('accept')).toBe('text/event-stream')
@@ -135,7 +135,7 @@ describe('createApiClient', () => {
     Reflect.set(globalThis, 'EventSource', fakeEventSource(constructed))
     try {
       const client = createApiClient({ baseUrl: 'https://api.atlas.test', token: 'secret-bearer' })
-      const subscription = client.threadEvents.stream.subscribe({ threadId: 'thr_1' }, {})
+      const subscription = client.githubPrs.states.subscribe(undefined, {})
       await untilConstructed(constructed)
       subscription.unsubscribe()
     } finally {
@@ -154,7 +154,7 @@ describe('createApiClient', () => {
       fetchFn: recordingFetch(seen),
     })
 
-    await client.sandboxSelf.events.mutate({ events: [] }).catch(() => undefined)
+    await client.secrets.details.query().catch(() => undefined)
 
     expect(seen[0]?.credentials).toBe('include')
   })
@@ -165,7 +165,7 @@ describe('createApiClient', () => {
     Reflect.set(globalThis, 'EventSource', fakeEventSource(constructed))
     try {
       const client = createApiClient({ baseUrl: 'https://api.atlas.test', credentials: 'include' })
-      const subscription = client.threadEvents.stream.subscribe({ threadId: 'thr_1' }, {})
+      const subscription = client.githubPrs.states.subscribe(undefined, {})
       await untilConstructed(constructed)
       subscription.unsubscribe()
     } finally {
@@ -184,7 +184,7 @@ describe('createApiClient', () => {
       fetchFn: recordingFetch(seen),
       EventSource: fakeEventSource(constructed),
     })
-    const subscription = client.threadEvents.stream.subscribe({ threadId: 'thr_1' }, {})
+    const subscription = client.githubPrs.states.subscribe(undefined, {})
 
     await untilConstructed(constructed)
     const [source] = constructed
@@ -198,7 +198,7 @@ describe('createApiClient', () => {
   it('exposes the status, details and a control-plane error for a failed call', async () => {
     const client = createApiClient({ baseUrl: 'https://api.atlas.test', fetchFn: failingFetch() })
 
-    const failure = await client.sandboxSelf.events.mutate({ events: [] }).catch((error) => error)
+    const failure = await client.secrets.details.query().catch((error) => error)
 
     expect(httpStatusOf(failure)).toBe(409)
     expect(detailsOf(failure)).toEqual({ seq: 3 })
@@ -211,9 +211,9 @@ describe('createApiClient', () => {
       baseUrl: 'https://api.atlas.test',
       fetchFn: recordingFetch(seen),
     })
-    const input = { scope: 'new', text: 'hello', uploads: [] }
+    const input = { sessionId: null, text: 'hello', attachments: [] }
 
-    await client.composerDrafts.put.mutate(input).catch(() => undefined)
+    await client.sessionDrafts.put.mutate(input).catch(() => undefined)
 
     expect(Object.keys(wrappedBodyOf(seen[0]?.body))).toEqual(['atlasB64'])
     expect(decodedBody(seen[0]?.body)).toEqual(input)
@@ -226,12 +226,12 @@ describe('createApiClient', () => {
       fetchFn: recordingFetch(seen),
     })
     const input = {
-      scope: 'new',
+      sessionId: null,
       text: 'héllo 👋 read ../../../../etc/passwd; rm -rf /tmp/x',
-      uploads: [],
+      attachments: [],
     }
 
-    await client.composerDrafts.put.mutate(input).catch(() => undefined)
+    await client.sessionDrafts.put.mutate(input).catch(() => undefined)
 
     expect(decodedBody(seen[0]?.body)).toEqual(input)
   })
@@ -243,7 +243,7 @@ describe('createApiClient', () => {
       fetchFn: recordingFetch(seen),
     })
 
-    await client.composerDrafts.get.query({ scope: 'new' }).catch(() => undefined)
+    await client.sessionDrafts.get.query({ sessionId: null }).catch(() => undefined)
 
     expect(seen[0]?.url).toContain('input=')
     expect(seen[0]?.body).toBeUndefined()

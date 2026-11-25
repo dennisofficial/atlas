@@ -8,6 +8,10 @@ export const applyNavigation = (navigation: TNavigationAction): void => {
     router.push(navigation.href)
     return
   }
+  if (navigation.action === ENavigationAction.Replace) {
+    router.replace(navigation.href)
+    return
+  }
   router.dismissAll()
   router.replace(navigation.href)
 }

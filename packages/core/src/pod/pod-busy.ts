@@ -7,13 +7,14 @@ export enum EPodBusyReason {
   Turn = 'turn',
 }
 
+export const POD_BASH_TOOL = 'bash'
+
 export type PodBusyFacts = {
   shellsRunning: number
   servicesRunning: number
   setupRunning: boolean
   turnInFlight: boolean
-  toolRunning: boolean
-  agentsRunning: number
+  bashRunning: boolean
 }
 
 export type PodBusy = {
@@ -32,17 +33,16 @@ const TURN_STATES: ReadonlySet<ESessionStatus> = new Set([
 
 export const podBusyFactsOf = (args: {
   state: ESessionStatus | undefined
+  toolName?: string | undefined
   shellsRunning: number
   servicesRunning: number
   setupRunning?: boolean | undefined
-  agentsRunning?: number | undefined
 }): PodBusyFacts => ({
   shellsRunning: args.shellsRunning,
   servicesRunning: args.servicesRunning,
   setupRunning: args.setupRunning === true || args.state === ESessionStatus.Preparing,
   turnInFlight: args.state !== undefined && TURN_STATES.has(args.state),
-  toolRunning: args.state === ESessionStatus.RunningTool,
-  agentsRunning: args.agentsRunning ?? 0,
+  bashRunning: args.state === ESessionStatus.RunningTool && args.toolName === POD_BASH_TOOL,
 })
 
 const plural = (count: number, one: string, many: string): string =>
@@ -66,8 +66,7 @@ export const podBusyOf = (facts: PodBusyFacts): PodBusy => {
 
 export const podResizeBusyOf = (facts: PodBusyFacts): PodBusy => {
   const running = podProcessesOf(facts)
-  if (facts.toolRunning) running.push('Tool call')
-  if (facts.agentsRunning > 0) running.push(plural(facts.agentsRunning, 'sub-agent', 'sub-agents'))
+  if (facts.bashRunning) running.push('Bash command')
   return busyOf(running)
 }
 

@@ -1,3 +1,4 @@
+import { pullRequestDisplayOf } from '@dltech/atlas-plugin-github/core'
 import { FastForward, type LucideIcon } from 'lucide-react'
 
 import { Tooltip, TooltipContent, TooltipTrigger } from '@dltech/atlas-ui/components/tooltip'
@@ -7,11 +8,6 @@ export type PullRequestMergeMarkerValue = {
   hint: string
 }
 
-/**
- * A queued pull request wears no marker: its icon turns the queued colour instead, as on GitHub.
- * GitHub queues an auto-merge pull request once it is green, so the queue also hides the auto-merge
- * marker that put it there.
- */
 type MergeMarked = {
   state: string | undefined
   mergeQueued?: boolean | undefined
@@ -19,14 +15,9 @@ type MergeMarked = {
 }
 
 export function mergeMarkerOf(entry: MergeMarked): PullRequestMergeMarkerValue | undefined {
-  const state = entry.state?.toLowerCase()
-  if (state === 'merged' || state === 'closed') return undefined
-  if (entry.mergeQueued === true) return undefined
-  if (entry.autoMerge === true) {
-    return { icon: FastForward, hint: 'Auto-merge enabled' }
-  }
-
-  return undefined
+  const display = pullRequestDisplayOf(entry)
+  if (!display.autoMerge) return undefined
+  return { icon: FastForward, hint: 'Auto-merge enabled' }
 }
 
 export function PullRequestMergeMarker({ entry }: { entry: MergeMarked }) {

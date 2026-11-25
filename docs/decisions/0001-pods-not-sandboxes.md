@@ -21,7 +21,7 @@ an "orb", the vocabulary would encode location, and the harness is meant to be l
 ## Consequences
 
 - New code and docs say pod and runner.
-- The rename of existing code has not happened. `CloudSandbox`, `/v1/sandboxes/*`,
-  `@SandboxReachable()`, `sandbox-*.ts` and the `atlas-sandbox` image keep the old word, and a
-  Vercel pod is still named `atlas-thread-<hash>`.
+- The rename completed with the v1 retirement: the v1 `CloudSandbox` rows are archived in the
+  `v1_archive` schema, `/v1/sandboxes/*` is gone, and the pod vocabularies that survive are
+  `packages/pods` and `apps/daemon`.
 - Podman and Kubernetes already use "pod" for a group of containers. Here a pod is one container.

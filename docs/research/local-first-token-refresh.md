@@ -124,28 +124,28 @@ explicit supported remote authorization/transfer flow, not unattended browser fa
 
 ## Atlas refresh machinery inspected
 
-- [`RefreshingCredentialPort`](../../packages/harness/src/credentials/refreshing-credential-port.ts)
+- `RefreshingCredentialPort` (v1: `packages/harness/src/credentials/refreshing-credential-port.ts`)
   has one in-flight refresh **per account ID per port instance** (lines 51, 126-135). It persists the
   replacement before returning it (160-169). On hard 400/401/403 it rereads **its own account store**
   and accepts a changed pair, otherwise marks the account expired (172-209).
-- [`SinkReconciler`](../../packages/harness/src/credentials/sink-reconciler.ts) reads/writes the
+- `SinkReconciler` (v1: `packages/harness/src/credentials/sink-reconciler.ts`) reads/writes the
   imported tool's locally available sink (49-89). It uses expiry-based adoption, not a distributed
   lock or grant generation. This cannot reconcile detached machines or fence a concurrent refresh.
-- [`AccountStore`](../../packages/harness/src/credentials/account-store.ts) serializes writes within
+- `AccountStore` (v1: `packages/harness/src/credentials/account-store.ts`) serializes writes within
   one store instance (147-153). Atomic file rename prevents partial files; it does not make a
   read-network-refresh-write transaction atomic across processes or machines.
-- [`AnthropicOauthClient`](../../packages/harness/src/credentials/oauth/anthropic-oauth-client.ts)
+- `AnthropicOauthClient` (v1: `packages/harness/src/credentials/oauth/anthropic-oauth-client.ts`)
   requires both returned access and refresh tokens (118-121).
-  [`CodexOauthClient`](../../packages/harness/src/credentials/oauth/codex-oauth-client.ts) replaces a
+  `CodexOauthClient` (v1: `packages/harness/src/credentials/oauth/codex-oauth-client.ts`) replaces a
   returned refresh token or retains the old token when omitted (106-136). Both accept injected fetch
   and clock, so the spike tests their actual serialization and parsing without live calls.
-- [`McpOAuthFlow`](../../packages/harness/src/mcp/oauth/flow.ts) has no refresh single-flight. On any
+- `McpOAuthFlow` (v1: `packages/harness/src/mcp/oauth/flow.ts`) has no refresh single-flight. On any
   token-refresh exception, including a transport error, it clears tokens (141-170). `currentToken`
   returns `undefined`, without opening a browser (64-70). A losing refresher can clear a winner's
   newly saved tokens when they share a store.
-- [`McpOAuthStore`](../../packages/harness/src/mcp/oauth/token-store.ts) persists tokens **and** client
+- `McpOAuthStore` (v1: `packages/harness/src/mcp/oauth/token-store.ts`) persists tokens **and** client
   registration in a URL-keyed secret blob. Its low-level refresh keeps the previous refresh token
-  if omitted from the response ([`token.ts`](../../packages/harness/src/mcp/oauth/token.ts):184-214).
+  if omitted from the response (`token.ts` (v1: `packages/harness/src/mcp/oauth/token.ts`):184-214).
 - At baseline `305e8f87c2951808c228cf9574743947cea8ea59`, serve bound broker-backed account,
   credential and secret ports. The local-first implementation replaces them with persistent local
   stores; merely copying access tokens would not provide detached renewal.
@@ -156,7 +156,7 @@ explicit supported remote authorization/transfer flow, not unattended browser fa
 
 ## Executable verification: simulator, not live providers
 
-[`local-first-token-refresh.ts`](../../packages/harness/spikes/local-first-token-refresh.ts) constructs
+`local-first-token-refresh.ts` (v1: `packages/harness/spikes/local-first-token-refresh.ts`) constructs
 in-memory stores and a self-terminating `Bun.serve` issuer on `127.0.0.1`, port zero. Injected fetch
 reroutes only the two known provider token URLs to that issuer and rejects other destinations; MCP
 uses its loopback discovery metadata. Only `fake:` refresh tokens are accepted. No Atlas API, CLI

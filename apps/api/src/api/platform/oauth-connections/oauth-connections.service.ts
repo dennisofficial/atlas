@@ -115,7 +115,6 @@ export class OauthConnectionsService {
   async issueAccessToken(args: {
     userId: string
     connectionId: string
-    sandboxId?: string
     rejectedAccessToken?: string
   }): Promise<AccessTokenDto> {
     const row = await this.authorizedRow(args)
@@ -132,7 +131,6 @@ export class OauthConnectionsService {
   private async refreshLocked(args: {
     userId: string
     connectionId: string
-    sandboxId?: string
     rejectedAccessToken?: string
   }): Promise<AccessTokenDto> {
     const row = await this.authorizedRow(args)
@@ -149,7 +147,6 @@ export class OauthConnectionsService {
   private async afterLostFence(args: {
     userId: string
     connectionId: string
-    sandboxId?: string
     rejectedAccessToken?: string
   }): Promise<AccessTokenDto> {
     const row = await this.authorizedRow(args)
@@ -164,17 +161,6 @@ export class OauthConnectionsService {
     throw new ServiceUnavailableException('the connection changed during refresh; retry shortly')
   }
 
-  async assignSandbox(args: {
-    userId: string
-    connectionId: string
-    threadId: string
-  }): Promise<void> {
-    await this.authorizedRow(args)
-    const sandboxId = await this.store.ownedSandboxId(args)
-    if (sandboxId === null) throw new NotFoundException('sandbox not found')
-    await this.store.assign({ connectionId: args.connectionId, sandboxId })
-  }
-
   async remove(args: { userId: string; connectionId: string }): Promise<void> {
     const removed = await this.store.remove({ id: args.connectionId, userId: args.userId })
     if (!removed) throw new NotFoundException('connection not found')
@@ -183,17 +169,10 @@ export class OauthConnectionsService {
   private async authorizedRow(args: {
     userId: string
     connectionId: string
-    sandboxId?: string
   }): Promise<ConnectionRow> {
     const row = await this.store.find({ id: args.connectionId })
     if (row === null || row.userId !== args.userId)
       throw new NotFoundException('connection not found')
-    if (args.sandboxId === undefined) return row
-    const assigned = await this.store.isAssigned({
-      connectionId: args.connectionId,
-      sandboxId: args.sandboxId,
-    })
-    if (!assigned) throw new NotFoundException('connection not found')
     return row
   }
 

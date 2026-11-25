@@ -1,4 +1,4 @@
-import { countQueries, seedThread, useTestDatabase } from '@dltech/atlas-db/testing'
+import { countQueries, useTestDatabase } from '@dltech/atlas-db/testing'
 import { db } from '@dltech/atlas-db'
 import { ControlPlane } from '@dltech/atlas-control'
 import { createV2EventSchema, INBOX_KIND_RECORD, inboxEventOf } from '@dltech/atlas-core'
@@ -27,8 +27,6 @@ const inboxRecords = async (): Promise<number> => {
   }).length
 }
 
-const seedV1Thread = (id: string) => seedThread({ db, id, userId: USER })
-
 const seedV2Thread = async (args: { sessionId: string; threadId: string }): Promise<void> => {
   const plane = new ControlPlane({
     store: new PostgresControlStore(db),
@@ -54,7 +52,6 @@ describe('GithubPollSweeperService lapsed subscriptions', () => {
   beforeEach(preparePollSweeper)
 
   it('drops a lapsed row whose thread is a v1 thread, without a record', async () => {
-    await seedV1Thread('thr_v1_gone')
     await seedSubscription({
       id: 'sub-gone',
       threadId: 'thr_v1_gone',
@@ -116,7 +113,6 @@ describe('GithubPollSweeperService lapsed subscriptions', () => {
 
   it('reads no thread per row for any number of lapsed v1 rows', async () => {
     for (const threadId of ['thr_v1_a', 'thr_v1_b', 'thr_v1_c']) {
-      await seedV1Thread(threadId)
       await seedSubscription({
         id: `sub-${threadId}`,
         threadId,
@@ -135,7 +131,6 @@ describe('GithubPollSweeperService lapsed subscriptions', () => {
   })
 
   it('re-reads nothing of a dropped row on the next sweep', async () => {
-    await seedV1Thread('thr_v1_dropped')
     await seedSubscription({
       id: 'sub-dropped',
       threadId: 'thr_v1_dropped',

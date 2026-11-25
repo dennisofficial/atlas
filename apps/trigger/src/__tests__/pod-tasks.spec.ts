@@ -1,4 +1,5 @@
 import { describe, expect, it, mock } from 'bun:test'
+import { POD_RESIZE_MAX_DURATION_SECONDS } from '@dltech/atlas-pods'
 import { triggerSdkFake } from './trigger-sdk.fake'
 
 mock.module('@trigger.dev/sdk', () => triggerSdkFake)
@@ -19,7 +20,7 @@ describe('the pod tasks this worker registers', () => {
     expect(podResizeTask).toMatchObject({
       id: 'pod-resize',
       retry: { maxAttempts: 3 },
-      maxDuration: 120,
+      maxDuration: POD_RESIZE_MAX_DURATION_SECONDS,
     })
     expect(podDiskGrowTask).toMatchObject({
       id: 'pod-disk-grow',

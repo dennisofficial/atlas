@@ -8,8 +8,7 @@ const factsOf = (over: Partial<PodBusyFacts> = {}): PodBusyFacts => ({
   servicesRunning: 0,
   setupRunning: false,
   turnInFlight: false,
-  toolRunning: false,
-  agentsRunning: 0,
+  bashRunning: false,
   ...over,
 })
 
@@ -56,15 +55,21 @@ describe('podResizeBusyOf', () => {
     expect(podResizeBusyOf(factsOf({ turnInFlight: true }))).toEqual({ busy: false, running: [] })
   })
 
-  it('holds a resize while a tool call runs on the pod', () => {
-    expect(podResizeBusyOf(factsOf({ turnInFlight: true, toolRunning: true }))).toEqual({
-      busy: true,
-      running: ['Tool call'],
+  it('lets a resize run under a turn whose tool call is not bash', () => {
+    const facts = podBusyFactsOf({
+      state: ESessionStatus.RunningTool,
+      toolName: 'read',
+      shellsRunning: 0,
+      servicesRunning: 0,
     })
+    expect(podResizeBusyOf(facts)).toEqual({ busy: false, running: [] })
   })
 
-  it('holds a resize while sub-agents run', () => {
-    expect(podResizeBusyOf(factsOf({ agentsRunning: 2 })).running).toEqual(['2 sub-agents'])
+  it('holds a resize while a bash command runs in the foreground', () => {
+    expect(podResizeBusyOf(factsOf({ turnInFlight: true, bashRunning: true }))).toEqual({
+      busy: true,
+      running: ['Bash command'],
+    })
   })
 
   it('holds a resize for the same processes a sleep waits for', () => {
@@ -82,11 +87,13 @@ describe('podBusyFactsOf', () => {
     ).toEqual(factsOf({ setupRunning: true }))
   })
 
-  it('reads a running tool only from the running-tool state', () => {
-    const toolRunningIn = (state: ESessionStatus) =>
-      podBusyFactsOf({ state, shellsRunning: 0, servicesRunning: 0 }).toolRunning
-    expect(toolRunningIn(ESessionStatus.RunningTool)).toBe(true)
-    expect(toolRunningIn(ESessionStatus.Thinking)).toBe(false)
+  it('reads a running bash command only from the running-tool state of the bash tool', () => {
+    const bashRunningIn = (args: { state: ESessionStatus; toolName?: string }) =>
+      podBusyFactsOf({ ...args, shellsRunning: 0, servicesRunning: 0 }).bashRunning
+    expect(bashRunningIn({ state: ESessionStatus.RunningTool, toolName: 'bash' })).toBe(true)
+    expect(bashRunningIn({ state: ESessionStatus.RunningTool, toolName: 'edit' })).toBe(false)
+    expect(bashRunningIn({ state: ESessionStatus.RunningTool })).toBe(false)
+    expect(bashRunningIn({ state: ESessionStatus.Thinking, toolName: 'bash' })).toBe(false)
   })
 
   it('reads a turn in flight from the working states', () => {

@@ -31,4 +31,4 @@ TUI v2 flip.
 `@dltech/atlas-syntax`, `@dltech/atlas-observability`, `@dltech/atlas-notifications` and
 `@dltech/atlas-plugin-*/client|core`. It never imports `@dltech/atlas-wire`, `tsyringe` or
 `reflect-metadata`. A row type the chrome reads from a snapshot is declared beside the
-chrome, not borrowed from a v1 package. `src/__tests__/package.spec.ts` enforces the list.
+chrome, not borrowed from a server package. `src/__tests__/package.spec.ts` enforces the list.

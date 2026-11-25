@@ -37,6 +37,7 @@ export type OpenChild = {
   spawnedAt: string
   worktree: WorktreeEntryInfo | undefined
   settled?: ChildSettlement | undefined
+  keepIdle?: boolean | undefined
 }
 
 const openChildOf = (spawn: EventOfType<'agent-spawned'>): OpenChild => ({
@@ -253,10 +254,17 @@ export const openChildren = async (args: {
         })
   const driveable: OpenChild[] = []
   for (const child of children) {
-    const settled = child.settled ?? pending.get(child.agentId)
-    if (child.settled === undefined || (await childWaitsOnInput({ ...args, child }))) {
-      driveable.push({ ...child, settled })
+    const awaited = pending.get(child.agentId)
+    if (child.settled === undefined && awaited === undefined) {
+      driveable.push(child)
+      continue
     }
+    const waitsOnInput = await childWaitsOnInput({ ...args, child })
+    if (child.settled !== undefined) {
+      if (waitsOnInput) driveable.push(child)
+      continue
+    }
+    driveable.push({ ...child, settled: awaited, keepIdle: !waitsOnInput })
   }
   return driveable
 }

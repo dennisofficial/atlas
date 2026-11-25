@@ -1,15 +1,11 @@
 import { Module } from '@nestjs/common'
 import { backgroundWorkProvider } from '../../../_lib/background-work/background-work.providers'
-import { PrSubscriptionLinks } from '../../../_core/ports/pr-subscription-links'
 import { RedisModule } from '../../../_lib/redis/redis.module'
 import { HealthModule } from '../../platform/health/health.module'
-import { SessionsModule } from '../../platform/sessions/sessions.module'
 import { GithubAppHookController } from './github-app-hook.controller'
 import { GithubHookController } from './github-hook.controller'
 import { GithubSweepSchedulerService } from './github-sweep-scheduler'
 import { GithubPrStreamRouter } from './github-pr-stream.router'
-import { GithubPrSubscriptionLinks } from './github-pr-subscription-links'
-import { GithubSubscriptionsRouter } from './github-subscriptions.router'
 import { GithubModule } from './github.module'
 import { pollSweeperProvider, subscriptionsServiceProvider } from './github-sweep.providers'
 import {
@@ -37,14 +33,11 @@ import {
 } from './github-realtime.providers'
 
 @Module({
-  imports: [GithubModule, HealthModule, RedisModule, SessionsModule],
+  imports: [GithubModule, HealthModule, RedisModule],
   controllers: [GithubHookController, GithubAppHookController],
   providers: [
-    GithubSubscriptionsRouter,
     GithubPrStreamRouter,
     subscriptionsServiceProvider,
-    GithubPrSubscriptionLinks,
-    { provide: PrSubscriptionLinks, useExisting: GithubPrSubscriptionLinks },
     githubHookLifecycleProvider,
     githubHeadReadsProvider,
     pollSweeperProvider,

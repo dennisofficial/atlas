@@ -93,6 +93,6 @@ definePlugin({
 
 ## See also
 
-- `docs/v2/slices/web-jina.md`
-- `docs/v2/architecture.md`
+- `docs/slices/web-jina.md`
+- `docs/architecture.md`
 - `docs/decisions/0019-v2-package-map.md`

@@ -4,28 +4,35 @@ import { ESkillScope, type SkillUsage } from '@dltech/atlas-wire'
 
 const usageStatement = (args: { userId: string; projectId?: string }) => {
   if (args.projectId === undefined) {
-    return db.raw
-      .sql`SELECT u.key AS key, count(*)::int AS "usedCount30d", max(u.at) AS "lastUsedAt" FROM (
-      SELECT e."contextKey" AS key, e.at FROM "Event" e
-        WHERE e."userId" = ${args.userId} AND e.type = 'context-loaded' AND e."contextSlot" = 'skill'
-          AND e.at > now() - interval '30 days'
+    return db.raw.sql`WITH loads AS (
+      SELECT e."at" AS at, e."type" AS type, e."canonical"::jsonb AS body
+        FROM "v2"."V2Event" e
+        JOIN "v2"."V2Thread" t ON t."id" = e."threadId"
+        JOIN "v2"."V2Session" s ON s."id" = t."sessionId"
+        WHERE s."userId" = ${args.userId} AND e."type" IN ('context-loaded', 'tool-called')
+          AND e."at" > now() - interval '30 days' AND pg_input_is_valid(e."canonical", 'jsonb')
+    ) SELECT u.key AS key, count(*)::int AS "usedCount30d", max(u.at) AS "lastUsedAt" FROM (
+      SELECT l.body ->> 'key' AS key, l.at AS at FROM loads l
+        WHERE l.type = 'context-loaded' AND l.body ->> 'slot' = 'skill'
       UNION ALL
-      SELECT CASE WHEN pg_input_is_valid(e.body, 'jsonb') THEN e.body::jsonb -> 'input' ->> 'name' END, e.at FROM "Event" e
-        WHERE e."userId" = ${args.userId} AND e.type = 'tool-called' AND e."toolName" = 'skill'
-          AND e.at > now() - interval '30 days'
+      SELECT l.body -> 'input' ->> 'name' AS key, l.at AS at FROM loads l
+        WHERE l.type = 'tool-called' AND l.body ->> 'name' = 'skill'
     ) u GROUP BY u.key`
   }
-  return db.raw
-    .sql`SELECT u.key AS key, count(*)::int AS "usedCount30d", max(u.at) AS "lastUsedAt" FROM (
-    SELECT e."contextKey" AS key, e.at FROM "Event" e
-      JOIN "Thread" t ON t.id = e."threadId" JOIN "Session" s ON s.id = t."sessionId"
-      WHERE e."userId" = ${args.userId} AND e.type = 'context-loaded' AND e."contextSlot" = 'skill'
-        AND e.at > now() - interval '30 days' AND s."projectId" = ${args.projectId}
+  return db.raw.sql`WITH loads AS (
+    SELECT e."at" AS at, e."type" AS type, e."canonical"::jsonb AS body
+      FROM "v2"."V2Event" e
+      JOIN "v2"."V2Thread" t ON t."id" = e."threadId"
+      JOIN "v2"."V2Session" s ON s."id" = t."sessionId"
+      WHERE s."userId" = ${args.userId} AND e."type" IN ('context-loaded', 'tool-called')
+        AND e."at" > now() - interval '30 days' AND s."projectId" = ${args.projectId}
+        AND pg_input_is_valid(e."canonical", 'jsonb')
+  ) SELECT u.key AS key, count(*)::int AS "usedCount30d", max(u.at) AS "lastUsedAt" FROM (
+    SELECT l.body ->> 'key' AS key, l.at AS at FROM loads l
+      WHERE l.type = 'context-loaded' AND l.body ->> 'slot' = 'skill'
     UNION ALL
-    SELECT CASE WHEN pg_input_is_valid(e.body, 'jsonb') THEN e.body::jsonb -> 'input' ->> 'name' END, e.at FROM "Event" e
-      JOIN "Thread" t ON t.id = e."threadId" JOIN "Session" s ON s.id = t."sessionId"
-      WHERE e."userId" = ${args.userId} AND e.type = 'tool-called' AND e."toolName" = 'skill'
-        AND e.at > now() - interval '30 days' AND s."projectId" = ${args.projectId}
+    SELECT l.body -> 'input' ->> 'name' AS key, l.at AS at FROM loads l
+      WHERE l.type = 'tool-called' AND l.body ->> 'name' = 'skill'
   ) u GROUP BY u.key`
 }
 

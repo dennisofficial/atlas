@@ -144,15 +144,22 @@ describe('pod busy facts a resize reads', () => {
     expect(await readPodResizeBusy({ plane, session })).toEqual({ busy: false, running: [] })
   })
 
-  it('holds a resize while a tool call runs on the pod', async () => {
-    const { plane, session } = await seeded([
-      ...turnBodies,
-      { type: 'tool-called', callId: toCallId('call-1'), name: 'bash', input: {}, ordinal: 0 },
-      { type: 'tool-dispatched', callId: toCallId('call-1'), name: 'bash' },
-    ])
+  const toolRunning = (name: string): readonly V2Body[] => [
+    ...turnBodies,
+    { type: 'tool-called', callId: toCallId('call-1'), name, input: {}, ordinal: 0 },
+    { type: 'tool-dispatched', callId: toCallId('call-1'), name },
+  ]
+
+  it('holds a resize while a bash command runs in the foreground', async () => {
+    const { plane, session } = await seeded(toolRunning('bash'))
     expect(await readPodResizeBusy({ plane, session })).toEqual({
       busy: true,
-      running: ['Tool call'],
+      running: ['Bash command'],
     })
+  })
+
+  it('lets a resize run under a tool call that is not bash', async () => {
+    const { plane, session } = await seeded(toolRunning('edit'))
+    expect(await readPodResizeBusy({ plane, session })).toEqual({ busy: false, running: [] })
   })
 })

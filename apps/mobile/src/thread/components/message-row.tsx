@@ -18,7 +18,13 @@ import { StyleSheet, View } from 'react-native'
 
 import { DiagramCard } from '../diagrams/diagram-card'
 import { hasMermaidFence } from '../diagrams/diagram-layout'
-import { EMessageAuthor, type CommandRow, type MessageRow } from '../rows'
+import {
+  EMessageAuthor,
+  senderLabelOf,
+  type CommandRow,
+  type MessageRow,
+  type SessionNameOf,
+} from '../rows'
 import { MessageAttachments } from './message-attachments'
 
 const renderDiagram = ({ source, closed }: IRenderDiagramArgs) => (
@@ -77,14 +83,24 @@ export const MessageRowView = ({
   row,
   threadId,
   sessionId,
+  sessionNameOf,
+  queuedLabel,
 }: {
   row: MessageRow
   threadId: string | undefined
   sessionId: string | undefined
+  sessionNameOf?: SessionNameOf | undefined
+  queuedLabel?: string | undefined
 }) => {
   if (row.author === EMessageAuthor.Atlas) {
+    const caption = senderLabelOf({ row, sessionNameOf })
     return (
       <View style={styles.message}>
+        {caption === undefined ? null : (
+          <Text size={ETextRole.Xs} weight={EFontWeight.Medium} tone={ETextTone.Muted}>
+            {caption}
+          </Text>
+        )}
         <Markdown value={row.text} selectable renderDiagram={renderDiagram} />
         <SentAt at={row.at} />
       </View>
@@ -120,7 +136,20 @@ export const MessageRowView = ({
           <Markdown value={row.text} breaks selectable renderDiagram={renderDiagram} />
         </Bubble>
       ) : null}
-      <SentAt at={row.at} align="end" />
+      {queuedLabel === undefined ? (
+        <SentAt at={row.at} align="end" />
+      ) : (
+        <MessageFooter align="end">
+          <Text
+            size={ETextRole.Xs}
+            weight={EFontWeight.Medium}
+            tone={ETextTone.Muted}
+            style={styles.timestamp}
+          >
+            {queuedLabel}
+          </Text>
+        </MessageFooter>
+      )}
     </View>
   )
 }

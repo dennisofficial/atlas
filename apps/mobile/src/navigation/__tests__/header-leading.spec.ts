@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'bun:test'
 
-import { EControlsPlacement, ESessionsLayout, type TPosture } from '../../layout/posture'
+import { EControlsPlacement, ESessionsListLayout, type TPosture } from '../../layout/posture'
 import {
   EHeaderLeadingItem,
   HEADER_BUTTON_SLOT,
@@ -13,13 +13,13 @@ import {
 
 const postureWith = ({
   controls,
-  sessions,
+  sessionsList,
 }: {
   controls: EControlsPlacement
-  sessions: ESessionsLayout
+  sessionsList: ESessionsListLayout
 }): TPosture => ({
   controls,
-  sessions,
+  sessionsList,
   railWidth: controls === EControlsPlacement.Rail ? 80 : 0,
   railBottom: 0,
   clearance: { bottom: 0 },
@@ -31,7 +31,7 @@ describe('tabHeaderLeadingOf', () => {
       tabHeaderLeadingOf({
         posture: postureWith({
           controls: EControlsPlacement.BottomBar,
-          sessions: ESessionsLayout.Stacked,
+          sessionsList: ESessionsListLayout.Stacked,
         }),
       }),
     ).toEqual([EHeaderLeadingItem.Account])
@@ -42,7 +42,7 @@ describe('tabHeaderLeadingOf', () => {
       tabHeaderLeadingOf({
         posture: postureWith({
           controls: EControlsPlacement.Rail,
-          sessions: ESessionsLayout.Panel,
+          sessionsList: ESessionsListLayout.Panel,
         }),
       }),
     ).toEqual([])
@@ -50,31 +50,31 @@ describe('tabHeaderLeadingOf', () => {
 })
 
 describe('sessionHeaderLeadingOf', () => {
-  it('offers the sessions panel only when the panel opens over the transcript', () => {
+  it('offers the sessions drawer whenever the list is not a fixed panel', () => {
     expect(
       sessionHeaderLeadingOf({
         posture: postureWith({
           controls: EControlsPlacement.BottomBar,
-          sessions: ESessionsLayout.Overlay,
+          sessionsList: ESessionsListLayout.Stacked,
+        }),
+      }),
+    ).toEqual([EHeaderLeadingItem.Sessions])
+    expect(
+      sessionHeaderLeadingOf({
+        posture: postureWith({
+          controls: EControlsPlacement.BottomBar,
+          sessionsList: ESessionsListLayout.Overlay,
         }),
       }),
     ).toEqual([EHeaderLeadingItem.Sessions])
   })
 
-  it('offers no leading button when the panel is stacked or beside the transcript', () => {
-    expect(
-      sessionHeaderLeadingOf({
-        posture: postureWith({
-          controls: EControlsPlacement.BottomBar,
-          sessions: ESessionsLayout.Stacked,
-        }),
-      }),
-    ).toEqual([])
+  it('offers no drawer button while the fixed panel already shows the list', () => {
     expect(
       sessionHeaderLeadingOf({
         posture: postureWith({
           controls: EControlsPlacement.Rail,
-          sessions: ESessionsLayout.Panel,
+          sessionsList: ESessionsListLayout.Panel,
         }),
       }),
     ).toEqual([])
@@ -85,7 +85,7 @@ describe('leadingTitleWidthOf', () => {
   it('gives the title the bar width left after the buttons and the rail column', () => {
     const posture = postureWith({
       controls: EControlsPlacement.Rail,
-      sessions: ESessionsLayout.Overlay,
+      sessionsList: ESessionsListLayout.Overlay,
     })
     expect(leadingTitleWidthOf({ windowWidth: 470, posture, buttons: 2 })).toBe(
       470 - 80 - HEADER_BUTTON_SLOT * 2 - HEADER_EDGE_SLACK,
@@ -98,7 +98,7 @@ describe('leadingTitleWidthOf', () => {
         windowWidth: 200,
         posture: postureWith({
           controls: EControlsPlacement.BottomBar,
-          sessions: ESessionsLayout.Stacked,
+          sessionsList: ESessionsListLayout.Stacked,
         }),
         buttons: 2,
       }),

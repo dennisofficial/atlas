@@ -49,5 +49,5 @@ platform-specific shell buys nothing else, and iOS is already maintained apart.
 
 ## Follows
 
-`docs/mac-native-shell.md` holds the process model, the Swift file map, the contract, the slices, the
-risks and the tests.
+The Swift shell's design note (deleted with the shell) held the process model, the Swift file map,
+the contract, the slices, the risks and the tests.

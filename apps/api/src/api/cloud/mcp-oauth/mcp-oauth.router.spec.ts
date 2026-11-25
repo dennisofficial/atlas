@@ -6,13 +6,10 @@ import { SecretCipherService } from '../../../_lib/crypto/secret-cipher.service'
 import { InProcessRefreshLock, RefreshLock } from '../../../_lib/refresh-lock/refresh-lock'
 import { SESSION_VERIFIER } from '../../../_core/ports/session-verifier'
 import { SessionMiddleware } from '../../../_module/session/session.middleware'
-import { SandboxesService } from '../../platform/sandboxes/sandboxes.service'
 import {
   createOauthApp,
   mutate,
-  principalSandboxes,
   query,
-  SANDBOX_PRINCIPALS,
   SESSIONS,
   sessionVerifier,
 } from '../../platform/oauth-connections/oauth-connections.router.fixture'
@@ -91,10 +88,6 @@ describe('McpOauthRouter authorization', () => {
       { provide: RefreshLock, useValue: new InProcessRefreshLock() },
       { provide: SecretCipherService, useValue: cipher },
       { provide: SESSION_VERIFIER, useValue: sessionVerifier(SESSIONS) },
-      {
-        provide: SandboxesService,
-        useValue: principalSandboxes({ principals: SANDBOX_PRINCIPALS }),
-      },
     ])
   })
 

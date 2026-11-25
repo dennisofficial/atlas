@@ -1,0 +1,768 @@
+[
+  {
+    "id": "schema.v1_archive",
+    "label": "Create the v1_archive schema and bound the lock wait",
+    "operationClass": "data",
+    "target": {
+      "id": "postgres",
+      "details": {
+        "schema": "public",
+        "objectType": "table",
+        "name": "Session"
+      }
+    },
+    "precheck": [],
+    "execute": [
+      {
+        "description": "fail the deploy rather than wait behind a long lock",
+        "sql": "SET LOCAL lock_timeout = '5s'"
+      },
+      {
+        "description": "create schema v1_archive",
+        "sql": "CREATE SCHEMA IF NOT EXISTS v1_archive"
+      },
+      {
+        "description": "document schema v1_archive",
+        "sql": "COMMENT ON SCHEMA v1_archive IS 'v1 sessions, threads, events and sandboxes, frozen at retirement on 2026-11-25. No deployed code reads this schema; keep the rows for analytics.'"
+      }
+    ],
+    "postcheck": [
+      {
+        "description": "verify schema v1_archive exists",
+        "sql": "SELECT EXISTS (SELECT 1 FROM pg_namespace WHERE nspname = 'v1_archive') AS \"result\""
+      }
+    ]
+  },
+  {
+    "id": "move.v1_archive.Session",
+    "label": "Move public.\"Session\" to the v1_archive schema",
+    "operationClass": "data",
+    "target": {
+      "id": "postgres",
+      "details": {
+        "schema": "public",
+        "objectType": "table",
+        "name": "Session"
+      }
+    },
+    "precheck": [
+      {
+        "description": "ensure table \"Session\" exists in public",
+        "sql": "SELECT to_regclass('public.\"Session\"') IS NOT NULL AS \"result\""
+      }
+    ],
+    "execute": [
+      {
+        "description": "move table \"Session\" into v1_archive when it is still in public",
+        "sql": "DO $$\nBEGIN\n  IF to_regclass('public.\"Session\"') IS NOT NULL THEN\n    ALTER TABLE public.\"Session\" SET SCHEMA v1_archive;\n  END IF;\nEND\n$$"
+      }
+    ],
+    "postcheck": [
+      {
+        "description": "verify table \"v1_archive.Session\" exists",
+        "sql": "SELECT to_regclass('v1_archive.\"Session\"') IS NOT NULL AS \"result\""
+      },
+      {
+        "description": "verify table \"public.Session\" is gone",
+        "sql": "SELECT to_regclass('public.\"Session\"') IS NULL AS \"result\""
+      }
+    ]
+  },
+  {
+    "id": "move.v1_archive.Thread",
+    "label": "Move public.\"Thread\" to the v1_archive schema",
+    "operationClass": "data",
+    "target": {
+      "id": "postgres",
+      "details": {
+        "schema": "public",
+        "objectType": "table",
+        "name": "Thread"
+      }
+    },
+    "precheck": [
+      {
+        "description": "ensure table \"Thread\" exists in public",
+        "sql": "SELECT to_regclass('public.\"Thread\"') IS NOT NULL AS \"result\""
+      }
+    ],
+    "execute": [
+      {
+        "description": "move table \"Thread\" into v1_archive when it is still in public",
+        "sql": "DO $$\nBEGIN\n  IF to_regclass('public.\"Thread\"') IS NOT NULL THEN\n    ALTER TABLE public.\"Thread\" SET SCHEMA v1_archive;\n  END IF;\nEND\n$$"
+      }
+    ],
+    "postcheck": [
+      {
+        "description": "verify table \"v1_archive.Thread\" exists",
+        "sql": "SELECT to_regclass('v1_archive.\"Thread\"') IS NOT NULL AS \"result\""
+      },
+      {
+        "description": "verify table \"public.Thread\" is gone",
+        "sql": "SELECT to_regclass('public.\"Thread\"') IS NULL AS \"result\""
+      }
+    ]
+  },
+  {
+    "id": "move.v1_archive.Event",
+    "label": "Move public.\"Event\" to the v1_archive schema",
+    "operationClass": "data",
+    "target": {
+      "id": "postgres",
+      "details": {
+        "schema": "public",
+        "objectType": "table",
+        "name": "Event"
+      }
+    },
+    "precheck": [
+      {
+        "description": "ensure table \"Event\" exists in public",
+        "sql": "SELECT to_regclass('public.\"Event\"') IS NOT NULL AS \"result\""
+      }
+    ],
+    "execute": [
+      {
+        "description": "move table \"Event\" into v1_archive when it is still in public",
+        "sql": "DO $$\nBEGIN\n  IF to_regclass('public.\"Event\"') IS NOT NULL THEN\n    ALTER TABLE public.\"Event\" SET SCHEMA v1_archive;\n  END IF;\nEND\n$$"
+      }
+    ],
+    "postcheck": [
+      {
+        "description": "verify table \"v1_archive.Event\" exists",
+        "sql": "SELECT to_regclass('v1_archive.\"Event\"') IS NOT NULL AS \"result\""
+      },
+      {
+        "description": "verify table \"public.Event\" is gone",
+        "sql": "SELECT to_regclass('public.\"Event\"') IS NULL AS \"result\""
+      }
+    ]
+  },
+  {
+    "id": "move.v1_archive.Turn",
+    "label": "Move public.\"Turn\" to the v1_archive schema",
+    "operationClass": "data",
+    "target": {
+      "id": "postgres",
+      "details": {
+        "schema": "public",
+        "objectType": "table",
+        "name": "Turn"
+      }
+    },
+    "precheck": [
+      {
+        "description": "ensure table \"Turn\" exists in public",
+        "sql": "SELECT to_regclass('public.\"Turn\"') IS NOT NULL AS \"result\""
+      }
+    ],
+    "execute": [
+      {
+        "description": "move table \"Turn\" into v1_archive when it is still in public",
+        "sql": "DO $$\nBEGIN\n  IF to_regclass('public.\"Turn\"') IS NOT NULL THEN\n    ALTER TABLE public.\"Turn\" SET SCHEMA v1_archive;\n  END IF;\nEND\n$$"
+      }
+    ],
+    "postcheck": [
+      {
+        "description": "verify table \"v1_archive.Turn\" exists",
+        "sql": "SELECT to_regclass('v1_archive.\"Turn\"') IS NOT NULL AS \"result\""
+      },
+      {
+        "description": "verify table \"public.Turn\" is gone",
+        "sql": "SELECT to_regclass('public.\"Turn\"') IS NULL AS \"result\""
+      }
+    ]
+  },
+  {
+    "id": "move.v1_archive.ThreadRead",
+    "label": "Move public.\"ThreadRead\" to the v1_archive schema",
+    "operationClass": "data",
+    "target": {
+      "id": "postgres",
+      "details": {
+        "schema": "public",
+        "objectType": "table",
+        "name": "ThreadRead"
+      }
+    },
+    "precheck": [
+      {
+        "description": "ensure table \"ThreadRead\" exists in public",
+        "sql": "SELECT to_regclass('public.\"ThreadRead\"') IS NOT NULL AS \"result\""
+      }
+    ],
+    "execute": [
+      {
+        "description": "move table \"ThreadRead\" into v1_archive when it is still in public",
+        "sql": "DO $$\nBEGIN\n  IF to_regclass('public.\"ThreadRead\"') IS NOT NULL THEN\n    ALTER TABLE public.\"ThreadRead\" SET SCHEMA v1_archive;\n  END IF;\nEND\n$$"
+      }
+    ],
+    "postcheck": [
+      {
+        "description": "verify table \"v1_archive.ThreadRead\" exists",
+        "sql": "SELECT to_regclass('v1_archive.\"ThreadRead\"') IS NOT NULL AS \"result\""
+      },
+      {
+        "description": "verify table \"public.ThreadRead\" is gone",
+        "sql": "SELECT to_regclass('public.\"ThreadRead\"') IS NULL AS \"result\""
+      }
+    ]
+  },
+  {
+    "id": "move.v1_archive.ContextFile",
+    "label": "Move public.\"ContextFile\" to the v1_archive schema",
+    "operationClass": "data",
+    "target": {
+      "id": "postgres",
+      "details": {
+        "schema": "public",
+        "objectType": "table",
+        "name": "ContextFile"
+      }
+    },
+    "precheck": [
+      {
+        "description": "ensure table \"ContextFile\" exists in public",
+        "sql": "SELECT to_regclass('public.\"ContextFile\"') IS NOT NULL AS \"result\""
+      }
+    ],
+    "execute": [
+      {
+        "description": "move table \"ContextFile\" into v1_archive when it is still in public",
+        "sql": "DO $$\nBEGIN\n  IF to_regclass('public.\"ContextFile\"') IS NOT NULL THEN\n    ALTER TABLE public.\"ContextFile\" SET SCHEMA v1_archive;\n  END IF;\nEND\n$$"
+      }
+    ],
+    "postcheck": [
+      {
+        "description": "verify table \"v1_archive.ContextFile\" exists",
+        "sql": "SELECT to_regclass('v1_archive.\"ContextFile\"') IS NOT NULL AS \"result\""
+      },
+      {
+        "description": "verify table \"public.ContextFile\" is gone",
+        "sql": "SELECT to_regclass('public.\"ContextFile\"') IS NULL AS \"result\""
+      }
+    ]
+  },
+  {
+    "id": "move.v1_archive.SandboxBootStep",
+    "label": "Move public.\"SandboxBootStep\" to the v1_archive schema",
+    "operationClass": "data",
+    "target": {
+      "id": "postgres",
+      "details": {
+        "schema": "public",
+        "objectType": "table",
+        "name": "SandboxBootStep"
+      }
+    },
+    "precheck": [
+      {
+        "description": "ensure table \"SandboxBootStep\" exists in public",
+        "sql": "SELECT to_regclass('public.\"SandboxBootStep\"') IS NOT NULL AS \"result\""
+      }
+    ],
+    "execute": [
+      {
+        "description": "move table \"SandboxBootStep\" into v1_archive when it is still in public",
+        "sql": "DO $$\nBEGIN\n  IF to_regclass('public.\"SandboxBootStep\"') IS NOT NULL THEN\n    ALTER TABLE public.\"SandboxBootStep\" SET SCHEMA v1_archive;\n  END IF;\nEND\n$$"
+      }
+    ],
+    "postcheck": [
+      {
+        "description": "verify table \"v1_archive.SandboxBootStep\" exists",
+        "sql": "SELECT to_regclass('v1_archive.\"SandboxBootStep\"') IS NOT NULL AS \"result\""
+      },
+      {
+        "description": "verify table \"public.SandboxBootStep\" is gone",
+        "sql": "SELECT to_regclass('public.\"SandboxBootStep\"') IS NULL AS \"result\""
+      }
+    ]
+  },
+  {
+    "id": "move.v1_archive.CloudSandbox",
+    "label": "Move public.\"CloudSandbox\" to the v1_archive schema",
+    "operationClass": "data",
+    "target": {
+      "id": "postgres",
+      "details": {
+        "schema": "public",
+        "objectType": "table",
+        "name": "CloudSandbox"
+      }
+    },
+    "precheck": [
+      {
+        "description": "ensure table \"CloudSandbox\" exists in public",
+        "sql": "SELECT to_regclass('public.\"CloudSandbox\"') IS NOT NULL AS \"result\""
+      }
+    ],
+    "execute": [
+      {
+        "description": "move table \"CloudSandbox\" into v1_archive when it is still in public",
+        "sql": "DO $$\nBEGIN\n  IF to_regclass('public.\"CloudSandbox\"') IS NOT NULL THEN\n    ALTER TABLE public.\"CloudSandbox\" SET SCHEMA v1_archive;\n  END IF;\nEND\n$$"
+      }
+    ],
+    "postcheck": [
+      {
+        "description": "verify table \"v1_archive.CloudSandbox\" exists",
+        "sql": "SELECT to_regclass('v1_archive.\"CloudSandbox\"') IS NOT NULL AS \"result\""
+      },
+      {
+        "description": "verify table \"public.CloudSandbox\" is gone",
+        "sql": "SELECT to_regclass('public.\"CloudSandbox\"') IS NULL AS \"result\""
+      }
+    ]
+  },
+  {
+    "id": "move.v1_archive.LocalPodLease",
+    "label": "Move public.\"LocalPodLease\" to the v1_archive schema",
+    "operationClass": "data",
+    "target": {
+      "id": "postgres",
+      "details": {
+        "schema": "public",
+        "objectType": "table",
+        "name": "LocalPodLease"
+      }
+    },
+    "precheck": [
+      {
+        "description": "ensure table \"LocalPodLease\" exists in public",
+        "sql": "SELECT to_regclass('public.\"LocalPodLease\"') IS NOT NULL AS \"result\""
+      }
+    ],
+    "execute": [
+      {
+        "description": "move table \"LocalPodLease\" into v1_archive when it is still in public",
+        "sql": "DO $$\nBEGIN\n  IF to_regclass('public.\"LocalPodLease\"') IS NOT NULL THEN\n    ALTER TABLE public.\"LocalPodLease\" SET SCHEMA v1_archive;\n  END IF;\nEND\n$$"
+      }
+    ],
+    "postcheck": [
+      {
+        "description": "verify table \"v1_archive.LocalPodLease\" exists",
+        "sql": "SELECT to_regclass('v1_archive.\"LocalPodLease\"') IS NOT NULL AS \"result\""
+      },
+      {
+        "description": "verify table \"public.LocalPodLease\" is gone",
+        "sql": "SELECT to_regclass('public.\"LocalPodLease\"') IS NULL AS \"result\""
+      }
+    ]
+  },
+  {
+    "id": "move.v1_archive.PushDevice",
+    "label": "Move public.\"PushDevice\" to the v1_archive schema",
+    "operationClass": "data",
+    "target": {
+      "id": "postgres",
+      "details": {
+        "schema": "public",
+        "objectType": "table",
+        "name": "PushDevice"
+      }
+    },
+    "precheck": [
+      {
+        "description": "ensure table \"PushDevice\" exists in public",
+        "sql": "SELECT to_regclass('public.\"PushDevice\"') IS NOT NULL AS \"result\""
+      }
+    ],
+    "execute": [
+      {
+        "description": "move table \"PushDevice\" into v1_archive when it is still in public",
+        "sql": "DO $$\nBEGIN\n  IF to_regclass('public.\"PushDevice\"') IS NOT NULL THEN\n    ALTER TABLE public.\"PushDevice\" SET SCHEMA v1_archive;\n  END IF;\nEND\n$$"
+      }
+    ],
+    "postcheck": [
+      {
+        "description": "verify table \"v1_archive.PushDevice\" exists",
+        "sql": "SELECT to_regclass('v1_archive.\"PushDevice\"') IS NOT NULL AS \"result\""
+      },
+      {
+        "description": "verify table \"public.PushDevice\" is gone",
+        "sql": "SELECT to_regclass('public.\"PushDevice\"') IS NULL AS \"result\""
+      }
+    ]
+  },
+  {
+    "id": "move.v1_archive.ComposerDraft",
+    "label": "Move public.\"ComposerDraft\" to the v1_archive schema",
+    "operationClass": "data",
+    "target": {
+      "id": "postgres",
+      "details": {
+        "schema": "public",
+        "objectType": "table",
+        "name": "ComposerDraft"
+      }
+    },
+    "precheck": [
+      {
+        "description": "ensure table \"ComposerDraft\" exists in public",
+        "sql": "SELECT to_regclass('public.\"ComposerDraft\"') IS NOT NULL AS \"result\""
+      }
+    ],
+    "execute": [
+      {
+        "description": "move table \"ComposerDraft\" into v1_archive when it is still in public",
+        "sql": "DO $$\nBEGIN\n  IF to_regclass('public.\"ComposerDraft\"') IS NOT NULL THEN\n    ALTER TABLE public.\"ComposerDraft\" SET SCHEMA v1_archive;\n  END IF;\nEND\n$$"
+      }
+    ],
+    "postcheck": [
+      {
+        "description": "verify table \"v1_archive.ComposerDraft\" exists",
+        "sql": "SELECT to_regclass('v1_archive.\"ComposerDraft\"') IS NOT NULL AS \"result\""
+      },
+      {
+        "description": "verify table \"public.ComposerDraft\" is gone",
+        "sql": "SELECT to_regclass('public.\"ComposerDraft\"') IS NULL AS \"result\""
+      }
+    ]
+  },
+  {
+    "id": "move.v1_archive.OauthConnectionSandbox",
+    "label": "Move public.\"OauthConnectionSandbox\" to the v1_archive schema",
+    "operationClass": "data",
+    "target": {
+      "id": "postgres",
+      "details": {
+        "schema": "public",
+        "objectType": "table",
+        "name": "OauthConnectionSandbox"
+      }
+    },
+    "precheck": [
+      {
+        "description": "ensure table \"OauthConnectionSandbox\" exists in public",
+        "sql": "SELECT to_regclass('public.\"OauthConnectionSandbox\"') IS NOT NULL AS \"result\""
+      }
+    ],
+    "execute": [
+      {
+        "description": "move table \"OauthConnectionSandbox\" into v1_archive when it is still in public",
+        "sql": "DO $$\nBEGIN\n  IF to_regclass('public.\"OauthConnectionSandbox\"') IS NOT NULL THEN\n    ALTER TABLE public.\"OauthConnectionSandbox\" SET SCHEMA v1_archive;\n  END IF;\nEND\n$$"
+      }
+    ],
+    "postcheck": [
+      {
+        "description": "verify table \"v1_archive.OauthConnectionSandbox\" exists",
+        "sql": "SELECT to_regclass('v1_archive.\"OauthConnectionSandbox\"') IS NOT NULL AS \"result\""
+      },
+      {
+        "description": "verify table \"public.OauthConnectionSandbox\" is gone",
+        "sql": "SELECT to_regclass('public.\"OauthConnectionSandbox\"') IS NULL AS \"result\""
+      }
+    ]
+  },
+  {
+    "id": "comment.v1_archive.Session",
+    "label": "Document v1_archive.\"Session\" and its columns",
+    "operationClass": "data",
+    "target": {
+      "id": "postgres",
+      "details": {
+        "schema": "v1_archive",
+        "objectType": "table",
+        "name": "Session"
+      }
+    },
+    "precheck": [
+      {
+        "description": "ensure table \"v1_archive.Session\" exists",
+        "sql": "SELECT to_regclass('v1_archive.\"Session\"') IS NOT NULL AS \"result\""
+      }
+    ],
+    "execute": [
+      {
+        "description": "comment on table \"Session\"",
+        "sql": "COMMENT ON TABLE v1_archive.\"Session\" IS 'v1 Session rows, frozen at retirement on 2026-11-25.';\nCOMMENT ON COLUMN v1_archive.\"Session\".\"id\" IS 'v1 session id';\nCOMMENT ON COLUMN v1_archive.\"Session\".\"userId\" IS 'owner of the session';\nCOMMENT ON COLUMN v1_archive.\"Session\".\"projectId\" IS 'project the session ran in';\nCOMMENT ON COLUMN v1_archive.\"Session\".\"repo\" IS 'repository the session worked on';\nCOMMENT ON COLUMN v1_archive.\"Session\".\"workspace\" IS 'workspace path inside the sandbox';\nCOMMENT ON COLUMN v1_archive.\"Session\".\"executionLocation\" IS 'where the session ran, local or cloud';\nCOMMENT ON COLUMN v1_archive.\"Session\".\"title\" IS 'session title shown in the v1 clients';\nCOMMENT ON COLUMN v1_archive.\"Session\".\"pinnedAt\" IS 'when the operator pinned the session';\nCOMMENT ON COLUMN v1_archive.\"Session\".\"archivedAt\" IS 'when the session was archived';\nCOMMENT ON COLUMN v1_archive.\"Session\".\"deletedAt\" IS 'when the session was deleted';\nCOMMENT ON COLUMN v1_archive.\"Session\".\"createdAt\" IS 'when the session was created';\nCOMMENT ON COLUMN v1_archive.\"Session\".\"updatedAt\" IS 'when the session row last changed';\nCOMMENT ON COLUMN v1_archive.\"Session\".\"mainThreadId\" IS 'the main thread of the session';\nCOMMENT ON COLUMN v1_archive.\"Session\".\"managedBySessionId\" IS 'teammate parent session that manages this session'"
+      }
+    ],
+    "postcheck": []
+  },
+  {
+    "id": "comment.v1_archive.Thread",
+    "label": "Document v1_archive.\"Thread\" and its columns",
+    "operationClass": "data",
+    "target": {
+      "id": "postgres",
+      "details": {
+        "schema": "v1_archive",
+        "objectType": "table",
+        "name": "Thread"
+      }
+    },
+    "precheck": [
+      {
+        "description": "ensure table \"v1_archive.Thread\" exists",
+        "sql": "SELECT to_regclass('v1_archive.\"Thread\"') IS NOT NULL AS \"result\""
+      }
+    ],
+    "execute": [
+      {
+        "description": "comment on table \"Thread\"",
+        "sql": "COMMENT ON TABLE v1_archive.\"Thread\" IS 'v1 Thread rows, frozen at retirement on 2026-11-25.';\nCOMMENT ON COLUMN v1_archive.\"Thread\".\"id\" IS 'v1 thread id';\nCOMMENT ON COLUMN v1_archive.\"Thread\".\"head\" IS 'sequence number of the newest committed event';\nCOMMENT ON COLUMN v1_archive.\"Thread\".\"rev\" IS 'monotonic revision counter of the thread';\nCOMMENT ON COLUMN v1_archive.\"Thread\".\"historyRev\" IS 'revision counter of the context history after rewinds';\nCOMMENT ON COLUMN v1_archive.\"Thread\".\"createdAt\" IS 'when the thread was created';\nCOMMENT ON COLUMN v1_archive.\"Thread\".\"updatedAt\" IS 'when the thread row last changed';\nCOMMENT ON COLUMN v1_archive.\"Thread\".\"parentThreadId\" IS 'thread this thread was forked from';\nCOMMENT ON COLUMN v1_archive.\"Thread\".\"forkSeq\" IS 'event sequence the fork started at';\nCOMMENT ON COLUMN v1_archive.\"Thread\".\"forkMode\" IS 'how the fork inherited context';\nCOMMENT ON COLUMN v1_archive.\"Thread\".\"spawnerThreadId\" IS 'thread that spawned this sub-agent';\nCOMMENT ON COLUMN v1_archive.\"Thread\".\"agentType\" IS 'agent type of a sub-agent thread';\nCOMMENT ON COLUMN v1_archive.\"Thread\".\"modelRef\" IS 'pinned model of the thread';\nCOMMENT ON COLUMN v1_archive.\"Thread\".\"modelEffort\" IS 'pinned reasoning effort of the thread';\nCOMMENT ON COLUMN v1_archive.\"Thread\".\"modelFast\" IS 'whether the fast model variant was pinned';\nCOMMENT ON COLUMN v1_archive.\"Thread\".\"userId\" IS 'owner of the thread';\nCOMMENT ON COLUMN v1_archive.\"Thread\".\"sessionId\" IS 'session the thread belongs to';\nCOMMENT ON COLUMN v1_archive.\"Thread\".\"working\" IS 'whether a turn was running';\nCOMMENT ON COLUMN v1_archive.\"Thread\".\"awaiting\" IS 'what the thread was waiting on';\nCOMMENT ON COLUMN v1_archive.\"Thread\".\"lastOutcome\" IS 'outcome of the last turn';\nCOMMENT ON COLUMN v1_archive.\"Thread\".\"activityAt\" IS 'when the thread last had activity';\nCOMMENT ON COLUMN v1_archive.\"Thread\".\"lastAssistantSeq\" IS 'sequence of the newest assistant message'"
+      }
+    ],
+    "postcheck": []
+  },
+  {
+    "id": "comment.v1_archive.Event",
+    "label": "Document v1_archive.\"Event\" and its columns",
+    "operationClass": "data",
+    "target": {
+      "id": "postgres",
+      "details": {
+        "schema": "v1_archive",
+        "objectType": "table",
+        "name": "Event"
+      }
+    },
+    "precheck": [
+      {
+        "description": "ensure table \"v1_archive.Event\" exists",
+        "sql": "SELECT to_regclass('v1_archive.\"Event\"') IS NOT NULL AS \"result\""
+      }
+    ],
+    "execute": [
+      {
+        "description": "comment on table \"Event\"",
+        "sql": "COMMENT ON TABLE v1_archive.\"Event\" IS 'v1 Event rows, frozen at retirement on 2026-11-25.';\nCOMMENT ON COLUMN v1_archive.\"Event\".\"id\" IS 'v1 event id';\nCOMMENT ON COLUMN v1_archive.\"Event\".\"threadId\" IS 'thread the event belongs to';\nCOMMENT ON COLUMN v1_archive.\"Event\".\"seq\" IS 'position of the event in the thread';\nCOMMENT ON COLUMN v1_archive.\"Event\".\"runId\" IS 'turn that produced the event';\nCOMMENT ON COLUMN v1_archive.\"Event\".\"parentRunId\" IS 'turn that spawned the sub-agent run';\nCOMMENT ON COLUMN v1_archive.\"Event\".\"depth\" IS 'sub-agent nesting depth';\nCOMMENT ON COLUMN v1_archive.\"Event\".\"at\" IS 'when the event was appended';\nCOMMENT ON COLUMN v1_archive.\"Event\".\"type\" IS 'event kind such as tool-called or context-loaded';\nCOMMENT ON COLUMN v1_archive.\"Event\".\"body\" IS 'JSON payload of the event';\nCOMMENT ON COLUMN v1_archive.\"Event\".\"contextSlot\" IS 'context slot the event recorded, for example skill';\nCOMMENT ON COLUMN v1_archive.\"Event\".\"contextKey\" IS 'name filled into the context slot';\nCOMMENT ON COLUMN v1_archive.\"Event\".\"contextDigest\" IS 'digest of the context content';\nCOMMENT ON COLUMN v1_archive.\"Event\".\"toolName\" IS 'tool name for tool-called events';\nCOMMENT ON COLUMN v1_archive.\"Event\".\"userId\" IS 'owner of the event'"
+      }
+    ],
+    "postcheck": []
+  },
+  {
+    "id": "comment.v1_archive.Turn",
+    "label": "Document v1_archive.\"Turn\" and its columns",
+    "operationClass": "data",
+    "target": {
+      "id": "postgres",
+      "details": {
+        "schema": "v1_archive",
+        "objectType": "table",
+        "name": "Turn"
+      }
+    },
+    "precheck": [
+      {
+        "description": "ensure table \"v1_archive.Turn\" exists",
+        "sql": "SELECT to_regclass('v1_archive.\"Turn\"') IS NOT NULL AS \"result\""
+      }
+    ],
+    "execute": [
+      {
+        "description": "comment on table \"Turn\"",
+        "sql": "COMMENT ON TABLE v1_archive.\"Turn\" IS 'v1 Turn rows, frozen at retirement on 2026-11-25.';\nCOMMENT ON COLUMN v1_archive.\"Turn\".\"runId\" IS 'turn id, shared with the run that produced the events';\nCOMMENT ON COLUMN v1_archive.\"Turn\".\"threadId\" IS 'thread the turn ran in';\nCOMMENT ON COLUMN v1_archive.\"Turn\".\"status\" IS 'how the turn ended';\nCOMMENT ON COLUMN v1_archive.\"Turn\".\"providerId\" IS 'model provider of the turn';\nCOMMENT ON COLUMN v1_archive.\"Turn\".\"modelId\" IS 'model of the turn';\nCOMMENT ON COLUMN v1_archive.\"Turn\".\"steps\" IS 'model steps in the turn';\nCOMMENT ON COLUMN v1_archive.\"Turn\".\"inputTokens\" IS 'input tokens billed in the turn';\nCOMMENT ON COLUMN v1_archive.\"Turn\".\"outputTokens\" IS 'output tokens billed in the turn';\nCOMMENT ON COLUMN v1_archive.\"Turn\".\"cacheReadTokens\" IS 'prompt tokens read from the cache';\nCOMMENT ON COLUMN v1_archive.\"Turn\".\"cacheWriteTokens\" IS 'prompt tokens written to the cache';\nCOMMENT ON COLUMN v1_archive.\"Turn\".\"startedAt\" IS 'when the turn started';\nCOMMENT ON COLUMN v1_archive.\"Turn\".\"endedAt\" IS 'when the turn ended';\nCOMMENT ON COLUMN v1_archive.\"Turn\".\"durationMs\" IS 'turn duration in milliseconds';\nCOMMENT ON COLUMN v1_archive.\"Turn\".\"userId\" IS 'owner of the turn'"
+      }
+    ],
+    "postcheck": []
+  },
+  {
+    "id": "comment.v1_archive.ThreadRead",
+    "label": "Document v1_archive.\"ThreadRead\" and its columns",
+    "operationClass": "data",
+    "target": {
+      "id": "postgres",
+      "details": {
+        "schema": "v1_archive",
+        "objectType": "table",
+        "name": "ThreadRead"
+      }
+    },
+    "precheck": [
+      {
+        "description": "ensure table \"v1_archive.ThreadRead\" exists",
+        "sql": "SELECT to_regclass('v1_archive.\"ThreadRead\"') IS NOT NULL AS \"result\""
+      }
+    ],
+    "execute": [
+      {
+        "description": "comment on table \"ThreadRead\"",
+        "sql": "COMMENT ON TABLE v1_archive.\"ThreadRead\" IS 'v1 ThreadRead rows, frozen at retirement on 2026-11-25.';\nCOMMENT ON COLUMN v1_archive.\"ThreadRead\".\"userId\" IS 'user who read the thread';\nCOMMENT ON COLUMN v1_archive.\"ThreadRead\".\"threadId\" IS 'thread that was read';\nCOMMENT ON COLUMN v1_archive.\"ThreadRead\".\"seq\" IS 'event sequence the user had read up to';\nCOMMENT ON COLUMN v1_archive.\"ThreadRead\".\"updatedAt\" IS 'when the read marker last moved'"
+      }
+    ],
+    "postcheck": []
+  },
+  {
+    "id": "comment.v1_archive.ContextFile",
+    "label": "Document v1_archive.\"ContextFile\" and its columns",
+    "operationClass": "data",
+    "target": {
+      "id": "postgres",
+      "details": {
+        "schema": "v1_archive",
+        "objectType": "table",
+        "name": "ContextFile"
+      }
+    },
+    "precheck": [
+      {
+        "description": "ensure table \"v1_archive.ContextFile\" exists",
+        "sql": "SELECT to_regclass('v1_archive.\"ContextFile\"') IS NOT NULL AS \"result\""
+      }
+    ],
+    "execute": [
+      {
+        "description": "comment on table \"ContextFile\"",
+        "sql": "COMMENT ON TABLE v1_archive.\"ContextFile\" IS 'v1 ContextFile rows, frozen at retirement on 2026-11-25.';\nCOMMENT ON COLUMN v1_archive.\"ContextFile\".\"id\" IS 'v1 context file id';\nCOMMENT ON COLUMN v1_archive.\"ContextFile\".\"threadId\" IS 'thread the context file belonged to';\nCOMMENT ON COLUMN v1_archive.\"ContextFile\".\"path\" IS 'path of the file in the read set';\nCOMMENT ON COLUMN v1_archive.\"ContextFile\".\"content\" IS 'file content as last read into context';\nCOMMENT ON COLUMN v1_archive.\"ContextFile\".\"digest\" IS 'digest of the content';\nCOMMENT ON COLUMN v1_archive.\"ContextFile\".\"updatedAt\" IS 'when the context file was refreshed'"
+      }
+    ],
+    "postcheck": []
+  },
+  {
+    "id": "comment.v1_archive.SandboxBootStep",
+    "label": "Document v1_archive.\"SandboxBootStep\" and its columns",
+    "operationClass": "data",
+    "target": {
+      "id": "postgres",
+      "details": {
+        "schema": "v1_archive",
+        "objectType": "table",
+        "name": "SandboxBootStep"
+      }
+    },
+    "precheck": [
+      {
+        "description": "ensure table \"v1_archive.SandboxBootStep\" exists",
+        "sql": "SELECT to_regclass('v1_archive.\"SandboxBootStep\"') IS NOT NULL AS \"result\""
+      }
+    ],
+    "execute": [
+      {
+        "description": "comment on table \"SandboxBootStep\"",
+        "sql": "COMMENT ON TABLE v1_archive.\"SandboxBootStep\" IS 'v1 SandboxBootStep rows, frozen at retirement on 2026-11-25.';\nCOMMENT ON COLUMN v1_archive.\"SandboxBootStep\".\"id\" IS 'v1 boot step id';\nCOMMENT ON COLUMN v1_archive.\"SandboxBootStep\".\"sessionId\" IS 'session the boot belonged to';\nCOMMENT ON COLUMN v1_archive.\"SandboxBootStep\".\"step\" IS 'boot step name';\nCOMMENT ON COLUMN v1_archive.\"SandboxBootStep\".\"state\" IS 'state of the step';\nCOMMENT ON COLUMN v1_archive.\"SandboxBootStep\".\"error\" IS 'error the step reported';\nCOMMENT ON COLUMN v1_archive.\"SandboxBootStep\".\"gap\" IS 'missing dependency the step found';\nCOMMENT ON COLUMN v1_archive.\"SandboxBootStep\".\"outcome\" IS 'result the step recorded';\nCOMMENT ON COLUMN v1_archive.\"SandboxBootStep\".\"repos\" IS 'JSON list of repositories prepared by the step';\nCOMMENT ON COLUMN v1_archive.\"SandboxBootStep\".\"seq\" IS 'order of the step in the boot';\nCOMMENT ON COLUMN v1_archive.\"SandboxBootStep\".\"at\" IS 'when the step ran'"
+      }
+    ],
+    "postcheck": []
+  },
+  {
+    "id": "comment.v1_archive.CloudSandbox",
+    "label": "Document v1_archive.\"CloudSandbox\" and its columns",
+    "operationClass": "data",
+    "target": {
+      "id": "postgres",
+      "details": {
+        "schema": "v1_archive",
+        "objectType": "table",
+        "name": "CloudSandbox"
+      }
+    },
+    "precheck": [
+      {
+        "description": "ensure table \"v1_archive.CloudSandbox\" exists",
+        "sql": "SELECT to_regclass('v1_archive.\"CloudSandbox\"') IS NOT NULL AS \"result\""
+      }
+    ],
+    "execute": [
+      {
+        "description": "comment on table \"CloudSandbox\"",
+        "sql": "COMMENT ON TABLE v1_archive.\"CloudSandbox\" IS 'v1 CloudSandbox rows, frozen at retirement on 2026-11-25.';\nCOMMENT ON COLUMN v1_archive.\"CloudSandbox\".\"id\" IS 'v1 cloud sandbox row id';\nCOMMENT ON COLUMN v1_archive.\"CloudSandbox\".\"sessionId\" IS 'session the sandbox served';\nCOMMENT ON COLUMN v1_archive.\"CloudSandbox\".\"userId\" IS 'owner of the sandbox';\nCOMMENT ON COLUMN v1_archive.\"CloudSandbox\".\"sandboxId\" IS 'provider id of the sandbox';\nCOMMENT ON COLUMN v1_archive.\"CloudSandbox\".\"name\" IS 'sandbox name';\nCOMMENT ON COLUMN v1_archive.\"CloudSandbox\".\"region\" IS 'provider region';\nCOMMENT ON COLUMN v1_archive.\"CloudSandbox\".\"vercelProjectId\" IS 'Vercel project the sandbox belonged to';\nCOMMENT ON COLUMN v1_archive.\"CloudSandbox\".\"state\" IS 'sandbox lifecycle state';\nCOMMENT ON COLUMN v1_archive.\"CloudSandbox\".\"lastActivityAt\" IS 'when the sandbox last had activity';\nCOMMENT ON COLUMN v1_archive.\"CloudSandbox\".\"tokenHash\" IS 'hash of the sandbox token';\nCOMMENT ON COLUMN v1_archive.\"CloudSandbox\".\"sealedToken\" IS 'sealed sandbox token';\nCOMMENT ON COLUMN v1_archive.\"CloudSandbox\".\"sealedGitToken\" IS 'sealed git token handed to the sandbox';\nCOMMENT ON COLUMN v1_archive.\"CloudSandbox\".\"workspaceRemoteUrl\" IS 'git remote the workspace was pushed to';\nCOMMENT ON COLUMN v1_archive.\"CloudSandbox\".\"contextPending\" IS 'whether the workspace context was still pending';\nCOMMENT ON COLUMN v1_archive.\"CloudSandbox\".\"pinnedModel\" IS 'model pinned for the sandbox';\nCOMMENT ON COLUMN v1_archive.\"CloudSandbox\".\"serveUrl\" IS 'serve endpoint of the sandbox';\nCOMMENT ON COLUMN v1_archive.\"CloudSandbox\".\"serveVersion\" IS 'serve version the sandbox wanted';\nCOMMENT ON COLUMN v1_archive.\"CloudSandbox\".\"runningServeVersion\" IS 'serve version the sandbox ran';\nCOMMENT ON COLUMN v1_archive.\"CloudSandbox\".\"wakeFailedAt\" IS 'when the last wake attempt failed';\nCOMMENT ON COLUMN v1_archive.\"CloudSandbox\".\"retiredAt\" IS 'when the sandbox was retired';\nCOMMENT ON COLUMN v1_archive.\"CloudSandbox\".\"wakeClaim\" IS 'lease held by the wake attempt';\nCOMMENT ON COLUMN v1_archive.\"CloudSandbox\".\"pendingSend\" IS 'JSON message queued for the sandbox';\nCOMMENT ON COLUMN v1_archive.\"CloudSandbox\".\"pendingVcpus\" IS 'cpu count a resize was moving to';\nCOMMENT ON COLUMN v1_archive.\"CloudSandbox\".\"runtimeCheckpoint\" IS 'JSON runtime checkpoint';\nCOMMENT ON COLUMN v1_archive.\"CloudSandbox\".\"runtimeCheckpointRevision\" IS 'revision of the runtime checkpoint';\nCOMMENT ON COLUMN v1_archive.\"CloudSandbox\".\"createdAt\" IS 'when the sandbox row was created';\nCOMMENT ON COLUMN v1_archive.\"CloudSandbox\".\"updatedAt\" IS 'when the sandbox row last changed'"
+      }
+    ],
+    "postcheck": []
+  },
+  {
+    "id": "comment.v1_archive.LocalPodLease",
+    "label": "Document v1_archive.\"LocalPodLease\" and its columns",
+    "operationClass": "data",
+    "target": {
+      "id": "postgres",
+      "details": {
+        "schema": "v1_archive",
+        "objectType": "table",
+        "name": "LocalPodLease"
+      }
+    },
+    "precheck": [
+      {
+        "description": "ensure table \"v1_archive.LocalPodLease\" exists",
+        "sql": "SELECT to_regclass('v1_archive.\"LocalPodLease\"') IS NOT NULL AS \"result\""
+      }
+    ],
+    "execute": [
+      {
+        "description": "comment on table \"LocalPodLease\"",
+        "sql": "COMMENT ON TABLE v1_archive.\"LocalPodLease\" IS 'v1 LocalPodLease rows, frozen at retirement on 2026-11-25.';\nCOMMENT ON COLUMN v1_archive.\"LocalPodLease\".\"id\" IS 'v1 local pod lease id';\nCOMMENT ON COLUMN v1_archive.\"LocalPodLease\".\"userId\" IS 'owner of the lease';\nCOMMENT ON COLUMN v1_archive.\"LocalPodLease\".\"threadId\" IS 'thread that held the local pod';\nCOMMENT ON COLUMN v1_archive.\"LocalPodLease\".\"tokenHash\" IS 'hash of the lease token';\nCOMMENT ON COLUMN v1_archive.\"LocalPodLease\".\"createdAt\" IS 'when the lease was created';\nCOMMENT ON COLUMN v1_archive.\"LocalPodLease\".\"updatedAt\" IS 'when the lease last changed'"
+      }
+    ],
+    "postcheck": []
+  },
+  {
+    "id": "comment.v1_archive.PushDevice",
+    "label": "Document v1_archive.\"PushDevice\" and its columns",
+    "operationClass": "data",
+    "target": {
+      "id": "postgres",
+      "details": {
+        "schema": "v1_archive",
+        "objectType": "table",
+        "name": "PushDevice"
+      }
+    },
+    "precheck": [
+      {
+        "description": "ensure table \"v1_archive.PushDevice\" exists",
+        "sql": "SELECT to_regclass('v1_archive.\"PushDevice\"') IS NOT NULL AS \"result\""
+      }
+    ],
+    "execute": [
+      {
+        "description": "comment on table \"PushDevice\"",
+        "sql": "COMMENT ON TABLE v1_archive.\"PushDevice\" IS 'v1 PushDevice rows, frozen at retirement on 2026-11-25.';\nCOMMENT ON COLUMN v1_archive.\"PushDevice\".\"id\" IS 'v1 push device id';\nCOMMENT ON COLUMN v1_archive.\"PushDevice\".\"token\" IS 'Expo push token of the device';\nCOMMENT ON COLUMN v1_archive.\"PushDevice\".\"platform\" IS 'device platform';\nCOMMENT ON COLUMN v1_archive.\"PushDevice\".\"createdAt\" IS 'when the device was registered';\nCOMMENT ON COLUMN v1_archive.\"PushDevice\".\"updatedAt\" IS 'when the device row last changed';\nCOMMENT ON COLUMN v1_archive.\"PushDevice\".\"lastSeenAt\" IS 'when the device last registered';\nCOMMENT ON COLUMN v1_archive.\"PushDevice\".\"userId\" IS 'owner of the device';\nCOMMENT ON COLUMN v1_archive.\"PushDevice\".\"authSessionId\" IS 'auth session that registered the device'"
+      }
+    ],
+    "postcheck": []
+  },
+  {
+    "id": "comment.v1_archive.ComposerDraft",
+    "label": "Document v1_archive.\"ComposerDraft\" and its columns",
+    "operationClass": "data",
+    "target": {
+      "id": "postgres",
+      "details": {
+        "schema": "v1_archive",
+        "objectType": "table",
+        "name": "ComposerDraft"
+      }
+    },
+    "precheck": [
+      {
+        "description": "ensure table \"v1_archive.ComposerDraft\" exists",
+        "sql": "SELECT to_regclass('v1_archive.\"ComposerDraft\"') IS NOT NULL AS \"result\""
+      }
+    ],
+    "execute": [
+      {
+        "description": "comment on table \"ComposerDraft\"",
+        "sql": "COMMENT ON TABLE v1_archive.\"ComposerDraft\" IS 'v1 ComposerDraft rows, frozen at retirement on 2026-11-25.';\nCOMMENT ON COLUMN v1_archive.\"ComposerDraft\".\"userId\" IS 'owner of the draft';\nCOMMENT ON COLUMN v1_archive.\"ComposerDraft\".\"scopeKey\" IS 'composer scope the draft belonged to';\nCOMMENT ON COLUMN v1_archive.\"ComposerDraft\".\"threadId\" IS 'thread the draft was written in';\nCOMMENT ON COLUMN v1_archive.\"ComposerDraft\".\"text\" IS 'draft text';\nCOMMENT ON COLUMN v1_archive.\"ComposerDraft\".\"attachments\" IS 'JSON attachments of the draft';\nCOMMENT ON COLUMN v1_archive.\"ComposerDraft\".\"updatedAt\" IS 'when the draft last changed'"
+      }
+    ],
+    "postcheck": []
+  },
+  {
+    "id": "comment.v1_archive.OauthConnectionSandbox",
+    "label": "Document v1_archive.\"OauthConnectionSandbox\" and its columns",
+    "operationClass": "data",
+    "target": {
+      "id": "postgres",
+      "details": {
+        "schema": "v1_archive",
+        "objectType": "table",
+        "name": "OauthConnectionSandbox"
+      }
+    },
+    "precheck": [
+      {
+        "description": "ensure table \"v1_archive.OauthConnectionSandbox\" exists",
+        "sql": "SELECT to_regclass('v1_archive.\"OauthConnectionSandbox\"') IS NOT NULL AS \"result\""
+      }
+    ],
+    "execute": [
+      {
+        "description": "comment on table \"OauthConnectionSandbox\"",
+        "sql": "COMMENT ON TABLE v1_archive.\"OauthConnectionSandbox\" IS 'v1 OauthConnectionSandbox rows, frozen at retirement on 2026-11-25.';\nCOMMENT ON COLUMN v1_archive.\"OauthConnectionSandbox\".\"connectionId\" IS 'provider OAuth connection handed to the sandbox';\nCOMMENT ON COLUMN v1_archive.\"OauthConnectionSandbox\".\"sandboxId\" IS 'cloud sandbox the connection was assigned to';\nCOMMENT ON COLUMN v1_archive.\"OauthConnectionSandbox\".\"createdAt\" IS 'when the connection was assigned'"
+      }
+    ],
+    "postcheck": []
+  }
+]

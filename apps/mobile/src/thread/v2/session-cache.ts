@@ -1,9 +1,12 @@
-import { memorySessionLog, type SessionLog } from '@dltech/atlas-client/stream'
+import {
+  createSqliteSessionLog,
+  memorySessionLog,
+  type SessionLog,
+} from '@dltech/atlas-client/stream'
 
 import { openSqliteExecutor } from '../../storage/sqlite-executor'
 import { v2EventSchema } from './registered-plugins'
 import { queuedSessionLog, type QueuedSessionLog } from './session-cache-queue'
-import { createSqliteSessionLog } from './session-log-store'
 
 export const SESSION_LOG_DATABASE = 'atlas-sessions'
 

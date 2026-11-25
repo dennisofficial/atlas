@@ -2,13 +2,20 @@ import { describe, expect, it } from 'bun:test'
 
 import { ESessionStatus as CoreStatus } from '@dltech/atlas-core'
 import { ESessionDisplay } from '@dltech/atlas-client/stream'
+import {
+  EChecksSummary,
+  EPullRequestGlyph,
+  EPullRequestStateWord,
+  EPullRequestTone,
+  pullRequestDisplayOf,
+} from '@dltech/atlas-plugin-github/core'
 import { ESandboxStatus } from '@dltech/atlas-protocol'
 
 import {
-  EPullRequestState,
   EWorkKind,
   NO_PROJECT_NAME,
   partitionSessions,
+  type SessionWork,
   type V2SessionSummary,
 } from '../session-groups'
 
@@ -169,6 +176,37 @@ describe('partitionSessions', () => {
     expect(partition.groups[0]?.sessions.map((session) => session.id)).toEqual(['stale', 'kept'])
   })
 
+  it('keeps the checks and the mergeability of a session pull request for the row chip', () => {
+    const partition = partitionSessions({
+      projects,
+      now: NOW,
+      sessions: [
+        summaryOf({
+          sessionId: 'pr',
+          pullRequest: {
+            repo: 'dennisofficial/atlas',
+            number: 42,
+            url: 'https://github.com/dennisofficial/atlas/pull/42',
+            state: 'open',
+            checks: { running: 1, passed: 2, failed: 0, expected: 1 },
+            mergeable: false,
+            mergeQueued: true,
+          },
+        }),
+      ],
+    })
+    const work = entriesOf(partition)[0]?.work
+    expect(work?.kind).toBe(EWorkKind.PullRequest)
+    if (work?.kind !== EWorkKind.PullRequest) return
+    expect(pullRequestDisplayOf(work.pullRequest)).toMatchObject({
+      glyph: EPullRequestGlyph.Open,
+      tone: EPullRequestTone.Queued,
+      conflict: true,
+      autoMerge: false,
+      checks: { running: 1, passed: 2, failed: 0, expected: 1 },
+    })
+  })
+
   it('describes a session by its latest pull request, then its branch', () => {
     const partition = partitionSessions({
       projects,
@@ -190,11 +228,19 @@ describe('partitionSessions', () => {
       ],
     })
     const byId = new Map(entriesOf(partition).map((entry) => [entry.id, entry]))
-    expect(byId.get('pr')?.work).toEqual({
+    const displayOf = (id: string) => {
+      const work: SessionWork | undefined = byId.get(id)?.work
+      return work?.kind === EWorkKind.PullRequest
+        ? pullRequestDisplayOf(work.pullRequest)
+        : undefined
+    }
+    expect(byId.get('pr')?.work).toMatchObject({
       kind: EWorkKind.PullRequest,
-      number: 1755,
-      state: EPullRequestState.Merged,
+      pullRequest: { number: 1755, state: 'merged', checks: null },
     })
+    expect(displayOf('pr')?.glyph).toBe(EPullRequestGlyph.Merged)
+    expect(displayOf('pr')?.stateWord).toBe(EPullRequestStateWord.Merged)
+    expect(displayOf('pr')?.checks).toBe(EChecksSummary.Unknown)
     expect(byId.get('branch')?.work).toEqual({ kind: EWorkKind.Branch, branch: 'dennis/expo' })
     expect(byId.get('bare')?.work).toEqual({ kind: EWorkKind.Branch, branch: null })
     expect(byId.get('bare')?.title).toBe('Untitled')

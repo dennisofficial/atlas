@@ -1,6 +1,12 @@
 import { describe, expect, it } from 'bun:test'
 
-import { EAgentStatus, toThreadId, type Event, type EventDraft } from '@dltech/atlas-core'
+import {
+  EAgentStatus,
+  EKilledBy,
+  toThreadId,
+  type Event,
+  type EventDraft,
+} from '@dltech/atlas-core'
 
 import { durableEntries } from '../durable-entries'
 import { EEntryKind } from '../transcript-model'
@@ -55,6 +61,13 @@ describe('one answer per finished agent', () => {
     expect(kindsOf(log([ended(), reported({ prose: 'a note first' })]))).toEqual([
       EEntryKind.AgentEnded,
       EEntryKind.AgentReported,
+    ])
+  })
+
+  it('renders one ending for an agent whose ending was posted again on every failed wake', () => {
+    const stopped = { status: EAgentStatus.Stopped, killedBy: EKilledBy.SessionEnd, prose: '' }
+    expect(kindsOf(log([ended(stopped), ended(stopped), ended({ prose: 'fixed' })]))).toEqual([
+      EEntryKind.AgentEnded,
     ])
   })
 })

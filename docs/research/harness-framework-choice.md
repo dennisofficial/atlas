@@ -9,7 +9,7 @@ For the original minimal model/tool-loop spike, **Vercel AI SDK Core** had the b
 - A thin LangGraph graph owns resumable control flow, checkpoints, forks, and interrupts.
 - Atlas remains authoritative for the append-only event log, conversation projections, permissions, scheduling, credentials, and workspace snapshots.
 
-Do not let `ToolLoopAgent` own the parity loop. Keep graph state small—IDs, cursors, pending actions, and snapshot references—so LangGraph does not duplicate Atlas's canonical conversation state. See [Full-parity harness controls](./tui-full-parity-harness-controls.md) for the detailed capability analysis.
+Do not let `ToolLoopAgent` own the parity loop. Keep graph state small—IDs, cursors, pending actions, and snapshot references—so LangGraph does not duplicate Atlas's canonical conversation state. See [Full-parity harness controls](../../deprecated/docs/tui-full-parity-harness-controls.md) for the detailed capability analysis.
 
 The model transport and loop framework are independent choices. A small `ChatGPT Codex Responses -> AI SDK LanguageModelV3` adapter can run inside the LangGraph model node.
 

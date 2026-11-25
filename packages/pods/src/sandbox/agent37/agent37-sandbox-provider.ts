@@ -24,7 +24,7 @@ import {
 import { agent37EndpointOf } from './agent37-endpoint'
 import { listAgent37Instances, removeAgent37Pod, sleepAgent37Pod } from './agent37-instance-sweep'
 import { readyAgent37Instance, repairAgent37IfWedged } from './agent37-lifecycle'
-import { grownDiskOf } from './agent37-resize'
+import { resizeAgent37Instance } from './agent37-resize'
 import { agent37ResizeProbe } from './agent37-resize-state'
 import {
   agent37InstanceNameOf,
@@ -114,6 +114,7 @@ export class Agent37SandboxProvider extends SandboxProvider {
     await waitForAgent37Instance({
       client,
       instanceId: instance.id,
+      signal: args.signal,
       ...(this.args.log === undefined ? {} : { log: this.args.log }),
     })
     args.signal.throwIfAborted()
@@ -127,7 +128,11 @@ export class Agent37SandboxProvider extends SandboxProvider {
     return { instanceId: instance.id, sandboxName, created: true }
   }
 
-  private async ensureDaemon(args: { target: SandboxTarget; instanceId: string }): Promise<void> {
+  private async ensureDaemon(args: {
+    target: SandboxTarget
+    instanceId: string
+    signal: AbortSignal
+  }): Promise<void> {
     const client = this.clientOf(apiKeyOf(args.target.credentials))
     const sandboxName = agent37InstanceNameOf(args.target.sandboxSessionId)
     const version = await agent37BundleVersionOf(this.args.daemonBundle.path)
@@ -139,10 +144,12 @@ export class Agent37SandboxProvider extends SandboxProvider {
         url: pinnedDaemonBundleUrlOf({ url: this.args.daemonBundleUrl, version }),
       },
       token: this.tokenOf(sandboxName),
+      signal: args.signal,
       repair: async () =>
         repairAgent37IfWedged({
           client,
           id: args.instanceId,
+          signal: args.signal,
           ...(this.args.log === undefined ? {} : { log: this.args.log }),
         }),
       ...(this.args.log === undefined ? {} : { log: this.args.log }),
@@ -182,8 +189,13 @@ export class Agent37SandboxProvider extends SandboxProvider {
     try {
       const resolved = await this.resolve(args)
       const client = this.clientOf(apiKeyOf(args.target.credentials))
-      await readyAgent37Instance({ client, id: resolved.instanceId, log: this.args.log })
-      await this.ensureDaemon({ target: args.target, instanceId: resolved.instanceId })
+      await readyAgent37Instance({
+        client,
+        id: resolved.instanceId,
+        signal: args.signal,
+        log: this.args.log,
+      })
+      await this.ensureDaemon({ ...args, instanceId: resolved.instanceId })
       // The endpoint carries the instance's real shape so the runtime can record it as applied.
       const readAt = new Date().toISOString()
       const instance = await client.get({ id: resolved.instanceId })
@@ -241,31 +253,13 @@ export class Agent37SandboxProvider extends SandboxProvider {
     const podSessionId = args.target.sandboxSessionId
     const instanceId = await this.args.instances.find({ podSessionId })
     if (instanceId === null) return 'absent'
-    const client = this.clientOf(apiKeyOf(args.target.credentials))
-    const instance = await client.get({ id: instanceId })
-    const cpu = args.shape.vcpus
-    const memory = args.shape.memoryGb
-    const disk = grownDiskOf({ current: instance.resources?.disk, wanted: args.diskGb })
-    const cpuAtTarget = instance.resources?.cpu === cpu
-    const memoryAtTarget = instance.resources?.memory === memory
-    if (cpuAtTarget && memoryAtTarget && disk === undefined) return 'stored'
-    // https://www.agent37.com/docs/agents-api/instances/resize — only a running instance can be
-    // resized, so a sleeping one is started first and holds the shape once it is running.
-    if (instance.status !== 'running') {
-      await client.start({ id: instanceId })
-      await waitForAgent37Instance({
-        client,
-        instanceId,
-        ...(this.args.log === undefined ? {} : { log: this.args.log }),
-      })
-    }
-    await client.resize({
-      id: instanceId,
-      ...(cpuAtTarget ? {} : { cpu }),
-      ...(memoryAtTarget ? {} : { memory }),
-      ...(disk === undefined ? {} : { disk }),
+    return resizeAgent37Instance({
+      client: this.clientOf(apiKeyOf(args.target.credentials)),
+      instanceId,
+      shape: args.shape,
+      diskGb: args.diskGb,
+      log: this.args.log,
     })
-    return 'restarted'
   }
 
   override resizeState(args: { target: SandboxTarget; shape: PodShape }): Promise<EPodResizeProbe> {

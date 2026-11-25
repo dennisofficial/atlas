@@ -1,4 +1,3 @@
-import { db } from '@dltech/atlas-db'
 import {
   EMcpServerSource,
   EMcpOauthAccessOutcome,
@@ -49,7 +48,6 @@ export class McpOauthAccessService {
 
   async accessToken(args: {
     userId: string
-    threadId?: string | undefined
     name: string
     source: EMcpServerSource
     url: string
@@ -121,55 +119,23 @@ export class McpOauthAccessService {
 
   private async resolveRow(args: {
     userId: string
-    threadId?: string | undefined
     name: string
     source: EMcpServerSource
     url: string
   }): Promise<ServerGrantRow | null> {
-    const projectId = await this.ownedProjectId({
-      userId: args.userId,
-      threadId: args.threadId,
-    })
     if (args.source === EMcpServerSource.Cloud) {
-      const scoped =
-        projectId === null
-          ? null
-          : await this.store.findByName({
-              projectId,
-              source: EMcpServerSource.Cloud,
-              name: args.name,
-            })
-      return (
-        scoped ??
-        (await this.store.findByName({
-          userId: args.userId,
-          source: EMcpServerSource.Cloud,
-          name: args.name,
-        }))
-      )
+      return this.store.findByName({
+        userId: args.userId,
+        source: EMcpServerSource.Cloud,
+        name: args.name,
+      })
     }
     return this.store.touchRepoServer({
-      ...(projectId === null ? { userId: args.userId } : { projectId }),
+      userId: args.userId,
       name: args.name,
       url: args.url,
       now: new Date(this.clock.now()),
     })
-  }
-
-  private async ownedProjectId(args: {
-    userId: string
-    threadId?: string | undefined
-  }): Promise<string | null> {
-    if (args.threadId === undefined) return null
-    const thread = await db.orm.public.Thread.select('sessionId').first({ id: args.threadId })
-    if (thread === null) return null
-    const session = await db.orm.public.Session.select('projectId').first({
-      id: thread.sessionId,
-    })
-    const projectId = session?.projectId ?? null
-    if (projectId === null) return null
-    const owner = await this.store.projectOwner({ projectId })
-    return owner === args.userId ? projectId : null
   }
 
   private isFresh(tokens: OAuthTokens): boolean {

@@ -1,4 +1,4 @@
-import { UnauthorizedException, type INestApplication, type Provider } from '@nestjs/common'
+import { type INestApplication, type Provider } from '@nestjs/common'
 import request from 'supertest'
 import { EnvService } from '../../_core/config/env/env.service'
 import { SESSION_VERIFIER } from '../../_core/ports/session-verifier'
@@ -10,7 +10,6 @@ import {
   createMiddlewareApp,
   UNTHROTTLED_RATE_LIMIT,
 } from '../../_module/trpc/trpc-middleware.fixture'
-import { SandboxesService } from '../platform/sandboxes/sandboxes.service'
 const HEX_KEY = 'a1b2c3d4e5f6a1b2c3d4e5f6a1b2c3d4e5f6a1b2c3d4e5f6a1b2c3d4e5f6a1b2'
 
 const STALE_PREFIX = 'stale:'
@@ -20,14 +19,6 @@ const SESSIONS: Record<string, string> = {
   'session-b': 'user-b',
   'session-c': 'user-c',
 }
-const POD_TOKENS: Record<string, { threadId: string; userId: string }> = {
-  'pod-token-a': { threadId: 'thread-pod-a', userId: 'user-a' },
-  'pod-token-b': { threadId: 'thread-pod-b', userId: 'user-b' },
-}
-const SANDBOX_TOKENS: Record<string, { id: string; threadId: string; userId: string }> = {
-  'sandbox-token-a': { id: 'sbx-a', threadId: 'thread-sbx-a', userId: 'user-a' },
-}
-
 export const cipher = new SecretCipherService(new EnvService({ SECRETS_ENCRYPTION_KEY: HEX_KEY }))
 
 const bearerOf = (req: { headers: { authorization?: string } }): string =>
@@ -55,21 +46,6 @@ export const createPersonalApp = (providers: Provider[]): Promise<INestApplicati
               email: '',
               sessionCreatedAt: new Date(Date.now() - (stale ? 2 : 0) * FRESH_SESSION_WINDOW_MS),
             }
-          },
-        },
-      },
-      {
-        provide: SandboxesService,
-        useValue: {
-          async verifyTokenPrincipal(args: { token: string }) {
-            const pod = POD_TOKENS[args.token]
-            if (pod !== undefined) return { kind: 'pod', ...pod }
-            const sandbox = SANDBOX_TOKENS[args.token]
-            if (sandbox !== undefined) return { kind: 'sandbox', ...sandbox }
-            throw new UnauthorizedException()
-          },
-          async assertThreadInFamily() {
-            throw new Error('a threadless personal route must never reach the thread-family check')
           },
         },
       },

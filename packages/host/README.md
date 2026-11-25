@@ -142,4 +142,4 @@ await holder.start()
 
 - [docs/decisions/0025-v2-connection-bound-leases.md](../../docs/decisions/0025-v2-connection-bound-leases.md)
   and [0026-v2-hosts-pull-sessions.md](../../docs/decisions/0026-v2-hosts-pull-sessions.md).
-- [docs/v2/architecture.md](../../docs/v2/architecture.md) for the held-session loop.
+- [docs/architecture.md](../../docs/architecture.md) for the held-session loop.

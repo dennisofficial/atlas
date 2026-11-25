@@ -9,17 +9,8 @@ on:
       - 'infra/sandbox-image/**'
       - '!infra/sandbox-image/README.md'
       - '.github/workflows/sandbox-image.yml'
-  # The retag job runs by dispatch, not on the release event: the release job in ci.yml
-  # creates the release with GITHUB_TOKEN, and GitHub never starts workflow runs from events
-  # that token caused. https://docs.github.com/actions/using-workflows/triggering-a-workflow
+  # A manual republish when the path trigger above cannot fire.
   workflow_dispatch:
-    inputs:
-      release_tag:
-        description: tui release tag to retag the sandbox image for (tui-vX.Y.Z)
-        required: true
-      release_sha:
-        description: full commit sha the release was cut from
-        required: true
 
 permissions:
   contents: read
@@ -30,9 +21,10 @@ permissions:
 # sha-<commit> tags. Runs must stack up and each publish its own sha tag; latest is
 # last-writer-wins and self-heals.
 #
-# VCR gets no per-merge push: the retag job below pushes `latest` only, and only for a release
-# whose image differs from the one the Agent37 template already pins. Serve is not baked in, so
-# nothing about the image is version-specific.
+# The Agent37 template and the VCR `latest` image follow the image's digest, pinned by the run
+# that published it. Serve is not baked in and no longer downloaded per release, so nothing about
+# this image is version-specific and no release re-pins it (decision D5,
+# docs/slices/v1-retirement.md).
 
 env:
   IMAGE: ghcr.io/${{ github.repository_owner }}/atlas-sandbox
@@ -40,12 +32,9 @@ env:
 
 jobs:
   publish:
-    if: github.event_name != 'release'
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v7
-        with:
-          ref: ${{ inputs.release_sha || github.sha }}
 
       - uses: docker/setup-qemu-action@v4
 
@@ -57,29 +46,27 @@ jobs:
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
 
-      # tree-<hash> names the image by the files of its build context, README aside, so a release whose
+      # tree-<hash> names the image by the files of its build context, README aside, so a run whose
       # context matches an image ghcr already holds reuses that image instead of rebuilding: a rebuild
       # that misses the layer cache is not byte-identical (apt pulls the day's packages, BuildKit
       # stamps the build time), and every new digest re-pins the Agent37 template and marks each
-      # instance outdated.
+      # instance outdated. The hash covers the paths under the directory's own name; the tags it
+      # produced while the directory still lived at apps/serve/sandbox-image do not repeat, so the
+      # first run after that move published one new tree tag.
       - name: compute tags
         id: meta
         run: |
           set -euo pipefail
-          # The hash covers the listed paths, so they are listed under the context's original home
-          # (apps/serve/sandbox-image): moving the directory must not rename every tree tag.
           tree_tag="tree-$(git ls-tree HEAD infra/sandbox-image/ \
             | grep -v '/README.md$' \
-            | sed 's#\tinfra/sandbox-image/#\tapps/serve/sandbox-image/#' \
             | git hash-object --stdin | cut -c1-12)"
           echo "sha_tag=sha-$(git rev-parse HEAD | cut -c1-7)" >> "$GITHUB_OUTPUT"
           echo "tree_tag=${tree_tag}" >> "$GITHUB_OUTPUT"
-          if [ "$GITHUB_EVENT_NAME" = workflow_dispatch ] \
-            && docker buildx imagetools inspect "${IMAGE}:${tree_tag}" >/dev/null 2>&1; then
+          if docker buildx imagetools inspect "${IMAGE}:${tree_tag}" >/dev/null 2>&1; then
             echo "prebuilt=true" >> "$GITHUB_OUTPUT"
           fi
 
-      - name: tag the release commit with the image its context already built
+      - name: tag the commit with the image its context already built
         if: steps.meta.outputs.prebuilt == 'true'
         env:
           SHA_TAG: ${{ steps.meta.outputs.sha_tag }}
@@ -104,47 +91,21 @@ jobs:
           cache-from: type=registry,ref=${{ env.IMAGE }}:buildcache
           cache-to: type=registry,ref=${{ env.IMAGE }}:buildcache,mode=max
 
-  retag:
-    # release-on-main (the release job in .github/workflows/ci.yml) tags tui releases as tui-vX.Y.Z
-    # (apps/tui/scripts/release-version.ts) and dispatches here after each one.
-    #
-    # needs: publish because a dispatch runs that job too — its `if` is `event_name != 'release'`
-    # and this workflow has no release trigger, so it always runs — and the template below pins
-    # the image ghcr holds for the release commit. Waiting on it orders the two writes and stops
-    # the retag from publishing to VCR and Agent37 when the image itself never landed.
-    needs: publish
-    if: github.event_name == 'workflow_dispatch' && startsWith(inputs.release_tag, 'tui-v')
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v7
-        with:
-          ref: ${{ inputs.release_sha }}
-
-      - uses: docker/setup-buildx-action@v4
-
-      - uses: docker/login-action@v4
-        with:
-          registry: ghcr.io
-          username: ${{ github.actor }}
-          password: ${{ secrets.GITHUB_TOKEN }}
-
       - uses: oven-sh/setup-bun@v2.2.0
 
       - run: bun install --frozen-lockfile
 
       # The Agent37 template is pinned by digest, never by a tag a later merge can move, so
-      # resolve the digest ghcr holds for the release commit here and hand it to the register
-      # step. linux/amd64 first, the same choice agent37-register-template.ts's registryDigestOf
-      # makes for itself: that is the leg both Agent37 pods and the VCR push above run.
-      - name: resolve the release image digest
-        id: release-image
+      # resolve the digest ghcr holds for this run's image here and hand it to the register step.
+      # linux/amd64 first, the same choice agent37-register-template.ts's registryDigestOf makes
+      # for itself: that is the leg both Agent37 pods and the VCR push below run.
+      - name: resolve the image digest
+        id: image
         env:
-          IMAGE: ${{ env.IMAGE }}
-          RELEASE_SHA: ${{ inputs.release_sha }}
+          TREE_TAG: ${{ steps.meta.outputs.tree_tag }}
         run: |
           set -euo pipefail
-          tag="sha-$(echo "$RELEASE_SHA" | cut -c1-7)"
-          digest="$(docker buildx imagetools inspect "${IMAGE}:${tag}" --format '{{json .Manifest}}' | bun -e '
+          digest="$(docker buildx imagetools inspect "${IMAGE}:${TREE_TAG}" --format '{{json .Manifest}}' | bun -e '
             const manifest = JSON.parse(await Bun.stdin.text())
             const amd64 = (manifest.manifests ?? []).find(
               (entry) => entry.platform?.os === "linux" && entry.platform?.architecture === "amd64",
@@ -152,14 +113,16 @@ jobs:
             process.stdout.write(amd64?.digest ?? manifest.digest ?? "")
           ')"
           if [ -z "$digest" ]; then
-            digest="$(docker buildx imagetools inspect "${IMAGE}:${tag}" --format '{{.Digest}}')"
+            digest="$(docker buildx imagetools inspect "${IMAGE}:${TREE_TAG}" --format '{{.Digest}}')"
           fi
           if [ -z "$digest" ]; then
-            echo "ghcr has no image for ${IMAGE}:${tag}" >&2
+            echo "ghcr has no image for ${IMAGE}:${TREE_TAG}" >&2
             exit 1
           fi
           echo "digest=$digest" >> "$GITHUB_OUTPUT"
 
+      # An image-identical run publishes no new digest, so it must not re-pin the template and mark
+      # every live instance outdated.
       - name: check whether the agent37 template already pins this image
         id: template
         env:
@@ -168,10 +131,10 @@ jobs:
           set -euo pipefail
           state="$(bunx dotenvx run -f apps/api/.env.production.enc -- \
             bun apps/api/scripts/agent37-register-template.ts --check \
-              --tag '${{ steps.release-image.outputs.digest }}' | tail -n 1)"
+              --tag '${{ steps.image.outputs.digest }}' | tail -n 1)"
           case "$state" in current | stale) ;; *) echo "unexpected check answer: $state" >&2; exit 1 ;; esac
           echo "state=$state" >> "$GITHUB_OUTPUT"
-          echo "agent37 template is $state for ${{ steps.release-image.outputs.digest }}"
+          echo "agent37 template is $state for ${{ steps.image.outputs.digest }}"
 
       - uses: docker/login-action@v4
         if: vars.VERCEL_VCR_ENABLED == 'true' && steps.template.outputs.state == 'stale'
@@ -206,10 +169,9 @@ jobs:
         run: bun scripts/sandbox-image/prune-vcr-images.ts
 
       # The Agent37 template must point at the same image release as VCR, or the two providers
-      # drift apart with nothing to detect it. The digest resolved above is the release commit's
-      # image, the build the VCR push re-ships, and a digest cannot be moved by a later merge the
-      # way a tag can. Runs whether or not VCR is enabled: the template is what every Agent37 pod
-      # boots from.
+      # drift apart with nothing to detect it. The digest resolved above is this run's image and a
+      # digest cannot be moved by a later merge the way a tag can. Runs whether or not VCR is
+      # enabled: the template is what every Agent37 pod boots from.
       - name: register the agent37 template
         if: steps.template.outputs.state == 'stale'
         env:
@@ -218,4 +180,4 @@ jobs:
           set -euo pipefail
           bunx dotenvx run -f apps/api/.env.production.enc -- \
             bun apps/api/scripts/agent37-register-template.ts \
-              --tag '${{ steps.release-image.outputs.digest }}'
+              --tag '${{ steps.image.outputs.digest }}'

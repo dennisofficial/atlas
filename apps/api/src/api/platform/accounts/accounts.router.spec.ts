@@ -1,10 +1,9 @@
 import { EAccountStatus } from '@dltech/atlas-wire'
 import { db } from '@dltech/atlas-db'
-import { useTestDatabase } from '@dltech/atlas-db/testing'
+import { seedUser, useTestDatabase } from '@dltech/atlas-db/testing'
 import { BadRequestException, type INestApplication } from '@nestjs/common'
 import request from 'supertest'
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from 'bun:test'
-import { seedUsers } from '../../../../test/session-seed'
 import { EnvService } from '../../../_core/config/env/env.service'
 import { SESSION_VERIFIER } from '../../../_core/ports/session-verifier'
 import { SecretCipherService } from '../../../_lib/crypto/secret-cipher.service'
@@ -81,7 +80,7 @@ describe('AccountsRouter', () => {
   beforeEach(async () => {
     checks.length = 0
     refusal = null
-    await seedUsers('user-a', 'user-b')
+    for (const id of ['user-a', 'user-b']) await seedUser({ db, id })
   })
 
   it('answers 401 on every procedure without a session', async () => {

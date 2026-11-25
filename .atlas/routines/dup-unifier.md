@@ -14,7 +14,7 @@
 - `oneLine` in `core/memory/index-render.ts` (newlines only, no trim) does a different job from the `\s+` collapsers.
 - Byte formatters (tui `transfer-meter`, tui `push-text`, web `skill-format`, ui `queued-message-ops`): units, divisors and rounding all differ, so no single copy preserves every caller's output.
 - Agent status labels (web `crew-panel`, client `readout` `STATE_LABEL`, client `tools/agents` `STOP_NOTE`): different vocabularies on purpose.
-- Any pair across the v1/v2 line (`agent` vs `agent-v1` retry-ledger, `harness` cloud-retry vs `client` connection-machine).
+- Any pair across tiers that only looks similar (`agent` retry-ledger vs `client` connection-machine).
 
 ## Backlog (ranked)
 

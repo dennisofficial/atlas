@@ -10,64 +10,25 @@ never a fallback refresher. Model requests still go directly to providers. Cloud
 and the API holds them (`src/api/cloud/mcp-oauth`). The API brokers sign-in and refresh. Sandboxes receive
 access tokens only. Local TUI sessions keep the loopback flow. Memory is never a synced domain.
 
-Every Atlas-owned client calls the API through tRPC under `/v1/trpc` (`threads.create`,
-`sandboxSelf.*`, `models.list` and the rest of the generated `AppRouter`). Only these routes stay REST: the
+Every Atlas-owned client calls the API through tRPC under `/v1/trpc` (`sessions.create`,
+`models.list` and the rest of the generated `AppRouter`). Only these routes stay REST: the
 GitHub webhook controllers (`POST /v1/github/hooks/:repo`, `POST /v1/github/app/hook`,
 `GET /v1/github/app/callback`), `GET /v1/health`, the agent's `GET /healthz`, `GET /mcp-oauth/callback`,
 and better-auth's `/api/auth/*`.
 
-**The API provisions Atlas Cloud sandboxes on the thread owner's own Vercel credentials.**
-`threads.create` with a `firstMessage` writes the Thread, its first `user-said` Event and the
-`CloudSandbox` claim in one transaction. It then dispatches the `pod-provision` trigger.dev task
-(`src/api/cloud/sandbox-provisioning/`). That task exits if its `wakeClaim` was superseded. Both the
-dispatch and the task are v1 and go with the v1 request lanes (slice 4 of
-`docs/v2/slices/v1-retirement.md`). `threadSandbox.provision` is Retry. Without `firstMessage`
-the procedure is unchanged for the TUI. A thread is API-provisioned when it has `SandboxBootStep`
-rows. A web send or Retry never takes over a TUI BYO row, which has none. A TUI local pod registers
-only its `LocalPodLease`. It never gets a `Thread` row, `Event` rows or a checkpoint row. The send and
-Retry paths refuse a leased thread with 409.
+**The API carries no v1 thread or sandbox lane.** Slice 4c of
+`docs/slices/v1-retirement.md` deleted the `threads`, `threadEvents`, `threadTurns`, `sandboxSelf`,
+`sandboxes`, `sandboxCheckpoint`, `sandboxRollover`, `podLeases`, `threadSandbox`, `threadPod`,
+`threadMessages`, `composerDrafts` and `sandboxConfig` routers with their services, and the Vercel
+sandbox provisioning behind them. A sandbox is a v2 session pod: the agent host claims it
+(`src/agent`), and the control plane serves it through `platform/control`.
 
-**The sidebar lists sessions, not threads.** A `Session` owns its main thread and the sub-agent
-threads spawned in it. It owns its pod (`CloudSandbox` and `SandboxBootStep` are keyed by `sessionId`).
-It owns the per-session fields (project, repo, workspace, execution location, title, pin, archive).
-Procedures still take a `threadId` and resolve its session. The resolvers are `sessionOfThread` and
-`podSessionOf`, which walks a teammate's `managedBySessionId` to the session that owns the pod. Create
-a session and its main thread with `createSessionWithMainThread`. `Session.mainThreadId` is nullable
-because the two rows point at each other. `threads.live` streams the sidebar as a snapshot of flat
-`LiveThreadRow`s plus the user's projects. It then upserts each row. A teammate row names its manager
-through `managedBySessionId`. `threads.list` returns session main threads only. better-auth's table is
-`AuthSession`.
-
-A thread's owner is fixed at creation (`Thread.userId`). Sandboxes run only on the platform
-account: `ScopedConfigService.vercelCredentials` reads `PLATFORM_VERCEL_TOKEN`,
-`PLATFORM_VERCEL_TEAM_ID` and `PLATFORM_VERCEL_PROJECT_ID`, and answers 503 when one is missing.
-Users never bring their own sandbox credential. **A sandbox keeps the Vercel project it was created
-in** (`CloudSandbox.vercelProjectId`, written by both boot paths on a fresh create and read by
-`platform/sandboxes/pod-project.ts`). Every later resume, renewal, stop, resize and delete targets
-that project. Moving the platform credential to another project therefore moves only the sandboxes
-created after it. Old sandboxes keep working until they are destroyed.
-**Sandbox storage ends six hours after a session is archived.**
-Archive parks the pod. `archived-sandbox-sweep` deletes the pod of a session archived past
-`ARCHIVED_SANDBOX_GRACE_MS` (6 h), and `orphan-sandbox-sweep` soft-deletes the v2 session rows at the
-same grace, measured from `archivedAt`. `orphan-sandbox-sweep` deletes stopped
-sandboxes whose name no unarchived session resolves: a deleted session's pod, a dead v2 session's, a
-probe's. A sandbox is addressed only by name, so a name that nothing resolves is unreachable storage.
-The session rows stay for analytics. A
-missing piece still creates the thread and the message. The API answers `not-configured` with the gap. The
-API env `VERCEL_*` only inspect and stop TUI BYO rows. They never create a sandbox.
-
-An API-provisioned sandbox carries **no** Vercel credentials (`injectVercelCredentials: false`).
-Its serve sees `ATLAS_API_PROVISIONED=1` and uses its sandbox token on the `sandboxSelf` procedures:
-`exposePort`, `stop`, `bootSteps` and `events`. `bootSteps` records Agent Running under the thread lock,
-and that record must succeed before serve hydrates. `events` is write-behind and idempotent on
-`(threadId, seq)`. Boot progress
-lives in `SandboxBootStep`, which the web reads through `threadPod.status`. A message sent
-while the pod is parked, absent or failed is appended as an Event and starts a pod. Serve hydrates
-these Events at boot. `threadMessages.takeBack` takes back an unrun last message.
-
-The TUI still provisions its own BYO sandboxes and registers them through `sandboxes.claim`. That path
-is unchanged and frozen with the TUI. The API also provides identity, remote-control rendezvous,
-thread discovery, backup sync and PR/CI webhooks.
+**Sandbox storage ends six hours after a session is archived.** Archive parks the pod.
+`orphan-sandbox-sweep` (`apps/trigger`) soft-deletes the v2 session rows at
+`ARCHIVED_SANDBOX_GRACE_MS` (6 h), measured from `archivedAt`. A sandbox is addressed only by name, so
+a name that no unarchived session resolves is unreachable storage. The session rows stay for
+analytics. The API also provides identity, remote-control rendezvous, session discovery, backup sync
+and PR/CI webhooks.
 
 **`models.list` (tRPC) serves each operator's model list.** `src/api/platform/models/` composes the catalogue from the
 operator's accounts. When the operator holds an active OpenAI OAuth connection, the API replaces the static OpenAI list
@@ -75,9 +36,9 @@ with the live Codex list (`CodexModelsCatalogue`). The catalogue is cached per u
 revalidated with `If-None-Match`. A Codex failure returns the static list plus `liveError`. The code lives in
 `@dltech/atlas-models`, and the provider sign-in helpers live in `@dltech/atlas-credentials/provider-oauth`. Session titles
 come from `src/agent/naming`, which calls the quick model through the same provider stack as the agent host. The API
-imports nothing of harness. `src/api/cloud/mcp-oauth` uses the agent's MCP OAuth helpers (`src/agent/mcp-oauth`)
+imports nothing of the agent host. `src/api/cloud/mcp-oauth` uses the agent's MCP OAuth helpers (`src/agent/mcp-oauth`)
 through `src/agent/index.ts`, and the skills API reads built-ins and the catalogue from `@dltech/atlas-plugin-skills`.
-`src/api/harness-boundary.spec.ts` and `architecture.spec.ts` enforce that rule.
+`src/api/architecture.spec.ts` enforces that rule.
 
 ## One app: `src/api` and `src/agent`
 
@@ -124,7 +85,7 @@ GitHub webhooks, and the agent's `/healthz` and `/mcp-oauth/callback`.
   pre-commit hook regenerates it when api or wire sources are staged. The CI `check` job fails on
   drift. `nestjs-trpc watch` keeps it current in `bun run dev`. Commit what the hook writes.
 - Clients import `AppRouter` types from `@dltech/atlas-api-router`. They never import them from `apps/api`. Web
-  uses its `api` client, harness uses `createHarnessApiClient`, and everything else uses `createApiClient`.
+  uses its `api` client, and everything else uses `createApiClient`.
 - Test a router with `createMixedApp` (`src/api/platform/accounts/accounts.router.fixture.ts`) or
   the feature's `*.router.fixture.ts`. Use supertest against `/v1/trpc/<alias>.<procedure>`.
   Queries are GET with `?input=<json>`, mutations POST the input as the JSON body.
@@ -150,8 +111,8 @@ src/
   _core/      kernel: env module, decorators, ports, types. Imports nothing from slices.
   _lib/       infra adapters (crypto). Framework-light.
   _module/    shared injectable modules (session middleware + verifier port, tRPC middlewares).
-  api/        the v1 app: api.module.ts + feature modules in two layers —
-              platform/ (auth, accounts, sessions, sandboxes, previews, health) and cloud/ (secrets,
+  api/        api.module.ts + feature modules in two layers —
+              platform/ (auth, accounts, control, previews, health) and cloud/ (secrets,
               mcp-servers, user-context, github). One-way rule:
               cloud may import platform, platform never imports cloud;
               enforced by src/api/architecture.spec.ts.
@@ -175,7 +136,7 @@ them at least once. Relative imports work everywhere. Do not reintroduce them.
 
 The API stores no context archives. Context goes straight into the sandbox from the client, and
 the old upload endpoints are gone. The global JSON body cap is 4 MB (`JSON_BODY_LIMIT` in
-`src/_lib/body-limits.ts`) for every route. User-layer uploads fit because the harness skips files
+`src/_lib/body-limits.ts`) for every route. User-layer uploads fit because the agent skips files
 over 3,000,000 bytes (`MAX_USER_LAYER_FILE_BYTES`). A file of 3,000,000 bytes has a base64 body of 4,000,000 bytes.
 
 ## Deploy
@@ -251,10 +212,7 @@ its router's `SessionMiddleware`, and a bearer that `SESSION_VERIFIER` does not 
 health is open and the webhooks verify an HMAC. `ClientVersionGuard` and `ThrottlerGuard` stay
 global for those REST routes. The retired v1 sandbox and local-pod lease tokens authenticate
 nothing: their principals, their lookup cache and the `sandboxReachable`/`podReachable` procedure
-meta are gone (slice 4a of `docs/v2/slices/v1-retirement.md`). `sandboxSelf`, `sandboxConfig.get`,
-`sandboxCheckpoint.put` and `sandboxRollover` have no caller since slice 5 deleted the v1 packages
-that used them. They sit behind `RetiredSandboxTokenMiddleware` (`src/api/platform/sandboxes`),
-which answers 401 to every caller, and slice 4c deletes them.
+meta are gone (slice 4a of `docs/slices/v1-retirement.md`).
 
 The device-authorization flow is how the TUI logs in. The pages live in `apps/web` (Vercel,
 `byatlas.io`). The API only exposes the better-auth endpoints. `WEB_ORIGIN` is what points
@@ -344,11 +302,10 @@ left, and every task lives in `apps/trigger`, which `.github/workflows/trigger-v
   throws the same error. Nothing ever falls back to running the work in-process. `trigger-job-dispatcher.ts` is
   the only file in `src/api` or `src/_lib` that imports `@trigger.dev/sdk`.
   `src/api/trigger-boundary.spec.ts` enforces that rule.
-- **Two projects, two keys.** `JobsProjectDispatcher` carries `TRIGGER_JOBS_SECRET_KEY`, the v2
-  project's key, and queues every v2 task. `JobDispatcher` carries `TRIGGER_SECRET_KEY`, the retired
-  v1 project's key, and still queues the v1 lanes that the v1 request-lane slice deletes. Both keys
-  are required, and a missing one fails boot. Local uses the dev keys (`tr_dev_…`); specs and the CI
-  image probe use a fixture.
+- **One project, one key.** `JobsProjectDispatcher` carries `TRIGGER_JOBS_SECRET_KEY`, the v2
+  project's key, and queues every task. The key is required, and a missing one fails boot. Local uses
+  the dev key (`tr_dev_…`); specs and the CI image probe use a fixture. The v1 project's
+  `TRIGGER_SECRET_KEY` and its dispatcher went with the v1 request lanes (slice 4c).
 - **Contracts are owned by the caller.** A task's id, zod payload schema and
   `Task<id, payload, output>` type live in a contract file next to the feature that dispatches it
   (`src/_lib/trigger/notify-send.contract.ts`). The file exports them as a `TaskContract`, so the

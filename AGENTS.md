@@ -11,8 +11,8 @@ change costs an afternoon. Do not build a feature nobody asked for. Keep interfa
 readers. Note a setup-breaking change in the PR. Spend the effort on what the operator feels:
 hangs, silent failures, seams that make the next feature cheap.
 
-Read `docs/architecture.md` before you change anything structural. It and `docs/core-contract.md`
-win over an inference from code. The v2 redesign (client ↔ control plane ↔ pod) lives in `docs/v2`.
+Read `docs/architecture.md` before you change anything structural. It is the architecture: client ↔
+control plane ↔ pod. It and `docs/core-contract.md` win over an inference from code.
 A package or app can carry its own `AGENTS.md` with local rules. Call the units by their
 [CONTEXT.md](CONTEXT.md) names: a session, the threads inside it, a sub-agent, a teammate.
 

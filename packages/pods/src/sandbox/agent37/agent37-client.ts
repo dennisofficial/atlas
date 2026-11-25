@@ -17,6 +17,7 @@ export * from './agent37-types'
 const API_BASE = 'https://api.agent37.com'
 const EXEC_BASE = 'https://sandbox.agent37.app'
 const QUICK_TIMEOUT_MS = 30_000
+export const AGENT37_LONG_CALL_TIMEOUT_MS = 15 * 60_000
 
 export type Agent37Client = Agent37UsageClient &
   Agent37MetricsClient & {
@@ -150,7 +151,7 @@ export const liveAgent37Client = (args: {
         method: 'POST',
         headers: bearer,
         body,
-        timeoutMs: 15 * 60_000,
+        timeoutMs: AGENT37_LONG_CALL_TIMEOUT_MS,
       }) as Promise<Agent37Instance>,
     get: ({ id }) =>
       call({
@@ -176,7 +177,7 @@ export const liveAgent37Client = (args: {
         url: api(`/v1/instances/${id}/start`),
         method: 'POST',
         headers: bearer,
-        timeoutMs: 15 * 60_000,
+        timeoutMs: AGENT37_LONG_CALL_TIMEOUT_MS,
       }) as Promise<Pick<Agent37Instance, 'id' | 'status'>>,
     // https://www.agent37.com/docs/agents-api/instances/resize — a host move can run past the
     // request and answer 202 while the instance is still `updating`, so this waits like create.
@@ -190,7 +191,7 @@ export const liveAgent37Client = (args: {
           ...(memory === undefined ? {} : { memory }),
           ...(disk === undefined ? {} : { disk }),
         },
-        timeoutMs: 15 * 60_000,
+        timeoutMs: AGENT37_LONG_CALL_TIMEOUT_MS,
       }) as Promise<Agent37Instance>,
     // https://www.agent37.com/docs/agents-api/instances/update.md — resets the operating system
     // layer while preserving the disk at mount_path, which repairs a pod whose os layer is full.
@@ -199,7 +200,7 @@ export const liveAgent37Client = (args: {
         url: api(`/v1/instances/${id}/update`),
         method: 'POST',
         headers: bearer,
-        timeoutMs: 15 * 60_000,
+        timeoutMs: AGENT37_LONG_CALL_TIMEOUT_MS,
       }) as Promise<Pick<Agent37Instance, 'id' | 'status'>>,
     // https://www.agent37.com/docs/agents-api/instances/edit.md — metadata replaces the stored map
     // rather than merging into it, never touches the container, and keeps the vm running.
@@ -229,7 +230,7 @@ export const liveAgent37Client = (args: {
           ...(body.name === undefined ? {} : { name: body.name }),
           ...(body.user === undefined ? {} : { user: body.user }),
         },
-        timeoutMs: 15 * 60_000,
+        timeoutMs: AGENT37_LONG_CALL_TIMEOUT_MS,
       }) as Promise<Agent37ExecResult | Agent37Pid>,
     // https://www.agent37.com/docs/agents-api/urls — every port answers at its preview URL, with a
     // transport error until something listens, so a probe reports the failure instead of throwing.

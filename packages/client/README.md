@@ -53,7 +53,7 @@ The headless client library that web, the TUI and the mobile app share.
 ### Keep the log and the view
 
 - `memorySessionLog()`, `browserSessionLog(eventSchema)`, `createIndexedDbSessionLog(args)`: the
-  `SessionLog` implementations.
+  `SessionLog` implementations. `createSqliteSessionLog({ db })` keeps one behind a `SqliteExecutor`.
 - `SessionWindow`, `applyPage`, `applyPageOutcome`, `RENDER_LIMIT`, `OLDER_PAGE`: the paged window.
 - `applyOverlayMessage`, `closeOverlay`, `closeOverlayForEvents`, `EMPTY_OVERLAY_STATE`: the live
   step overlay. `overlaySignalsOf` and `overlayRewrote` give its step signals, append or rewrite.
@@ -63,7 +63,7 @@ The headless client library that web, the TUI and the mobile app share.
 
 ### Read the pod channel
 
-- `createRemoteDeltaChannel(args)`: the delta channel to the serve in a pod. `webSocketFactory`,
+- `createRemoteDeltaChannel(args)`: the delta channel to a pod's live session stream. `webSocketFactory`,
   `sessionSocketUrlOf`, `ChannelSocket`: the socket adapter. `encodeFrame`, `decodeClientFrame`,
   `EServeFrame`, `EClientFrame`: the client side of the frame codec.
 - `EClientRequest`, `ChannelSignal`, `StepSignal`, `TurnOutcome`, `InFlightSlots`: the request names, the signals, a turn's outcome and the in-flight slots.

@@ -1,6 +1,5 @@
 import { Module } from '@nestjs/common'
 import { RefreshLockModule } from '../../../_lib/refresh-lock/refresh-lock.module'
-import { OauthConnectionsRouter } from './oauth-connections.router'
 import { OauthConnectionsService } from './oauth-connections.service'
 import { OauthClock, OauthConnectionStore, OauthIssuer } from './oauth-connections.types'
 import { HttpOauthIssuer } from './oauth-issuer'
@@ -11,7 +10,6 @@ import { PrismaOauthConnectionStore } from './prisma-oauth-connection.store'
   imports: [RefreshLockModule],
   providers: [
     OauthConnectionsService,
-    OauthConnectionsRouter,
     { provide: OauthConnectionStore, useClass: PrismaOauthConnectionStore },
     { provide: OauthIssuer, useClass: HttpOauthIssuer },
     { provide: OauthClock, useClass: SystemOauthClock },

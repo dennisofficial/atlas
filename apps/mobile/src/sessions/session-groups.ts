@@ -12,15 +12,10 @@ import type { SessionListOutput } from '@dltech/atlas-protocol'
 
 export type V2SessionSummary = SessionListOutput['sessions'][number]
 
+export type SessionPullRequest = NonNullable<V2SessionSummary['pullRequest']>
+
 export const NO_PROJECT_KEY = '__no-project__'
 export const NO_PROJECT_NAME = 'No project'
-
-export enum EPullRequestState {
-  Open = 'open',
-  Draft = 'draft',
-  Merged = 'merged',
-  Closed = 'closed',
-}
 
 export enum EWorkKind {
   PullRequest = 'pull-request',
@@ -28,7 +23,7 @@ export enum EWorkKind {
 }
 
 export type SessionWork =
-  | { kind: EWorkKind.PullRequest; number: number; state: EPullRequestState }
+  | { kind: EWorkKind.PullRequest; pullRequest: SessionPullRequest }
   | { kind: EWorkKind.Branch; branch: string | null }
 
 export interface IProjectSummary {
@@ -100,22 +95,10 @@ const placedOf = ({
   return placed
 }
 
-const pullRequestStateOf = (state: string | undefined): EPullRequestState => {
-  const value = (state ?? '').toLowerCase()
-  if (value.includes('merged')) return EPullRequestState.Merged
-  if (value.includes('closed')) return EPullRequestState.Closed
-  if (value.includes('draft')) return EPullRequestState.Draft
-  return EPullRequestState.Open
-}
-
 const workOf = (summary: V2SessionSummary): SessionWork => {
   const pullRequest = summary.pullRequest
   if (pullRequest !== null && pullRequest !== undefined) {
-    return {
-      kind: EWorkKind.PullRequest,
-      number: pullRequest.number,
-      state: pullRequestStateOf(pullRequest.state ?? undefined),
-    }
+    return { kind: EWorkKind.PullRequest, pullRequest }
   }
   return { kind: EWorkKind.Branch, branch: summary.primaryBranch ?? null }
 }

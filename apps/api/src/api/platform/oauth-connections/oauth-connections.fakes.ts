@@ -17,8 +17,6 @@ export type FakeAccount = {
 export class FakeStore implements OauthConnectionStore {
   readonly rows = new Map<string, ConnectionRow>()
   readonly accounts = new Map<string, FakeAccount>()
-  readonly sandboxes = new Map<string, { id: string; userId: string }>()
-  readonly assignments = new Set<string>()
 
   async insert(row: { id: string; userId: string; provider: string; sealedTokens: string }) {
     if (this.rows.has(row.id)) return false
@@ -137,19 +135,6 @@ export class FakeStore implements OauthConnectionStore {
     return [...this.accounts.values()]
       .filter((account) => account.userId === args.userId)
       .map((account) => ({ id: account.id, sealedSecret: account.sealedSecret }))
-  }
-
-  async ownedSandboxId(args: { userId: string; threadId: string }) {
-    const sandbox = this.sandboxes.get(args.threadId)
-    return sandbox?.userId === args.userId ? sandbox.id : null
-  }
-
-  async assign(args: { connectionId: string; sandboxId: string }) {
-    this.assignments.add(`${args.connectionId}:${args.sandboxId}`)
-  }
-
-  async isAssigned(args: { connectionId: string; sandboxId: string }) {
-    return this.assignments.has(`${args.connectionId}:${args.sandboxId}`)
   }
 
   async remove(args: { id: string; userId: string }) {

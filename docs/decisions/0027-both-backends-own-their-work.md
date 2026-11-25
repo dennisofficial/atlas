@@ -1,6 +1,6 @@
 # 0027. Each backend owns its work: the agent host calls the API for nothing, and both are NestJS
 
-Accepted 2026-11-09. Amends the Pod → CP row of [architecture §5](../v2/architecture.md) and the
+Accepted 2026-11-09. Amends the Pod → CP row of [architecture §5](../architecture.md) and the
 "API is called only for v1-owned config" exception it carried.
 
 ## Context

@@ -113,6 +113,6 @@ definePlugin({
 
 ## See also
 
-- `docs/v2/architecture.md`
+- `docs/architecture.md`
 - `docs/decisions/0019-v2-package-map.md`
 - `.atlas/services.yaml` in this repository for a real declaration.

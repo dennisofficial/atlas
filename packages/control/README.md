@@ -142,5 +142,5 @@ A plane that needs the plugin views and the event schema comes from `composedCon
 
 ## See also
 
-- `docs/v2/architecture.md` describes the control plane and the pod.
+- `docs/architecture.md` describes the control plane and the pod.
 - `docs/decisions/0025-v2-connection-bound-leases.md` gives the lease rules.

@@ -13,7 +13,7 @@ import { z } from "zod";
 
 const t = initTRPC.create();
 const publicProcedure = t.procedure;
-import { artifactBeginPublishInputSchema, artifactBeginPublishOutputSchema, artifactCommitPublishInputSchema, artifactCommitPublishOutputSchema, artifactListOutputSchema, artifactSubdomainInputSchema, artifactGetOutputSchema, artifactSourceExportOutputSchema, artifactUnpublishOutputSchema, composerDraftPutInputSchema, composerDraftSchema, composerDraftGetInputSchema, composerDraftGetReplySchema, composerDraftClearInputSchema, composerUploadPresignInputSchema, composerUploadPresignReplySchema, composerUploadDiscardInputSchema, composerUploadDownloadInputSchema, composerUploadDownloadReplySchema, githubPrStreamOutputSchema, githubWakeStreamOutputSchema, githubPrAckEventsInputSchema, githubPrAckEventsOutputSchema, githubPrStatesOutputSchema, githubRepoListSchema, githubBranchesInputSchema, githubBranchListSchema, githubSubscribeInputSchema, githubSubscriptionSchema, githubSubscriptionIdInputSchema, githubDismissAppInstallNoticeInputSchema, githubHeartbeatSchema, githubDeviceCodesSchema, githubPollConnectInputSchema, githubPollResultSchema, githubConnectionStateSchema, githubTokenSchema, harnessSecretListSchema, harnessSecretNamesSchema, harnessSecretSetSchema, harnessSecretNameSchema, mcpOauthServersInputSchema, mcpOauthServersResultSchema, mcpOauthBeginInputSchema, mcpOauthBeginResultSchema, mcpOauthServerRefSchema, mcpOauthAccessInputSchema, mcpOauthAccessResultSchema, personalMcpServerListSchema, personalMcpUpsertSchema, personalMcpNameSchema, memoryListSchema, memoryProjectQuerySchema, memoryKeySchema, memoryEntrySchema, memoryPutSchema, memorySummarySchema, memoryEditSchema, operatorAnswerInputSchema, projectIdInputSchema, settingListSchema, projectSettingsPatchSchema, projectSandboxSchema, projectSandboxSaveSchema, projectSecretListSchema, projectSecretKeySchema, projectSecretValueSchema, projectSecretSetSchema, projectFileMountListSchema, projectFileMountKeySchema, projectFileMountContentsSchema, projectFileMountSetSchema, projectRepoTreeSchema, resourceMcpServerListSchema, projectMcpServerPutSchema, projectMcpServerKeySchema, projectWorkspaceSchema, projectListSchema, projectSaveSchema, projectSchema, projectUpdateSchema, publishedBundleUploadSchema, publishedBundleCommitSchema, publishedBundleSummarySchema, publishedBundleCurrentSchema, threadIdInputSchema, sandboxProvisionReplySchema, sandboxRolloverRequestSchema, sandboxRolloverReplySchema, threadMessageSendInputSchema, threadMessageReplySchema, threadMessageTakeBackInputSchema, podStatusSchema, podConnectReplySchema, podResizeInputSchema, podResizeReplySchema, sandboxConfigInputSchema, resolvedSandboxConfigSchema, personalSecretSummaryListSchema, personalSecretNameSchema, personalSecretValueSchema, personalSecretNamesSchema, personalSecretSetSchema, settingsPatchSchema, personalSettingSetSchema, personalSettingKeySchema, skillCatalogueRequestSchema, skillCatalogueReplySchema, skillListRequestSchema, skillListReplySchema, skillListFilesRequestSchema, skillListFilesReplySchema, skillGetRequestSchema, skillFileContentSchema, skillPutRequestSchema, skillRevisionReplySchema, skillRemoveRequestSchema, skillRemovedReplySchema, skillRemoveSkillRequestSchema, skillRemoveSkillReplySchema, sshSigningKeyLeaseSchema, sshSigningKeyStatusSchema, sshSigningKeyUploadSchema, sessionStreamFollowInputSchema, userFilesListRequestSchema, userFilesListReplySchema, userFilesGetRequestSchema, userFilesGetReplySchema, userFilePutRequestSchema, userFileRevisionSchema, userFileRemoveRequestSchema, accountLeaseSchema, accountDtoSchema, createAccountInputSchema, setActiveInputSchema, activeAccountInputSchema, activeAccountDtoSchema, accountIdInputSchema, storedAccountDtoSchema, replaceSecretInputSchema, renameAccountInputSchema, setStatusInputSchema, classifierTestOutputSchema, reportNotifyPresenceInputSchema, notifyWebPushKeyOutputSchema, registerNotifyDeviceInputSchema, registerNotifyDeviceOutputSchema, unregisterNotifyDeviceInputSchema, listNotifyDevicesOutputSchema, setNotifyDeviceEnabledInputSchema, trackNotificationInputSchema, sendTestNotificationOutputSchema, inspectAvailabilityInputSchema, availabilitySnapshotSchema, admitAvailabilityInputSchema, admissionDecisionSchema, completeAvailabilityInputSchema, promoteProbeInputSchema, controlAvailabilityInputSchema, authorizeDesktopInputSchema, authorizeDesktopReplySchema, exchangeDesktopCodeInputSchema, exchangeDesktopCodeReplySchema, modelsResponseSchema, uploadConnectionInputSchema, oauthAccessTokenSchema, connectionRefSchema, oauthConnectionMetadataSchema, reauthorizeConnectionInputSchema, oauthAccessTokenRequestSchema, assignConnectionSandboxSchema, registerPodLeaseInputSchema, releasePodLeaseInputSchema, providerSignInBeginInputSchema, providerSignInBeginSchema, providerSignInCompleteInputSchema, providerSignInPollInputSchema, providerSignInPollSchema, sandboxThreadInputSchema, readRuntimeCheckpointReplySchema, runtimeCheckpointSchema, sandboxExposePortRequestSchema, sandboxExposePortReplySchema, sandboxSelfStopRequestSchema, sandboxSelfRenewDeadlineRequestSchema, sandboxDeadlineObservationSchema, bootStepsPostSchema, podEventsPostSchema, podEventsReplySchema, podEventsTruncateSchema, contextFilePutSchema, contextFileDeleteSchema, contextFilesDeleteMissingSchema, podChildRegisterSchema, sandboxActivityPostSchema, eventsWatchInputSchema, eventsWatchOutputSchema, sandboxListEntrySchema, claimSandboxInputSchema, sandboxAttachmentSchema, appendEventsInputSchema, wireEventSchema, replaceEventsInputSchema, readEventsInputSchema, threadEventsSnapshotInputSchema, threadEventsSnapshotOutputSchema, threadEventsLiveInputSchema, threadEventsLiveOutputSchema, importEventsInputSchema, threadHeadReplySchema, threadStreamInputSchema, threadStreamOutputSchema, recordTurnInputSchema, turnTreeSchema, wireTurnSchema, createThreadInputSchema, createThreadOutputSchema, openThreadInputSchema, openThreadReplySchema, recentThreadInputSchema, wireThreadSchema, listThreadsInputSchema, renameThreadInputSchema, archiveThreadInputSchema, markThreadReadInputSchema, threadLiveOutputSchema, chooseThreadModelInputSchema, adoptThreadInputSchema, rewindThreadInputSchema, compactThreadInputSchema, replacedReplySchema, summariseThreadInputSchema, forkThreadInputSchema } from "@dltech/atlas-wire";
+import { artifactBeginPublishInputSchema, artifactBeginPublishOutputSchema, artifactCommitPublishInputSchema, artifactCommitPublishOutputSchema, artifactListOutputSchema, artifactSubdomainInputSchema, artifactGetOutputSchema, artifactSourceExportOutputSchema, artifactUnpublishOutputSchema, composerUploadPresignInputSchema, composerUploadPresignReplySchema, composerUploadDiscardInputSchema, composerUploadDownloadInputSchema, composerUploadDownloadReplySchema, githubPrStatesOutputSchema, githubRepoListSchema, githubBranchesInputSchema, githubBranchListSchema, githubDeviceCodesSchema, githubPollConnectInputSchema, githubPollResultSchema, githubConnectionStateSchema, githubTokenSchema, harnessSecretListSchema, harnessSecretNamesSchema, harnessSecretSetSchema, harnessSecretNameSchema, mcpOauthServersInputSchema, mcpOauthServersResultSchema, mcpOauthBeginInputSchema, mcpOauthBeginResultSchema, mcpOauthServerRefSchema, mcpOauthAccessInputSchema, mcpOauthAccessResultSchema, personalMcpServerListSchema, personalMcpUpsertSchema, personalMcpNameSchema, memoryListSchema, memoryProjectQuerySchema, memoryKeySchema, memoryEntrySchema, memoryPutSchema, memorySummarySchema, memoryEditSchema, operatorAnswerInputSchema, projectIdInputSchema, settingListSchema, projectSettingsPatchSchema, projectSandboxSchema, projectSandboxSaveSchema, projectSecretListSchema, projectSecretKeySchema, projectSecretValueSchema, projectSecretSetSchema, projectFileMountListSchema, projectFileMountKeySchema, projectFileMountContentsSchema, projectFileMountSetSchema, projectRepoTreeSchema, resourceMcpServerListSchema, projectMcpServerPutSchema, projectMcpServerKeySchema, projectListSchema, projectSaveSchema, projectSchema, projectUpdateSchema, personalSecretSummaryListSchema, personalSecretNameSchema, personalSecretValueSchema, personalSecretNamesSchema, personalSecretSetSchema, settingsPatchSchema, personalSettingSetSchema, personalSettingKeySchema, skillCatalogueRequestSchema, skillCatalogueReplySchema, skillListRequestSchema, skillListReplySchema, skillListFilesRequestSchema, skillListFilesReplySchema, skillGetRequestSchema, skillFileContentSchema, skillPutRequestSchema, skillRevisionReplySchema, skillRemoveRequestSchema, skillRemovedReplySchema, skillRemoveSkillRequestSchema, skillRemoveSkillReplySchema, sshSigningKeyLeaseSchema, sshSigningKeyStatusSchema, sshSigningKeyUploadSchema, sessionStreamFollowInputSchema, userFilesListRequestSchema, userFilesListReplySchema, userFilesGetRequestSchema, userFilesGetReplySchema, userFilePutRequestSchema, userFileRevisionSchema, userFileRemoveRequestSchema, accountDtoSchema, createAccountInputSchema, setActiveInputSchema, activeAccountInputSchema, activeAccountDtoSchema, accountIdInputSchema, storedAccountDtoSchema, replaceSecretInputSchema, renameAccountInputSchema, setStatusInputSchema, classifierTestOutputSchema, reportNotifyPresenceInputSchema, notifyWebPushKeyOutputSchema, registerNotifyDeviceInputSchema, registerNotifyDeviceOutputSchema, unregisterNotifyDeviceInputSchema, listNotifyDevicesOutputSchema, setNotifyDeviceEnabledInputSchema, trackNotificationInputSchema, sendTestNotificationOutputSchema, authorizeDesktopInputSchema, authorizeDesktopReplySchema, exchangeDesktopCodeInputSchema, exchangeDesktopCodeReplySchema, modelsResponseSchema, providerSignInBeginInputSchema, providerSignInBeginSchema, providerSignInCompleteInputSchema, providerSignInPollInputSchema, providerSignInPollSchema } from "@dltech/atlas-wire";
 import { sessionStreamOutputSchema, terminalStreamAttachInputSchema, terminalStreamFrameSchema, accountMeOutputSchema, contextMirrorListInputSchema, contextMirrorListOutputSchema, contextMirrorReadInputSchema, contextMirrorReadOutputSchema, diagramRepairInputSchema, diagramRepairOutputSchema, diagramRepairListInputSchema, diagramRepairListOutputSchema, filesTreeInputSchema, filesTreeOutputSchema, filesSearchInputSchema, filesSearchOutputSchema, filesReadInputSchema, filesReadOutputSchema, mediaPresignInputSchema, mediaPresignOutputSchema, mediaConfirmInputSchema, mediaConfirmOutputSchema, mediaUrlInputSchema, mediaUrlOutputSchema, routineListInputSchema, routineListOutputSchema, routineGetInputSchema, routineSchema, routineRunsInputSchema, routineRunsOutputSchema, routineCreateInputSchema, routineUpdateInputSchema, routineIdInputSchema, routineRemoveOutputSchema, routineRunOutputSchema, servicesLogInputSchema, servicesLogOutputSchema, sessionDraftPutInputSchema, sessionDraftSchema, sessionDraftGetInputSchema, sessionDraftGetOutputSchema, sessionDraftClearInputSchema, sessionDraftClearOutputSchema, sessionCreateInputSchema, sessionCreateOutputSchema, sessionListInputSchema, sessionListOutputSchema, sessionPostInputSchema, sessionPostOutputSchema, sessionWithdrawInputSchema, sessionWithdrawOutputSchema, sessionArchiveInputSchema, sessionArchiveOutputSchema, sessionMarkReadInputSchema, sessionMarkReadOutputSchema, sessionEventsInputSchema, sessionEventsOutputSchema, sessionBlobInputSchema, sessionBlobOutputSchema, sessionStatusInputSchema, sessionStatusOutputSchema, sessionRetryInputSchema, sessionRetryOutputSchema, sessionStopInputSchema, sessionStopOutputSchema, sessionCommandInputSchema, sessionCommandOutputSchema, sessionCommandsOutputSchema, sessionSubscribeInputSchema, sessionSubscribeOutputSchema, sessionUnsubscribeInputSchema, sessionUnsubscribeOutputSchema, sessionChangesInputSchema, sessionChangesOutputSchema, sessionChangeContentInputSchema, sessionChangeContentOutputSchema, sessionWakeInputSchema, sessionWakeOutputSchema, sessionSleepPodInputSchema, sessionSleepPodOutputSchema, sessionHoldPodInputSchema, sessionHoldPodOutputSchema, sessionViewInputSchema, sessionViewOutputSchema, sessionPodMetricsInputSchema, podMetricsStreamOutputSchema, terminalListInputSchema, terminalListOutputSchema, terminalOpenInputSchema, terminalOpenOutputSchema, terminalRenameInputSchema, terminalMutationOutputSchema, terminalWriteInputSchema, terminalResizeInputSchema, terminalCloseInputSchema, terminalReadInputSchema, terminalReadOutputSchema, usageReportInputSchema, usageReportDtoSchema } from "@dltech/atlas-protocol";
 
 const appRouter = t.router({
@@ -42,20 +42,6 @@ const appRouter = t.router({
       .output(artifactUnpublishOutputSchema)
       .mutation(async () => "PLACEHOLDER_DO_NOT_REMOVE" as any)
     }),
-  composerDrafts: t.router({
-    put: publicProcedure
-      .input(composerDraftPutInputSchema)
-      .output(composerDraftSchema)
-      .mutation(async () => "PLACEHOLDER_DO_NOT_REMOVE" as any),
-    get: publicProcedure
-      .input(composerDraftGetInputSchema)
-      .output(composerDraftGetReplySchema)
-      .query(async () => "PLACEHOLDER_DO_NOT_REMOVE" as any),
-    clear: publicProcedure
-      .input(composerDraftClearInputSchema)
-      .output(z.object({ ok: z.literal(true) }))
-      .mutation(async () => "PLACEHOLDER_DO_NOT_REMOVE" as any)
-    }),
   composerUploads: t.router({
     presign: publicProcedure
       .input(composerUploadPresignInputSchema)
@@ -71,16 +57,6 @@ const appRouter = t.router({
       .mutation(async () => "PLACEHOLDER_DO_NOT_REMOVE" as any)
     }),
   githubPrs: t.router({
-    stream: publicProcedure
-      .output(githubPrStreamOutputSchema)
-      .subscription(async () => "PLACEHOLDER_DO_NOT_REMOVE" as any),
-    wakes: publicProcedure
-      .output(githubWakeStreamOutputSchema)
-      .subscription(async () => "PLACEHOLDER_DO_NOT_REMOVE" as any),
-    ackEvents: publicProcedure
-      .input(githubPrAckEventsInputSchema)
-      .output(githubPrAckEventsOutputSchema)
-      .mutation(async () => "PLACEHOLDER_DO_NOT_REMOVE" as any),
     states: publicProcedure
       .output(githubPrStatesOutputSchema)
       .subscription(async () => "PLACEHOLDER_DO_NOT_REMOVE" as any)
@@ -93,24 +69,6 @@ const appRouter = t.router({
       .input(githubBranchesInputSchema)
       .output(githubBranchListSchema)
       .query(async () => "PLACEHOLDER_DO_NOT_REMOVE" as any)
-    }),
-  githubSubscriptions: t.router({
-    subscribe: publicProcedure
-      .input(githubSubscribeInputSchema)
-      .output(githubSubscriptionSchema)
-      .mutation(async () => "PLACEHOLDER_DO_NOT_REMOVE" as any),
-    unsubscribe: publicProcedure
-      .input(githubSubscriptionIdInputSchema)
-      .output(z.void())
-      .mutation(async () => "PLACEHOLDER_DO_NOT_REMOVE" as any),
-    dismissAppInstallNotice: publicProcedure
-      .input(githubDismissAppInstallNoticeInputSchema)
-      .output(z.void())
-      .mutation(async () => "PLACEHOLDER_DO_NOT_REMOVE" as any),
-    heartbeat: publicProcedure
-      .input(githubSubscriptionIdInputSchema)
-      .output(githubHeartbeatSchema)
-      .mutation(async () => "PLACEHOLDER_DO_NOT_REMOVE" as any)
     }),
   github: t.router({
     beginConnect: publicProcedure
@@ -278,12 +236,6 @@ const appRouter = t.router({
       .output(z.void())
       .mutation(async () => "PLACEHOLDER_DO_NOT_REMOVE" as any)
     }),
-  projectWorkspace: t.router({
-    get: publicProcedure
-      .input(projectIdInputSchema)
-      .output(projectWorkspaceSchema)
-      .query(async () => "PLACEHOLDER_DO_NOT_REMOVE" as any)
-    }),
   projects: t.router({
     list: publicProcedure
       .output(projectListSchema)
@@ -304,64 +256,6 @@ const appRouter = t.router({
       .input(projectIdInputSchema)
       .output(z.void())
       .mutation(async () => "PLACEHOLDER_DO_NOT_REMOVE" as any)
-    }),
-  publishedBundles: t.router({
-    issueUpload: publicProcedure
-      .output(publishedBundleUploadSchema)
-      .mutation(async () => "PLACEHOLDER_DO_NOT_REMOVE" as any),
-    commit: publicProcedure
-      .input(publishedBundleCommitSchema)
-      .output(publishedBundleSummarySchema)
-      .mutation(async () => "PLACEHOLDER_DO_NOT_REMOVE" as any),
-    current: publicProcedure
-      .output(publishedBundleCurrentSchema)
-      .query(async () => "PLACEHOLDER_DO_NOT_REMOVE" as any)
-    }),
-  threadSandbox: t.router({
-    provision: publicProcedure
-      .input(threadIdInputSchema)
-      .output(sandboxProvisionReplySchema)
-      .mutation(async () => "PLACEHOLDER_DO_NOT_REMOVE" as any)
-    }),
-  sandboxRollover: t.router({
-    request: publicProcedure
-      .input(sandboxRolloverRequestSchema)
-      .output(sandboxRolloverReplySchema)
-      .mutation(async () => "PLACEHOLDER_DO_NOT_REMOVE" as any)
-    }),
-  threadMessages: t.router({
-    send: publicProcedure
-      .input(threadMessageSendInputSchema)
-      .output(threadMessageReplySchema)
-      .mutation(async () => "PLACEHOLDER_DO_NOT_REMOVE" as any),
-    takeBack: publicProcedure
-      .input(threadMessageTakeBackInputSchema)
-      .output(z.void())
-      .mutation(async () => "PLACEHOLDER_DO_NOT_REMOVE" as any)
-    }),
-  threadPod: t.router({
-    status: publicProcedure
-      .input(threadIdInputSchema)
-      .output(podStatusSchema)
-      .query(async () => "PLACEHOLDER_DO_NOT_REMOVE" as any),
-    connect: publicProcedure
-      .input(threadIdInputSchema)
-      .output(podConnectReplySchema)
-      .mutation(async () => "PLACEHOLDER_DO_NOT_REMOVE" as any),
-    resize: publicProcedure
-      .input(podResizeInputSchema)
-      .output(podResizeReplySchema)
-      .mutation(async () => "PLACEHOLDER_DO_NOT_REMOVE" as any),
-    destroy: publicProcedure
-      .input(threadIdInputSchema)
-      .output(z.void())
-      .mutation(async () => "PLACEHOLDER_DO_NOT_REMOVE" as any)
-    }),
-  sandboxConfig: t.router({
-    get: publicProcedure
-      .input(sandboxConfigInputSchema)
-      .output(resolvedSandboxConfigSchema)
-      .query(async () => "PLACEHOLDER_DO_NOT_REMOVE" as any)
     }),
   secrets: t.router({
     details: publicProcedure
@@ -483,11 +377,6 @@ const appRouter = t.router({
       .input(userFileRemoveRequestSchema)
       .output(userFileRevisionSchema)
       .mutation(async () => "PLACEHOLDER_DO_NOT_REMOVE" as any)
-    }),
-  accountLease: t.router({
-    get: publicProcedure
-      .output(accountLeaseSchema)
-      .query(async () => "PLACEHOLDER_DO_NOT_REMOVE" as any)
     }),
   accounts: t.router({
     list: publicProcedure
@@ -793,28 +682,6 @@ const appRouter = t.router({
       .output(terminalReadOutputSchema)
       .query(async () => "PLACEHOLDER_DO_NOT_REMOVE" as any)
     }),
-  credentialAvailability: t.router({
-    inspect: publicProcedure
-      .input(inspectAvailabilityInputSchema)
-      .output(availabilitySnapshotSchema)
-      .query(async () => "PLACEHOLDER_DO_NOT_REMOVE" as any),
-    admit: publicProcedure
-      .input(admitAvailabilityInputSchema)
-      .output(admissionDecisionSchema)
-      .mutation(async () => "PLACEHOLDER_DO_NOT_REMOVE" as any),
-    complete: publicProcedure
-      .input(completeAvailabilityInputSchema)
-      .output(z.void())
-      .mutation(async () => "PLACEHOLDER_DO_NOT_REMOVE" as any),
-    promoteProbe: publicProcedure
-      .input(promoteProbeInputSchema)
-      .output(z.void())
-      .mutation(async () => "PLACEHOLDER_DO_NOT_REMOVE" as any),
-    control: publicProcedure
-      .input(controlAvailabilityInputSchema)
-      .output(availabilitySnapshotSchema)
-      .mutation(async () => "PLACEHOLDER_DO_NOT_REMOVE" as any)
-    }),
   desktopAuth: t.router({
     authorize: publicProcedure
       .input(authorizeDesktopInputSchema)
@@ -830,42 +697,6 @@ const appRouter = t.router({
       .output(modelsResponseSchema)
       .query(async () => "PLACEHOLDER_DO_NOT_REMOVE" as any)
     }),
-  oauthConnections: t.router({
-    upload: publicProcedure
-      .input(uploadConnectionInputSchema)
-      .output(oauthAccessTokenSchema)
-      .mutation(async () => "PLACEHOLDER_DO_NOT_REMOVE" as any),
-    get: publicProcedure
-      .input(connectionRefSchema)
-      .output(oauthConnectionMetadataSchema)
-      .query(async () => "PLACEHOLDER_DO_NOT_REMOVE" as any),
-    reauthorize: publicProcedure
-      .input(reauthorizeConnectionInputSchema)
-      .output(oauthAccessTokenSchema)
-      .mutation(async () => "PLACEHOLDER_DO_NOT_REMOVE" as any),
-    accessToken: publicProcedure
-      .input(oauthAccessTokenRequestSchema)
-      .output(oauthAccessTokenSchema)
-      .mutation(async () => "PLACEHOLDER_DO_NOT_REMOVE" as any),
-    assignSandbox: publicProcedure
-      .input(assignConnectionSandboxSchema)
-      .output(z.void())
-      .mutation(async () => "PLACEHOLDER_DO_NOT_REMOVE" as any),
-    remove: publicProcedure
-      .input(connectionRefSchema)
-      .output(z.void())
-      .mutation(async () => "PLACEHOLDER_DO_NOT_REMOVE" as any)
-    }),
-  podLeases: t.router({
-    register: publicProcedure
-      .input(registerPodLeaseInputSchema)
-      .output(z.void())
-      .mutation(async () => "PLACEHOLDER_DO_NOT_REMOVE" as any),
-    release: publicProcedure
-      .input(releasePodLeaseInputSchema)
-      .output(z.void())
-      .mutation(async () => "PLACEHOLDER_DO_NOT_REMOVE" as any)
-    }),
   providerSignIn: t.router({
     begin: publicProcedure
       .input(providerSignInBeginInputSchema)
@@ -878,192 +709,6 @@ const appRouter = t.router({
     poll: publicProcedure
       .input(providerSignInPollInputSchema)
       .output(providerSignInPollSchema)
-      .mutation(async () => "PLACEHOLDER_DO_NOT_REMOVE" as any)
-    }),
-  sandboxCheckpoint: t.router({
-    get: publicProcedure
-      .input(sandboxThreadInputSchema)
-      .output(readRuntimeCheckpointReplySchema)
-      .query(async () => "PLACEHOLDER_DO_NOT_REMOVE" as any),
-    put: publicProcedure
-      .input(runtimeCheckpointSchema)
-      .output(readRuntimeCheckpointReplySchema)
-      .mutation(async () => "PLACEHOLDER_DO_NOT_REMOVE" as any)
-    }),
-  sandboxSelf: t.router({
-    exposePort: publicProcedure
-      .input(sandboxExposePortRequestSchema)
-      .output(sandboxExposePortReplySchema)
-      .mutation(async () => "PLACEHOLDER_DO_NOT_REMOVE" as any),
-    stop: publicProcedure
-      .input(sandboxSelfStopRequestSchema)
-      .output(z.void())
-      .mutation(async () => "PLACEHOLDER_DO_NOT_REMOVE" as any),
-    renewDeadline: publicProcedure
-      .input(sandboxSelfRenewDeadlineRequestSchema)
-      .output(sandboxDeadlineObservationSchema)
-      .mutation(async () => "PLACEHOLDER_DO_NOT_REMOVE" as any),
-    bootSteps: publicProcedure
-      .input(bootStepsPostSchema)
-      .output(z.void())
-      .mutation(async () => "PLACEHOLDER_DO_NOT_REMOVE" as any),
-    events: publicProcedure
-      .input(podEventsPostSchema)
-      .output(podEventsReplySchema)
-      .mutation(async () => "PLACEHOLDER_DO_NOT_REMOVE" as any),
-    truncateEvents: publicProcedure
-      .input(podEventsTruncateSchema)
-      .output(podEventsReplySchema)
-      .mutation(async () => "PLACEHOLDER_DO_NOT_REMOVE" as any),
-    putContextFile: publicProcedure
-      .input(contextFilePutSchema)
-      .output(z.void())
-      .mutation(async () => "PLACEHOLDER_DO_NOT_REMOVE" as any),
-    deleteContextFile: publicProcedure
-      .input(contextFileDeleteSchema)
-      .output(z.void())
-      .mutation(async () => "PLACEHOLDER_DO_NOT_REMOVE" as any),
-    deleteMissingContextFiles: publicProcedure
-      .input(contextFilesDeleteMissingSchema)
-      .output(z.void())
-      .mutation(async () => "PLACEHOLDER_DO_NOT_REMOVE" as any),
-    registerChild: publicProcedure
-      .input(podChildRegisterSchema)
-      .output(podEventsReplySchema)
-      .mutation(async () => "PLACEHOLDER_DO_NOT_REMOVE" as any),
-    activity: publicProcedure
-      .input(sandboxActivityPostSchema)
-      .output(z.void())
-      .mutation(async () => "PLACEHOLDER_DO_NOT_REMOVE" as any),
-    watchEvents: publicProcedure
-      .input(eventsWatchInputSchema)
-      .output(eventsWatchOutputSchema)
-      .subscription(async () => "PLACEHOLDER_DO_NOT_REMOVE" as any)
-    }),
-  sandboxes: t.router({
-    list: publicProcedure
-      .output(z.array(sandboxListEntrySchema))
-      .query(async () => "PLACEHOLDER_DO_NOT_REMOVE" as any),
-    claim: publicProcedure
-      .input(claimSandboxInputSchema)
-      .output(sandboxAttachmentSchema)
-      .mutation(async () => "PLACEHOLDER_DO_NOT_REMOVE" as any),
-    destroy: publicProcedure
-      .input(sandboxThreadInputSchema)
-      .output(z.void())
-      .mutation(async () => "PLACEHOLDER_DO_NOT_REMOVE" as any)
-    }),
-  threadEvents: t.router({
-    append: publicProcedure
-      .input(appendEventsInputSchema)
-      .output(z.array(wireEventSchema))
-      .mutation(async () => "PLACEHOLDER_DO_NOT_REMOVE" as any),
-    replace: publicProcedure
-      .input(replaceEventsInputSchema)
-      .output(z.array(wireEventSchema))
-      .mutation(async () => "PLACEHOLDER_DO_NOT_REMOVE" as any),
-    read: publicProcedure
-      .input(readEventsInputSchema)
-      .output(z.array(wireEventSchema))
-      .query(async () => "PLACEHOLDER_DO_NOT_REMOVE" as any),
-    snapshot: publicProcedure
-      .input(threadEventsSnapshotInputSchema)
-      .output(threadEventsSnapshotOutputSchema)
-      .query(async () => "PLACEHOLDER_DO_NOT_REMOVE" as any),
-    live: publicProcedure
-      .input(threadEventsLiveInputSchema)
-      .output(threadEventsLiveOutputSchema)
-      .subscription(async () => "PLACEHOLDER_DO_NOT_REMOVE" as any),
-    import: publicProcedure
-      .input(importEventsInputSchema)
-      .output(podEventsReplySchema)
-      .mutation(async () => "PLACEHOLDER_DO_NOT_REMOVE" as any),
-    head: publicProcedure
-      .input(threadIdInputSchema)
-      .output(threadHeadReplySchema)
-      .query(async () => "PLACEHOLDER_DO_NOT_REMOVE" as any),
-    stream: publicProcedure
-      .input(threadStreamInputSchema)
-      .output(threadStreamOutputSchema)
-      .subscription(async () => "PLACEHOLDER_DO_NOT_REMOVE" as any)
-    }),
-  threadTurns: t.router({
-    record: publicProcedure
-      .input(recordTurnInputSchema)
-      .output(z.void())
-      .mutation(async () => "PLACEHOLDER_DO_NOT_REMOVE" as any),
-    tree: publicProcedure
-      .input(threadIdInputSchema)
-      .output(turnTreeSchema)
-      .query(async () => "PLACEHOLDER_DO_NOT_REMOVE" as any),
-    list: publicProcedure
-      .input(threadIdInputSchema)
-      .output(z.array(wireTurnSchema))
-      .query(async () => "PLACEHOLDER_DO_NOT_REMOVE" as any)
-    }),
-  threads: t.router({
-    create: publicProcedure
-      .input(createThreadInputSchema)
-      .output(createThreadOutputSchema)
-      .mutation(async () => "PLACEHOLDER_DO_NOT_REMOVE" as any),
-    open: publicProcedure
-      .input(openThreadInputSchema)
-      .output(openThreadReplySchema)
-      .mutation(async () => "PLACEHOLDER_DO_NOT_REMOVE" as any),
-    recent: publicProcedure
-      .input(recentThreadInputSchema)
-      .output(wireThreadSchema.nullable())
-      .query(async () => "PLACEHOLDER_DO_NOT_REMOVE" as any),
-    list: publicProcedure
-      .input(listThreadsInputSchema)
-      .output(z.array(wireThreadSchema))
-      .query(async () => "PLACEHOLDER_DO_NOT_REMOVE" as any),
-    get: publicProcedure
-      .input(threadIdInputSchema)
-      .output(wireThreadSchema)
-      .query(async () => "PLACEHOLDER_DO_NOT_REMOVE" as any),
-    spawned: publicProcedure
-      .input(threadIdInputSchema)
-      .output(z.array(wireThreadSchema))
-      .query(async () => "PLACEHOLDER_DO_NOT_REMOVE" as any),
-    rename: publicProcedure
-      .input(renameThreadInputSchema)
-      .output(z.void())
-      .mutation(async () => "PLACEHOLDER_DO_NOT_REMOVE" as any),
-    archive: publicProcedure
-      .input(archiveThreadInputSchema)
-      .output(z.void())
-      .mutation(async () => "PLACEHOLDER_DO_NOT_REMOVE" as any),
-    markRead: publicProcedure
-      .input(markThreadReadInputSchema)
-      .output(z.void())
-      .mutation(async () => "PLACEHOLDER_DO_NOT_REMOVE" as any),
-    live: publicProcedure
-      .output(threadLiveOutputSchema)
-      .subscription(async () => "PLACEHOLDER_DO_NOT_REMOVE" as any),
-    chooseModel: publicProcedure
-      .input(chooseThreadModelInputSchema)
-      .output(z.void())
-      .mutation(async () => "PLACEHOLDER_DO_NOT_REMOVE" as any),
-    adopt: publicProcedure
-      .input(adoptThreadInputSchema)
-      .output(z.void())
-      .mutation(async () => "PLACEHOLDER_DO_NOT_REMOVE" as any),
-    rewind: publicProcedure
-      .input(rewindThreadInputSchema)
-      .output(z.void())
-      .mutation(async () => "PLACEHOLDER_DO_NOT_REMOVE" as any),
-    compact: publicProcedure
-      .input(compactThreadInputSchema)
-      .output(replacedReplySchema)
-      .mutation(async () => "PLACEHOLDER_DO_NOT_REMOVE" as any),
-    summarise: publicProcedure
-      .input(summariseThreadInputSchema)
-      .output(replacedReplySchema)
-      .mutation(async () => "PLACEHOLDER_DO_NOT_REMOVE" as any),
-    fork: publicProcedure
-      .input(forkThreadInputSchema)
-      .output(wireThreadSchema)
       .mutation(async () => "PLACEHOLDER_DO_NOT_REMOVE" as any)
     }),
   usage: t.router({

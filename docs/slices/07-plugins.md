@@ -1,0 +1,977 @@
+# Slice 7 spec: plugins, one at a time
+
+Status: **spec, 2026-11-08.** The operator's answers are in §9; the contract PR (§2) is built.
+Anchors are `path:line` at `1ed61c015`; re-check before relying on one. Prior slice:
+[06-commands.md](06-commands.md). Contract: [architecture.md](../architecture.md) §4 P8 and §7,
+[0019](../decisions/0019-v2-package-map.md), [0020](../decisions/0020-v2-sub-agent-worktrees-and-peer-sessions.md),
+[03-teammates.md](03-teammates.md).
+
+## Goal
+
+Every native feature runs as a v2 plugin on the slice-6 contract (`definePlugin` / `composePlugins`,
+`packages/plugin-sdk/src/plugin.ts`), in a top-level `plugins/<name>/` package with tier subpaths
+`/core`, `/pod`, `/control` and `/client`, registered in the apps that need it. A plugin declares
+its events, views, commands, pod handlers, control handlers and client state once; the apps compose
+the ones they run, and no plugin imports another.
+
+**Exit criterion** (roadmap row 7, made concrete):
+1. For each plugin in §5, one real v2 session in a cloud pod proves the feature's user-visible
+   behaviour, with every slot registered (live check recorded in the plugin's section file and in
+   this document's §8).
+2. A plugin's event body is typed without editing `core`; its view reaches the session view without
+   `core` knowing the fold; its command dispatches through the one `sessions.command` path; its
+   tools and hooks reach the pod without host code naming the plugin.
+3. `plugins/*` imports only foundation packages: a lint rule fails a `plugins/a` → `plugins/b`
+   import, and the app composition roots are the only files that name several plugins.
+4. With the plugin list empty, every app behaves exactly as it does today.
+
+## 1. What exists today
+
+**The contract is a slot-complete shell, not yet a live seam.**
+- `definePlugin` requires all seven slots and `composePlugins` flattens them
+  (`packages/plugin-sdk/src/plugin.ts:22-85`). The slot payloads are thin:
+  `PodHandler { eventType, handle }`, `ControlHook { name, appliesTo }`, `ClientHook { name, appliesTo }`
+  and `ViewFold<TState>` (`packages/plugin-sdk/src/slots.ts:1-34`).
+- Nothing consumes a composed plugin: `composePlugins` has no caller outside its spec
+  (`packages/plugin-sdk/src/__tests__/plugin.spec.ts`).
+- `eventSchemaOf(plugins)` (`packages/plugin-sdk/src/plugin.ts:87`) and the app registration lists
+  (`apps/api/src/api/platform/control/registered-plugins.ts`,
+  `apps/agent-host/src/registered-plugins.ts`,
+  `apps/web/src/features/sessions/registered-plugins.ts`) were added in #2013. They are empty, and
+  the composed decoder now reaches the view catch-up and the host's append.
+
+**The command path is real.** `packages/commands` (`spec.ts`, `registry.ts`, `pod.ts`, `control.ts`),
+the root `commands/` package with rewind, rename and summarise, the API's `COMMAND_REGISTRY`
+(`apps/api/src/api/platform/control/command-registry.ts:15`), the holder's intake
+(`packages/host/src/holder/inbox-intake.ts:28`) and web's per-capability actions (slice 6).
+
+**The pod is where tools, hooks and the daemon live.**
+- Tools: `daemonToolsOf` returns a fixed array of seven tools
+  (`apps/agent-host/src/runtime/tools.ts:92-100`); `BashTool` gets `ForegroundOnlyShells`
+  (`apps/agent-host/src/runtime/foreground-shells.ts:12`).
+- Hooks: `HookChain` with `beforeTurn`, `beforeStep`, `afterTool`, `afterTurn`
+  (`packages/agent/src/hooks/registry.ts:36-130`).
+- Prompt: a `PromptFragmentRegistry` over fragments
+  (`apps/agent-host/src/runtime/prompt-registry.ts:1-60`,
+  `apps/agent-host/src/runtime/prompt-fragments/`).
+- Daemon events: `RemoteCalls.onEvent` (`packages/host/src/calls/remote-calls.ts:41`), today consumed
+  only by the branch observer (`packages/host/src/holder/branch-observer.ts:54`).
+- The daemon already carries every op group — exec, files, git, mcp, services, shells, terminal
+  (`apps/daemon/src/ops/index.ts:10-18`) — with `shells.output`/`shells.ended`, `services.ready`/
+  `services.ended` and `terminal.*` frames.
+
+**The session view is a fixed core shape.** `SessionViewState` (`packages/core/src/record/views/session-view.ts:20-28`),
+`stepSessionView` (`:48`) and `SESSION_VIEW_VERSION = 3` (`:18`); the CP folds and persists it
+(`packages/control/src/session-view-ops.ts:29-111`), the wire schema and web read it
+(`packages/protocol`, `apps/web/src/features/sessions`).
+
+**v2 has no feature beyond chat, tools, views, commands and the GitHub branch link.** Branch and PR
+views exist in core (`packages/core/src/record/views/checkouts.ts`,
+`views/pull-request-links.ts`, events `branches-observed` and `pull-request-linked`), recorded by the
+host (`packages/host/src/holder/branch-observer.ts:46`, `pr-linker.ts:41`) with PR state joined from
+v1's `GithubPrState` table (`packages/control/src/postgres/postgres-views.ts:74`). Nothing forwards a
+daemon event except git branches; no v2 session starts a background shell, a service, a memory write,
+a sub-agent or a peer session.
+
+**v1 prior art to copy, never import** (`packages/harness/src/`): `plugins/github/` (4.7k lines),
+`subscriptions/` (2.4k), `shells/`, `services/`, `memory/`, `agents/`, plus the surface code in
+`apps/api`, `apps/tui`, `apps/web`. The v2 rule stands: copy the logic into the plugin, never import
+v1 (`docs/roadmap.md`, "v1 and v2 share no logic").
+
+## 2. Complete the contract (first PR of the slice)
+
+The slice-6 slots are placeholders because nothing real used them. Before the first plugin, one PR
+makes them load-bearing. It changes no behaviour without a plugin.
+
+**Events and views.** A plugin's folds run beside `stepSessionView`, not inside core:
+- `PluginViewFold<TState> { name, initial, fold }` lives in `packages/core/src/record/views/plugin-view.ts`.
+- `SessionViewState` and `SessionViewValue` gain `pluginViews: Readonly<Record<string, unknown>>` and
+  `SESSION_VIEW_VERSION` is 4 (`packages/core/src/record/views/session-view.ts`). Core's
+  `stepSessionView` leaves the bag untouched. The bump rebuilds each stored row once on its next read.
+- `ControlPlane` takes `pluginViews?: readonly PluginViewFold[]` (`packages/control/src/control-plane.ts`);
+  `foldEvents` (`packages/control/src/session-view-ops.ts`) runs `stepSessionView` then each fold and
+  writes the result into `pluginViews`. Append, catch-up and the digest view all pass it.
+- The bag is persisted with the view, carried on the wire (`sessionViewOutputSchema.pluginViews`) and
+  read by `pluginViewOf({ views, name, schema })` in `packages/client/src/stream/plugin-views.ts`:
+  undefined when absent, throws on a bag the schema refuses.
+- `composePlugins(...).views` is the input, built at the app roots beside the decoder.
+
+**Pod slots.** A plugin's pod slot is a factory over a context, so the plugin never imports the host
+(`packages/plugin-sdk/src/slots.ts`):
+```ts
+export type PluginPodContext = {
+  sessionId: string
+  append(drafts: readonly (EventDraft | RecordBody | PluginEventBody)[]): Promise<void>
+  events(): readonly V2Event[]
+  call(
+    op: CallOp,
+    options?: { signal?: AbortSignal; onOutput?(bytes: Uint8Array): void },
+  ): Promise<CallResult>
+  onDaemonEvent(listener: (frame: DaemonEventFrame) => void): () => void
+  log(message: string): void
+}
+export type PodSlot = {
+  tools?(ctx: PluginPodContext): readonly ToolDefinition[]
+  hooks?(ctx: PluginPodContext): HookChainArgs
+  prompts: readonly PromptFragment[]
+  commands: ReadonlyMap<string, CommandHandler<unknown>> // by inbox kind, e.g. "command:probe-observe"
+  onDaemonEvent?(frame: DaemonEventFrame): void
+}
+```
+`EMPTY_POD` and `EMPTY_CONTROL` are the spreadable empties. `composePlugins` flattens the slots in
+`packages/plugin-sdk/src/compose-pod.ts`: tool names, prompt ids and command names are unique or it
+throws (tool collisions throw when the pod context is built, the rest at compose time).
+- `packages/host/src/holder/plugin-pod.ts` builds the context from the `SessionRecord` and
+  `RemoteCalls` (`call` is `invoke` under a fresh key, `onDaemonEvent` is `RemoteCalls.onEvent`),
+  extends the runtime's `ToolRegistry` with the plugin tools, and gives the loop a `HookChain` of the
+  plugin hooks. Without `SessionRuntime.plugins` nothing changes.
+- Prompt fragments join the registry through `agentHostPrompt({ extraFragments })`.
+- Daemon frames fan out from `RemoteCalls.onEvent` to each slot's `onDaemonEvent` and to listeners a
+  hook registered through the context.
+- Pod inbox handlers are the `commands` map, keyed by the command's inbox kind; there is no separate
+  inbox-handler slot yet.
+
+**Pod append of a plugin body.** `AppendBody` accepts a `PluginEventBody` (#2013), and the command
+context's `append` now does too. The plane validates with the composed schema.
+
+**Control slots.** `ControlSlot` has `hooks` and `commands` (control-handled commands, as `rename` is).
+`ports` is not built. The first plugin that needs a CP-side reaction (github subscriptions) added the
+append hook: `ControlHook` is `AppendHook` (`packages/control/src/append-hooks.ts`), `{ name,
+appliesTo(event), handle({ tx, sessionId, event }) }`. `ControlPlane` takes `appendHooks` and
+`appendIn` runs them after `insertEvents`, inside the append transaction, so a throwing hook rolls
+the append back (`packages/control/__tests__/append-hooks.spec.ts`). `ControlTx` gained
+`upsertPrSubscriptionLease` / `deletePrSubscriptionLease` for the `GithubSubscription` transport row.
+
+**Commands.** `PluginSlots.commands` is `readonly Command[]` from `@dltech/atlas-commands`. The API's
+`nativeCommandRegistry` composes `[...nativeCommands, ...composedPlugins.commands]` and
+`controlCommandHandlers()` merges the control handlers; the host's `composeCommands` and handler map
+do the same with `composedPlugins.pod.commands`. A control command never enters `byInboxKind`.
+
+**The `plugins/*` workspace and the import guard.** Root `package.json` workspaces gain `plugins/*`
+(`package.json:6-11`). A `check-package-split.ts` rule (`scripts/split-guard/rules.ts`) rejects
+`plugins/<a>` importing `plugins/<b>`.
+
+**Proof for this PR.** The fixture plugin moved from `packages/plugin-sdk/src/__tests__` to
+`packages/plugin-sdk/src/testing/fixture-plugin.ts` (exported as `@dltech/atlas-plugin-sdk/testing`,
+now the `probe` plugin). Its fold reaches the view (control spec), its tool, hook, prompt fragment,
+pod command and daemon handler run in a holder rig (`holder-plugins.spec.ts`), and its commands
+dispatch through `postCommand` (API spec). No plugin means no change.
+
+## 3. Order and packaging (operator confirms in §9)
+
+One plugin per PR, each its own builder, worktree `/atlas/workspaces/wt-<slug>` and branch
+`dennis/<slug>`, failing specs first, 40-minute box. Recommended order, which follows what a daily
+user needs first:
+
+| #   | PR                       | Package(s)                                           | Why here                                                                                     |
+| --- | ------------------------ | ---------------------------------------------------- | -------------------------------------------------------------------------------------------- |
+| 1   | contract                 | `packages/plugin-sdk`, `core`, `control`, host, apps | §2; no feature, everything after needs it                                                    |
+| 2   | subscriptions and GitHub | `plugins/github` (subscriptions inside)              | the PR/branch/CI path a daily user needs; the only feature that also proves the control slot |
+| 3   | shells                   | `plugins/shells`                                     | the tools a daily user leans on; proves the pod tool + daemon event seams                    |
+| 4   | services and previews    | `plugins/services` (previews inside)                 | a preview is a published service port; same daemon op group                                  |
+| 5   | memory                   | `plugins/memory`                                     | small; proves a plugin with no log events and a CP-owned table                               |
+| 6   | crew                     | `plugins/crew`                                       | sub-agents; proves the biggest pod slot and the worktree argument                            |
+| 7   | sessions                 | `plugins/sessions`                                   | peer sessions; the largest and the one with open questions                                   |
+
+Each PR merges the plugin, its registration in the apps that need it, its live check and the roadmap
+row update; the next starts from `origin/main` after the previous merges.
+
+## 4. Registration and the end-to-end proof
+
+- Each app imports the tier subpaths it runs and appends to its registration list:
+  `apps/api` (`registered-plugins.ts` and the command registry), `apps/agent-host` (the same list
+  feeds the plane, the tools, the hooks, the prompt and the daemon-event fan-out) and `apps/web`
+  (`registered-plugins.ts`, plus the plugin's `/client` rendering).
+- A plugin not registered in an app is absent there and its events decode as unreadable rows — one
+  row, never a failed read (`docs/core-contract.md`).
+- **Every plugin's proof is one live v2 session in a cloud pod on the atlas project**, driven from
+  the web (or the v2 API for steps web lacks), with the result recorded in the plugin's section file
+  under `$ATLAS_CONTEXT_DIR/sections/` and summarised here in §8. "Live" means the real
+  `apps/agent-host` and sandbox daemon, not a rig.
+
+## 5. The plugins
+
+Each entry names what exists in v1 to copy, what the plugin declares, what leaves `core` and
+`harness`, and what stays a foundation. Line counts are the survey's, not exact.
+
+### 5.1 `plugins/github` (with subscriptions) — the subscriptions and GitHub path
+
+**User-visible:** a session shows its branch, its PR with checks, and a CI change wakes the session;
+the agent can subscribe to a PR and be told when it moves.
+
+**v1 prior art (copy):**
+- `packages/harness/src/plugins/github/`: `index.ts:51` (`GithubPlugin.contribute()` :68-247),
+  `tracking.ts:41`, `family-tracker.ts:27`, `checkout-probe.ts:35`, `links.ts:51`,
+  `pull-request-service.ts:32`, `pull-request-provider.ts:143`, `ci-watch-hook.ts:20`,
+  `hooks.ts:55`/`:90`, `gh-pull-requests.ts:84`.
+- `packages/harness/src/subscriptions/`: `registry.ts:29`, `journal.ts:46`, `provider.ts:18`,
+  `delivery-buffer.ts`, `ready-queue.ts:97`.
+- CP: `apps/api/src/api/cloud/github/` — subscriptions router/service, `githubPrs` stream and wakes,
+  observation store and leases, webhook inbox, poll sweeper, `github-pr-state-writer.ts`, fan-out,
+  `github-sandbox-wake*`.
+- v2 already: `packages/core/src/record/branches.ts`, `views/checkouts.ts`,
+  `views/pull-request-links.ts`, `packages/host/src/holder/branch-observer.ts`,
+  `pr-linker.ts`, and the PR finder (it lived at `apps/agent-host/src/github/`; now `plugins/github/src/pod/finder.ts`, §8.2).
+
+**Declares:**
+- **Events:** `subscription-created`, `subscription-ended`; `subscription-changed` is only read
+  from older logs, where v2 ignores it because a v2 subscription has no paused state (v1 bodies in
+  `packages/core/src/events/subscription-body.ts`; they are already core `EventBody` members, so the
+  plugin's `events` list is empty and its schemas stay in core), and `pull-request-observed` if a PR
+  change is worth a log row rather than a view update.
+  **Correction (2026-11-08):** `branches-observed` and `pull-request-linked` stay in core with their
+  folds (`checkouts`, `pull-request-links`). Architecture P6 puts branch, worktree and PR links in
+  core as session facts, and the CP digest (`primaryBranch`) and web's v2 rows read them with
+  types; a plugin fold would leave both reading an untyped bag for a value every session has. The
+  host keeps the generic `BranchObserver`/`PrLinker`. What moves is the GitHub-specific half: the PR
+  finder, the subscription machinery, CI watching and the prompt text.
+- **Views:** `subscriptions` (a port of `subscriptionsOf`, `packages/core/src/subscriptions/subscription.ts:39`),
+  the first real `pluginViews` entry (§2). `branches` and `pullRequests` stay core views.
+- **Commands/tools:** `subscribe` (provider, target or current-branch PR),
+  `unsubscribe`, `list_subscriptions`. In v1 these are tools
+  (`packages/harness/src/tools/builtin/{subscribe,unsubscribe,subscription-list}.ts`); in v2 they
+  become pod commands so the control handler can write the lease.
+- **Pod:** the PR finder and linker, the branch observer's git watch, the subscription provider
+  (`start/emit`), the CI-watch before-tool block, the after-tool/after-shell PR refresh, the CI
+  prompt fragment, and the PR refresh on turn end. The host keeps the trigger points and calls the
+  registered plugin handlers; no host file names GitHub.
+- **Control:** subscribe/unsubscribe transport leases (`GithubSubscription`, living until the
+  subscription completes, is unsubscribed or its session is archived; the agent names no expiry, and
+  there is no heartbeat in v2), the
+  GitHub request budget and repo-access proofs (Redis), PR state reads, the wake of a linked session (one inbox
+  `message` per live subscription, deduped and acked by the `GithubPrEventDelivery` row),
+  and the PR state join into the view (replacing `postgres-views.ts:74`'s direct dependency on the v1
+  table, or reading it through a CP port until cutover).
+- **Client:** the PR badge and checks tally (`apps/web/src/features/shell/thread-pull-requests.ts`,
+  `apps/web/src/features/threads/checks-tally.tsx`), a subscription indicator.
+- **Transport:** `stream` for live PR events while a session is open.
+
+**Leaves `harness`/v1:** the plugin's `contribute()` wiring, the per-thread tracking maps, the file
+cache and the `gh` poller fallback (TUI-local; not carried), the `GithubUiBridgePort`.
+
+**Stays a foundation:** git probing (`checkout-probe`, `run-command`, `git-watch`), webhook ingress,
+`GithubPrState` and its event tables, the observation store's Redis plumbing, sandbox wake and boot.
+
+**Proof (live):** on a v2 session, work on a branch and see it in the view; link a PR and see its
+state and checks; subscribe to it; a CI change appends the subscription event and wakes the session;
+unsubscribe and the next change wakes nothing. If the sandbox cannot push or open a PR (no GitHub
+credentials), the operator pushes and the pod observes — record which in the section file.
+
+### 5.2 `plugins/shells` — background shells and their live output
+
+**v1 prior art:** `packages/harness/src/shells/` (`port.ts:50`, `shell-registry.ts`, `durable/*`),
+tools `bash.ts:64`, `shell-output.ts:81`, `shell-input.ts:19`, `shell-kill.ts:60`, `shell-list.ts:43`,
+`operator-shell-input.ts:21`; events `packages/core/src/events/shell-*`; assembly rules
+`running-shells-block`, `background-shell-block`, `shell-kill-coverage`;
+`packages/agent/src/loop/shell-completion.ts`; commands `/shells` and `/cd`
+(`packages/core/src/commands/catalogue.ts:9`, `:5`).
+
+**Declares:**
+- **Events:** `shell-started`, `shell-ended`, `shell-killed`, plus an output notice (v1's
+  `shell-*` bodies), moved out of core.
+- **View:** `shells` roster (id, name, cwd, status, tail length, awaiting-input).
+- **Commands:** `shells` (open the panel; a TUI affordance at slice 9), `cd` stays a host command.
+- **Pod:** tools `shell` (background launch), `shell_output`, `shell_input`, `shell_kill`,
+  `shell_list` over the daemon's `shells.*` ops; a shell-completion hook that folds a finished
+  shell into the next step; the running-shells prompt fragment.
+- **Control:** none beyond the view.
+- **Client:** roster and selected shell; the transcript's shell lines
+  (`packages/client/src/transcript/shell-lines.ts`).
+- **Transport:** `stream` for `shells.output` (replaces v1's polling of `read-shell-output`).
+
+**Stays a foundation:** the daemon's `shells` op group and process management, `RemoteCalls`, the
+spool and cursor mechanics.
+
+**Proof (live):** start a background shell, read its output while it runs, send stdin, kill it, see
+the roster and the ended line; restart the agent host and the roster still sees the daemon's process.
+
+### 5.3 `plugins/services` (with previews) — declared services and a public URL
+
+**v1 prior art:** `packages/harness/src/services/` (`service-registry.ts`,
+`declared-{services,ensure,launch,references,view}.ts`, `service-health.ts`, `service-restarter.ts`),
+tools `service-start.ts:55`, `service_stop`, `service_list`, `service_restart`; events/notices in
+`service-notices.ts`; the preview path `apps/api/src/api/platform/sandboxes/sandbox-self.router.ts:102`
+→ `preview-tunnel.service.ts` → `apps/preview-worker`; client `use-previews`/`preview-ports` and the
+in-app preview browser (`apps/web/src/features/threads/preview-*`).
+
+**Declares:**
+- **Events:** `service-started`, `service-ready`, `service-ended`, `service-restarted`,
+  `port-exposed{port, url}`.
+- **View:** `services` roster with exposure (port, URL) — the input to the preview list.
+- **Commands/tools:** `service_start{name?, command?, port?, exposePort?}`, `service_stop`,
+  `service_list`, `service_restart`; `.atlas/services.yaml` resolution and setup move here from
+  `declared-*`.
+- **Pod:** the service supervisor over the daemon's `services.*` ops, the health and restart policy,
+  the declared-service ensure/setup/reference logic, and the `exposePort` call to the API with the
+  sandbox token.
+- **Control:** none that is new; the preview tunnel and the `preview-worker` stay infrastructure. The
+  client's preview list reads the view.
+- **Client:** the services panel and the preview browser (web; Mac renders web).
+- **Transport:** `stream` for the service log tail.
+
+**Stays a foundation:** the daemon's `services` op group and `port-probe`, the API's preview tunnel,
+the `preview-worker` Cloudflare app.
+
+**Proof (live):** start a service with a portal, open the URL through the preview host and see the
+page; the roster shows the port; stop it and the view and the preview list update.
+
+### 5.4 `plugins/memory` — the agent's own memory
+
+**v1 prior art:** `packages/harness/src/memory/` (`memory-port.ts:22`, `cloud-memory-port.ts:36`),
+tools `memory-write.ts:39`, `memory-read.ts:27`, `memory-edit.ts:30`, `memory-delete.ts:26`; the
+`BeforeTurn` index hook `packages/harness/src/hooks/load-memory.ts:15`; the system text
+`packages/core/src/memory/prompt.ts`; the API `memories` router/service and the `Memory` table.
+
+**Declares:**
+- **Events:** none. Memory is per-user state, not session history; a write does not belong in the
+  transcript.
+- **Views:** none (it is not per-session).
+- **Commands/tools:** the four tools; a `memory` command only if a surface needs to list entries in
+  a session (not planned).
+- **Pod:** the four tools over an injected memory port (the v1 API route until cutover), the index
+  hook and the prompt fragment.
+- **Control:** the CP handlers for the `Memory` table once v2 owns it (the port stays behind the
+  plugin so the tool never talks to the API directly at cutover).
+- **Client:** the settings memory UI (`apps/web/src/features/settings/*memory*`).
+- **Transport:** `none`.
+
+**Proof (live):** write a memory, see it in the next turn's injected index, edit it with a revision
+and a stale revision is refused, read and delete it, and it appears in the web settings list.
+
+### 5.5 `plugins/crew` — sub-agents
+
+**v1 prior art:** `packages/harness/src/agents/` (registry, child runner, supervisor), tools
+`agent-spawn.ts:60`, `agent-say.ts:29`, `agent-stop.ts:49`, `agent-list.ts:51`, `report-to-main.ts:30`,
+and the worktree tools `enter-worktree.ts:52`, `exit-worktree.ts:88`, `worktree-list.ts:35`; events
+`packages/core/src/events/agent-schema.ts:14-44`; folds `packages/core/src/agents/*`; assembly rules
+`agent-endings-block`, `agent-reported-block`, `running-agents-block`; client
+`packages/client/src/crew/*`.
+
+**Declares:**
+- **Events** (leave core): `agent-spawned`, `agent-ended`, `agent-restarted`, `agent-reported`;
+  `worktree-entered`/`worktree-exited` stay a foundation event (they are not crew-specific and
+  `packages/agent/src/loop/settle-pending.ts:5` already folds `activeWorktree`).
+- **View:** `crew` (roster, standing, last report).
+- **Commands/tools:** `agent_spawn{agentType, intent, brief, worktree?}`, `send_message`, `agent_stop`,
+  `agent_list`. `agent_spawn`'s `worktree` is 0020 decision 1: a new branch name
+  or an existing worktree path the pod creates or adopts before the child's first turn.
+- **Pod:** the child runner and supervisor, the deny list (`subscribe`, `operator_input` and the
+  memory tools denied; the worktree tools allowed, 0020 decision 2), the run-under-one-lease
+  behaviour, and the report a child sends.
+- **Control:** none; children live under the parent's lease.
+- **Client:** the crew panel and per-agent activity.
+- **Transport:** `stream` for live child output if the panel shows it in v2.
+
+**Leaves `harness`:** the teammate path entirely (sessions replaces it), the per-thread family
+tracking, the TUI-only panels.
+
+**Proof (live):** a v2 session spawns a sub-agent that enters a worktree, edits a file, commits and
+reports; the parent reads the report; the view shows the child and its worktree; `subscribe` is
+denied inside the child; the parent removes the worktree.
+
+### 5.6 `plugins/sessions` — peer sessions
+
+There is no v1 code to copy: `spawn_session`, `send_message` and `list_sessions` do not exist in
+v1 (only ADR 0020 and [03-teammates.md](03-teammates.md) describe them). The teammate workflow
+survives as the peer-session preset (03-teammates, "The decision").
+
+**Declares:**
+- **Events:** none of its own; a spawned session is an ordinary session. The `spawned-by` link is a
+  session-record field written by the spawn command, and `sender` on an inbound message is an
+  envelope field (03-teammates, "Sender as a first-class field").
+- **Views:** `spawnedBy` (the sidebar nesting and the Done grouping). Slice 4's view does not carry
+  it; this plugin adds the fold, and web's sidebar reads it
+  (`apps/web/src/features/shell/v2-rows.ts:19`).
+- **Commands** (control-handled, like `rename`): `spawn_session{title?, brief?}`, `list_sessions`.
+  `send_message{to, text}` is the pod tool over the same control lookups; `to: "parent"` resolves
+  the spawner from the session row rather than an id from the model.
+- **Pod:** the three tools; the sender ACL is enforced by the control handler, not the pod.
+- **Control:** creating the session and its main thread (`createSessionWithMainThread`), the
+  `spawned-by` link, the spawner lookup behind a report, and the inbox message that wakes an idle
+  peer. A spawned session always gets its own pod; the control plane cannot place it on another
+  session's pod.
+- **Client:** the sidebar nesting and the Done group; the peer's own session page is the ordinary one.
+- **Transport:** `none`; the session stream carries everything.
+
+**Proof (live):** a v2 session spawns a peer; the peer gets its own pod; the parent messages it and
+the peer replies; the sidebar nests it under the parent; the operator archives it and it moves to
+Done.
+
+**Settled 2026-11-09 (the open questions above).**
+- **`spawn_session` creates an ordinary session, always.** It is the same as creating a session in
+  the UI — its **own sandbox and a fresh clone**, the spawner's project, its own lifecycle, no tie
+  beyond the provenance link — because a session created by another session is a session, not a
+  second kind of session sharing a sandbox. `spawnedBySessionId` is provenance that enters the
+  sidebar nesting and the child's prompt; it grants or restricts nothing. A spawned session that
+  spawns another gets an ordinary session too, and `send_message{to: "parent", text}` posts to the
+  creator's inbox as a message from the reporting session, waking it for done, blocked and
+  needs-decision and not for progress. See [sessions-link.md](sessions-link.md).
+- **The sidebar nests by `spawned-by` alone.** v1 nests teammates with no family label
+  (`apps/web/src/features/shell/live-list.ts:139-150`); v2 reuses the shape, and the existing
+  `TeammateList` gives the Done group for archived children. The nesting is a display convenience
+  over the provenance link; it is not what makes a session a teammate.
+- **Tools, not commands, are the session's command surface.** `spawn_session`, `send_message`
+  and `list_sessions` are pod tools over a host port (`PluginPodContext.sessions`, implemented in
+  `packages/host` over `HeldSessionDeps.plane`, ADR 0027) rather than control-handled commands: the
+  API's command route returns no result, so a control `spawn_session` could not tell the model the
+  new session id, and nothing else would call it, so the plugin contributes no control command.
+  The same-user check lives in `packages/control` (`peer-sessions.ts`), so every path uses it.
+- **`list_sessions` lists the operator's sessions**, newest first, with the current one marked —
+  the same rows the sidebar shows. `send_message` accepts any session of the same user; messages
+  are unlimited (the 20-message budget the feature first shipped was removed on 2026-11-09 at the
+  operator's direction).
+- **A pod parks by its sandbox deadline, not by a release stop.** The idle release stops a sandbox
+  only when no other session is placed on its pod (`podPeersPlaced`, which counts a root session
+  whose `podSessionId` is null as itself).
+- **The sender is an inbox column, not payload JSON.** `V2InboxEntry.senderSessionId` carries it, so
+  a host that predates this slice still parses the message (it renders it in the operator lane
+  rather than dropping it) during the deploy that introduces it, and the payload stays the shape
+  every reader knows.
+
+## 6. Test plan
+
+| Layer                                   | What                                                                                                                                                                                                    |
+| --------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Contract                                | The fixture plugin registers every slot; a plugin with a missing slot fails typecheck; two plugins collide on a tool, hook or prompt id and boot fails; `plugins/a` → `plugins/b` fails the split guard |
+| Pure (`/core`)                          | Each plugin's folds and guards over plain event arrays; command argument schemas and refusal strings                                                                                                    |
+| Control conformance (memory + Postgres) | A plugin event folds into `pluginViews` and survives the view catch-up; a plugin's control command writes its row and appends nothing; a plugin command's pending row clears on its outcome             |
+| Pod (rig)                               | Each plugin's tools run over the in-memory daemon; hooks fire at their phase; a daemon event reaches the registering plugin; a plugin body appends and re-reads (the #2013 spec's shape)                |
+| Web                                     | Each plugin's client state renders from the view and the snapshot; a refusal shows its reason                                                                                                           |
+| Live (one per plugin)                   | The proof named in §5, on a real v2 cloud session; recorded in §8 and the section file                                                                                                                  |
+
+## 7. Out of scope
+
+- The TUI's v2 session surface, its slash commands and its panels: slice 9. Web presents capabilities
+  as affordances; no slash commands (operator, 2026-11-07).
+- `/rotate`, `/new`, `/model`, `/help` and the rest of the v1 catalogue; `/cd` stays host-side.
+- Repo-loaded plugins (v1's `directory-source`, `repo-plugins`, `purity`, `manifest` machinery):
+  slice 7 moves native plugins only.
+- The unread dot (slice 8); local pods and `atlasd` (slice 9); v1 retirement (slice 10).
+- Moving v1's durable shell supervisor, its notice/awaiting-input machinery or its file PR cache:
+  the daemon's own process state replaces the supervisor; notices become plugin events.
+
+## 8. Results
+
+Filled per plugin as each PR merges: the package, its registrations, the live check table and any
+correction this spec needed.
+
+### 8.1 `plugins/github`, PR 1 of 2 (subscriptions)
+
+Shipped: `plugins/github` (`@dltech/atlas-plugin-github`, `/core` `/pod` `/control` `/client`),
+registered in `apps/api`, `apps/agent-host` and `apps/web`; the `subscriptions` view; `subscribe` /
+`unsubscribe` as pod commands and `subscribe` / `unsubscribe` / `list_subscriptions` as pod tools
+(target resolved with `gh` over `ctx.call('exec')`); the CI-watch `beforeTool` hook and prompt
+fragment; the control append hook that writes and removes the `GithubSubscription` lease in the
+append transaction. One writer: the pod appends the journal event, the CP derives the lease from it.
+
+**Rows.** The control plane owns a subscription, not the log. `PodControl.subscriptions`
+(`subscribe`, `unsubscribe`, `list`) is the agent's path. Each call writes or ends the
+`GithubSubscription` row in the request transaction, then posts an informational `record` that the
+holder copies to the log. The row `id` is the v2 subscription id. Endings are control-plane writes
+through the same service: a merged or closed pull request, a pinned run that finishes, expiry, and
+archive. No holder hook reads the log to end a subscription.
+
+**The wake.** The control plane cannot append to a session (no holder lease), so its write is the
+inbox. `GithubPrEventMailboxService.record` (the one place every webhook, poll and discussion event
+passes) calls `noticeV2Sessions` (`apps/api/src/api/cloud/github/github-v2-notice.ts`) in the
+same transaction as the event row when the caller passes one. For each live `GithubSubscription` of
+the event's user and PR whose `threadId` is a `V2Thread`, it inserts a `GithubPrEventDelivery` row
+keyed `(eventId, threadId)` and, only when that insert wins, posts one `message` inbox entry via
+`postInboxEntryIn` (`@dltech/atlas-control/postgres`: allocate id, insert, `NOTIFY` wake and change
+in the same `Tx`). The holder already turns a `message` entry into `user-said` and a turn
+(`inbox-intake.ts`), so there is no new inbox kind and no plugin inbox handler. The text is
+deterministic (`github-v2-notice-text.ts`): PR number and URL plus the verdict with the checks
+tally, mergeability, a merged/closed transition, or the review/comment author.
+
+**Ack.** The delivery row is inserted already acked (`ackedAt` set, no lease), so it is both the
+dedupe and the ack: v1's `githubPrs.ackEvents` exists because a pod journals the event later, but a
+v2 inbox entry is durable in the same transaction, so there is nothing for a pod to ack and the
+replay path (`claimDeliveries`) skips an acked row. One notice per event per subscription holds
+across a repeated fan-out, a webhook plus a poll, and a restart, because event rows are
+dedupe-keyed per user and the delivery primary key is `(eventId, threadId)`. Spec:
+`github-v2-notice.spec.ts` fans the same event out twice.
+
+Not shipped here: the PR finder move and the header indicator; both shipped in §8.2, which completes the plugin.
+
+**Live check (2026-11-08, production).** Session `26efecc4-fe86-457a-b357-caccbda4d825`, thread
+`ef3aa40c-b3fb-403c-86e1-d3ce49173cd6`, project `cmvh6z3ls002i08jwseqmwbrv`
+(dennisofficial/atlas), agent host `fbedb2479`, throwaway PR #2023 (closed after the check).
+
+| Step                           | Result                                                                                                                                            |
+| ------------------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `subscribe` tool on PR #2023   | `subscription-created` at seq 21                                                                                                                  |
+| Lease row                      | `branch "#2023"`, `threadId` = the main thread, `expiresAt` 2026-11-09T14:07:53Z (24 h), `pollBacked: true`                                       |
+| Second commit (`0baef077a`)    | one `GithubPrEventDelivery` row, kind `mergeability`, acked 14:08:15Z                                                                             |
+| The notice                     | one `user-said`: `GitHub: PR #2023 (https://github.com/dennisofficial/atlas/pull/2023) is mergeable.`, with an assistant reply — the session woke |
+| Duplicate event                | none: one delivery row for that event                                                                                                             |
+| `unsubscribe` tool             | the `GithubSubscription` row was gone                                                                                                             |
+| Third commit after unsubscribe | no delivery in the following four minutes (`silent=yes`, one delivery in total)                                                                   |
+
+### 8.2 `plugins/github`, PR 2 of 2 (finder move, indicator, acting as the user)
+
+Shipped:
+- **The finder and identity lookup moved into the plugin.** `GithubPullRequestFinder` and
+  `githubIdentityLookup` are `plugins/github/src/pod/finder.ts` and `identity.ts`, exported from
+  `@dltech/atlas-plugin-github/pod` with their specs. The plugin does not import
+  `@dltech/atlas-host`: it declares the structural types it needs (`GithubTokenSource`,
+  `PullRequestFinder`/`FoundPullRequest`, `IdentityLookup`/`GitIdentity`), which the host's
+  `PullRequestFinder` and the shell env's `IdentityLookup` satisfy. The composition root
+  (`apps/agent-host/src/runtime/session-runtime-factory.ts`) builds `pullRequests.finder` and the
+  shell env identity from the plugin; `apps/agent-host/src/github/` is deleted. The host keeps the
+  generic `PullRequestSource`, `BranchObserver` and `PrLinker`.
+- **Subscription indicator.** `subscribedPullRequestsOf` (`/client`) turns the `subscriptions` view
+  into `{ number, label, url }` for active GitHub rows; `sessionViewModelOf` reads it from
+  `view.pluginViews` and `SessionHeader` renders a bell with the PR numbers, each linking to the PR,
+  beside the branch and PR badge. No new fetch.
+- **The pod acts as the user.** Audit of `shell-env.ts`, `signing-setup.ts` and the prompt
+  fragments found nothing that adds a co-author trailer or an Atlas identity, so nothing was
+  removed. The git identity is the signing key's user name and email, else the GitHub noreply
+  identity; commits are signed when a key exists. Specs: `shell-env.spec.ts` asserts one
+  `user.name`/`user.email` pair, no trailer, template or hooks-path entry and no `atlas` in the
+  identity; `signing.e2e.spec.ts` asserts a real commit in a sandbox shell is signed, verifies, and
+  its message is the one given, with no `Co-authored-by` or Atlas text.
+
+Not changed: the PR badge and checks tally stay in web, fed by the core `pullRequests` view
+(§5.1's correction); only the indicator is plugin data. Host files still name GitHub where it is
+the transport, not a feature: the token reader, the credential helper and `github.com` URL rewrite
+in `shell-env.ts`, and clone. These move with the shells/services slices or a future git plugin.
+
+**Live check (2026-11-08, production).** Session `64e981de-056d-4cad-95e2-070bb93d2334`, thread
+`ae18de86-f218-4398-9c27-f03fc350c65c`, agent host `72c4f274e`, throwaway PR #2027 (closed after
+the check).
+
+| Step                                             | Result                                                                                                                                                                                                                                                              |
+| ------------------------------------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| The agent branches, commits and pushes           | commit `f98715ad520215ee8fa7fae23203bbe525ad914c`, author and committer `dennisofficial <34203433+dennisofficial@users.noreply.github.com>`, GitHub verification `verified: true, valid`, message `chore: identity live check` — no `Co-authored-by`, no Atlas text |
+| The agent opens PR #2027 and the finder links it | the session view carries the link (`pullRequests`)                                                                                                                                                                                                                  |
+| `subscribe` to #2027                             | `pluginViews.subscriptions` holds one active row, label `dennisofficial/atlas#2027`, the data the header bell renders                                                                                                                                               |
+| `unsubscribe`                                    | the bag empties without a reload                                                                                                                                                                                                                                    |
+
+The header's rendering itself is covered by `session-header.spec.tsx` and
+`session-view-model.spec.ts`; the live run proves the view data behind it.
+
+### 8.3 `plugins/shells`
+
+Shipped: `plugins/shells` (`@dltech/atlas-plugin-shells`, `/core` `/pod` `/control` `/client`),
+registered in `apps/api` and `apps/agent-host`; the `shells` view; the tools `shell` (background
+launch), `shell_output`, `shell_input`, `shell_kill` and `shell_list` over the daemon's `shells.*`
+ops; the ending recorder that appends `background-shell-ended` from the `shells.ended` frame, deduped
+against the journal and serialised behind the in-flight launch; the running-roster `beforeStep` hook;
+the prompt fragment. `background-shell-started` gained an optional `cwd` so the roster can show it
+(v1 events still decode; v1 never sets it).
+
+What this plugin does not need, and why:
+- **No completion hook.** Core assembly already hands `background-shell-ended` to the model
+  (`packages/core/src/assembly/rules/messages-from-events.ts:293`) and `close-quiet-step.ts:33`
+  nudges a quiet model when one arrived. The plugin only appends the ending; a hook would duplicate
+  both.
+- **No `afterShell` phase.** `HookChain.afterShell` exists but nothing in the v2 loop calls it. The
+  trigger is the daemon frame.
+- **No `PodSlot.onDaemonEvent`.** It is handed a frame and no context, so the recorder is registered
+  as a listener from `hooks(ctx)` through `ctx.onDaemonEvent` (`packages/plugin-sdk/src/slots.ts:12`).
+- **The live-output stream rides the Redis live channel, not the journal.** §5.2's transport slot is
+  now filled: the daemon's throttled `shells.output` frame (one per 100 ms,
+  `apps/daemon/src/ops/shells/state.ts:8`) drives a pod-side watcher that reads `shells.read` from its
+  own cursor and publishes a `shell-output{shellId, offset, text}` live frame through
+  `PluginPodContext.live`. Frames never become journal events, so a chatty shell cannot flood the
+  transcript; the journal still keeps one `background-shell-started` and one `background-shell-ended`.
+  Offsets are character offsets in the shell's published stream, so a replayed frame and a live one
+  cannot double-append on the client.
+
+**The client half** shipped in #2036 (`18ce62eb4`): `plugins/shells/src/client/index.ts` reads the
+view through `pluginViewOf` (`shellsOfView`, `shellRosterOf` — running rows only), the session header
+renders a terminal chip with the running count whose `title` lists the shells, only when something is
+running (`apps/web/src/features/sessions/session-header.tsx`), and `apps/web` registers the plugin.
+The transcript's ended line already renders from the core event
+(`packages/client/src/transcript/notice-entries.ts:22`).
+
+**The running-shells reminder comes from the pipeline.** `defaultRules` always adds
+`runningShellsBlock`, which falls back to `runningShellsOf(ctx.events)` — the core shell lifecycle
+projection, so a shell that started with no ending in the journal is the running one — when no live
+source is given. The plugin's `beforeStep` hook and its journal fold are gone. v1 keeps passing its
+registry-backed source, which is the only thing that knows live `awaitingInput` and character counts;
+the journal-derived reminder prints neither rather than claiming `0 characters printed`.
+
+**A browser joining mid-shell gets the backlog.** `shell-output` frames are also pushed onto a
+per-session Redis list bounded to `SHELL_BACKLOG_FRAMES` (256) with a 600 s TTL, which the stream's
+overlay reads once on join and replays as ordinary `frame` messages before live ones. The client
+folds a 60 000-character tail per `shellId`; the web session header's shells chip opens a popover
+with each running shell's tail.
+
+**Live check (2026-11-08, production).** Session `7850e6ff-c1be-4a0c-918f-f841caa3e7b8`, thread
+`759c2536-d748-4de1-86a0-1642c9ec0fa9`, project `cmvh6z3ls002i08jwseqmwbrv` (dennisofficial/atlas),
+agent host `a4bb01faa`, replaced mid-check by `629a89369` (which is what the restart row proves).
+
+| Step                     | Result                                                                                                                                                                                                                                                           |
+| ------------------------ | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Start a background shell | `shell-c83ae35a`, `background-shell-started` at seq 25, `cwd: /atlas/workspaces/workspace`, description `ticker`                                                                                                                                                 |
+| Read it while it runs    | `shell_output` at seq 34 → `tick 1`, `status: running`, `remainingCharacters: 0`                                                                                                                                                                                 |
+| The roster               | `shell_list` at seq 35 → the row, `state: running`, 7 characters printed                                                                                                                                                                                         |
+| Kill it                  | `shell_kill` at seq 40 → `tick 2`; exactly one `background-shell-ended`, seq 39, `status: killed`                                                                                                                                                                |
+| The view                 | `pluginViews.shells` = `[{ shellId, name: "\"ticker\" (…) ", cwd, status: killed, characters: 7, awaitingInput: false }]`                                                                                                                                        |
+| Answer its stdin         | `shell-03f3defa` launched with `input: true`; `shell_input` wrote `hello\n` (seq 54); `shell_output` (seq 59) → `got:hello`                                                                                                                                      |
+| Restart the agent host   | keeper `shell-4e38e2b0` (`while true; do echo alive; …`) started at seq 67; the deploy of `629a89369` replaced the holder; the next turn's `shell_list` (seq 76) still returned it — running, 306 characters printed. The daemon, not the journal, is the roster |
+| Teardown                 | keeper killed (seq 83, `status: killed`), session archived, temporary `AuthSession` row deleted                                                                                                                                                                  |
+
+### 8.4 `plugins/services`, part 1 (the plugin over the daemon)
+
+Shipped: `plugins/services` (`@dltech/atlas-plugin-services`, `/core` `/pod` `/control` `/client`),
+registered in `apps/api` and `apps/agent-host`; the `services` view; the tools `service_start`,
+`service_stop`, `service_restart` and `service_list` over the daemon's `services.*` ops; the recorder
+that appends `service-ready` on the `services.ready` frame and `service-ended` on `services.ended`
+(with a 2 KB tail read through `services.log`); the prompt fragment.
+
+`service-ready` is the plugin's own event — the first real use of `PluginEventBodies` (the fixture had
+it; nothing else did). The composed schema decodes it in `apps/api`, asserted by
+`registered-plugins.spec.ts`, and the view folds it.
+
+Not in this part: `.atlas/services.yaml` declared services (setup, health waits, references),
+`exposePort` and the preview tunnel, the log-tail stream, and the web roster. Those are part 2, which
+waits on the preview design in §"Previews" below.
+
+Two facts the daemon's shape forced: `serviceInfoSchema` carries **no log path** (v1's registry did),
+so the ending's tail is read from `services.log`; and an ending whose `service-started` the journal
+never held (a service launched under a previous holder) is recorded from the daemon's own `command`
+rather than dropped, which would leave the roster showing a dead service as running.
+
+**Live check (2026-11-08, production).** Session `4ce613a5-06f5-47d7-893f-c7d16bf8f0eb`, thread
+`2b4b0997-054d-41fd-b19c-e44fdc3da1e0`, project `cmvh6z3ls002i08jwseqmwbrv`, agent host
+`2f4734b87`.
+
+| Step                                           | Result                                                                                                                                                         |
+| ---------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `service_start` a Bun HTTP server on port 4317 | `service-started` (port recorded), `service-ready` from the daemon's readiness probe; the tool reported `status: ready`, pid 1216                              |
+| `service_list runningOnly`                     | the row, running, port 4317                                                                                                                                    |
+| `service_stop`                                 | `service-ended` (`status: killed`, empty tail), and `pluginViews.services` = `[{ serviceId, name: probe, command, port: 4317, status: killed, ready: false }]` |
+| Repeat cycle, then a third after the fix below | same events; the third turn ended cleanly                                                                                                                      |
+
+**A turn-ending defect this check exposed, fixed in #2047 (`5f8eff012`).** The first two runs did the
+work and then failed the turn: `run-failed`, `exchange-fault: the assembled prompt ends with an
+assistant message`. `messageArrivedSince` (`packages/agent/src/loop/turn-position.ts:15`) counted
+every event after the seen mark with `assistant-said` filtered out, so an event that landed _before_
+the model answered still counted as unanswered: the loop asked again with nothing new, the assembled
+exchange ended with the assistant's own message, and the shape guard refused it. Shells only escape
+this because the quiet-step path appends a completion nudge. It now looks at turn-taking events after
+the model's last `assistant-said`, so an answer resets the question; `turn-position.spec.ts` covers
+the live shape (ending before the answer does not continue; ending after it does; a tool result
+does). The third production run above is the confirmation.
+
+### 8.5 `plugins/services` part 2: a public URL (previews)
+
+A service started on a port is now reachable on the internet, and the tool that started it is told
+the URL. The host publishes; the sandbox only runs the tunnel.
+- **Host**: `ctx.control.exposePort({ port })` (#2053) posts to `hostSelf.exposePort` with
+  `AGENT_HOST_TOKEN`, authenticated by `HostTokenMiddleware` (constant-time compare) and answered by
+  `PreviewTunnelService.expose` — the only code that talks to Cloudflare.
+- **Sandbox**: the daemon's `previews.ensure` / `previews.status`
+  (`apps/daemon/src/ops/previews/index.ts`, `tunnel-supervisor.ts`) run one supervised
+  `cloudflared tunnel --no-autoupdate run` per pod from a token kept in `previews.json`, so a daemon
+  restart brings the tunnel back. Ingress is remote config written by the control plane's preview
+  reconciler; a port needs no pod process. The binary is the image's `/usr/local/bin/cloudflared`.
+- **Journal**: `service-started` carries an optional `url`, the `services` view row shows it, and the
+  tool text says plainly when a service is sandbox-only.
+- A failed exposure never blocks the start: the reason is reported in the tool text.
+
+Two secret-handling fixes came with it: the daemon journals every op to
+`~/.atlas-daemon/calls/<key>/state.json` before running it, so `journalOp` redacts the tunnel token
+(spec: `journal-redaction.spec.ts`); and the token reaches cloudflared through `TUNNEL_TOKEN` in the
+child environment rather than `--token` in argv, so `ps` in the sandbox cannot read it.
+
+**Live check (2026-11-08, production).** Session `dc58e34d-c730-4a8c-b60b-f6956635dbc2`, agent host
+`bbcadc696`, API `7a942ae1a`.
+
+| Step                                           | Result                                                                     |
+| ---------------------------------------------- | -------------------------------------------------------------------------- |
+| `service_start` a Bun HTTP server on port 4321 | `service-started` (with `url`), `service-ready`                            |
+| `curl https://4321-350kk450kd.byatlas.dev`     | `200`, `content-type: text/plain`, body `preview-ok`, `server: cloudflare` |
+| `service_stop`                                 | `service-ended`; the same URL answered `530` (origin down) within seconds  |
+
+Two things the first runs found, both fixed:
+- **`hostSelf.exposePort` used the v1 session resolver.** It read `Thread`/`Session` (#2059), which a
+  v2 thread is not, so every call answered `404 thread not found` and the tool text said
+  `its public URL could not be created (the control plane rejected the call (404): thread not found)`.
+  It now resolves the owner from `v2.V2Session` by `mainThreadId`. Worth remembering: a "the CP said
+  404" in a preview is almost always an owner-resolution bug, not a credential problem.
+- **The tunnel needs a moment.** The first fetch after `service-started` answered `403`; a second a
+  few seconds later answered `200`. Do not read the first non-200 as a failure — retry before
+  concluding the tunnel is down (and `530` is the shape of "it really is down").
+
+Not in this slice: portal pages, custom domains, and streaming the tunnel's logs. The
+`portals`/`portal` declaration fields are accepted but only their presence is used, since a
+tunnel needs a port to point at.
+
+### 8.6 the web preview list
+
+The previews a session publishes are now visible in web, and the list reads the **session view**,
+not the CP's tunnel tables: the `services` view streams to the browser and moves with
+`service-started`/`service-ended`, where a `PreviewRoute` row says a tunnel exists but not that a
+service is up, so a list built on it would need a poll, a new router procedure and a second auth
+path anyway. `PreviewTunnel`/`PreviewRoute` stay infrastructure.
+- `plugins/services/src/client/index.ts`: `servicesOfView`, `PreviewItem` and `previewsOfView` — the
+  running rows that carry a `url`, labelled `name ?? command` (28 chars, `…`), sorted by port and
+  deduped per port (a restart gets a new `serviceId`).
+- `apps/web`: `SessionViewModel.previews`, a header chip (`data-session-previews`) whose title lists
+  `label:port`, opening a popover of `PreviewLinks` — one link per preview to its public URL. A
+  row shows the label and `:port`; the link's `title` is the URL. A stopped service leaves the list
+  even though its URL survives (and answers `530`).
+
+Specs: `plugins/services/src/client/__tests__/client.spec.ts`,
+`apps/web/src/features/sessions/data/__tests__/session-view-model.spec.ts`,
+`apps/web/src/features/sessions/__tests__/session-header.spec.tsx`.
+
+### 8.7 `plugins/memory`
+
+Shipped: `plugins/memory` (`@dltech/atlas-plugin-memory`, `/core` `/pod` `/control` `/client`),
+registered in `apps/agent-host`; the four tools `write_memory`, `read_memory`, `edit_memory` and
+`delete_memory`; the `memory-index` `beforeStep` hook; the `MemoryFragment` prompt text (core's
+`memoryPromptText`). No events, no view, no client state, transport `none` — as §5.4 declared.
+
+**The pod has no user token, so memory reaches the CP through the host.** A v2 cloud pod holds
+`AGENT_HOST_TOKEN` and nothing else per user; a pod lease token exists only for the local pods of
+slice 9. §5.4's "the v1 API route until cutover" therefore became a host-token route:
+`hostMemory.list/get/write/edit/remove` (`apps/api/src/api/cloud/memories/host-memory.router.ts`),
+guarded by `HostTokenMiddleware`, resolving the owner and the project from the thread's
+`v2.V2Session` → `Project.repo`. It lives in `cloud/memories` because `platform` may not import
+`cloud` (the architecture spec). The seam is one `PodControl.memory` port
+(`packages/plugin-sdk/src/memory.ts`, over the SDK's own memory types so neither the host nor the
+agent host imports the v1 wire package the split guard forbids) implemented by `podControlOf` and
+the agent host's `podControlClientOf`, so at cutover the CP handlers change and the plugin does
+not.
+
+**The index is a system block, not a prompt fragment.** A plugin's `prompts` array is composed once
+per app, so it cannot carry per-session state; a volatile fragment is an `apps/agent-host` class a
+plugin may not extend. The `memory-index` hook appends `renderMemoryIndex`'s text as a system block
+on the first step, keeps it for the session, and reloads it after any write, edit or delete (the
+tools mark the state stale). A failed list appends "Memory is unavailable this session: <reason>"
+and retries on the next step.
+
+**The list carries the project key.** `memory.list` answers `{ project, memories }`, because the pod
+does not know the session's repo and the index heading needs it; it is the CP that resolves
+`Project.repo`.
+
+Specs: `plugins/memory/src/core/__tests__/index.spec.ts`,
+`.../pod/__tests__/tools.spec.ts`, `.../pod/__tests__/index-block.spec.ts`,
+`packages/host/src/holder/__tests__/pod-control.spec.ts`,
+`apps/agent-host/src/control/__tests__/client.spec.ts`,
+`apps/api/src/api/cloud/memories/host-memory.router.spec.ts`.
+
+**Live check (2026-11-09, production).** Session `8a7ed307-0e59-48a1-8637-b48e328713b8`, agent host
+`72f85f533` (the first run, `cef48f40-2327-4ff6-819b-dfa015c41709`, found the defect below).
+
+| Step                                  | Result                                                                                                                                                    |
+| ------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `write_memory` global, type feedback  | `Remembered live-check-memory-c01dae (global, revision 1).`; the `Memory` row exists                                                                      |
+| the next turn, no tool call           | the model quoted `- live-check-memory-c01dae — Live check of the memory tools live-check-memory-c01dae` under `### Global` — the index reached the prompt |
+| `read_memory`                         | `live-check-memory-c01dae (global, feedback, revision 1)`, its description and the full body                                                              |
+| `edit_memory` at revision 1           | `Edited live-check-memory-c01dae (global, revision 2).`, body now the replacement                                                                         |
+| `edit_memory` again, still revision 1 | `the control plane rejected the call (409): memory is at revision 2, not 1; read it again`                                                                |
+| `delete_memory`                       | `Forgot live-check-memory-c01dae (global).`; `memories.list` no longer holds it                                                                           |
+| Teardown                              | session archived, temporary `AuthSession` and the memory row deleted                                                                                      |
+
+**The defect the first run found, fixed in #2071 (`76c1f54b3`).** `write_memory` answered
+`Remembered undefined (project, revision undefined)` and `read_memory` threw
+`undefined is not an object (evaluating 'entry.body.split')`: the agent host's client cast the CP's
+reply **envelope** (`{ memory }`) to the port's return type, so `name`/`revision`/`scope` were
+`undefined`. `list` and `remove` were already right. The client now unwraps `memory` in `get`,
+`write` and `edit`, and its spec asserts the value each call **returns** — the old cases only checked
+what was sent and the URL, which is why nothing short of the live check caught it. Render deploys
+the tip of `main`, so the fix went out with a later merge (#2074's build) rather than a deploy of
+`76c1f54b3` itself.
+
+### 8.8 `plugins/crew`
+
+Shipped: `plugins/crew` (`@dltech/atlas-plugin-crew`, `/core` `/pod` `/control` `/client`), registered
+in `apps/agent-host`, `apps/api` and `apps/web`; the five tools `agent_spawn`, `agent_say`,
+`agent_stop`, `agent_list`, `report_to_main`; the `crew` view (roster, standing, last report) folded
+from the foundation `agent-*` events; `transport: 'none'`.
+
+**A child is a v2 thread of the same session with its own `SessionRecord`.** One thread cannot hold
+two agents: `messagesFromEvents` renders every message of a thread, so a child sharing the parent's
+thread would put its turns in the parent's context. The child appends its turns to its own thread;
+only its lifecycle rows (`agent-spawned` / `agent-restarted` / `agent-reported` / `agent-ended`) and
+the report message go on the parent thread, which is the one `sessions.events` and the session
+stream read. Live child output is deferred: §5.5 makes the crew `stream` transport conditional on the
+panel, and the stream follows `mainThreadId` only.
+
+**The seam is a local port, not a control-plane one.** `PluginPodContext.crew`
+(`packages/plugin-sdk/src/crew.ts`: `spawn` / `say` / `stop` / `list` / `report`), implemented by
+`CrewRoom` and `ChildRun` in `packages/host/src/holder/crew/`. A child runs in the agent host under
+the parent's lease and drive — no hop to `api.byatlas.io` (the 2026-11-09 direction), and no second
+host-token route. The parent's own record writes the child's lifecycle rows, because two
+`SessionRecord`s for one thread would race the head. A report reaches the parent's **model** as an
+inbox message (`plane.post`): that is the only thing that starts a turn in v2, and it wakes the
+session through `notifyWake`.
+
+**The deny list is a slot.** New optional `PodSlot.childDeny`, unioned by `composePod`: memory
+declares its four tools, crew its four orchestration tools, github `subscribe` and `unsubscribe`
+(ADR 0020 decision 2). A child keeps `report_to_main`, `list_subscriptions` and the worktree tools,
+and the host still names no plugin. `ctx.crew`'s own port refuses spawn/say/stop inside a child as a
+second line of defence.
+
+**The agent lifecycle events stay foundation events** (like `worktree-*`): `core`'s `agentRoster` /
+`agentProgress` and `agent`'s `settle-pending` / `lostAgentEnding` record a crashed child's ending,
+which is harness machinery rather than plugin behaviour. Revisit at v1 retirement (slice 10). The
+crew plugin contributes the tools, the supervisor and the view — see the round's decisions file.
+
+**One pump owns a child.** `agent_say` appends to the child's `ChildIntake`, which the loop drains at
+each **model-step boundary** (`packages/agent/src/loop/pending-intake.ts:35`), the same hook v1
+steering uses — appending `user-said` directly would land after the assembled prompt and be
+swallowed. A failed or interrupted turn never restarts a child; an explicit `agent_say` does, and
+announces `agent-restarted` first. Child records take the parent's `onLeaseLost` (which aborts the
+child) and `drainDeadline`, and a running child counts in `serveIdleDue`'s `runningChildren`, so a
+long child cannot meet the idle deadline out from under the session.
+
+Specs: `packages/host/src/holder/__tests__/crew.spec.ts` (a real holder: spawn through a plugin tool,
+the child's own turn, the report and its wake, the denied tool absent from the child's request),
+`.../crew-pump.spec.ts` (queued message reaches the child; a failed child does not restart; a
+`progress` report neither wakes nor suppresses the completion),
+`plugins/crew/src/core/__tests__/roster.spec.ts`, `.../pod/__tests__/tools.spec.ts`,
+`apps/agent-host/src/__tests__/registered-plugins.spec.ts`.
+
+**Live check (2026-11-09, production).** Session `ccdf548d-9092-49f7-8378-532f6aacf703`, agent host on
+the tip of `main` (`c0d453d1`, whose sandbox cloned the same head).
+
+| Step                                            | Result                                                                                                                                                                                                    |
+| ----------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| the session's declared tools                    | `agent_spawn`, `agent_say`, `agent_stop`, `agent_list`, `report_to_main` beside `read`/`write`/`edit`/`multi_edit`/`grep`/`glob`, `bash` + `shell*`, `service*`, the four memory tools and `subscribe`    |
+| `agent_spawn` general-purpose, "live check"     | `Started a sub-agent.\nbrn_9d066b72-…  general-purpose  live check\nIt runs in the background, and hands you its answer the moment it stops.`; `agent-spawned` on the main thread                         |
+| the child runs `hostname; pwd`, then reports    | `agent-reported` kind `done`: `Done. Ran \`hostname; pwd\` … 31fa73bc-d0b / /atlas/workspaces/workspace`                                                                                                  |
+| the child's own thread                          | its own rows: `user-said` 1, `assistant-said` 1, `tool-called` 2 (bash, report_to_main), `tool-result` 2, `tool-dispatched` 2                                                                             |
+| the wake                                        | the report arrived as a `user-said` on the main thread — `Sub-agent brn_9d066b72-… (general-purpose, "live check") reported done. …` — and the parent's next turn quoted the two lines back               |
+| `agent-ended`                                   | `status finished, turns 1, toolCalls 2`, prose the report                                                                                                                                                 |
+| deny check (a second child told to `subscribe`) | `Could not do it: there is no \`subscribe\` tool in this session's toolset.`It listed`list_subscriptions`(read-only) and`report_to_main`, no memory tools; `agent-ended` `finished, turns 2, toolCalls 2` |
+| teardown                                        | both sessions archived, temporary `AuthSession` deleted                                                                                                                                                   |
+
+**The trap the first run found.** The first session (`e3049556-…`) was served by a **stale
+pre-deploy agent-host instance** although the deploy carrying the slice was already `live`: its tool
+list held every other plugin's tools and no crew tool at all, so the model ran `hostname; pwd` itself.
+A second session on the same build was correct. The tell is the head the sandbox cloned
+(`30d96bf67` there, `c0d453d1` on the good run) — record it in the live check, and re-run rather than
+debugging the plugin when exactly the new plugin's tools are the missing ones.
+
+**Known limit.** A child's hook chain sees the whole session's daemon frames, so a parent shell's
+ending is also appended to the child's own (unmerged) log. The frame carries no owner, so routing it
+needs the daemon to say whose unit it is; the child's listeners are disposed when its pump ends, which
+bounds the leak.
+
+**1b shipped (`#2084`, `#2086`, `#2087`).** The worktree tools (`enter_worktree`, `exit_worktree`,
+`worktree_list`), `agent_spawn.worktree` (ADR 0020 decision 1), and the web crew chip and panel.
+- **The port.** `PluginPodContext.worktrees` (`PodWorktrees`: `list`, `create`, `inspect`, `remove`)
+  is implemented by `HostWorktrees` in `packages/host/src/holder/checkouts`, over the daemon's `exec`
+  and file ops, and handed to the plugin in `plugin-pod.ts`. No host-token route (ADR 0027).
+- **The plugin appends the foundation events.** A tool cannot add to its own dispatch's draft list,
+  and `ctx.append` would be invisible to `settle-pending`'s within-batch `activeWorktreeAfter`; so the
+  crew plugin's `afterTool` hook turns the tools' `{enteredWorktree}` / `{exitedWorktree}` output into
+  `worktree-entered` / `worktree-exited` drafts, and `settle-pending` moves the same assistant step's
+  later calls into the new directory. This is v1's `track-worktree` hook, moved into the plugin that
+  owns the tools.
+- **A child starts in its worktree.** `agent_spawn.worktree` creates (a name) or adopts (a path) the
+  worktree before the child's first turn; the host seeds the child's own record with
+  `worktree-entered`, so its tools and bash run there from the first step. `agent-spawned` gained an
+  optional `worktree { path, branch, base?, adopted? }`, because the child's event lives on the
+  child's thread, which the parent's view cannot fold.
+- **Removal is guarded by provenance and by git.** A path counts as Atlas-created when the log holds
+  a `worktree-entered` or `agent-spawned.worktree` for it with `adopted !== true` — which covers a
+  worktree this session spawned a child into — and an adopted worktree is never removed. Before
+  removing, the host reads the checkout's real `HEAD` and refuses if it differs from the branch the
+  session remembers, then deletes that checked-out branch. `WorktreeState.unpushed` is
+  `{ count, against } | null`: an upstream first, then the creation base, else `null`, and `isClean`
+  requires a real zero count, so a branch with no upstream cannot lose a commit silently (`#2087`
+  found the first version failing open).
+- **Layout.** `<repository>/.atlas/worktrees/<name>`, with a `*` `.gitignore` written inside it. No
+  v1 worktree lock file: one worktree per session plus git's own refusal covers the collision.
+- **Web.** The session header shows a crew chip (running, or running/total) that opens a panel of the
+  plugin's `crew` view: type, intent, standing, worktree, last report, turns and tool calls.
+
+**Known limits.** The parent's panel annotates a child with the worktree it was spawned into; a
+worktree the child enters itself mid-run is visible to `agent_list` (the child's record) but not
+mirrored into the parent's thread, whose log is all the view folds. And `worktree_list` compares the
+paths git prints: a repository reached through a symlink may list a canonical path that a lexically
+resolved argument cannot match, because the pod has no `realpath` op.
+
+Specs: `plugins/crew/src/pod/__tests__/worktree-{tools,enter,exit,list,spawn}.spec.ts` over a shared
+`worktree-rig.ts`, `.../worktree-hook.spec.ts`, `plugins/crew/src/core/__tests__/roster.spec.ts`,
+`packages/host/src/holder/__tests__/checkouts.spec.ts` (the git argv and parsing over a scripted
+process port), `.../crew.spec.ts` (the child's `worktree-entered` lands before its first turn, and
+the parent's `agent-spawned` carries the worktree and its provenance),
+`apps/web/src/features/sessions/__tests__/session-header.spec.tsx`.
+
+**Live check (2026-11-09, production).** Session `188f95e6-ffdf-4ee1-afd9-485520a5756e`, thread
+`9b7f56a4-c10a-4aaa-ab84-330095c723b3`, agent host on `313c7f417` (its sandbox cloned the same head).
+
+| Step                                | Result                                                                                                                                                                                                                                            |
+| ----------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| the session's declared tools        | 32, including `enter_worktree`, `exit_worktree` and `worktree_list`                                                                                                                                                                               |
+| `agent_spawn` into `dennis/live-wt` | `agent-spawned` with `worktree { path: /atlas/workspaces/workspace/.atlas/worktrees/dennis/live-wt, branch: dennis/live-wt, base: origin/main }`                                                                                                  |
+| the child's own work                | its report quotes `pwd` inside that worktree and commit `77d46ef5` on `dennis/live-wt` (1 file changed); `agent-ended` finished, 2 turns, 4 tool calls; its thread holds `worktree-entered` 1, `user-said` 1, `assistant-said` 2, `tool-called` 4 |
+| the wake                            | a `user-said` on the main thread: `Sub-agent brn_6c40ac11-… (general-purpose, "worktree proof") reported done.` with the same text                                                                                                                |
+| the view                            | `pluginViews.crew` = one row with the worktree path, branch and base, status finished, 2 turns, 4 tool calls, and the report as prose                                                                                                             |
+| `worktree_list`                     | the main checkout and `dennis/live-wt`, `current` = the main checkout                                                                                                                                                                             |
+| `enter_worktree` by that path       | `{ enteredWorktree: { adopted: false, base: origin/main, … } }`; the `worktree-entered` draft carried `adopted: false` and the base                                                                                                               |
+| `exit_worktree` `remove`            | refused: "removing the worktree … would lose 1 commit that is not on origin/main"                                                                                                                                                                 |
+| `exit_worktree` `remove` + discard  | removed, `returnTo` `/atlas/workspaces/workspace`                                                                                                                                                                                                 |
+| teardown                            | session archived `13:51:25Z`, temporary `AuthSession` row deleted                                                                                                                                                                                 |
+
+The stale-instance trap recurred: the first probe on the deploy that had just gone live
+(`71df8fd1-…`) was served by the outgoing host and its tool list held every other plugin's tools and
+none of the three worktree tools; a fresh session minutes later had all 32. Compare the sandbox's
+cloned head with the deploy that served it before debugging the plugin.
+
+### 8.9 `plugins/sessions`
+
+Shipped: `plugins/sessions` (`@dltech/atlas-plugin-sessions`, `/core` `/pod` `/control` `/client`),
+registered in `apps/api` and `apps/agent-host`; the tools `spawn_session`, `message_session` and
+`list_sessions` over a new `PluginPodContext.sessions` port implemented in `packages/host` over the
+control plane; the sessions prompt fragment; the pure `nestPeers` fold the web sidebar uses. The
+settled answers are in §5.6 above.
+
+**A spawned session is an ordinary session.** `spawn_session` is the same as creating a session in
+the UI — its own sandbox and a fresh clone, no lifecycle tie and no second placement mode (the
+`intoPod` field was removed on 2026-11-11; see [sessions-link.md](sessions-link.md)).
+`spawnedBySessionId` is provenance that feeds the sidebar nesting and grants or restricts nothing,
+and the child reports back with `report_to_spawner`. The live check below ran when every spawn was
+placed on the spawner's pod, which no longer exists; the rows marked † describe that mode.
+
+**Sender.** `V2InboxEntry.senderSessionId` carries who posted; the payload stays `{text}`, so a host
+that predates the change still parses the message. The intake stamps `sender: {session}` plus
+`via: PeerAgent` on `user-said`, and assembly renders `<agent-said from="session ses_…">` — the
+operator lane is untouched, and old logs decode. Messages are unlimited and any session of the same
+user may message any other; the 20-message budget the feature first shipped was removed the same day.
+
+**Live check (2026-11-09, production).** Session `b6cdbfe7-63b3-4f46-a3fe-c493b3fe06cc`, thread
+`914374a5-3dab-4713-a50a-6f3a968ff5c5`, project `cmvh6z3ls002i08jwseqmwbrv`, agent host on
+`bd4eb64b1` (its sandbox cloned the same head). It ran when every spawn was placed on the spawner's
+pod, a placement that no longer exists; the rows marked † describe that mode.
+
+| Step                           | Result                                                                                                                                                                                                      |
+| ------------------------------ | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| the session's declared tools   | 32, including `spawn_session`, `message_session` and `list_sessions`                                                                                                                                        |
+| `spawn_session` (title, brief) | `Started peer session 28d8d332-4635-4f73-bd69-fadd03a26e8c; your brief is its first message.`                                                                                                               |
+| the spawn link                 | `sessions.list` row for the new session: `spawnedBy` = the spawner, title `Peer live check`, not archived                                                                                                   |
+| the new session's own thread   | the brief is a `user-said` with `sender: { session: <spawner> }` and `via: peer-agent`; `branches-observed` head `bd4eb64b1`                                                                                |
+| the reply lane                 | its `message_session` woke the spawner with a `user-said` carrying `sender: { session: <it> }` and `via: peer-agent`                                                                                        |
+| a background shell †           | the spawner's `shell-5f32d5db` was visible to the spawned session's `shell_list` (60 characters printed), and its `hostname` was the spawner's sandbox `1b74732b-2d3` — the teammate mode, then the default |
+| the roster                     | at the time, `list_sessions` showed the spawner and "You have spawned no peer sessions"; it now lists the operator's sessions, newest first, with the current one marked                                    |
+| archive to Done                | the new session's `archivedAt` set, `spawnedBy` intact — the data the sidebar's Done group folds                                                                                                            |
+| the ticker kill †              | not completed: the spawner's next turn opened with "session … lost its lease", so `shell_kill` could not run; the shared sandbox parked by its deadline                                                     |
+| teardown                       | both sessions archived, temporary `AuthSession` deleted                                                                                                                                                     |
+
+**The stale-instance trap recurred.** The first session (`5bc1c266-…`), created while the deploy of
+`bd4eb64b1` was going live, listed every other plugin's tools and none of the three new ones; its
+sandbox had cloned `bd4eb64b1`. A fresh session minutes later had all 32. Open a new session rather
+than debugging the plugin when exactly the new plugin's tools are missing.
+
+## 9. Answers (2026-11-08)
+
+1. **Order and packaging.** As recommended in §3: the contract, then github (subscriptions inside one
+   package), shells, services (previews inside), memory, crew, sessions.
+2. **Teammate budget.** 20 messages per peer session, resettable by the operator. Superseded
+   2026-11-09: the operator removed the budget.
+3. **GitHub.** The pod acts with the operator's OAuth credentials. Commits are the user's, with no
+   co-author trailer and no Atlas trace. The sandbox may push and open PRs.
+4. **MCP and skills.** Their own slice, out of slice 7 (see Next below).
+
+## Next
+
+MCP and skills are slice 7b, row 7b of the [roadmap](../roadmap.md), with their own spec:
+[07b-mcp-skills.md](07b-mcp-skills.md); §7 no longer proposes them for this slice.

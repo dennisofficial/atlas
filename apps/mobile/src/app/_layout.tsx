@@ -2,7 +2,7 @@ import { useIsDark, useTheme } from '@dltech/atlas-ui-native'
 import { useFonts } from 'expo-font'
 import * as Linking from 'expo-linking'
 import { ObserveRoot, useObserve } from 'expo-observe'
-import { router, Stack, ThemeProvider } from 'expo-router'
+import { Stack, ThemeProvider, usePathname } from 'expo-router'
 import * as SplashScreen from 'expo-splash-screen'
 import { StatusBar } from 'expo-status-bar'
 import { useEffect, useRef, useState } from 'react'
@@ -14,7 +14,9 @@ import { AnalyticsProvider } from '../analytics/analytics-provider'
 import { AuthProvider, useAuth } from '../auth/auth-provider'
 import { EAuthState } from '../auth/auth-reducer'
 import { CrashScreen } from '../errors/crash-screen'
+import { applyNavigation } from '../navigation/apply-navigation'
 import { destinationOfUrl, type TDestination } from '../navigation/destination'
+import { sessionOpenOf } from '../navigation/root-navigation'
 import { installBackgroundNotifications } from '../push/background-notifications'
 import {
   installNotificationHandler,
@@ -38,12 +40,9 @@ installBackgroundNotifications()
 installWebReset()
 void SplashScreen.preventAutoHideAsync()
 
-const pushAfterGuardSettles = (destination: TDestination): void => {
-  setTimeout(() => router.push(destination), 0)
-}
-
 const RootStack = ({ fontsReady }: { fontsReady: boolean }) => {
   const { state, api } = useAuth()
+  const pathname = usePathname()
   const [incoming, setIncoming] = useState<TDestination | undefined>(undefined)
   const [launchUrl] = useState(() => Linking.getInitialURL())
   const launchRead = useRef(false)
@@ -87,8 +86,9 @@ const RootStack = ({ fontsReady }: { fontsReady: boolean }) => {
     if (!signedIn || incoming === undefined || replaying.current === incoming) return
     replaying.current = incoming
     setIncoming(undefined)
-    pushAfterGuardSettles(incoming)
-  }, [incoming, signedIn])
+    const id = incoming.params.id
+    setTimeout(() => applyNavigation(sessionOpenOf({ pathname, id })), 0)
+  }, [incoming, signedIn, pathname])
 
   return (
     <>
