@@ -1,11 +1,11 @@
 import { createSessionsFeed } from '@dltech/atlas-client/stream'
 import type { StreamSessionRow } from '@dltech/atlas-protocol'
-import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useState } from 'react'
 
 import { useAuth } from '../../auth/auth-provider'
 import { sessionStream } from './session-stream'
 
-export const useSessionSummary = (sessionId: string): StreamSessionRow | undefined => {
+export const useSessionRows = (): readonly StreamSessionRow[] | undefined => {
   const { api } = useAuth()
   const [rows, setRows] = useState<readonly StreamSessionRow[] | undefined>(undefined)
 
@@ -17,5 +17,5 @@ export const useSessionSummary = (sessionId: string): StreamSessionRow | undefin
     }).retain()
   }, [api])
 
-  return useMemo(() => rows?.find((row) => row.sessionId === sessionId), [rows, sessionId])
+  return rows
 }
