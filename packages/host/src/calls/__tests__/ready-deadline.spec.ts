@@ -130,10 +130,12 @@ describe('the ready deadline and the sandbox wake', () => {
   })
 
   it('surfaces the reason the wake failed instead of a ready timeout', async () => {
-    const started = Promise.reject(new Error('the sandbox did not wake within 5 minutes'))
+    const started = Promise.reject(new Error('the sandbox did not finish waking within 5 minutes'))
     const calls = openArming({ started, readyTimeoutMs: 10_000 })
 
-    await expect(calls.ready()).rejects.toThrow('the sandbox did not wake within 5 minutes')
+    await expect(calls.ready()).rejects.toThrow(
+      'the sandbox did not finish waking within 5 minutes',
+    )
     calls.close()
   })
 })

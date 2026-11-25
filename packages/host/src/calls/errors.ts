@@ -5,12 +5,12 @@ import {
   type RecoverAction,
 } from '@dltech/atlas-core'
 
-export const SANDBOX_OFFLINE_GUIDANCE =
-  'The sandbox is offline, so retrying tool calls will not help: stop making sandbox tool calls, tell the operator the sandbox is down and why, and end your turn.'
+export const SANDBOX_UNREACHABLE_GUIDANCE =
+  "The sandbox did not answer, so more tool calls this turn will not help. Stop making sandbox tool calls, tell the operator what failed, and end your turn. Do not call the sandbox offline or down: the operator's next message tries to wake it again."
 
 export class SandboxUnavailableError extends Error {
   constructor(reason: string) {
-    super(`${reason}. Nothing ran. ${SANDBOX_OFFLINE_GUIDANCE}`)
+    super(`${reason}. Nothing ran. ${SANDBOX_UNREACHABLE_GUIDANCE}`)
     this.name = 'SandboxUnavailableError'
   }
 }
