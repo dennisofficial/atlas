@@ -43,8 +43,6 @@ const sharedConfig: NextConfig = {
     '@dltech/atlas-classifier',
     '@dltech/atlas-client',
     '@dltech/atlas-core',
-    '@dltech/atlas-credentials',
-    '@dltech/atlas-harness',
     '@dltech/atlas-models',
     '@dltech/atlas-protocol',
     '@dltech/atlas-schedule',

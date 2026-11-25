@@ -2,7 +2,6 @@ import { randomUUID } from 'node:crypto'
 import { db } from '@dltech/atlas-db'
 import { useTestDatabase } from '@dltech/atlas-db/testing'
 import { describe, expect, it, vi } from 'bun:test'
-import { recordingSignals } from './testing/thread-signals.fixture'
 import {
   claimPrOutboxRows,
   completePrOutboxRows,
@@ -11,52 +10,29 @@ import {
 } from './github-pr-outbox-lease'
 import { GithubPrOutboxDispatcher, PR_OUTBOX_RETENTION_MS } from './github-pr-outbox'
 import { GithubHttpBudgetUnavailable } from './github-request-budget'
-import type { WakeStub } from './github-legacy-effects.fixture'
-import { legacyOf } from './github-legacy-effects.fixture'
 
 const AT = new Date('2026-11-18T10:00:00Z')
 
-const signalRow = (args: { createdAt: Date; id?: string }) => ({
+const fanoutRow = (args: { createdAt: Date; id?: string }) => ({
   id: args.id ?? `out_${randomUUID()}`,
-  kind: 'thread-signal',
+  kind: 'fanout',
   repoFullName: 'compai/app',
   prNumber: 42,
-  payload: { threadId: 'thr_1' },
-  dedupeKey: `thread-signal:${randomUUID()}`,
+  payload: { userIds: ['usr-a'], state: { repoFullName: 'compai/app', prNumber: 42 } },
+  dedupeKey: `fanout:${randomUUID()}`,
   createdAt: args.createdAt,
   dispatchedAt: null,
   attempts: 0,
   lastError: null,
 })
 
-const fanoutRow = (args: { createdAt: Date; id?: string }) => ({
-  ...signalRow(args),
-  kind: 'fanout',
-  payload: { userIds: ['usr-a'], state: { repoFullName: 'compai/app', prNumber: 42 } },
-})
-
 const reconcileRow = (args: { createdAt: Date }) => ({
-  ...signalRow(args),
+  ...fanoutRow(args),
   kind: 'reconcile-checks',
   payload: { repoFullName: 'compai/app', headSha: 'abc123' },
 })
 
-const wakeRow = (args: { createdAt: Date }) => ({
-  ...signalRow(args),
-  kind: 'wake',
-  payload: {
-    notice: { userId: 'usr-a', repoFullName: 'compai/app', prNumber: 42 },
-    event: {
-      userId: 'usr-a',
-      repoFullName: 'compai/app',
-      prNumber: 42,
-      kind: 'verdict',
-      payload: { url: 'https://github.com/compai/app/pull/42', verdict: 'green', headSha: 'abc' },
-    },
-  },
-})
-
-function wakeGate(): { entered: Promise<void>; release: () => void; wake: () => Promise<void> } {
+function gate(): { entered: Promise<void>; release: () => void; run: () => Promise<void> } {
   let markEntered: () => void = () => undefined
   let release: () => void = () => undefined
   const entered = new Promise<void>((resolve) => {
@@ -69,7 +45,7 @@ function wakeGate(): { entered: Promise<void>; release: () => void; wake: () => 
   return {
     entered,
     release: () => release(),
-    wake: async () => {
+    run: async () => {
       calls += 1
       if (calls > 1) return
       markEntered()
@@ -80,25 +56,19 @@ function wakeGate(): { entered: Promise<void>; release: () => void; wake: () => 
 
 function rig(args: {
   push?: (input: unknown) => void
-  wake?: () => Promise<void>
   reconcile?: (input: { repoFullName: string; headSha: string }) => Promise<void>
   now?: () => Date
 }) {
-  const { signals, changedThreads } = recordingSignals()
   const push = vi.fn((input: unknown) => args.push?.(input))
   const dispatcher = new GithubPrOutboxDispatcher({
     fanout: { push, pushEvent: vi.fn() },
-    legacy: legacyOf({
-      signals: signals,
-      wake: { notifyEvent: async () => args.wake?.() } as unknown as WakeStub,
-    }),
     reconcile: async (input) => args.reconcile?.(input),
     mergeability: async () => undefined,
     logger: { warn: () => undefined },
     now: args.now ?? (() => AT),
   })
 
-  return { dispatcher, push, changedThreads }
+  return { dispatcher, push }
 }
 
 const reload = (id: string) => db.orm.public.GithubPrOutbox.where({ id }).first()
@@ -107,24 +77,23 @@ describe('GithubPrOutboxDispatcher leases', () => {
   useTestDatabase()
 
   it('re-runs the effects a dispatcher claimed and then died on, once the lease expires', async () => {
-    const first = await db.orm.public.GithubPrOutbox.create(signalRow({ createdAt: AT }))
+    const first = await db.orm.public.GithubPrOutbox.create(fanoutRow({ createdAt: AT }))
     const second = await db.orm.public.GithubPrOutbox.create(
-      signalRow({ createdAt: new Date(AT.getTime() + 1) }),
+      fanoutRow({ createdAt: new Date(AT.getTime() + 1) }),
     )
     const claimed = await claimPrOutboxRows({ now: new Date(0), limit: 32 })
     expect(claimed.rows.map((row) => row.id).sort()).toEqual([first.id, second.id].sort())
 
-    const { dispatcher, changedThreads } = rig({})
+    const { dispatcher } = rig({})
 
     expect(await dispatcher.drain()).toBe(2)
 
-    expect(changedThreads).toHaveLength(2)
     expect((await reload(first.id))?.dispatchedAt).not.toBeNull()
     expect((await reload(second.id))?.dispatchedAt).not.toBeNull()
   })
 
   it('refuses the completion of a claim another claimant has taken over', async () => {
-    const row = await db.orm.public.GithubPrOutbox.create(signalRow({ createdAt: AT }))
+    const row = await db.orm.public.GithubPrOutbox.create(fanoutRow({ createdAt: AT }))
     const stale = await claimPrOutboxRows({ now: new Date(0), limit: 1 })
     const fresh = await claimPrOutboxRows({ now: AT, limit: 1 })
     expect(fresh.rows.map((held) => held.id)).toEqual([row.id])
@@ -134,20 +103,20 @@ describe('GithubPrOutboxDispatcher leases', () => {
   })
 
   it('fences the completion of a claim the same dispatcher lost and reclaimed', async () => {
-    const row = await db.orm.public.GithubPrOutbox.create(wakeRow({ createdAt: AT }))
-    const gate = wakeGate()
+    const row = await db.orm.public.GithubPrOutbox.create(reconcileRow({ createdAt: AT }))
+    const held = gate()
     let clock = AT
-    const { dispatcher } = rig({ wake: gate.wake, now: () => clock })
+    const { dispatcher } = rig({ reconcile: held.run, now: () => clock })
 
     const first = dispatcher.drain()
-    await gate.entered
+    await held.entered
     clock = new Date(AT.getTime() + PR_OUTBOX_LEASE_MS + 60_000)
     expect(await dispatcher.drain()).toBe(1)
     const reclaimed = await reload(row.id)
     expect(reclaimed?.dispatchedAt?.getTime()).toBe(clock.getTime())
 
     clock = new Date(clock.getTime() + 60_000)
-    gate.release()
+    held.release()
     expect(await first).toBe(1)
 
     const after = await reload(row.id)
@@ -213,36 +182,36 @@ describe('GithubPrOutboxDispatcher leases', () => {
   })
 
   it('runs each effect once when an inline dispatch and a drain race the same row', async () => {
-    const row = await db.orm.public.GithubPrOutbox.create(signalRow({ createdAt: AT }))
-    const { dispatcher, changedThreads } = rig({})
+    const row = await db.orm.public.GithubPrOutbox.create(fanoutRow({ createdAt: AT }))
+    const { dispatcher, push } = rig({})
 
     const drain = dispatcher.drain()
     const inline = dispatcher.dispatch([row.id])
     await Promise.all([drain, inline])
 
-    expect(changedThreads).toHaveLength(1)
+    expect(push).toHaveBeenCalledTimes(1)
     expect((await reload(row.id))?.attempts).toBe(0)
   })
 
-  it('acks a wake row only after its notifyEvent promise resolves', async () => {
-    const row = await db.orm.public.GithubPrOutbox.create(wakeRow({ createdAt: AT }))
-    const gate = wakeGate()
-    const { dispatcher } = rig({ wake: gate.wake })
+  it('acks a row only after its effect promise resolves', async () => {
+    const row = await db.orm.public.GithubPrOutbox.create(reconcileRow({ createdAt: AT }))
+    const held = gate()
+    const { dispatcher } = rig({ reconcile: held.run })
 
     const draining = dispatcher.drain()
-    await gate.entered
+    await held.entered
     expect((await reload(row.id))?.dispatchedAt).toBeNull()
 
-    gate.release()
+    held.release()
     await draining
     expect((await reload(row.id))?.dispatchedAt).not.toBeNull()
   })
 
-  it('leaves a wake row pending with a backoff when the wake fails', async () => {
-    const row = await db.orm.public.GithubPrOutbox.create(wakeRow({ createdAt: AT }))
+  it('leaves a row pending with a backoff when its effect fails', async () => {
+    const row = await db.orm.public.GithubPrOutbox.create(reconcileRow({ createdAt: AT }))
     const { dispatcher } = rig({
-      wake: async () => {
-        throw new Error('wake down')
+      reconcile: async () => {
+        throw new Error('reconcile down')
       },
     })
 
@@ -250,7 +219,7 @@ describe('GithubPrOutboxDispatcher leases', () => {
 
     const stored = await reload(row.id)
     expect(stored).toMatchObject({ dispatchedAt: null, attempts: 1, deadLetteredAt: null })
-    expect(stored?.lastError).toContain('wake down')
+    expect(stored?.lastError).toContain('reconcile down')
     expect(stored?.nextAttemptAt?.getTime()).toBeGreaterThan(AT.getTime())
   })
 
@@ -283,16 +252,15 @@ describe('GithubPrOutboxDispatcher leases', () => {
     )
     await db.orm.public.GithubPrOutbox.createAndCount(poison)
     const valid = await db.orm.public.GithubPrOutbox.create(
-      signalRow({ createdAt: new Date(AT.getTime() + 100) }),
+      reconcileRow({ createdAt: new Date(AT.getTime() + 100) }),
     )
-    const { dispatcher, changedThreads } = rig({
+    const { dispatcher } = rig({
       push: () => {
         throw new Error('poison')
       },
     })
 
     expect(await dispatcher.drain()).toBe(33)
-    expect(changedThreads).toHaveLength(1)
     expect((await reload(valid.id))?.dispatchedAt).not.toBeNull()
   })
 
@@ -329,14 +297,14 @@ describe('GithubPrOutboxDispatcher prune', () => {
     const stale = new Date(AT.getTime() - PR_OUTBOX_RETENTION_MS - 1_000)
     const fresh = new Date(AT.getTime() - PR_OUTBOX_RETENTION_MS + 1_000)
     const dispatchedStale = await db.orm.public.GithubPrOutbox.create({
-      ...signalRow({ createdAt: stale }),
+      ...fanoutRow({ createdAt: stale }),
       dispatchedAt: stale,
     })
     const dispatchedFresh = await db.orm.public.GithubPrOutbox.create({
-      ...signalRow({ createdAt: fresh }),
+      ...fanoutRow({ createdAt: fresh }),
       dispatchedAt: fresh,
     })
-    const pending = await db.orm.public.GithubPrOutbox.create(signalRow({ createdAt: stale }))
+    const pending = await db.orm.public.GithubPrOutbox.create(fanoutRow({ createdAt: stale }))
     const deadLettered = await db.orm.public.GithubPrOutbox.create({
       ...fanoutRow({ createdAt: stale }),
       deadLetteredAt: stale,
@@ -355,7 +323,7 @@ describe('GithubPrOutboxDispatcher prune', () => {
   it('keeps a dispatched row sitting exactly on the retention boundary', async () => {
     const boundary = new Date(AT.getTime() - PR_OUTBOX_RETENTION_MS)
     const row = await db.orm.public.GithubPrOutbox.create({
-      ...signalRow({ createdAt: boundary }),
+      ...fanoutRow({ createdAt: boundary }),
       dispatchedAt: boundary,
     })
     const { dispatcher } = rig({ now: () => AT })

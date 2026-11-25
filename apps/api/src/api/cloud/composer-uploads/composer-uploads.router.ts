@@ -13,10 +13,6 @@ import {
 import { Ctx, Input, Mutation, Router, UseMiddlewares } from 'nestjs-trpc'
 import { z } from 'zod'
 import { SessionMiddleware, type SessionTrpcCtx } from '../../../_module/session/session.middleware'
-import {
-  SessionOrSandboxMiddleware,
-  type SessionOrSandboxTrpcCtx,
-} from '../../platform/sessions/session-or-sandbox.middleware'
 import { ComposerUploadsService } from './composer-uploads.service'
 
 @Router({ alias: 'composerUploads' })
@@ -55,10 +51,10 @@ export class ComposerUploadsRouter {
     input: composerUploadDownloadInputSchema,
     output: composerUploadDownloadReplySchema,
   })
-  @UseMiddlewares(SessionOrSandboxMiddleware)
+  @UseMiddlewares(SessionMiddleware)
   download(
     @Input() input: ComposerUploadDownloadInput,
-    @Ctx() ctx: SessionOrSandboxTrpcCtx,
+    @Ctx() ctx: SessionTrpcCtx,
   ): Promise<ComposerUploadDownloadReply> {
     return this.uploads.download({ userId: ctx.auth.userId, ...input })
   }

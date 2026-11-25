@@ -9,7 +9,7 @@ import { cn } from '@dltech/atlas-ui/lib/utils'
 
 import { useClock } from '@/features/shell/use-clock'
 import { useV2Sessions } from '@/features/shell/use-v2-sessions'
-import { fetchProjects } from '@/features/threads/data/threads-api'
+import { fetchProjects } from '@/features/projects/data/projects-api'
 import { PROJECTS_KEY } from '@/lib/cloud-keys'
 import { EQueryState, useCloudQuery } from '@/lib/use-cloud-query'
 

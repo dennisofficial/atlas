@@ -42,13 +42,10 @@ const GRANDFATHERED_V1 = new Set([
   'src/api/platform/sandboxes/sandbox-endpoint.ts',
   'src/api/platform/sandboxes/sandbox-register.ts',
   'src/api/platform/sandboxes/sandbox-routers.fixture.ts',
-  'src/api/platform/sandboxes/sandbox-self.router.fixture.ts',
   'src/api/platform/sandboxes/sandbox-self.router.ts',
   'src/api/platform/sandboxes/sandboxes.fixture.ts',
   'src/api/platform/sandboxes/sandboxes.module.ts',
-  'src/api/platform/sandboxes/sandboxes.principal.spec.ts',
   'src/api/platform/sandboxes/sandboxes.register-collision.spec.ts',
-  'src/api/platform/sandboxes/sandboxes.revocation.spec.ts',
   'src/api/platform/sandboxes/sandboxes.service.ts',
   'src/api/platform/sandboxes/sandboxes.status.spec.ts',
   'src/api/platform/sandboxes/vercel-sandbox.client.delete.spec.ts',
@@ -62,9 +59,6 @@ const GRANDFATHERED_V1 = new Set([
   'src/api/platform/sessions/teammate-archive-stop.ts',
   'src/api/platform/sessions/thread-archive.router.fixture.ts',
   'src/api/platform/sessions/thread-archive.service.spec.ts',
-  'src/trigger/sandbox-provisioning/archived-sandbox-sweep-graph.ts',
-  'src/trigger/thread-archive/thread-archive-cleanup-graph.ts',
-  'test/runtime-checkpoint-live.spec.ts',
 ])
 
 interface Finding {

@@ -1,5 +1,4 @@
 import type { GithubDeliveryService } from './github-delivery.service'
-import type { GithubLegacyEffects } from './github-legacy-effects'
 import type {
   GithubMergeQueueEntryWebhookPayload,
   GithubWorkflowRunWebhookPayload,
@@ -15,13 +14,11 @@ import { recordWorkflowRunFinished } from './github-workflow-run-webhook'
 export async function handleSupplementaryEvent(args: {
   event: string
   payload: unknown
-  wake: Pick<GithubLegacyEffects, 'notifyEvent'>
   deliveries: { applyMergeQueued: GithubDeliveryService['applyMergeQueued'] }
 }): Promise<boolean> {
   if (args.event === 'workflow_run') {
     await recordWorkflowRunFinished({
       payload: args.payload as GithubWorkflowRunWebhookPayload,
-      wake: args.wake,
     })
     return true
   }

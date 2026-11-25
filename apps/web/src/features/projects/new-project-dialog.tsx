@@ -14,7 +14,7 @@ import {
 import { Spinner } from '@dltech/atlas-ui/components/spinner'
 import type { Project } from '@dltech/atlas-wire/web'
 
-import { PROJECTS_KEY, SHELL_THREADS_KEY } from '@/lib/cloud-keys'
+import { PROJECTS_KEY } from '@/lib/cloud-keys'
 import { useInvalidateCloud } from '@/lib/use-invalidate-cloud'
 import { createProject } from '@/features/project-settings/data/project-api'
 import { putSecret } from '@/features/settings/data/shared/resource-api'
@@ -116,7 +116,7 @@ function NewProjectBody({
         createProject,
         putSecret,
       })
-      await invalidateCloud([PROJECTS_KEY, SHELL_THREADS_KEY])
+      await invalidateCloud([PROJECTS_KEY])
       toast.success('Project created')
       onClose()
       router.push(`/threads/new?project=${encodeURIComponent(progress.current.projectId ?? '')}`)

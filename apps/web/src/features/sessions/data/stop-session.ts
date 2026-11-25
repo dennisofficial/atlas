@@ -1,6 +1,6 @@
 import type { SessionStopInput, SessionStopOutput } from '@dltech/atlas-protocol'
 
-import { messageOf } from '@/features/threads/data/use-send'
+import { messageOf } from '@/features/threads/data/message-of'
 
 export type StopApi = {
   stop(input: SessionStopInput): Promise<SessionStopOutput>

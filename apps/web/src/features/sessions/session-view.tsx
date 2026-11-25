@@ -18,7 +18,7 @@ import { turnStartedAtOf } from '@dltech/atlas-client/transcript'
 import { pendingOperatorRequestOf } from '@dltech/atlas-plugin-operator/client'
 
 import { useV2Sessions } from '@/features/shell/use-v2-sessions'
-import { messageOf } from '@/features/threads/data/use-send'
+import { messageOf } from '@/features/threads/data/message-of'
 import { ThreadPanelProvider } from '@/features/threads/panel/thread-panel-context'
 import { mediaUrls } from '@/features/threads/data/media-urls'
 import { ModelPickerControls } from '@/features/threads/model-picker'

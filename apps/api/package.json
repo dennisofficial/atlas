@@ -13,18 +13,15 @@
     "bench:stream": "bun bench/stream-catchup/main.ts",
     "db:up": "docker compose up -d postgres",
     "db:verify": "bun run env:inject -- bun run --cwd ../../packages/db db:verify",
-    "dev": "GITHUB_SWEEPS_IN_PROCESS=1 bun run env:inject -- concurrently --kill-others --kill-signal SIGKILL --names api,trigger,trpc \"bun --watch src/main.ts\" \"trigger dev --profile atlas\" \"bun scripts/generate-trpc.ts --watch\"",
+    "dev": "GITHUB_SWEEPS_IN_PROCESS=1 bun run env:inject -- concurrently --kill-others --kill-signal SIGKILL --names api,trpc \"bun --watch src/main.ts\" \"bun scripts/generate-trpc.ts --watch\"",
     "dev:login": "bun run env:inject -- bun scripts/dev-login.ts",
     "dev:no-trigger": "GITHUB_SWEEPS_IN_PROCESS=1 bun run env:inject -- bun --watch src/main.ts",
     "env:inject": "dotenvx run -f .env.local.enc -f .env.personal --ignore=MISSING_ENV_FILE --strict --",
+    "generate:claude-code-version": "bun scripts/generate-claude-code-version.ts",
     "generate:trpc": "bun scripts/generate-trpc.ts",
     "start": "bun src/main.ts",
     "start:prod": "dotenvx run --strict -f .env.$APP_TIER.enc -- bun src/main.ts",
     "test": "bun test",
-    "trigger:deploy": "trigger deploy --profile atlas",
-    "trigger:deploy:ci": "trigger deploy --skip-update-check",
-    "trigger:dev": "bun run env:inject -- trigger dev --profile atlas",
-    "trigger:smoke": "bun scripts/trigger-smoke.ts",
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {
@@ -105,7 +102,6 @@
     "@dltech/atlas-daemon": "workspace:*",
     "@dltech/bun-test-shims": "workspace:*",
     "@nestjs/testing": "^12.2.0",
-    "@trigger.dev/build": "4.7.4",
     "@trpc/client": "^11.19.0",
     "@types/bun": "latest",
     "@types/compression": "^1.8.1",
@@ -117,7 +113,6 @@
     "concurrently": "10.0.6",
     "eventsource": "^3.0.7",
     "supertest": "^7.1.4",
-    "trigger.dev": "4.7.4",
     "typescript": "6.0.3"
   }
 }

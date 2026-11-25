@@ -2,13 +2,10 @@ import type { NestExpressApplication } from '@nestjs/platform-express'
 import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from 'bun:test'
 import {
   assertThreadInFamily,
-  CHILD_THREAD,
   createSessionsRouterApp,
   mutate,
-  pod,
   query,
   sandbox,
-  SANDBOX_THREAD,
   session,
   USER_ID,
   WIRE_THREAD,
@@ -74,18 +71,6 @@ describe('ThreadsRouter queries and thread mutations', () => {
 
       expect(reply.status).toBe(400)
     })
-
-    it('refuses a sandbox token, a pod token and an anonymous caller', async () => {
-      const input = { project: '/repo' }
-
-      expect(
-        (await query({ app, procedure: 'threads.recent', headers: sandbox, input })).status,
-      ).toBe(403)
-      expect((await query({ app, procedure: 'threads.recent', headers: pod, input })).status).toBe(
-        403,
-      )
-      expect((await query({ app, procedure: 'threads.recent', input })).status).toBe(401)
-    })
   })
 
   describe('list', () => {
@@ -142,17 +127,6 @@ describe('ThreadsRouter queries and thread mutations', () => {
 
       expect(reply.status).toBe(400)
     })
-
-    it('refuses a sandbox token, which names no thread', async () => {
-      const reply = await query({
-        app,
-        procedure: 'threads.list',
-        headers: sandbox,
-        input: { project: '/repo' },
-      })
-
-      expect(reply.status).toBe(403)
-    })
   })
 
   describe.each(['threads.get', 'threads.spawned'])('%s', (procedure) => {
@@ -160,13 +134,6 @@ describe('ThreadsRouter queries and thread mutations', () => {
       const reply = await query({ app, procedure, headers: session, input: { threadId: 'thr-9' } })
 
       expect(reply.status).toBe(200)
-    })
-
-    it('serves a sandbox token for its own thread and a child', async () => {
-      for (const threadId of [SANDBOX_THREAD, CHILD_THREAD]) {
-        const reply = await query({ app, procedure, headers: sandbox, input: { threadId } })
-        expect(reply.status).toBe(200)
-      }
     })
 
     it('refuses a sandbox token naming a thread outside its family', async () => {
@@ -178,13 +145,6 @@ describe('ThreadsRouter queries and thread mutations', () => {
       })
 
       expect(reply.status).toBe(401)
-    })
-
-    it('refuses a pod token for its own thread and an anonymous caller', async () => {
-      const input = { threadId: SANDBOX_THREAD }
-
-      expect((await query({ app, procedure, headers: pod, input })).status).toBe(403)
-      expect((await query({ app, procedure, input })).status).toBe(401)
     })
 
     it('rejects a missing threadId', async () => {
@@ -202,31 +162,6 @@ describe('ThreadsRouter queries and thread mutations', () => {
       })
 
       expect(reply.status).toBe(200)
-    })
-
-    it('serves a sandbox token for its own thread only', async () => {
-      const own = await mutate({
-        app,
-        procedure,
-        headers: sandbox,
-        body: { threadId: SANDBOX_THREAD, ...body },
-      })
-      const other = await mutate({
-        app,
-        procedure,
-        headers: sandbox,
-        body: { threadId: 'thr-other', ...body },
-      })
-
-      expect(own.status).toBe(200)
-      expect(other.status).toBe(401)
-    })
-
-    it('refuses a pod token for its own thread and an anonymous caller', async () => {
-      const full = { threadId: SANDBOX_THREAD, ...body }
-
-      expect((await mutate({ app, procedure, headers: pod, body: full })).status).toBe(403)
-      expect((await mutate({ app, procedure, body: full })).status).toBe(401)
     })
 
     it('rejects an invalid body', async () => {

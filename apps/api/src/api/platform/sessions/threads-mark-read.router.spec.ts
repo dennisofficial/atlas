@@ -3,8 +3,6 @@ import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from 'bun:t
 import {
   createSessionsRouterApp,
   mutate,
-  pod,
-  sandbox,
   SANDBOX_THREAD,
   session,
   USER_ID,
@@ -33,14 +31,6 @@ describe('threads.markRead', () => {
 
     expect(reply.status).toBe(200)
     expect(markRead).toHaveBeenCalledWith({ userId: USER_ID, threadId: SANDBOX_THREAD, seq: 4 })
-  })
-
-  it('refuses sandbox and pod tokens even for their own thread', async () => {
-    for (const headers of [sandbox, pod]) {
-      const reply = await mutate({ app, procedure: 'threads.markRead', headers, body })
-      expect(reply.status).toBe(403)
-    }
-    expect(markRead).not.toHaveBeenCalled()
   })
 
   it('rejects a negative seq', async () => {

@@ -4,9 +4,14 @@ import {
   type PrStateWire,
 } from '@dltech/atlas-wire/web'
 
+import { api } from '@/lib/api-client'
+
 import { prStateWireOfApi } from './pr-states-merge'
 import { pullRequestKeyOf } from './pull-request-entries'
-import { reconnectDelayMs } from './thread-signals'
+import { reconnectDelayMs } from './reconnect'
+
+export const subscribePrStatesFromApi: ApiPrStatesSubscribe = (handlers) =>
+  api.githubPrs.states.subscribe(undefined, handlers)
 
 export type ApiPrStatesSubscribe = (handlers: {
   onData: (frame: GithubPrStatesFrame) => void

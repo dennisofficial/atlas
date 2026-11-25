@@ -1,5 +1,0 @@
-export const QUESTION_CONCERN = 'currentConcern'
-export const QUESTION_IMPACT = 'impact'
-export const QUESTION_FOCUS = 'focus'
-export const FOCUS_NONE = 'none'
-export const FOCUS_UNCERTAIN = 'uncertain'

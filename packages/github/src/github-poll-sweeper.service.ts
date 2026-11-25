@@ -19,7 +19,6 @@ import { mergeabilityObservationOfSample, pullObservationOfRest } from './github
 import { TransportSelector } from './github-transport-selector'
 import type { RestPullRequest } from './github-pull-request-mapping'
 import { EGithubCallSource } from './github-call-log'
-import { type GithubThreadActivity, liveUntilOf } from './github-delivery-routing'
 import { GithubHookLifecycleService } from './github-hook-lifecycle.service'
 import { githubLogOf } from './github-log'
 import { normalizedRepo } from './github-pr-identity'
@@ -46,11 +45,9 @@ export class GithubPollSweeperService {
     private readonly coordinator: GithubRequestCoordinator,
     private readonly headReads: GithubHeadReads,
     private readonly store: GithubPrStore,
-    private readonly activityOf?: GithubThreadActivity,
   ) {}
 
   async handlePoll(args: { limit?: number } = {}): Promise<void> {
-    if (this.activityOf !== undefined) await this.refreshLiveUntil()
     await this.endExpired()
     await renewTrackedHeadTargets({})
     try {
@@ -71,30 +68,6 @@ export class GithubPollSweeperService {
       })
     } catch (failure) {
       this.logger.warn(`GitHub refresh queue paused; retrying next sweep: ${String(failure)}`)
-    }
-  }
-
-  async refreshLiveUntil(): Promise<void> {
-    if (this.activityOf === undefined) {
-      throw new Error('the poll sweeper cannot refresh liveUntil without thread activity')
-    }
-    const linked = await db.orm.public.GithubSubscription.where((subscription) =>
-      subscription.threadId.neq(''),
-    )
-      .where((subscription) => subscription.deadline.isNull())
-      .all()
-    const activity = await this.activityOf({
-      threadIds: linked.map((subscription) => subscription.threadId),
-    })
-    for (const subscription of linked) {
-      const lastActivityAt = activity.get(subscription.threadId)
-      if (lastActivityAt === undefined) continue
-      const liveUntil = liveUntilOf({
-        expiresAt: subscription.expiresAt,
-        sandboxLastActivityAt: lastActivityAt,
-      })
-      if (liveUntil.getTime() > subscription.liveUntil.getTime())
-        await db.orm.public.GithubSubscription.where({ id: subscription.id }).update({ liveUntil })
     }
   }
 

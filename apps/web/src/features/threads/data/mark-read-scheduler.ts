@@ -1,4 +1,9 @@
-import { timeoutSchedule, type Schedule } from './thread-signals'
+export type Schedule = (task: { delayMs: number; run: () => void }) => () => void
+
+const timeoutSchedule: Schedule = ({ delayMs, run }) => {
+  const timer = setTimeout(run, delayMs)
+  return () => clearTimeout(timer)
+}
 
 export const MARK_READ_DEBOUNCE_MS = 1000
 

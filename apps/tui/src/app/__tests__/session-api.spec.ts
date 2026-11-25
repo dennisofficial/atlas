@@ -6,6 +6,12 @@ import { sessionApiOf, type SessionApi } from '../session-api'
 
 type Call = { route: string; input: unknown }
 
+const ATTACHMENT = {
+  kind: 'image',
+  name: 'a.png',
+  content: { store: 'upload', uploadId: 'upload-1', pathname: 'composer-uploads/a.png' },
+}
+
 const answeringWith = (status: number): ApiClient =>
   createApiClient({
     baseUrl: 'https://api.example.test',
@@ -79,10 +85,10 @@ const clientOf = (args: { calls: Call[] }): ApiClient => {
         mutate: (input: unknown) => record('composerUploads.discard', input, { ok: true }),
       },
     },
-    composerDrafts: {
-      get: { query: (input: unknown) => record('composerDrafts.get', input, { draft: null }) },
-      put: { mutate: (input: unknown) => record('composerDrafts.put', input, {}) },
-      clear: { mutate: (input: unknown) => record('composerDrafts.clear', input, { ok: true }) },
+    sessionDrafts: {
+      get: { query: (input: unknown) => record('sessionDrafts.get', input, { draft: null }) },
+      put: { mutate: (input: unknown) => record('sessionDrafts.put', input, {}) },
+      clear: { mutate: (input: unknown) => record('sessionDrafts.clear', input, { ok: true }) },
     },
     files: {
       tree: {
@@ -171,7 +177,7 @@ describe('sessionApiOf', () => {
   test('maps a missing draft to null and a stored draft to its text', async () => {
     const missing = sessionApiOf({
       api: {
-        composerDrafts: { get: { query: async () => ({ draft: null }) } },
+        sessionDrafts: { get: { query: async () => ({ draft: null }) } },
       } as unknown as ApiClient,
       onAuthLost: () => undefined,
     })
@@ -179,10 +185,10 @@ describe('sessionApiOf', () => {
 
     const stored = sessionApiOf({
       api: {
-        composerDrafts: {
+        sessionDrafts: {
           get: {
             query: async () => ({
-              draft: { scope: 'session-1', text: 'half typed', uploads: [], updatedAt: '' },
+              draft: { sessionId: 'session-1', text: 'half typed', attachments: [], updatedAt: '' },
             }),
           },
         },
@@ -192,16 +198,43 @@ describe('sessionApiOf', () => {
     expect(await stored.loadDraft('session-1')).toBe('half typed')
   })
 
-  test('saves a draft with no uploads and clears by scope', async () => {
+  test('saves a draft under its session id keeping the stored attachments', async () => {
     const calls: Call[] = []
-    const api = apiOf({ calls, lost: [] })
+    const record = (route: string, input: unknown, reply: unknown) => {
+      calls.push({ route, input })
+      return Promise.resolve(reply)
+    }
+    const api = sessionApiOf({
+      api: {
+        sessionDrafts: {
+          get: {
+            query: (input: unknown) =>
+              record('sessionDrafts.get', input, {
+                draft: {
+                  sessionId: 'session-1',
+                  text: '',
+                  attachments: [ATTACHMENT],
+                  updatedAt: '',
+                },
+              }),
+          },
+          put: { mutate: (input: unknown) => record('sessionDrafts.put', input, {}) },
+          clear: { mutate: (input: unknown) => record('sessionDrafts.clear', input, { ok: true }) },
+        },
+      } as unknown as ApiClient,
+      onAuthLost: () => undefined,
+    })
 
     await api.saveDraft({ scope: 'session-1', text: 'hello' })
     await api.clearDraft('session-1')
 
     expect(calls).toEqual([
-      { route: 'composerDrafts.put', input: { scope: 'session-1', text: 'hello', uploads: [] } },
-      { route: 'composerDrafts.clear', input: { scope: 'session-1' } },
+      { route: 'sessionDrafts.get', input: { sessionId: 'session-1' } },
+      {
+        route: 'sessionDrafts.put',
+        input: { sessionId: 'session-1', text: 'hello', attachments: [ATTACHMENT] },
+      },
+      { route: 'sessionDrafts.clear', input: { sessionId: 'session-1' } },
     ])
   })
 

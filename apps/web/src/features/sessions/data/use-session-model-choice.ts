@@ -3,7 +3,7 @@
 import { useCallback, useState } from 'react'
 import { toast } from 'sonner'
 
-import { messageOf } from '@/features/threads/data/use-send'
+import { messageOf } from '@/features/threads/data/message-of'
 import { createFieldsOf, type ModelSelection } from '@/features/threads/data/model-selection'
 import { useModelPicker, type ModelPicker } from '@/features/threads/data/use-model-picker'
 

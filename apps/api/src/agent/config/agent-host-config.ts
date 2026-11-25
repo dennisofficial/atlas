@@ -48,7 +48,13 @@ export type AgentHostConfig = {
   rotation: RotationConfig
   workspace: WorkspaceConfig
   sandbox: SandboxConfig
-  podSize?: { desiredVcpus: number | undefined; generation: number } | undefined
+  podSize?:
+    | {
+        desiredVcpus: number | undefined
+        desiredMemoryGb: number | undefined
+        generation: number
+      }
+    | undefined
   skills: SkillIndexEntry[]
 }
 

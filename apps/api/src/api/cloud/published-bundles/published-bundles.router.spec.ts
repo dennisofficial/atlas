@@ -14,10 +14,6 @@ import { FakeBundleBlobStore } from './published-bundles.fakes'
 import { PublishedBundlesRouter } from './published-bundles.router'
 import { PublishedBundlesService } from './published-bundles.service'
 
-const POD_TOKENS = {
-  'pod-token-a': { threadId: 'thread-pod-a', userId: 'user-a' },
-  'pod-token-c': { threadId: 'thread-pod-c', userId: 'user-c' },
-}
 const SHA = 'a'.repeat(64)
 const MANIFEST = { skills: ['.agents/x'], instructions: ['ATLAS.md'] }
 
@@ -54,7 +50,6 @@ describe('PublishedBundlesRouter', () => {
     await seedSessionUsers()
     blobs.reset()
     app = await buildSessionTrpcApp({
-      podTokens: POD_TOKENS,
       providers: [
         PublishedBundlesRouter,
         PublishedBundlesService,
@@ -188,17 +183,6 @@ describe('PublishedBundlesRouter', () => {
         manifest: MANIFEST,
         downloadUrl: `https://blob.test/get/${(await bundlesOf())[1]?.pathname}?sig=1`,
       })
-    })
-
-    it("serves the user's own pod", async () => {
-      const res = await current('pod-token-a').expect(200)
-
-      expect(summaryOf(res.body).version).toBe(2)
-    })
-
-    it("answers 404 to another user's pod and to a user with no bundle", async () => {
-      await current('pod-token-c').expect(404)
-      await current('session-b').expect(404)
     })
 
     it('requires a bearer', async () => {

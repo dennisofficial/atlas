@@ -10,7 +10,6 @@ import { Query, Router, UseMiddlewares } from 'nestjs-trpc'
 import { afterEach, beforeEach, describe, expect, it } from 'bun:test'
 import { z } from 'zod'
 import { SessionMiddleware } from '../../../_module/session/session.middleware'
-import { SessionOrSandboxMiddleware } from '../../platform/sessions/session-or-sandbox.middleware'
 import { createPersonalApp, trpcMutate, trpcQuery } from '../personal-resources.router.fixture'
 import { seedSessionUsers } from '../../../test/web-settings.fake-db'
 import { MemoriesRouter } from './memories.router'
@@ -19,7 +18,7 @@ import { MemoriesService } from './memories.service'
 @Router({ alias: 'probe' })
 class ProbeRouter {
   @Query({ output: z.object({ ok: z.literal(true) }) })
-  @UseMiddlewares(SessionOrSandboxMiddleware)
+  @UseMiddlewares(SessionMiddleware)
   plain(): { ok: true } {
     return { ok: true }
   }
@@ -61,21 +60,6 @@ describe('MemoriesRouter', () => {
 
   afterEach(() => app.close())
 
-  it("a session writes and the same user's pod lease token reads it", async () => {
-    const written = await put('session-a').expect(200)
-    expect(written.body.result.data).toMatchObject({
-      name: NOTE.name,
-      scope: 'global',
-      project: null,
-      revision: 1,
-    })
-
-    const read = await entry('pod-token-a').expect(200)
-
-    expect(read.headers['cache-control']).toBe('no-store')
-    expect(read.body.result.data).toMatchObject({ name: NOTE.name, body: NOTE.body, revision: 1 })
-  })
-
   it('a stale-revision edit is a 409 CONFLICT with the memory-stale-revision code', async () => {
     await put('session-a').expect(200)
     await put('session-a', { ...NOTE, body: 'Raw deflate v2' }).expect(200)
@@ -115,7 +99,7 @@ describe('MemoriesRouter', () => {
   it('an edit at the current revision applies and returns the next revision', async () => {
     await put('session-a').expect(200)
 
-    const edited = await mutate('memories.edit', 'pod-token-a', {
+    const edited = await mutate('memories.edit', 'session-a', {
       ...KEY,
       old: 'observed',
       new: 'measured',
@@ -134,26 +118,12 @@ describe('MemoriesRouter', () => {
     await entry('session-a').expect(200)
   })
 
-  it('a pod bearer is refused on a non-memory session-or-sandbox procedure and unauthorized on a session-only one', async () => {
-    await query('probe.plain', 'pod-token-a').expect(403)
-    await query('probe.sessionOnly', 'pod-token-a').expect(401)
-    await query('probe.sessionOnly', 'session-a').expect(200)
-  })
-
-  it('a sandbox principal can list its owner’s memories', async () => {
-    await put('session-a').expect(200)
-
-    const listed = await query('memories.list', 'sandbox-token-a', {}).expect(200)
-
-    expect(namesOf(listed)).toEqual([NOTE.name])
-  })
-
   it('lists project memories only when the project is named, lowercased', async () => {
     const projectNote = { ...NOTE, scope: 'project', project: 'acme/widgets', name: 'widget-fact' }
     await put('session-a', projectNote).expect(200)
 
-    const without = await query('memories.list', 'pod-token-a', {}).expect(200)
-    const withProject = await query('memories.list', 'pod-token-a', {
+    const without = await query('memories.list', 'session-a', {}).expect(200)
+    const withProject = await query('memories.list', 'session-a', {
       project: 'Acme/Widgets',
     }).expect(200)
 

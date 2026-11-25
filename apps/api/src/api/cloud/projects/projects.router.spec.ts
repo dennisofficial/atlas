@@ -24,13 +24,6 @@ describe('projects router', () => {
     await seedSessionUsers()
     app = await buildProjectsApp({
       githubTokens: { 'user-a': 'gho_user-a' },
-      podTokens: {
-        'pod-token-a': { threadId: 'thread-pod-a', userId: 'user-a' },
-        'pod-token-b': { threadId: 'thread-pod-b', userId: 'user-b' },
-      },
-      sandboxTokens: {
-        'sandbox-token-a': { id: 'sbx-a', threadId: 'thread-sbx-a', userId: 'user-a' },
-      },
     })
   })
 
@@ -106,13 +99,13 @@ describe('projects router', () => {
     expect(listed.headers['cache-control']).toBe('no-store')
   })
 
-  it('lets a pod read its owner’s project workspace with the brokered token, uncached', async () => {
+  it('reads its owner’s project workspace with the brokered token, uncached', async () => {
     const id = await createProjectAs({ app, token: 'session-a', body: BODY })
 
     const response = await trpcQuery({
       app,
       path: 'projectWorkspace.get',
-      token: 'pod-token-a',
+      token: 'session-a',
       input: { projectId: id },
     }).expect(200)
 
@@ -127,50 +120,28 @@ describe('projects router', () => {
     })
   })
 
-  it('answers githubToken null to a pod whose owner has no github connection', async () => {
+  it('answers githubToken null when the owner has no github connection', async () => {
     const id = await createProjectAs({ app, token: 'session-b', body: BODY })
 
     const response = await trpcQuery({
       app,
       path: 'projectWorkspace.get',
-      token: 'pod-token-b',
+      token: 'session-b',
       input: { projectId: id },
     }).expect(200)
 
     expect(dataOf(response.body)).toMatchObject({ githubToken: null })
   })
 
-  it('answers 404 to a pod reading another user’s project', async () => {
+  it('answers 404 reading another user’s project', async () => {
     const id = await createProjectAs({ app, token: 'session-a', body: BODY })
 
     await trpcQuery({
       app,
       path: 'projectWorkspace.get',
-      token: 'pod-token-b',
+      token: 'session-b',
       input: { projectId: id },
     }).expect(404)
-  })
-
-  it('lets a sandbox bearer read its owner’s project workspace', async () => {
-    const id = await createProjectAs({ app, token: 'session-a', body: BODY })
-
-    const response = await trpcQuery({
-      app,
-      path: 'projectWorkspace.get',
-      token: 'sandbox-token-a',
-      input: { projectId: id },
-    }).expect(200)
-
-    expect(dataOf(response.body)).toMatchObject({ projectId: id, githubToken: 'gho_user-a' })
-  })
-
-  it('answers 401 to a pod bearer on the session-only routes', async () => {
-    const id = await createProjectAs({ app, token: 'session-a', body: BODY })
-    const input = { projectId: id }
-
-    await trpcQuery({ app, path: 'projects.list', token: 'pod-token-a' }).expect(401)
-    await trpcQuery({ app, path: 'projects.get', token: 'pod-token-a', input }).expect(401)
-    await create('pod-token-a', BODY).expect(401)
   })
 
   it('answers 401 to a missing token on the workspace route', async () => {

@@ -8,7 +8,6 @@ import {
   PaletteIcon,
   PlugIcon,
   ScaleIcon,
-  ServerIcon,
   ShieldCheckIcon,
   ShieldIcon,
   SparklesIcon,
@@ -21,7 +20,6 @@ import {
 export enum ESettingsPage {
   Account = 'account',
   Integrations = 'integrations',
-  UsageSandboxes = 'usage-sandboxes',
   Instructions = 'instructions',
   Skills = 'skills',
   Memory = 'memory',
@@ -54,10 +52,6 @@ export const SETTINGS_NAV: SettingsNavGroup[] = [
       { page: ESettingsPage.Account, label: 'Account', icon: UserIcon },
       { page: ESettingsPage.Integrations, label: 'Integrations & MCP', icon: PlugIcon },
     ],
-  },
-  {
-    label: 'Usage',
-    items: [{ page: ESettingsPage.UsageSandboxes, label: 'Sandboxes', icon: ServerIcon }],
   },
   {
     label: 'Agent',

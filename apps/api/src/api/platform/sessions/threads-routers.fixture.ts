@@ -12,9 +12,8 @@ import {
 } from '../../../_module/trpc/trpc-middleware.fixture'
 import { DrainStateService } from '../health/drain-state.service'
 import { SandboxesService } from '../sandboxes/sandboxes.service'
-import { ETokenPrincipalKind } from '../sandboxes/token-principal'
 import { EventsService } from './events.service'
-import { SessionOrSandboxMiddleware } from './session-or-sandbox.middleware'
+import { SessionMiddleware } from '../../../_module/session/session.middleware'
 import { inertSignals } from './thread-signals.fixture'
 import { ThreadSignalsService } from './thread-signals.service'
 import { ThreadArchiveService } from './thread-archive.service'
@@ -57,14 +56,14 @@ const sandboxes = {
   async verifyTokenPrincipal({ token }: { token: string }) {
     if (token === SANDBOX_TOKEN) {
       return {
-        kind: ETokenPrincipalKind.Sandbox,
+        kind: 'sandbox',
         id: 'sbx-1',
         threadId: SANDBOX_THREAD,
         userId: USER_ID,
       }
     }
     if (token === POD_TOKEN) {
-      return { kind: ETokenPrincipalKind.Pod, threadId: SANDBOX_THREAD, userId: USER_ID }
+      return { kind: 'pod', threadId: SANDBOX_THREAD, userId: USER_ID }
     }
     throw new UnauthorizedException()
   },
@@ -93,7 +92,7 @@ export function createSessionsRouterApp(fakes: RouterFakes = {}): Promise<NestEx
       { provide: ThreadSignalsService, useValue: fakes.signals ?? inertSignals() },
       { provide: DrainStateService, useValue: fakes.drain ?? new DrainStateService() },
       ThreadTurnsRouter,
-      SessionOrSandboxMiddleware,
+      SessionMiddleware,
       { provide: SESSION_VERIFIER, useValue: { verify: verifySession } },
       { provide: SandboxesService, useValue: sandboxes },
       { provide: ThreadsService, useValue: fakes.threads ?? {} },

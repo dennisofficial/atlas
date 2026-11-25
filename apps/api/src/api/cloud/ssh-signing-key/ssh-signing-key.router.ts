@@ -9,11 +9,6 @@ import {
 import { Ctx, Input, Mutation, Query, Router, UseMiddlewares } from 'nestjs-trpc'
 import { z } from 'zod'
 import { SessionMiddleware, type SessionTrpcCtx } from '../../../_module/session/session.middleware'
-import { meta } from '../../../_module/trpc/procedure-meta'
-import {
-  SessionOrSandboxMiddleware,
-  type SessionOrSandboxTrpcCtx,
-} from '../../platform/sessions/session-or-sandbox.middleware'
 import { SshSigningKeyService } from './ssh-signing-key.service'
 
 @Router({ alias: 'sshSigningKey' })
@@ -22,10 +17,9 @@ export class SshSigningKeyRouter {
 
   @Query({
     output: sshSigningKeyLeaseSchema,
-    meta: meta({ podReachable: true, sandboxReachable: true }),
   })
-  @UseMiddlewares(SessionOrSandboxMiddleware)
-  lease(@Ctx() ctx: SessionOrSandboxTrpcCtx): Promise<SshSigningKeyLease> {
+  @UseMiddlewares(SessionMiddleware)
+  lease(@Ctx() ctx: SessionTrpcCtx): Promise<SshSigningKeyLease> {
     return this.keys.lease({ userId: ctx.auth.userId })
   }
 

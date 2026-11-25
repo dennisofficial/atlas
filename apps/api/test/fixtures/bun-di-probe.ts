@@ -10,9 +10,6 @@ function injectedField({ instance, field }: { instance: object; field: string })
 // @nestjs/throttler require()s them while Bun may still be fetching them as ESM, which throws
 // "require() async module ... is unsupported" (https://github.com/oven-sh/bun/issues/33180).
 const { ApiModule } = await import('../../src/api/api.module')
-const { GithubSandboxWakeService } = await import(
-  '../../src/api/cloud/github/github-sandbox-wake.service'
-)
 const { SessionMiddleware } = await import('../../src/_module/session/session.middleware')
 
 const context = await NestFactory.createApplicationContext(ApiModule, { logger: false })
@@ -21,10 +18,6 @@ const result = {
   sessionMiddlewareVerifier: injectedField({
     instance: context.get(SessionMiddleware),
     field: 'verifier',
-  }),
-  wakeBootAdapter: injectedField({
-    instance: context.get(GithubSandboxWakeService),
-    field: 'bootAdapter',
   }),
 }
 

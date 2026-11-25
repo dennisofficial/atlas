@@ -2,11 +2,8 @@ import { readFileSync } from 'node:fs'
 
 import { DECISIONS_PRESETS, EDecisionsProvider, type DecisionQuestion } from '@dltech/atlas-core'
 
-import {
-  JevDecisionClient,
-  type JevSystemOne,
-} from '../../packages/harness/src/classifier/jev-client'
-import { OpenAiDecisionClient } from '../../packages/harness/src/classifier/openai-decision-client'
+import { JevDecisionClient, type JevSystemOne } from './jev-decision-client'
+import { OpenAiDecisionClient } from './openai-decision-client'
 import { ERunMode } from '../src/results'
 import type { DecisionCaller } from './task'
 

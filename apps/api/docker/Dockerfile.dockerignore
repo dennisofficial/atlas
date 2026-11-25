@@ -43,8 +43,6 @@ apps/preview-worker/*
 !apps/preview-worker/package.json
 apps/prototype/*
 !apps/prototype/package.json
-apps/serve/*
-!apps/serve/package.json
 apps/storybook/*
 !apps/storybook/package.json
 apps/trigger/*
@@ -55,14 +53,10 @@ apps/web/*
 !apps/web/package.json
 apps/webterm/*
 !apps/webterm/package.json
-packages/agent-v1/*
-!packages/agent-v1/package.json
 packages/api-router/*
 !packages/api-router/package.json
 packages/bun-test-incremental/*
 !packages/bun-test-incremental/package.json
-packages/harness/*
-!packages/harness/package.json
 packages/syntax/*
 !packages/syntax/package.json
 packages/ui/*

@@ -4,7 +4,6 @@ import { githubLogOf } from './github-log'
 import { repoPattern } from './github-pr-identity'
 import { WORKFLOW_RUN_KIND, runSelectorOf, type RunSelector } from './github-run-selector'
 import type { WorkflowRunSnapshot } from './github-run-snapshot'
-import { type GithubLegacyEffects, failureText } from './github-legacy-effects'
 import { postRunNoticeV2Sessions } from './github-v2-run-notice'
 import type {
   GithubWorkflowRunWebhookPayload,
@@ -12,6 +11,9 @@ import type {
 } from './github-webhook.types'
 
 const logger = githubLogOf('GithubWorkflowRunWebhook')
+
+const failureText = (failure: unknown): string =>
+  failure instanceof Error ? failure.message : String(failure)
 
 const basenameOf = (path: string): string => path.slice(path.lastIndexOf('/') + 1)
 
@@ -105,27 +107,20 @@ async function notifyOne(args: {
   subscription: Row<'GithubSubscription'>
   run: WorkflowRunSnapshot
   runCreatedAt: Date
-  wake: Pick<GithubLegacyEffects, 'notifyEvent'>
 }): Promise<boolean> {
   const claimed = await claimRun(args)
   if (claimed === 0) return false
   await db.transaction((tx) =>
     postRunNoticeV2Sessions({ tx, subscription: args.subscription, run: args.run }),
   )
-  args.wake.notifyEvent({
-    userId: args.subscription.userId,
-    repoFullName: args.subscription.repoFullName,
-    kind: 'workflow-run',
-  })
   logger.log(
-    `waking thread ${args.subscription.threadId} for the completed run ${args.run.id} of ${args.subscription.repoFullName}`,
+    `notifying thread ${args.subscription.threadId} of the completed run ${args.run.id} of ${args.subscription.repoFullName}`,
   )
   return true
 }
 
 export async function recordWorkflowRunFinished(args: {
   payload: GithubWorkflowRunWebhookPayload
-  wake: Pick<GithubLegacyEffects, 'notifyEvent'>
 }): Promise<number> {
   if (args.payload.action !== 'completed') return 0
   if (args.payload.workflow_run.status !== 'completed') return 0
@@ -142,7 +137,6 @@ export async function recordWorkflowRunFinished(args: {
       subscription,
       run,
       runCreatedAt: runCreatedAt ?? new Date(),
-      wake: args.wake,
     }).catch((failure: unknown) => {
       logger.warn(
         `notifying thread ${subscription.threadId} for the completed run ${run.id} of ${subscription.repoFullName} failed: ${failureText(failure)}`,

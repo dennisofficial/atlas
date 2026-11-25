@@ -1,47 +1,25 @@
 import { Module } from '@nestjs/common'
-import { NotificationsModule } from '../notifications/notifications.module'
+import { PreviewsModule } from '../previews/previews.module'
 import { ThreadSignalsModule } from '../sessions/thread-signals.module'
-import { EnvService } from '../../../_core/config/env/env.service'
-import { CloudflareTunnelClient } from '@dltech/atlas-previews'
-import { PreviewTeardownService } from './preview-teardown.service'
-import { PreviewTunnelService } from './preview-tunnel.service'
+import { RetiredSandboxTokenMiddleware } from './retired-sandbox-token.middleware'
 import { SandboxCheckpointRouter } from './sandbox-checkpoint.router'
 import { SandboxSelfRouter } from './sandbox-self.router'
 import { SandboxEndpointService } from './sandbox-endpoint'
-import { SandboxTokenMiddleware } from './sandbox-token.middleware'
 import { SandboxesRouter } from './sandboxes.router'
 import { SandboxesService } from './sandboxes.service'
 import { VercelSandboxClient } from './vercel-sandbox.client'
 
 @Module({
-  imports: [ThreadSignalsModule, NotificationsModule],
+  imports: [ThreadSignalsModule, PreviewsModule],
   providers: [
     SandboxesService,
     SandboxEndpointService,
-    SandboxTokenMiddleware,
-    SandboxSelfRouter,
     SandboxesRouter,
     SandboxCheckpointRouter,
+    SandboxSelfRouter,
+    RetiredSandboxTokenMiddleware,
     VercelSandboxClient,
-    PreviewTunnelService,
-    PreviewTeardownService,
-    {
-      provide: CloudflareTunnelClient,
-      useFactory: (env: EnvService) =>
-        new CloudflareTunnelClient({
-          apiToken: env.get('CLOUDFLARE_API_TOKEN'),
-          accountId: env.get('CLOUDFLARE_ACCOUNT_ID'),
-          zoneId: env.get('CLOUDFLARE_ZONE_ID'),
-        }),
-      inject: [EnvService],
-    },
   ],
-  exports: [
-    SandboxesService,
-    SandboxEndpointService,
-    VercelSandboxClient,
-    PreviewTunnelService,
-    PreviewTeardownService,
-  ],
+  exports: [SandboxesService, SandboxEndpointService, VercelSandboxClient],
 })
 export class SandboxesModule {}

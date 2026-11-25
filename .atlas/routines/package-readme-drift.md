@@ -3,7 +3,6 @@
 ## Ruled-out claims
 
 - `packages/schedule`: `minimumGapMinutes` gives 60 for a once-a-day cron. The gap is cyclic (`src/gap.ts:5-17`).
-- `packages/sandbox`: "`apps/serve` calls it" is true through the `@dltech/atlas-harness` re-export.
 - `packages/previews`: two concurrent `expose` calls make one tunnel (`pg_advisory_xact_lock`, `src/preview-tunnels.ts:24-29`).
 - `plugins/skills`: "five built-in skills" matches `src/pod/builtin.generated.ts:24-44`.
 - `plugins/sessions`, `packages/control`: "32 files, 256 KB each, 1 MB in all" are decimal units (`packages/core/src/paths/context-files.ts:1-3`).

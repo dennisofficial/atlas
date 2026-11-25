@@ -29,7 +29,6 @@ import {
   type PodProvisionPayload,
 } from './pod-provision.contract'
 import { assignCreatorConnections } from './pod-oauth-assign'
-import { notifyPrincipalRevoked } from '../../platform/sandboxes/sandbox-principal-notify'
 import { claimRow, markFailed, type RowClaim, type RowWriter } from './sandbox-provisioning-rows'
 
 export const DISPATCH_FAILED_MESSAGE = "Couldn't start the sandbox. Retry."
@@ -87,19 +86,9 @@ export class PodLaunchService {
   }): Promise<RowClaim | null> {
     const { writer, ...rest } = args
     if (writer === undefined) {
-      return db
-        .transaction((tx) => this.claimWithin({ ...rest, writer: tx }))
-        .then((claim) => this.revokeAfterCommit(claim))
+      return db.transaction((tx) => this.claimWithin({ ...rest, writer: tx }))
     }
     return this.claimWithin({ ...rest, writer })
-  }
-
-  /** A caller that owns its transaction calls this itself once that transaction commits. */
-  async revokeAfterCommit(claim: RowClaim | null): Promise<RowClaim | null> {
-    if (claim?.revokedSessionId !== undefined) {
-      await notifyPrincipalRevoked(claim.revokedSessionId)
-    }
-    return claim
   }
 
   private async claimWithin(args: {

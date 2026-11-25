@@ -8,7 +8,7 @@ import {
   type Agent37Env,
 } from './agent37-instances'
 import type { Agent37CreateArgs } from './agent37-client'
-import { agent37ShapeOfVcpus } from './agent37-resize'
+import { agent37ShapeOfSetting } from './agent37-resize'
 
 export const AGENT37_IDLE_TIMEOUT_SECONDS = 1800
 export const AGENT37_MOUNT_PATH = SANDBOX_HOME_PATH.replace(/\/home$/, '')
@@ -21,6 +21,7 @@ export const agent37CreateBodyOf = (args: {
   token: string
   bundleUrl: string
   vcpus?: number | undefined
+  memoryGb?: number | undefined
   diskGb?: number | undefined
 }): Agent37CreateArgs => ({
   template: args.env.template,
@@ -29,7 +30,12 @@ export const agent37CreateBodyOf = (args: {
   name: agent37InstanceNameOf(args.podSessionId),
   metadata: { [AGENT37_POD_SESSION_KEY]: args.podSessionId },
   resources: {
-    ...(args.vcpus === undefined ? args.env.resources : agent37ShapeOfVcpus(args.vcpus)),
+    ...(args.vcpus === undefined
+      ? args.env.resources
+      : agent37ShapeOfSetting({
+          vcpus: args.vcpus,
+          ...(args.memoryGb === undefined ? {} : { memoryGb: args.memoryGb }),
+        })),
     disk: args.diskGb ?? args.env.resources.disk,
   },
   mount_path: AGENT37_MOUNT_PATH,

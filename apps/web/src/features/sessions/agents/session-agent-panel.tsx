@@ -9,7 +9,7 @@ import { agentOf } from '@dltech/atlas-client/transcript'
 import { EAgentStatus, resumableOf, resumePointOf } from '@dltech/atlas-core'
 import { Button } from '@dltech/atlas-ui/components/button'
 
-import { messageOf } from '@/features/threads/data/use-send'
+import { messageOf } from '@/features/threads/data/message-of'
 import { RESUMING_LABEL, RESUME_LABEL } from '@/features/threads/transcript/stopped-line'
 
 import {

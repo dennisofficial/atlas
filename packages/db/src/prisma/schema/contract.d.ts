@@ -23,7 +23,7 @@ import type {
 } from '@prisma/orm-postgres/contract/types';
 
 export type StorageHash =
-  StorageHashBase<'f14deed4b0f53291f5db262e9f79d1b19487fd654b4842787af371390390c4bd'>;
+  StorageHashBase<'cc41152adc40314d3a65a4dcfa9f1377281450f71fae9b89d6dc22eb6b0cec30'>;
 export type ExecutionHash =
   ExecutionHashBase<'fd19c5954d71f00e27e0c02be3f06b71374f3b34bfb9f582b985590708b7518f'>;
 export type ProfileHash =
@@ -840,6 +840,7 @@ export namespace Models {
     ownerUserId: FieldOutputTypes['public']['Project']['ownerUserId'];
     repo: FieldOutputTypes['public']['Project']['repo'];
     sandboxDiskGb: FieldOutputTypes['public']['Project']['sandboxDiskGb'];
+    sandboxMemoryGb: FieldOutputTypes['public']['Project']['sandboxMemoryGb'];
     sandboxVcpus: FieldOutputTypes['public']['Project']['sandboxVcpus'];
     setupScript: FieldOutputTypes['public']['Project']['setupScript'];
     shipBehavior: FieldOutputTypes['public']['Project']['shipBehavior'];
@@ -5368,6 +5369,12 @@ type ContractBase = Omit<
                   readonly many: false;
                 };
                 readonly sandboxDiskGb: {
+                  readonly dataType: 'pg/int4';
+                  readonly codecId: 'pg/int4@1';
+                  readonly nullable: true;
+                  readonly many: false;
+                };
+                readonly sandboxMemoryGb: {
                   readonly dataType: 'pg/int4';
                   readonly codecId: 'pg/int4@1';
                   readonly nullable: true;
@@ -12361,6 +12368,10 @@ type ContractBase = Omit<
                 readonly nullable: true;
                 readonly type: { readonly kind: 'scalar'; readonly codecId: 'pg/int4@1' };
               };
+              readonly sandboxMemoryGb: {
+                readonly nullable: true;
+                readonly type: { readonly kind: 'scalar'; readonly codecId: 'pg/int4@1' };
+              };
               readonly sandboxVcpus: {
                 readonly nullable: true;
                 readonly type: { readonly kind: 'scalar'; readonly codecId: 'pg/int4@1' };
@@ -12482,6 +12493,7 @@ type ContractBase = Omit<
                 readonly ownerUserId: { readonly column: 'ownerUserId' };
                 readonly repo: { readonly column: 'repo' };
                 readonly sandboxDiskGb: { readonly column: 'sandboxDiskGb' };
+                readonly sandboxMemoryGb: { readonly column: 'sandboxMemoryGb' };
                 readonly sandboxVcpus: { readonly column: 'sandboxVcpus' };
                 readonly setupScript: { readonly column: 'setupScript' };
                 readonly shipBehavior: { readonly column: 'shipBehavior' };

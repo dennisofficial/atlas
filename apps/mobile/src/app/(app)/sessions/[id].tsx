@@ -133,6 +133,7 @@ export default function SessionScreen() {
               sessionId={id}
               onLoadOlder={session.loadOlder}
               agentLinks={session.agentLinks}
+              sessionNameOf={session.sessionNameOf}
               onOpenAgent={handleOpenAgent}
             />
             {session.failure === null || session.startFailure !== undefined ? null : (
@@ -176,7 +177,12 @@ export default function SessionScreen() {
               {session.startFailure === undefined ? null : (
                 <StartFailedCard reason={session.startFailure.reason} onRetry={session.retry} />
               )}
-              <QueuedDock dock={session.queued} />
+              <QueuedDock
+                dock={session.queued}
+                threadId={id}
+                sessionId={id}
+                sessionNameOf={session.sessionNameOf}
+              />
               {session.blocking === undefined ? null : (
                 <BlockingStrip command={session.blocking} now={session.now} />
               )}

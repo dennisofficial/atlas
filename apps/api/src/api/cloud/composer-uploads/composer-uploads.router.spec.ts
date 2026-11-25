@@ -28,8 +28,6 @@ describe('ComposerUploadsRouter', () => {
         ComposerUploadsService,
         { provide: ComposerUploadBlobStore, useValue: blobs },
       ],
-      sandboxTokens: { 'sandbox-a': { id: 'sbx-a', threadId: 'thread-a', userId: 'user-a' } },
-      threadFamilies: { 'thread-a': ['thread-a'] },
     })
   })
 
@@ -177,25 +175,6 @@ describe('ComposerUploadsRouter', () => {
         threadId: 'thread-a',
         pathname: 'composer-uploads/user-b/x/f.txt',
       }).expect(400)
-    })
-  })
-
-  describe('download with a sandbox token', () => {
-    it('reaches its own thread', async () => {
-      blobs.uploaded.set('composer-uploads/user-a/u1/a.txt', { size: 3, uploadedAt: new Date() })
-      const res = await call('download', 'sandbox-a', {
-        threadId: 'thread-a',
-        pathname: 'composer-uploads/user-a/u1/a.txt',
-      })
-      expect(res.status).toBe(200)
-    })
-
-    it('is refused a thread outside its family', async () => {
-      const res = await call('download', 'sandbox-a', {
-        threadId: 'thread-b',
-        pathname: 'composer-uploads/user-b/u1/b.txt',
-      })
-      expect(res.status).toBe(403)
     })
   })
 })

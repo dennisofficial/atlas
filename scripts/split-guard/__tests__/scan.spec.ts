@@ -22,45 +22,15 @@ describe('specifiersOf', () => {
 })
 
 describe('violationsOf', () => {
-  it('flags v2 code importing v1 packages and subpaths', () => {
+  it('flags the v2 trigger worker importing nest', () => {
     const found = violationsOf({
       rules: SPLIT_RULES,
       files: files({
-        'packages/agent/src/a.ts': "import { x } from '@dltech/atlas-wire/web'",
-        'packages/host/src/b.ts': "import { y } from '@dltech/atlas-agent-v1'",
-        'apps/daemon/src/c.ts': "import { z } from '@dltech/atlas-harness/titling'",
+        'apps/trigger/src/a.ts': "import { x } from '@nestjs/common'",
+        'packages/github/src/b.ts': "import { y } from '@dltech/atlas-core'",
       }),
     })
-    expect(found.map((violation) => violation.file)).toEqual([
-      'packages/agent/src/a.ts',
-      'packages/host/src/b.ts',
-      'apps/daemon/src/c.ts',
-    ])
-  })
-
-  it('flags v1 code importing v2 packages', () => {
-    const found = violationsOf({
-      rules: SPLIT_RULES,
-      files: files({
-        'packages/harness/src/a.ts': "import { x } from '@dltech/atlas-agent'",
-        'apps/serve/src/b.ts': "import { y } from '@dltech/atlas-host'",
-      }),
-    })
-    expect(found).toHaveLength(2)
-  })
-
-  it('allows each side its own packages and ignores lookalike names', () => {
-    const found = violationsOf({
-      rules: SPLIT_RULES,
-      files: files({
-        'packages/harness/src/a.ts': "import { x } from '@dltech/atlas-agent-v1'",
-        'packages/agent/src/b.ts': "import { y } from '@dltech/atlas-core'",
-        'packages/host/src/c.ts': "import { z } from '@dltech/atlas-agent'",
-        'packages/agent-v1/src/d.ts': "import { w } from '@dltech/atlas-wire'",
-        'packages/agent/src/e.ts': "import { v } from '@dltech/atlas-wirex'",
-      }),
-    })
-    expect(found).toEqual([])
+    expect(found.map((violation) => violation.file)).toEqual(['apps/trigger/src/a.ts'])
   })
 })
 

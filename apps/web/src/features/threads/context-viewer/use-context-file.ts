@@ -4,12 +4,8 @@ import { useEffect, useState } from 'react'
 
 import type { ContextFileContentWire } from '@dltech/atlas-wire/web'
 
-import {
-  CONTEXT_API_POLL_MS,
-  readContextFile,
-  readContextFileFromApi,
-} from '../data/context-files-source'
-import type { ServeChannel } from '../data/live-thread-view'
+import { readContextFile } from '../data/context-files-source'
+import type { LiveChannel } from '../data/live-channel'
 
 export type LoadedContextFile =
   | { state: 'loading' }
@@ -18,11 +14,11 @@ export type LoadedContextFile =
 
 export function useContextFile(args: {
   threadId: string
-  channel: ServeChannel | null
+  channel: LiveChannel | null
   path: string
 }): LoadedContextFile {
   const { threadId, channel, path } = args
-  type SourceKey = ServeChannel | 'api'
+  type SourceKey = LiveChannel | 'api'
   const sourceKey: SourceKey = channel ?? 'api'
   const [loaded, setLoaded] = useState<{
     key: SourceKey | null
@@ -37,16 +33,9 @@ export function useContextFile(args: {
     }
 
     if (channel === null) {
-      const read = () =>
-        readContextFileFromApi({ threadId, path }).then(
-          (file) => settle({ state: 'ready', file }),
-          () => settle({ state: 'failed' }),
-        )
-      void read()
-      const interval = setInterval(() => void read(), CONTEXT_API_POLL_MS)
+      settle({ state: 'failed' })
       return () => {
         active = false
-        clearInterval(interval)
       }
     }
 

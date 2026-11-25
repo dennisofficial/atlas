@@ -11,7 +11,6 @@ import { GithubSubscriptionsService } from '@dltech/atlas-github'
 import type { GithubPrEventMailboxService } from '@dltech/atlas-github'
 import type { GithubUserReads } from '@dltech/atlas-github'
 import type { GithubService } from '@dltech/atlas-github'
-import { threadActivityAt } from './github-thread-activity'
 
 export const REST_FIELDS: PullRequestCacheFields = {
   title: 'add the thing',
@@ -68,6 +67,5 @@ export function serviceWith(args: {
       ? new GithubAppInstallationsService()
       : ({ coversRepo: args.coversRepo } as never),
     storeFixture(),
-    threadActivityAt,
   )
 }

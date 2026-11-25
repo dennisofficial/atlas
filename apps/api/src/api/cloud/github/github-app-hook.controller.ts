@@ -23,7 +23,6 @@ import { GithubDeliveryService } from '@dltech/atlas-github'
 import { GithubWebhookInboxService } from '@dltech/atlas-github'
 import { verifyGithubSignature } from '@dltech/atlas-github'
 import { handleSupplementaryEvent } from '@dltech/atlas-github'
-import { GithubSandboxWakeService } from './github-sandbox-wake.service'
 import type {
   GithubAppInstallationRepositoriesWebhookPayload,
   GithubAppInstallationWebhookPayload,
@@ -50,7 +49,6 @@ export class GithubAppHookController {
     private readonly inbox: GithubWebhookInboxService,
     private readonly appSync: GithubAppSyncService,
     private readonly background: BackgroundWork,
-    private readonly wake: GithubSandboxWakeService,
   ) {}
 
   /**
@@ -119,7 +117,6 @@ export class GithubAppHookController {
       const supplementary = await handleSupplementaryEvent({
         event,
         payload,
-        wake: this.wake,
         deliveries: this.deliveries,
       })
       const outcome = supplementary

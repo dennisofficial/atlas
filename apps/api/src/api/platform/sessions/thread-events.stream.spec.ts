@@ -1,11 +1,11 @@
 import { EThreadStreamFrame, type ThreadStreamFrame } from '@dltech/atlas-wire'
-import { ForbiddenException, NotFoundException, ServiceUnavailableException } from '@nestjs/common'
+import { NotFoundException, ServiceUnavailableException } from '@nestjs/common'
 import { request } from 'express'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'bun:test'
 import { advanceTimersByTimeAsync, waitFor } from '../../../../test/fake-timers'
 import { DrainStateService } from '../health/drain-state.service'
 import type { EventsService } from './events.service'
-import type { SessionOrSandboxTrpcCtx } from './session-or-sandbox.middleware'
+import type { SessionTrpcCtx } from '../../../_module/session/session.middleware'
 import { ThreadEventsRouter } from './thread-events.router'
 import { ThreadSignalsService } from './thread-signals.service'
 import { THREAD_STREAM_HEARTBEAT_INTERVAL_MS, THREAD_STREAM_LIFETIME_MS } from './thread-stream'
@@ -18,7 +18,7 @@ const POD = podSnapshotFrame()
 const INITIAL = [HEAD(7), metadataFrame({ threadId: 'thr_1' }), POD]
 const HEARTBEAT: ThreadStreamFrame = { type: EThreadStreamFrame.Heartbeat }
 
-const ctxFor = (extra: Partial<SessionOrSandboxTrpcCtx> = {}): SessionOrSandboxTrpcCtx => ({
+const ctxFor = (extra: Partial<SessionTrpcCtx> = {}): SessionTrpcCtx => ({
   req: request,
   bearerToken: undefined,
   clientVersion: undefined,
@@ -94,21 +94,6 @@ describe('ThreadEventsRouter.stream', () => {
     await expect(
       router.stream({ threadId: 'thr_x' }, ctxFor(), optionsFor()),
     ).rejects.toBeInstanceOf(NotFoundException)
-  })
-
-  it('forbids sandbox and pod tokens', async () => {
-    const { router } = routerWith()
-
-    await expect(
-      router.stream(
-        { threadId: 'thr_1' },
-        ctxFor({ sandbox: { sandboxId: 'sbx_1', threadId: 'thr_1' } }),
-        optionsFor(),
-      ),
-    ).rejects.toBeInstanceOf(ForbiddenException)
-    await expect(
-      router.stream({ threadId: 'thr_1' }, ctxFor({ pod: { threadId: 'thr_1' } }), optionsFor()),
-    ).rejects.toBeInstanceOf(ForbiddenException)
   })
 
   it('refuses to open once the process is draining', async () => {

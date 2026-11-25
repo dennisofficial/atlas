@@ -83,6 +83,32 @@ describe('agent37CreateBodyOf', () => {
     expect(both.resources).toEqual({ cpu: 8, memory: 64, disk: 60 })
   })
 
+  it('takes a resolved vcpus and memory together as one vm shape', () => {
+    const shaped = agent37CreateBodyOf({
+      env,
+      podSessionId: 'pod-1',
+      sandboxName: agent37InstanceNameOf('pod-1'),
+      token: 'unused',
+      bundleUrl: 'https://api.byatlas.io/agent/daemon/bundle',
+      vcpus: 4,
+      memoryGb: 16,
+    })
+    expect(shaped.resources).toEqual({ cpu: 4, memory: 16, disk: 20 })
+  })
+
+  it('boots the smallest shape at that vcpus when the memory is not one agent37 offers', () => {
+    const odd = agent37CreateBodyOf({
+      env,
+      podSessionId: 'pod-1',
+      sandboxName: agent37InstanceNameOf('pod-1'),
+      token: 'unused',
+      bundleUrl: 'https://api.byatlas.io/agent/daemon/bundle',
+      vcpus: 4,
+      memoryGb: 12,
+    })
+    expect(odd.resources).toEqual({ cpu: 4, memory: 8, disk: 20 })
+  })
+
   it('never carries the workspace api key', () => {
     expect(JSON.stringify(body)).not.toContain(env.apiKey)
   })

@@ -1,43 +1,30 @@
 'use client'
 
 import { useRouter, useSearchParams } from 'next/navigation'
-import { Suspense, useCallback, useRef, useState } from 'react'
+import { Suspense, useCallback, useState } from 'react'
 import { toast } from 'sonner'
 
 import { initialProjectIdOf } from '@dltech/atlas-client/session'
-import type { Attachment } from '@dltech/atlas-core'
 import type { Project } from '@dltech/atlas-wire/web'
 
-import { createLocalThread, newLocalThreadId } from '@/features/desktop/create-local-thread'
-import { ERunnerChoice, RunnerToggle } from '@/features/desktop/runner-toggle'
-import { useDesktop } from '@/features/desktop/use-desktop'
+import { fetchProjects } from '@/features/projects/data/projects-api'
+import { NewThreadSkeleton } from '@/features/projects/project-skeletons'
 import { createSessionWithMessage } from '@/features/sessions/data/create-session'
 import { useDraftAttachments } from '@/features/sessions/data/use-draft-attachments'
+import { useSessionAttachments } from '@/features/sessions/data/use-session-attachments'
 import { useSessionDraft } from '@/features/sessions/data/use-session-draft'
 import { sessionStream } from '@/features/sessions/data/session-stream'
 import { sessionsApi } from '@/features/sessions/data/sessions-api'
-import { useSessionAttachments } from '@/features/sessions/data/use-session-attachments'
-import {
-  DEFAULT_RUNTIME,
-  EEngine,
-  RuntimeMenu,
-  runtimeTargetOf,
-} from '@/features/sessions/runtime-menu'
+import { DEFAULT_RUNTIME, RuntimeMenu, runtimeTargetOf } from '@/features/sessions/runtime-menu'
 import { QueryGate } from '@/features/settings/data/shared/query-gate'
-import { NewThreadSkeleton } from '@/features/projects/project-skeletons'
-import { createdThreads } from '@/features/shell/created-threads'
+import { PROJECTS_KEY } from '@/lib/cloud-keys'
 import { useCloudQuery } from '@/lib/use-cloud-query'
 
 import { useNewThreadCommands } from './commands/use-new-thread-commands'
-import { createThreadBodyOf } from './data/create-thread'
 import { createFieldsOf, defaultSelectionOf, type ModelSelection } from './data/model-selection'
-import { PROJECTS_KEY, SHELL_THREADS_KEY } from '@/lib/cloud-keys'
-import { useInvalidateCloud } from '@/lib/use-invalidate-cloud'
-
-import { createThread, fetchProjects } from './data/threads-api'
 import { useComposerAttachments } from './data/use-composer-attachments'
 import { useModelPicker } from './data/use-model-picker'
-import { isRetryOf, messageOf } from './data/use-send'
+import { messageOf } from './data/message-of'
 import { ModelPickerControls } from './model-picker'
 import { NewThreadHero } from './new-thread-hero'
 import { ProjectSelect } from './project-select'
@@ -45,7 +32,6 @@ import { ThreadComposer } from './thread-composer'
 
 function Welcome({ projects }: { projects: readonly Project[] }) {
   const router = useRouter()
-  const invalidateCloud = useInvalidateCloud()
   const preselected = useSearchParams().get('project')
   const [selected, setSelected] = useState<string | null | undefined>(undefined)
   const [draft, setDraft] = useState('')
@@ -59,9 +45,12 @@ function Welcome({ projects }: { projects: readonly Project[] }) {
       personalEffort: picker.personalEffort,
       personalFast: picker.personalFast,
     })
-  const images = useComposerAttachments()
-  const session = useSessionAttachments({ files: images })
-  const draftAttachments = useDraftAttachments({ media: session.media, uploads: images.uploads })
+  const files = useComposerAttachments()
+  const session = useSessionAttachments({ files })
+  const draftAttachments = useDraftAttachments({
+    media: session.media,
+    uploads: session.uploads,
+  })
   const drafts = useSessionDraft({
     sessionId: null,
     text: draft,
@@ -75,23 +64,11 @@ function Welcome({ projects }: { projects: readonly Project[] }) {
     },
   })
   const [creating, setCreating] = useState(false)
-  const desktop = useDesktop()
-  const [runner, setRunner] = useState(ERunnerChoice.Cloud)
   const [runtime, setRuntime] = useState(DEFAULT_RUNTIME)
   const target = runtimeTargetOf(runtime)
-  const attempt = useRef<{
-    text: string
-    attachments: Attachment[]
-    projectId: string | null
-    sendId: string
-  } | null>(null)
   const projectId =
     selected === undefined ? initialProjectIdOf({ projects, preselected }) : selected
-  const local =
-    desktop.present && desktop.docker && runner === ERunnerChoice.ThisMac && projectId !== null
-  const onThisMac = desktop.present && runner === ERunnerChoice.ThisMac
   const projectName = projects.find((project) => project.id === projectId)?.name ?? null
-  const v2 = target.engine === EEngine.V2 && !onThisMac
 
   const clearDraft = useCallback(() => setDraft(''), [])
   const commands = useNewThreadCommands({ clearDraft })
@@ -103,57 +80,6 @@ function Welcome({ projects }: { projects: readonly Project[] }) {
       setDraft('')
       return
     }
-    if (v2) {
-      await handleSubmitV2(text)
-      return
-    }
-    if (!images.checkSendable()) return
-    const held = images.attachments
-    const sendId =
-      attempt.current?.projectId === projectId &&
-      isRetryOf({ previous: attempt.current, text, attachments: held })
-        ? attempt.current.sendId
-        : crypto.randomUUID()
-    attempt.current = { text, attachments: held, projectId, sendId }
-    setCreating(true)
-    try {
-      if (local && projectId !== null) {
-        const id = await createLocalThread({
-          threadId: newLocalThreadId(),
-          projectId,
-          ...createFieldsOf(selection),
-          text,
-          sendId,
-          attachments: held,
-        })
-        attempt.current = null
-        images.clear()
-        drafts.handleSent(text)
-        router.push(`/threads/${encodeURIComponent(id)}`)
-        return
-      }
-      const { thread } = await createThread(
-        createThreadBodyOf({
-          projectId,
-          text,
-          sendId,
-          attachments: held,
-          ...createFieldsOf(selection),
-        }),
-      )
-      attempt.current = null
-      images.clear()
-      drafts.handleSent(text)
-      createdThreads.announce(thread)
-      void invalidateCloud([SHELL_THREADS_KEY])
-      router.push(`/threads/${encodeURIComponent(thread.id)}`)
-    } catch (failure) {
-      toast.error(messageOf(failure))
-      setCreating(false)
-    }
-  }
-
-  const handleSubmitV2 = async (text: string) => {
     if (!session.checkSendable()) return
     const { media, uploads } = session
     if (text.trim().length === 0 && media.length === 0 && uploads.length === 0) return
@@ -168,7 +94,7 @@ function Welcome({ projects }: { projects: readonly Project[] }) {
         media,
         uploads,
         ...createFieldsOf(selection),
-        ...(target.engine === EEngine.V2 ? { provider: target.provider } : {}),
+        provider: target.provider,
       })
       session.clear()
       drafts.handleSent(text)
@@ -187,12 +113,11 @@ function Welcome({ projects }: { projects: readonly Project[] }) {
         onValueChange={setDraft}
         onSubmit={handleSubmit}
         sending={creating}
-        {...(v2 ? session.composerProps : images.composerProps)}
-        sendsAttachmentsAlone={v2}
+        {...session.composerProps}
+        sendsAttachmentsAlone
         entries={commands.entries}
         placeholder="Describe a task for Atlas…"
       >
-        <RunnerToggle desktop={desktop} value={runner} onValueChange={setRunner} />
         <ModelPickerControls
           picker={picker}
           selection={selection}
@@ -206,7 +131,7 @@ function Welcome({ projects }: { projects: readonly Project[] }) {
             projectId={projectId}
             onProjectChange={handleProjectChange}
           />
-          {onThisMac ? null : <RuntimeMenu value={runtime} onValueChange={setRuntime} />}
+          <RuntimeMenu value={runtime} onValueChange={setRuntime} />
         </div>
       </ThreadComposer>
     </>

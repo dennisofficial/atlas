@@ -18,11 +18,8 @@ import { GithubPrEventMailboxService } from '@dltech/atlas-github'
 import { GithubPrFanoutService } from '@dltech/atlas-github'
 import { GithubPrOutboxDispatcher } from '@dltech/atlas-github'
 import { RedisPrFrameBus } from '@dltech/atlas-github'
-import type { GithubSandboxWakeService } from './github-sandbox-wake.service'
 import { GithubUserReads } from '@dltech/atlas-github'
 import type { GithubService } from '@dltech/atlas-github'
-import { legacyOf } from '@dltech/atlas-github/testing'
-import { threadActivityAt } from './github-thread-activity'
 
 export function mockGithubHttp() {
   const original = globalThis.fetch
@@ -169,15 +166,10 @@ export function realGithubGraph(args: {
     coordinator,
   )
   const signals: ThreadSignalsService = inertSignals()
-  const wakes: unknown[] = []
-  const wake = {
-    notifyEvent: (notice: unknown) => wakes.push(notice),
-  } as unknown as GithubSandboxWakeService
   const mailbox = new GithubPrEventMailboxService(
     fanout,
     new GithubPrOutboxDispatcher({
       fanout,
-      legacy: legacyOf({ signals: signals, wake: wake }),
       reconcile: inertReconcile(),
       mergeability: inertMergeabilityRefresh(),
     }),
@@ -191,7 +183,7 @@ export function realGithubGraph(args: {
     mailbox,
     discussion,
     coordinator,
-    storeFixture({ fanout, wake }),
+    storeFixture({ fanout }),
   )
   const poll = new GithubPollSweeperService(
     github,
@@ -199,8 +191,7 @@ export function realGithubGraph(args: {
     hooks,
     coordinator,
     new GithubHeadReads(),
-    storeFixture({ fanout, wake }),
-    threadActivityAt,
+    storeFixture({ fanout }),
   )
   return {
     github,
@@ -213,6 +204,5 @@ export function realGithubGraph(args: {
     delivery,
     poll,
     signals,
-    wakes,
   }
 }

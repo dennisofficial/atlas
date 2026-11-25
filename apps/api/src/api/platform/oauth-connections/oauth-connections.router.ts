@@ -17,11 +17,6 @@ import {
 import { Ctx, Input, Mutation, Query, Router, UseMiddlewares } from 'nestjs-trpc'
 import { z } from 'zod'
 import { SessionMiddleware, type SessionTrpcCtx } from '../../../_module/session/session.middleware'
-import { meta } from '../../../_module/trpc/procedure-meta'
-import {
-  SessionOrSandboxMiddleware,
-  type SessionOrSandboxTrpcCtx,
-} from '../sessions/session-or-sandbox.middleware'
 import { OauthConnectionsService } from './oauth-connections.service'
 
 @Router({ alias: 'oauthConnections' })
@@ -63,17 +58,15 @@ export class OauthConnectionsRouter {
   @Mutation({
     input: oauthAccessTokenRequestSchema,
     output: oauthAccessTokenSchema,
-    meta: meta({ podReachable: true, sandboxReachable: true }),
   })
-  @UseMiddlewares(SessionOrSandboxMiddleware)
+  @UseMiddlewares(SessionMiddleware)
   accessToken(
     @Input() input: OauthAccessTokenRequest,
-    @Ctx() ctx: SessionOrSandboxTrpcCtx,
+    @Ctx() ctx: SessionTrpcCtx,
   ): Promise<OauthAccessToken> {
     return this.connections.issueAccessToken({
       userId: ctx.auth.userId,
       connectionId: input.connectionId,
-      ...(ctx.sandbox === undefined ? {} : { sandboxId: ctx.sandbox.sandboxId }),
       ...(input.rejectedAccessToken === undefined
         ? {}
         : { rejectedAccessToken: input.rejectedAccessToken }),

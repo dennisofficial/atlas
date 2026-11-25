@@ -59,6 +59,7 @@ const configured = (over: Partial<AgentHostConfig> = {}): AgentHostConfig => ({
 
 class FakeSandbox extends SandboxProvider {
   wakeStarted: string[] = []
+  wakes: Array<{ vcpus: number | undefined; memoryGb: number | undefined }> = []
   wakeResolve: ((endpoint: DaemonEndpoint) => void) | undefined
   stopped: string[] = []
   keptAlive: string[] = []
@@ -70,8 +71,14 @@ class FakeSandbox extends SandboxProvider {
     super()
   }
 
-  wake(args: { target: SandboxTarget; signal: AbortSignal }): Promise<DaemonEndpoint> {
+  wake(args: {
+    target: SandboxTarget
+    signal: AbortSignal
+    vcpus?: number | undefined
+    memoryGb?: number | undefined
+  }): Promise<DaemonEndpoint> {
     this.wakeStarted.push(args.target.sandboxSessionId)
+    this.wakes.push({ vcpus: args.vcpus, memoryGb: args.memoryGb })
     if (this.rejectWake) {
       return Promise.reject(
         new SandboxUnavailableError(
@@ -424,6 +431,71 @@ describe('createSessionRuntimeFactory', () => {
     expect(readyOutcome).toBeInstanceOf(SandboxUnavailableError)
     expect((readyOutcome as Error).message).toContain('daemon bundle missing')
     expect(dispatchOutcome).toBeInstanceOf(SandboxUnavailableError)
+  })
+
+  it('wakes the sandbox at the memory the config resolved next to its vcpus', async () => {
+    const sandbox = new FakeSandbox(true)
+    const factory = makeFactory({
+      api: apiOf(
+        configured({
+          sandbox: {
+            configured: true,
+            provider: ESandboxProvider.Vercel,
+            credentials: {
+              provider: ESandboxProvider.Vercel,
+              token: 'vt',
+              teamId: 'team',
+              projectId: 'proj',
+            },
+            vcpus: 4,
+            memoryGb: 16,
+          },
+        }),
+      ),
+      sandbox,
+    })
+    const runtime = await factory({
+      sessionId: 's-memory',
+      podSessionId: 's-memory',
+      threadId: toThreadId('t-memory'),
+      epoch: 1,
+      signal: new AbortController().signal,
+    })
+    await runtime.stop()
+    expect(sandbox.wakes).toEqual([{ vcpus: 4, memoryGb: 16 }])
+  })
+
+  it('wakes at the pod size a resize asked for, over the configured memory', async () => {
+    const sandbox = new FakeSandbox(true)
+    const factory = makeFactory({
+      api: apiOf(
+        configured({
+          sandbox: {
+            configured: true,
+            provider: ESandboxProvider.Vercel,
+            credentials: {
+              provider: ESandboxProvider.Vercel,
+              token: 'vt',
+              teamId: 'team',
+              projectId: 'proj',
+            },
+            vcpus: 2,
+            memoryGb: 4,
+          },
+          podSize: { desiredVcpus: 4, desiredMemoryGb: 32, generation: 2 },
+        }),
+      ),
+      sandbox,
+    })
+    const runtime = await factory({
+      sessionId: 's-resized',
+      podSessionId: 's-resized',
+      threadId: toThreadId('t-resized'),
+      epoch: 1,
+      signal: new AbortController().signal,
+    })
+    await runtime.stop()
+    expect(sandbox.wakes).toEqual([{ vcpus: 4, memoryGb: 32 }])
   })
 
   it('stops the keep-alive when the session lifetime ends without stop()', async () => {

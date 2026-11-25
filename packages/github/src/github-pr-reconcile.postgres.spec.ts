@@ -2,9 +2,8 @@ import { EPrSource, EPrState, type PrObservation, type PullSample } from '@dltec
 import { RecordingDrain } from './testing/drain.fixture'
 import { db } from '@dltech/atlas-db'
 import { useTestDatabase } from '@dltech/atlas-db/testing'
-import { beforeEach, describe, expect, it, vi } from 'bun:test'
+import { beforeEach, describe, expect, it } from 'bun:test'
 import { seedSubscription } from './testing/github-seed'
-import { inertSignals } from './testing/thread-signals.fixture'
 import {
   checkRunInputOf,
   type CommitCheckInput,
@@ -16,8 +15,6 @@ import { GithubPrOutboxDispatcher } from './github-pr-outbox'
 import { GithubPrReconcile } from './github-pr-reconcile'
 import { GithubPrStore } from './github-pr-store'
 import { GithubHttpBudgetUnavailable, type GithubHttpBudget } from './github-request-budget'
-import type { WakeStub } from './github-legacy-effects.fixture'
-import { legacyOf } from './github-legacy-effects.fixture'
 
 const REPO = 'compai/app'
 const HEAD = 'abc123'
@@ -98,7 +95,6 @@ function rig(
   } = {},
 ) {
   const fanout = new GithubPrFanoutService(new RecordingDrain())
-  const wake = { notifyEvent: vi.fn() } as unknown as WakeStub
   const answers = args.answers ?? [REST_CHECKS]
   const tokens = args.tokens ?? ['gho_fill']
   const reads: string[] = []
@@ -127,7 +123,6 @@ function rig(
   })
   const dispatcher = new GithubPrOutboxDispatcher({
     fanout,
-    legacy: legacyOf({ signals: inertSignals(), wake: wake }),
     reconcile: (request) => reconcile.run(request),
     mergeability: async () => undefined,
     now: () => new Date(clock),

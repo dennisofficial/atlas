@@ -31,9 +31,9 @@ describe('settings page registry', () => {
     expect(memory.flatMap((group) => group.items.map((item) => item.page))).toEqual([
       ESettingsPage.Memory,
     ])
-    const usage = filterNav({ groups: SETTINGS_NAV, query: 'usage' })
-    expect(usage.flatMap((group) => group.items.map((item) => item.page))).toEqual([
-      ESettingsPage.UsageSandboxes,
+    const library = filterNav({ groups: SETTINGS_NAV, query: 'library' })
+    expect(library.flatMap((group) => group.items.map((item) => item.page))).toEqual([
+      ESettingsPage.Secrets,
     ])
     expect(filterNav({ groups: SETTINGS_NAV, query: 'zzz' })).toEqual([])
   })
@@ -61,7 +61,7 @@ describe('settings route paths', () => {
   })
 
   it('builds hrefs for slugged pages', () => {
-    expect(hrefOfPage(ESettingsPage.UsageSandboxes)).toBe('/settings/usage-sandboxes')
+    expect(hrefOfPage(ESettingsPage.ModelsEffort)).toBe('/settings/models-effort')
   })
 
   it('has a route folder with a page for every page', () => {

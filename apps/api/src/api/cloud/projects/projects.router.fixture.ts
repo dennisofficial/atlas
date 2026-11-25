@@ -5,12 +5,7 @@ import { GithubRequestCoordinator } from '@dltech/atlas-github'
 import { GithubService } from '@dltech/atlas-github'
 import { inertSignals } from '../../platform/sessions/thread-signals.fixture'
 import { ThreadSignalsService } from '../../platform/sessions/thread-signals.service'
-import {
-  buildSessionTrpcApp,
-  dataOf,
-  trpcMutation,
-  type PrincipalFixture,
-} from '../session-trpc-test-app'
+import { buildSessionTrpcApp, dataOf, trpcMutation } from '../session-trpc-test-app'
 import { ProjectFileMountsService } from './project-file-mounts.service'
 import { ProjectResourcesRouter } from './project-resources.router'
 import { ProjectResourcesService } from './project-resources.service'
@@ -49,13 +44,9 @@ export const projectProviders = (
 export const buildProjectsApp = (args: {
   githubTokens?: Record<string, string>
   coordinator?: GithubRequestCoordinator
-  sandboxTokens?: Record<string, PrincipalFixture>
-  podTokens?: Record<string, PrincipalFixture>
 }): Promise<INestApplication> =>
   buildSessionTrpcApp({
     providers: projectProviders(args.githubTokens, args.coordinator),
-    ...(args.sandboxTokens === undefined ? {} : { sandboxTokens: args.sandboxTokens }),
-    ...(args.podTokens === undefined ? {} : { podTokens: args.podTokens }),
   })
 
 export const createProjectAs = async (args: {

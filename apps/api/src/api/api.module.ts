@@ -31,7 +31,6 @@ import { MemoriesModule } from './cloud/memories/memories.module'
 import { McpOauthModule } from './cloud/mcp-oauth/mcp-oauth.module'
 import { McpServersModule } from './cloud/mcp-servers/mcp-servers.module'
 import { ModelsModule } from './platform/models/models.module'
-import { NotificationsModule } from './platform/notifications/notifications.module'
 import { OauthConnectionsModule } from './platform/oauth-connections/oauth-connections.module'
 import { OperatorRequestsModule } from './cloud/operator-input/operator-requests.module'
 import { SessionStreamModule } from './cloud/stream/session-stream.module'
@@ -39,7 +38,6 @@ import { TerminalStreamModule } from './cloud/stream/terminal-stream.module'
 import { ProviderSignInModule } from './platform/provider-sign-in/provider-sign-in.module'
 import { DesktopAuthModule } from './platform/desktop-auth/desktop-auth.module'
 import { PodLeasesModule } from './platform/pod-leases/pod-leases.module'
-import { PresenceModule } from './platform/presence/presence.module'
 import { ProjectsModule } from './cloud/projects/projects.module'
 import { PublishedBundlesModule } from './cloud/published-bundles/published-bundles.module'
 import { ComposerDraftsModule } from './cloud/composer-drafts/composer-drafts.module'
@@ -91,8 +89,6 @@ import { ControlPlaneModule } from './platform/control/control-plane.module'
     OauthConnectionsModule,
     ProviderSignInModule,
     ModelsModule,
-    NotificationsModule,
-    PresenceModule,
     PodLeasesModule,
     SecretsModule,
     HarnessSecretsModule,

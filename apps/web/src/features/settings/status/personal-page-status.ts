@@ -11,11 +11,6 @@ export const PERSONAL_PAGE_STATUS = {
     detail:
       'The GitHub connection is real (connect GitHub from the terminal with `atlas`). MCP servers are saved to your account and reach every sandbox, including running ones; sign in here to servers that ask for OAuth.',
   },
-  [ESettingsPage.UsageSandboxes]: {
-    status: EPageStatus.Partial,
-    detail:
-      'Sandboxes come from Atlas Cloud. Repository, size and cost columns are not reported yet.',
-  },
   [ESettingsPage.Instructions]: {
     status: EPageStatus.Live,
     detail: 'Saved to your account and delivered to every sandbox when it starts.',

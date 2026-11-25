@@ -14,6 +14,7 @@ import {
   modelRefSettingSchema,
   DEFAULT_SANDBOX_DISK_GB,
   sandboxDiskGbSchema,
+  sandboxMemoryGbSchema,
   sandboxVcpusSchema,
 } from './setting-enums'
 
@@ -60,6 +61,12 @@ export const HARNESS_SETTING_ENTRIES = [
     key: 'sandbox.vcpus',
     schema: sandboxVcpusSchema,
     fallback: 2,
+    consumer: ESettingConsumer.Harness,
+  }),
+  settingEntry({
+    key: 'sandbox.memoryGb',
+    schema: sandboxMemoryGbSchema,
+    fallback: 4,
     consumer: ESettingConsumer.Harness,
   }),
   settingEntry({

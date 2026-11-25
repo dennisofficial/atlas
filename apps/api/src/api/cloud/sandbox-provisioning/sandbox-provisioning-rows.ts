@@ -26,8 +26,6 @@ export type RowClaim = {
   wakeClaim: Date
   name: string
   sandboxId: string
-  /** Set when the claim minted a token or revived a retired row: the caller revokes after commit. */
-  revokedSessionId?: string
 }
 
 export const relaunchableOf = (row: Row<'CloudSandbox'> | null): boolean =>
@@ -94,7 +92,7 @@ export async function claimRow(args: {
       .where((session) => session.deletedAt.isNotNull())
       .update({ deletedAt: null, updatedAt: wakeClaim })
   }
-  const revived = args.existing.retiredAt !== null
+  const _revived = args.existing.retiredAt !== null
   const claimed = await writer.orm.public.CloudSandbox.where({
     sessionId,
     wakeClaim: args.existing.wakeClaim,
@@ -107,13 +105,11 @@ export async function claimRow(args: {
     updatedAt: wakeClaim,
   })
   if (claimed === 0) return null
-  const rotated = Object.keys(mintedColumns).length > 0 || revived
   return {
     token,
     wakeClaim,
     name,
     sandboxId: args.existing.id,
-    ...(rotated ? { revokedSessionId: sessionId } : {}),
   }
 }
 

@@ -22,13 +22,8 @@ import {
   Subscription,
   UseMiddlewares,
 } from 'nestjs-trpc'
-import { meta } from '../../../_module/trpc/procedure-meta'
 import { DrainStateService } from '../../platform/health/drain-state.service'
-import { SandboxesService } from '../../platform/sandboxes/sandboxes.service'
-import {
-  SessionOrSandboxMiddleware,
-  type SessionOrSandboxTrpcCtx,
-} from '../../platform/sessions/session-or-sandbox.middleware'
+import { SessionMiddleware, type SessionTrpcCtx } from '../../../_module/session/session.middleware'
 import { GithubPrEventMailboxService } from '@dltech/atlas-github'
 import { type PrFrameSink, prStreamFrames } from '@dltech/atlas-github'
 import { GithubPrFanoutService } from '@dltech/atlas-github'
@@ -42,7 +37,7 @@ import { ThreadSignalsService } from '../../platform/sessions/thread-signals.ser
 export const PR_STREAM_HEARTBEAT_INTERVAL_MS = 30_000
 
 @Router({ alias: 'githubPrs' })
-@UseMiddlewares(SessionOrSandboxMiddleware)
+@UseMiddlewares(SessionMiddleware)
 export class GithubPrStreamRouter {
   private readonly logger = new Logger(GithubPrStreamRouter.name)
   private readonly linkedAccess: LinkedPrAccess
@@ -53,7 +48,6 @@ export class GithubPrStreamRouter {
     private readonly drain: DrainStateService,
     private readonly mailbox: GithubPrEventMailboxService,
     coordinator: GithubRequestCoordinator,
-    private readonly sandboxes: SandboxesService,
     github: GithubService,
     private readonly signals: ThreadSignalsService,
   ) {
@@ -62,26 +56,24 @@ export class GithubPrStreamRouter {
 
   @Subscription({
     output: githubPrStreamOutputSchema,
-    meta: meta({ podReachable: true, sandboxReachable: true }),
   })
   stream(
-    @Ctx() ctx: SessionOrSandboxTrpcCtx,
+    @Ctx() ctx: SessionTrpcCtx,
     @Options() opts: ProcedureOptions,
   ): AsyncGenerator<GithubPrStreamFrame> {
     if (this.drain.isDraining()) {
       throw new ServiceUnavailableException('the api is restarting — retry the stream')
     }
     const userId = ctx.auth.userId
-    const threadId = ctx.pod?.threadId ?? ctx.sandbox?.threadId
     return prStreamFrames({
       signal: opts.signal,
-      attach: (sink) => this.attach({ sink, userId, threadId }),
+      attach: (sink) => this.attach({ sink, userId }),
     })
   }
 
   @Subscription({ output: githubWakeStreamOutputSchema })
   wakes(
-    @Ctx() ctx: SessionOrSandboxTrpcCtx,
+    @Ctx() ctx: SessionTrpcCtx,
     @Options() opts: ProcedureOptions,
   ): AsyncGenerator<GithubWakeFrame> {
     if (this.drain.isDraining()) {
@@ -114,10 +106,10 @@ export class GithubPrStreamRouter {
     output: githubPrAckEventsOutputSchema,
   })
   async ackEvents(
-    @Ctx() ctx: SessionOrSandboxTrpcCtx,
+    @Ctx() ctx: SessionTrpcCtx,
     @Input() input: GithubPrAckEventsInput,
   ): Promise<{ acked: number }> {
-    const threadId = await this.ackThread({ ctx, requested: input.threadId })
+    const { threadId } = input
     const acked = await this.mailbox.acknowledge({ threadId, eventIds: input.eventIds })
     if (acked === 0) {
       this.logger.warn(
@@ -127,27 +119,9 @@ export class GithubPrStreamRouter {
     return { acked }
   }
 
-  /** A pod or sandbox acks for its own thread or a sub-agent thread of it, never another thread. */
-  private async ackThread(args: {
-    ctx: SessionOrSandboxTrpcCtx
-    requested: string
-  }): Promise<string> {
-    const familyThreadId = args.ctx.pod?.threadId ?? args.ctx.sandbox?.threadId
-    if (familyThreadId === undefined || familyThreadId === args.requested) return args.requested
-    try {
-      await this.sandboxes.assertThreadInFamily({
-        sandboxThreadId: familyThreadId,
-        threadId: args.requested,
-      })
-      return args.requested
-    } catch {
-      return familyThreadId
-    }
-  }
-
   @Subscription({ output: githubPrStatesOutputSchema })
   states(
-    @Ctx() ctx: SessionOrSandboxTrpcCtx,
+    @Ctx() ctx: SessionTrpcCtx,
     @Options() opts: ProcedureOptions,
   ): AsyncGenerator<GithubPrStatesFrame> {
     if (this.drain.isDraining()) {
@@ -173,7 +147,7 @@ export class GithubPrStreamRouter {
   private attach(args: {
     sink: PrFrameSink
     userId: string
-    threadId: string | undefined
+    threadId?: string | undefined
   }): () => void {
     args.sink.push({ type: EGithubPrStreamFrame.Heartbeat })
     void this.replayKnownStates(args)
@@ -207,7 +181,7 @@ export class GithubPrStreamRouter {
   private async replayMailbox(args: {
     sink: PrFrameSink
     userId: string
-    threadId: string | undefined
+    threadId?: string | undefined
   }): Promise<void> {
     try {
       const events =

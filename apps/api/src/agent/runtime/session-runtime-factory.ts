@@ -134,6 +134,8 @@ export const createSessionRuntimeFactory = (
     const paths = sessionPathsOf({ sessionId, threadId, home: args.sandboxHome })
     const podSize = config.podSize
     const desiredVcpus = podSize?.desiredVcpus ?? config.sandbox.vcpus
+    const desiredMemoryGb =
+      podSize?.desiredVcpus === undefined ? config.sandbox.memoryGb : podSize.desiredMemoryGb
     const desiredDiskGb = config.sandbox.diskGb
     // A resize writes its desired size and generation on the pod row while this runtime is still
     // the one waking its sandbox, so the size is read at wake time: the snapshot taken when the
@@ -192,6 +194,7 @@ export const createSessionRuntimeFactory = (
         vcpus,
         sandbox: provider,
         target,
+        ...(endpoint.memoryGb === undefined ? {} : { memoryGb: endpoint.memoryGb }),
         ...(endpoint.diskGb === undefined ? {} : { diskGb: endpoint.diskGb }),
       })
     }
@@ -207,6 +210,7 @@ export const createSessionRuntimeFactory = (
       provider,
       target,
       ...(desiredVcpus === undefined ? {} : { vcpus: desiredVcpus }),
+      ...(desiredMemoryGb === undefined ? {} : { memoryGb: desiredMemoryGb }),
       ...(desiredDiskGb === undefined ? {} : { diskGb: desiredDiskGb }),
       onWake,
       daemonSecret: args.daemonSecret,

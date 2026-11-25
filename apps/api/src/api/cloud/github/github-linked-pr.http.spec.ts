@@ -21,12 +21,11 @@ import { SecretCipherService } from '../../../_lib/crypto/secret-cipher.service'
 import { createMixedApp } from '../../platform/accounts/accounts.router.fixture'
 import { DrainStateService } from '../../platform/health/drain-state.service'
 import { SandboxesService } from '../../platform/sandboxes/sandboxes.service'
-import { SessionOrSandboxMiddleware } from '../../platform/sessions/session-or-sandbox.middleware'
+import { SessionMiddleware } from '../../../_module/session/session.middleware'
 import { ThreadSignalsService } from '../../platform/sessions/thread-signals.service'
 import type { GithubAppInstallNoticeService } from '@dltech/atlas-github'
 import { PULL_REQUEST_PAYLOAD } from '@dltech/atlas-github/testing'
 import { GithubDeliveryService } from '@dltech/atlas-github'
-import { GithubSandboxWakeService } from './github-sandbox-wake.service'
 import { GithubHookController } from './github-hook.controller'
 import { GithubWebhookInboxService } from '@dltech/atlas-github'
 import { seedLinkedPr } from '@dltech/atlas-github/testing'
@@ -37,7 +36,6 @@ import { GithubPrFanoutService } from '@dltech/atlas-github'
 import { GithubPrStreamRouter } from './github-pr-stream.router'
 import { GithubService } from '@dltech/atlas-github'
 import { GithubSubscriptionsService } from '@dltech/atlas-github'
-import { threadActivityAt } from './github-thread-activity'
 
 const OWNER = 'usr-owner'
 const OTHER = 'usr-other'
@@ -134,7 +132,6 @@ describe('linked PR states across real HTTP, Redis and Postgres', () => {
       api.coordinator,
       { coversRepo: async () => false } as never,
       storeFixture(),
-      threadActivityAt,
     )
     app = await createMixedApp({
       controllers: [GithubHookController],
@@ -149,9 +146,8 @@ describe('linked PR states across real HTTP, Redis and Postgres', () => {
         )
       },
       providers: [
-        { provide: GithubSandboxWakeService, useValue: { notifyEvent: () => undefined } },
         GithubPrStreamRouter,
-        SessionOrSandboxMiddleware,
+        SessionMiddleware,
         { provide: DrainStateService, useValue: new DrainStateService() },
         { provide: GithubPrFanoutService, useValue: api.fanout },
         { provide: GithubRequestCoordinator, useValue: api.coordinator },
@@ -245,8 +241,6 @@ describe('linked PR states across real HTTP, Redis and Postgres', () => {
       )
       expect(await db.orm.public.GithubPrEvent.all()).toEqual([])
       expect(await db.orm.public.GithubSubscription.all()).toHaveLength(expired ? 2 : 0)
-      expect(api.wakes).toEqual([])
-      expect(delivery.wakes).toEqual([])
       expect(states(other.frames)).toEqual([])
     })
   }

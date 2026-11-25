@@ -21,7 +21,7 @@ const ALLOWED_PLUGIN_SLOTS = ['/client', '/core']
 const PLUGIN_SDK = '@dltech/atlas-plugin-sdk'
 
 const FORBIDDEN_IMPORT =
-  /from ['"](@dltech\/atlas-harness|@dltech\/atlas-wire|tsyringe|reflect-metadata|\.\.\/composition|\.\.\/\.\.\/composition)/
+  /from ['"](@dltech\/atlas-wire|tsyringe|reflect-metadata|\.\.\/composition|\.\.\/\.\.\/composition)/
 
 const atlasDependencies = Object.keys(manifest.dependencies).filter((name) =>
   name.startsWith('@dltech/'),
@@ -36,15 +36,10 @@ describe('@dltech/atlas boundaries', () => {
     expect(offenders).toEqual([])
   })
 
-  it('names no harness, tsyringe or reflect-metadata anywhere in the manifest', () => {
+  it('names no wire, tsyringe or reflect-metadata anywhere in the manifest', () => {
     const text = JSON.stringify(manifest)
 
-    for (const forbidden of [
-      '@dltech/atlas-harness',
-      '@dltech/atlas-wire',
-      'tsyringe',
-      'reflect-metadata',
-    ]) {
+    for (const forbidden of ['@dltech/atlas-wire', 'tsyringe', 'reflect-metadata']) {
       expect(text).not.toContain(forbidden)
     }
   })

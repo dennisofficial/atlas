@@ -4,28 +4,26 @@ import { useEffect, useRef, useState } from 'react'
 
 import type { SpendTally } from '@dltech/atlas-core'
 
-import type { ServeChannel } from './live-thread-view'
-import { watchApiSpend, watchSpend } from './thread-spend-source'
+import type { LiveChannel } from './live-channel'
+import { watchSpend } from './thread-spend-source'
 
 export function useThreadSpend(args: {
   threadId: string
-  channel: ServeChannel | null
+  channel: LiveChannel | null
   working: boolean
 }): SpendTally | null {
   const { threadId, channel, working } = args
   const [held, setHeld] = useState<{
-    channel: ServeChannel | null
+    channel: LiveChannel | null
     threadId: string
     spend: SpendTally
   } | null>(null)
   const refreshRef = useRef<() => void>(() => undefined)
 
   useEffect(() => {
+    if (channel === null) return undefined
     const onSpend = (spend: SpendTally): void => setHeld({ channel, threadId, spend })
-    const watch =
-      channel === null
-        ? watchApiSpend({ threadId, onSpend })
-        : watchSpend({ channel, threadId, onSpend })
+    const watch = watchSpend({ channel, threadId, onSpend })
     refreshRef.current = watch.refresh
     return () => {
       refreshRef.current = () => undefined

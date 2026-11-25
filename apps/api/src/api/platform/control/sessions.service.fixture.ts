@@ -19,7 +19,7 @@ import { SessionsService } from './sessions.service'
 import { PodPowerService } from './pod-power.service'
 import { PodSizingService } from './pod-sizing.service'
 import { JobsProjectDispatcher, type JobDispatch } from '../../../_core/ports/job-dispatcher'
-import type { PreviewTeardownService } from '../sandboxes/preview-teardown.service'
+import type { PreviewTeardownService } from '../previews/preview-teardown.service'
 import { ProjectAccess } from './project-access'
 import { modelSet } from './model-set'
 

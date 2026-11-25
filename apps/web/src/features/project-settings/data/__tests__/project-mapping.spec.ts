@@ -12,7 +12,6 @@ import {
   shipOptionsOf,
 } from '../project-mapping'
 import { projectSecretRows } from '../project-secrets'
-import { DEFAULT_SIZE_ID, sizeIdOf, vcpusOfSizeId } from '../sandbox-mapping'
 
 const NOW = Date.parse('2026-10-20T12:00:00Z')
 
@@ -72,17 +71,6 @@ describe('ship options', () => {
     expect(legacy).toMatchObject({ label: LEGACY_MERGE_LABEL, disabled: true })
     expect(LEGACY_MERGE_LABEL).toBe('Merge when green (no longer offered)')
     expect(options.filter((option) => !option.disabled)).toHaveLength(2)
-  })
-})
-
-describe('sandbox sizes', () => {
-  it('maps vcpus to size ids and back', () => {
-    expect(sizeIdOf(null)).toBe(DEFAULT_SIZE_ID)
-    expect(vcpusOfSizeId(sizeIdOf(1))).toBe(1)
-    expect(vcpusOfSizeId(sizeIdOf(4))).toBe(4)
-    expect(vcpusOfSizeId(sizeIdOf(32))).toBe(32)
-    expect(vcpusOfSizeId(DEFAULT_SIZE_ID)).toBeNull()
-    expect(vcpusOfSizeId('9-vcpu')).toBeNull()
   })
 })
 

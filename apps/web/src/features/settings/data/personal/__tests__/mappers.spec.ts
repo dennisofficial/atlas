@@ -18,7 +18,6 @@ import { toMcpServer, transportOf } from '../mcp-api'
 import { buildGroups, memoryKeyInput } from '../memory-api'
 import { modelsChanges, modelsDraftFrom } from '../models-settings'
 import { relativeTime } from '../relative-time'
-import { splitSandboxes, ESandboxState } from '../sandboxes-api'
 import { toEnvSecretRow } from '../secrets-api'
 
 const NOW = Date.parse('2026-10-20T12:00:00Z')
@@ -243,20 +242,5 @@ describe('sessions and sandboxes', () => {
       meta: '1.2.3.4 · Last active 5m ago',
     })
     expect(toDevice({ session, currentToken: 'other', now: NOW }).current).toBe(false)
-  })
-
-  it('splits sandboxes by state with unknown columns blank', () => {
-    const entry = (state: ESandboxState) => ({
-      threadId: state,
-      name: 'n',
-      state,
-      lastActivityAt: ago(3_600_000),
-    })
-    const { running, paused } = splitSandboxes({
-      entries: [entry(ESandboxState.Running), entry(ESandboxState.Parked)],
-      now: NOW,
-    })
-    expect(running[0]).toMatchObject({ runningFor: '1h ago', cost: '—' })
-    expect(paused[0]).toMatchObject({ pausedAgo: '1h ago' })
   })
 })

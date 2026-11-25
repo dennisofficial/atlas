@@ -16,8 +16,6 @@ has more than 150 lines. A daily routine compares each README with the code and 
 ## Scope
 
 - Each package in `packages/*`, each plugin in `plugins/*`, and `commands/` must have a README.
-- `packages/agent-v1` and `packages/harness` do not need one. They are v1 code, and v2 replaces
-  them.
 - Apps in `apps/*` do not need one. Nothing imports an app.
 
 ## When to update a README

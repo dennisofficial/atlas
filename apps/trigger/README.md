@@ -9,10 +9,9 @@ imports `apps/api`, and `apps/api` never imports this one. See
 ## Its own trigger.dev project
 
 This app deploys to the trigger.dev project **Atlas v2** (`proj_wcjbubibkotgsclldnyz`, org
-Comp AI), configured in `trigger.config.ts`. That is a different project from v1's
-`proj_yvwotwceptrneuuasamk`, which `apps/api` still deploys: the two share no task ids, no schedules
-and no secrets, and retiring v1 deletes its project whole. Until v1 retires there are two
-deployments.
+Comp AI), configured in `trigger.config.ts`. It is the only trigger.dev project Atlas deploys: v1's
+`proj_yvwotwceptrneuuasamk` has no code to deploy any more (see `docs/v2/slices/v1-retirement.md`,
+slice 3).
 
 ## Operator steps
 
@@ -52,12 +51,9 @@ Never add the API's tier file here.
 
 `github-hook-sweep`, `github-poll-sweep` and `github-webhook-reconcile` moved here from v1's project
 on 23 Nov 2026: they build every service by hand over `@dltech/atlas-github`
-(`src/github/github-sweep-graph.ts`) and leave v1 out, so the outbox drains only the kinds
-this app can run. The v1 project keeps `github-v1-wake-sweep`, which refreshes v1 `liveUntil` from
-thread activity, retries failed v1 wakes and drains the v1-only outbox kinds. Both projects deploy on
-the same merge to main and trigger.dev syncs declarative schedules on deploy, so the three schedules
-stop in v1 in the same deploy that starts them here. A short overlap is safe: outbox and inbox claims
-use leases and `SKIP LOCKED`, and the hook sweep holds `GithubAppSyncGate`.
+(`src/github/github-sweep-graph.ts`), so the outbox drains only the kinds this app can run. Rows the
+v1 project queued under its own kinds stay in `GithubPrOutbox` unclaimed. Outbox and inbox claims use
+leases and `SKIP LOCKED`, and the hook sweep holds `GithubAppSyncGate`.
 
 ## The preview tunnels
 
@@ -72,9 +68,9 @@ pass to run against the existing leaked tunnels.
 ## How the API starts a task
 
 The API starts `pod-sleep` and `pod-resize` by id with this project's key,
-`TRIGGER_JOBS_SECRET_KEY` in the API's tier files. Its `TRIGGER_SECRET_KEY` stays the v1 project's
-key for the v1 tasks. A task here that queues another task uses the SDK's `tasks.trigger`, which
-needs no key inside a worker.
+`TRIGGER_JOBS_SECRET_KEY` in the API's tier files. `TRIGGER_SECRET_KEY` stays the retired v1
+project's key until the last v1 dispatch leaves `apps/api` (slice 4 of the retirement). A task here
+that queues another task uses the SDK's `tasks.trigger`, which needs no key inside a worker.
 
 ## Local
 

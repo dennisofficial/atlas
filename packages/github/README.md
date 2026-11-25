@@ -21,8 +21,6 @@ track a repository or a pull request. `apps/api` drives it through thin Nest ada
 
 - The HTTP routes and their guards. `apps/api` owns the controllers, the tRPC routers and the
   status mapping from `GithubHttpError`.
-- The v1 sandbox wake and the v1 thread signals. They arrive through the `GithubLegacyEffects`
-  port, which `apps/api` supplies and `apps/trigger` leaves out.
 - The database schema. `@dltech/atlas-db` owns the rows; this package reads and writes them.
 - Configuration storage. The caller builds a `GithubConfig` and passes the ports it needs.
 
@@ -49,8 +47,8 @@ track a repository or a pull request. `apps/api` drives it through thin Nest ada
 - `GithubWebhookInboxService` stores every authentic delivery, keyed by the delivery id, before
   any processing, and retries the ones that never processed.
 - `GithubPrOutboxDispatcher` claims rows, runs them, parks a failure for a retry, and dead-letters
-  one that keeps failing. Pass `legacy` to run the v1 `wake` and `thread-signal` kinds; without it
-  those rows stay unclaimed.
+  one that keeps failing. Rows the retired v1 project queued as `wake` or `thread-signal` are never
+  claimed, so they stay in the table unread.
 - `GithubPrEventMailboxService` keeps one delivery per thread and event, with a lease and an ack.
 - `GithubPrFanoutService` pushes a state change or an event to the client frames of a stream.
 
@@ -68,16 +66,15 @@ track a repository or a pull request. `apps/api` drives it through thin Nest ada
 - `GithubPollSweeperService` seeds targets, polls them, and expires the ones nobody watches.
 - `GithubHookLifecycleService` and `GithubHookRetirement` create, repair and retire a repository
   hook.
-- `GithubSubscriptionsService` subscribes a thread to a pull request or a branch, writes the
-  target's current state, and extends the live ceiling from the sandbox activity of the thread.
+- `GithubSubscriptionsService` subscribes a thread to a pull request or a branch, and writes the
+  target's current state.
 - `GithubSubscriptionTargetStates` reads the current state of a subscription target, and
   `githubAppTargetStatesOf({ appId, appPrivateKey })` builds it from the App credentials.
 - `prStreamFrames` turns a fan-out attachment into the frames of a PR stream, and
   `GithubPrEventMailboxService` gives its `replayUndelivered`, `replayForThread` and `acknowledge`
   steps.
 - `buildGithubSweeps` builds the poll, hook and webhook-reconcile sweeps over a config, a cipher and
-  a redis port. Omit `legacy`/`activityOf` and the sweeps run without v1; `dispose` tears the
-  fan-out down.
+  a redis port; `dispose` tears the fan-out down.
 
 ### Connect a user account and read repositories
 
@@ -92,8 +89,6 @@ track a repository or a pull request. `apps/api` drives it through thin Nest ada
 - `githubRedisOf({ url })`: a `GithubRedis` over one lazy ioredis connection, with `close()` for a
   worker that builds its graph per run. `@dltech/atlas-pods`' `SecretCipher` is a
   `GithubSecretCipher` already.
-- `GithubLegacyEffects` and the `activityOf` callback: the v1 seams. Omit them and the package runs
-  without v1.
 - `GithubHttpError`: a failure with a status, which the caller maps to its own HTTP error.
 
 ### Logging
@@ -118,8 +113,6 @@ const client = new GithubAppClient(config)
 ## Rules
 
 - Build every service with `new`. There are no decorators and no container in this package.
-- Pass `legacy` only where v1 effects are wanted. A dispatcher without it leaves the legacy outbox
-  kinds for the v1 sweep.
 - Treat `GithubHttpError` as the only error a caller must map. Every other failure is a bug.
 - Read the package through its entry points. Never import a deep path.
 

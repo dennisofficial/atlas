@@ -2,14 +2,12 @@ import type { ApnsRouteHandler } from './apns-routes'
 import { APP_INFO_PATH, type IDesktopAppInfo } from './app-info'
 import type { AuthHandler } from './auth/routes'
 import { createPaneHandler, type IPanePort } from './pane-routes'
-import type { PodsHandler } from './pods/routes'
 import { createUpdateHandler, type IDesktopUpdatesPort } from './update-routes'
 import { createWindowHandler, type IDesktopWindowPort } from './window-routes'
 
 export type DesktopRouteHandler = (request: Request) => Response | Promise<Response>
 
 export function createDesktopRouter({
-  pods,
   auth,
   updates,
   window,
@@ -17,7 +15,6 @@ export function createDesktopRouter({
   pane,
   apns,
 }: {
-  pods?: PodsHandler | undefined
   auth?: AuthHandler | undefined
   updates?: IDesktopUpdatesPort | undefined
   window?: IDesktopWindowPort | undefined
@@ -43,8 +40,6 @@ export function createDesktopRouter({
     const pushed = await apns?.(request, pathname)
     if (pushed) return pushed
     const signedIn = auth === undefined ? undefined : await auth(request, pathname)
-    if (signedIn) return signedIn
-    const handled = pods === undefined ? undefined : await pods(request, pathname)
-    return handled ?? new Response('Not Found', { status: 404 })
+    return signedIn ?? new Response('Not Found', { status: 404 })
   }
 }

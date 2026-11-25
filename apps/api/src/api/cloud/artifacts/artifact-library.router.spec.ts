@@ -78,7 +78,7 @@ describe('ArtifactsRouter library', () => {
       await beginPublish({ app, input: withSubdomain(published.subdomain) })
 
       const detail = artifactGetOutputSchema.parse(
-        dataOf((await get('sandbox-token-a', published.subdomain)).body),
+        dataOf((await get(OWNER, published.subdomain)).body),
       )
 
       expect(detail.artifact.status).toBe('ready')

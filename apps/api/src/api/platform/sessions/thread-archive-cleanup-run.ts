@@ -2,7 +2,7 @@ import { Logger } from '@nestjs/common'
 import { db } from '@dltech/atlas-db'
 import { sessionOfThread } from './session-of-thread'
 import type { SandboxesService } from '../sandboxes/sandboxes.service'
-import type { PreviewTunnelService } from '../sandboxes/preview-tunnel.service'
+import type { PreviewTunnelService } from '../previews/preview-tunnel.service'
 import { parkedOf } from '../sandboxes/sandbox-lifecycle'
 import {
   EThreadArchiveCleanupOutcome,

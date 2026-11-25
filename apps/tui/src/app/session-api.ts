@@ -41,7 +41,7 @@ import type { AuthRefusal } from './session-client'
 
 export type OperatorAnswerBody = Parameters<ApiClient['operatorRequests']['answer']['mutate']>[0]
 export type PresenceBody = Parameters<ApiClient['notifications']['reportPresence']['mutate']>[0]
-export type DraftPutBody = Parameters<ApiClient['composerDrafts']['put']['mutate']>[0]
+export type DraftPutBody = { scope: string; text: string }
 export type UploadPresignBody = Parameters<ApiClient['composerUploads']['presign']['mutate']>[0]
 export type UploadPresignReply = Awaited<
   ReturnType<ApiClient['composerUploads']['presign']['mutate']>
@@ -169,16 +169,23 @@ export const sessionApiOf = (args: {
       await guarded(() => args.api.composerUploads.discard.mutate({ pathname }))
     },
     loadDraft: async (scope) => {
-      const reply = await guarded(() => args.api.composerDrafts.get.query({ scope }))
+      const reply = await guarded(() => args.api.sessionDrafts.get.query({ sessionId: scope }))
       return reply.draft?.text ?? null
     },
     saveDraft: async (input) => {
+      const current = await guarded(() =>
+        args.api.sessionDrafts.get.query({ sessionId: input.scope }),
+      )
       await guarded(() =>
-        args.api.composerDrafts.put.mutate({ scope: input.scope, text: input.text, uploads: [] }),
+        args.api.sessionDrafts.put.mutate({
+          sessionId: input.scope,
+          text: input.text,
+          attachments: current.draft?.attachments ?? [],
+        }),
       )
     },
     clearDraft: async (scope) => {
-      await guarded(() => args.api.composerDrafts.clear.mutate({ scope }))
+      await guarded(() => args.api.sessionDrafts.clear.mutate({ sessionId: scope }))
     },
     treeFiles: (input) => guarded(() => args.api.files.tree.query(input)),
     searchFiles: (input) => guarded(() => args.api.files.search.query(input)),

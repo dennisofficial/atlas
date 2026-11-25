@@ -1,8 +1,8 @@
 # @dltech/atlas-sandbox
 
-The Linux CPU and memory priority of one pod. The package makes the serve process the protected
+The Linux CPU and memory priority of one pod. The package makes the daemon process the protected
 one. It also puts each command that a thread runs into a small cgroup, with a lower CPU weight and
-a higher out-of-memory score. `apps/daemon`, `apps/serve` and `packages/harness` call it.
+a higher out-of-memory score. `apps/daemon` calls it.
 
 ## Owns
 

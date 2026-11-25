@@ -19,7 +19,6 @@ import { GithubWebhookInboxService } from '@dltech/atlas-github'
 import { parseHookRepoParam } from '@dltech/atlas-github'
 import { verifyGithubSignature } from '@dltech/atlas-github'
 import { handleSupplementaryEvent } from '@dltech/atlas-github'
-import { GithubSandboxWakeService } from './github-sandbox-wake.service'
 import type { GithubPrWebhookRequest } from './github-webhook-request'
 
 /**
@@ -37,7 +36,6 @@ export class GithubHookController {
     private readonly deliveries: GithubDeliveryService,
     private readonly cipher: SecretCipherService,
     private readonly inbox: GithubWebhookInboxService,
-    private readonly wake: GithubSandboxWakeService,
   ) {}
 
   @Post(':repo')
@@ -79,7 +77,6 @@ export class GithubHookController {
       const supplementary = await handleSupplementaryEvent({
         event,
         payload,
-        wake: this.wake,
         deliveries: this.deliveries,
       })
       const outcome = supplementary

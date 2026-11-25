@@ -1,16 +1,6 @@
 import type { NestExpressApplication } from '@nestjs/platform-express'
 import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from 'bun:test'
-import {
-  CHILD_THREAD,
-  createSessionsRouterApp,
-  mutate,
-  pod,
-  query,
-  sandbox,
-  SANDBOX_THREAD,
-  session,
-  USER_ID,
-} from './threads-routers.fixture'
+import { createSessionsRouterApp, mutate, query, session, USER_ID } from './threads-routers.fixture'
 
 const append = vi.fn(async () => [])
 const replace = vi.fn(async () => [])
@@ -60,29 +50,6 @@ describe('ThreadEventsRouter', () => {
 
         expect(reply.status).toBe(200)
         expect(service).toHaveBeenCalledWith({ userId: USER_ID, threadId: 'thr-1', draft: body })
-      })
-
-      it('serves a sandbox token for its own family only', async () => {
-        const own = await mutate({
-          app,
-          procedure,
-          headers: sandbox,
-          body: { ...body, threadId: CHILD_THREAD },
-        })
-        const other = await mutate({
-          app,
-          procedure,
-          headers: sandbox,
-          body: { ...body, threadId: 'thr-other' },
-        })
-
-        expect(own.status).toBe(200)
-        expect(other.status).toBe(401)
-      })
-
-      it('refuses a pod token for its own thread and an anonymous caller', async () => {
-        expect((await mutate({ app, procedure, headers: pod, body })).status).toBe(403)
-        expect((await mutate({ app, procedure, body })).status).toBe(401)
       })
 
       it('rejects an invalid body', async () => {
@@ -156,33 +123,6 @@ describe('ThreadEventsRouter', () => {
       expect(read).toHaveBeenCalledTimes(1)
     })
 
-    it('serves a sandbox token for its own thread and refuses another', async () => {
-      const own = await query({
-        app,
-        procedure: 'threadEvents.read',
-        headers: sandbox,
-        input: { threadId: SANDBOX_THREAD },
-      })
-      const other = await query({
-        app,
-        procedure: 'threadEvents.read',
-        headers: sandbox,
-        input: { threadId: 'thr-other' },
-      })
-
-      expect(own.status).toBe(200)
-      expect(other.status).toBe(401)
-    })
-
-    it('refuses a pod token for its own thread and an anonymous caller', async () => {
-      const input = { threadId: SANDBOX_THREAD }
-
-      expect(
-        (await query({ app, procedure: 'threadEvents.read', headers: pod, input })).status,
-      ).toBe(403)
-      expect((await query({ app, procedure: 'threadEvents.read', input })).status).toBe(401)
-    })
-
     it('rejects a negative upTo', async () => {
       const reply = await query({
         app,
@@ -210,26 +150,6 @@ describe('ThreadEventsRouter', () => {
       })
     })
 
-    it('refuses a sandbox principal even for its own thread', async () => {
-      const reply = await mutate({
-        app,
-        procedure: 'threadEvents.import',
-        headers: sandbox,
-        body: { ...body, threadId: SANDBOX_THREAD },
-      })
-
-      expect(reply.status).toBe(403)
-      expect(importEvents).not.toHaveBeenCalled()
-    })
-
-    it('refuses a pod principal and an anonymous caller', async () => {
-      expect(
-        (await mutate({ app, procedure: 'threadEvents.import', headers: pod, body })).status,
-      ).toBe(403)
-      expect((await mutate({ app, procedure: 'threadEvents.import', body })).status).toBe(401)
-      expect(importEvents).not.toHaveBeenCalled()
-    })
-
     it('rejects an empty or malformed event batch', async () => {
       for (const events of [[], [{ seq: 'x' }]]) {
         const reply = await mutate({
@@ -255,33 +175,6 @@ describe('ThreadEventsRouter', () => {
 
       expect(reply.body).toEqual({ result: { data: { head: 7 } } })
       expect(head).toHaveBeenCalledWith({ userId: USER_ID, threadId: 'thr-1' })
-    })
-
-    it('serves a sandbox token for its own thread and refuses another', async () => {
-      const own = await query({
-        app,
-        procedure: 'threadEvents.head',
-        headers: sandbox,
-        input: { threadId: SANDBOX_THREAD },
-      })
-      const other = await query({
-        app,
-        procedure: 'threadEvents.head',
-        headers: sandbox,
-        input: { threadId: 'thr-other' },
-      })
-
-      expect(own.status).toBe(200)
-      expect(other.status).toBe(401)
-    })
-
-    it('refuses a pod token for its own thread and an anonymous caller', async () => {
-      const input = { threadId: SANDBOX_THREAD }
-
-      expect(
-        (await query({ app, procedure: 'threadEvents.head', headers: pod, input })).status,
-      ).toBe(403)
-      expect((await query({ app, procedure: 'threadEvents.head', input })).status).toBe(401)
     })
   })
 })

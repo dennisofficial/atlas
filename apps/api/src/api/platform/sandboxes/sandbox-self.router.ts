@@ -49,8 +49,6 @@ import {
 import { z } from 'zod'
 import { PrSubscriptionLinks } from '../../../_core/ports/pr-subscription-links'
 import { podSessionIdOfSandboxName } from '../../../agent'
-import { meta } from '../../../_module/trpc/procedure-meta'
-import { NotificationsService } from '../notifications/notifications.service'
 import { podSessionOf } from '../sessions/session-of-thread'
 import { lockThread } from '../sessions/thread-head'
 import { ThreadSignalsService } from '../sessions/thread-signals.service'
@@ -63,8 +61,11 @@ import { endPodTerminals } from '@dltech/atlas-pods'
 import { applyPodEvents, truncatePodEvents } from './pod-events'
 import { assertWithinSandboxFamily } from './pod-family'
 import { keepaliveFrames } from './sandbox-watch-keepalive'
-import { SandboxTokenMiddleware, type SandboxTrpcCtx } from './sandbox-token.middleware'
-import { PreviewTunnelService } from './preview-tunnel.service'
+import {
+  RetiredSandboxTokenMiddleware,
+  type SandboxTrpcCtx,
+} from './retired-sandbox-token.middleware'
+import { PreviewTunnelService } from '../previews/preview-tunnel.service'
 import { VercelSandboxClient } from './vercel-sandbox.client'
 
 const WATCH_QUEUE_LIMIT = 64
@@ -83,15 +84,12 @@ async function identityOf(ctx: SandboxTrpcCtx): Promise<SandboxIdentity> {
 }
 
 @Router({ alias: 'sandboxSelf' })
-@UseMiddlewares(SandboxTokenMiddleware)
+@UseMiddlewares(RetiredSandboxTokenMiddleware)
 export class SandboxSelfRouter {
   constructor(
     private readonly vercel: VercelSandboxClient,
     private readonly previews: PreviewTunnelService,
     private readonly signals: ThreadSignalsService,
-    @Optional()
-    @Inject(NotificationsService)
-    private readonly notifications?: NotificationsService,
     @Optional()
     @Inject(PrSubscriptionLinks)
     private readonly prLinks?: PrSubscriptionLinks,
@@ -100,7 +98,6 @@ export class SandboxSelfRouter {
   @Mutation({
     input: sandboxExposePortRequestSchema,
     output: sandboxExposePortReplySchema,
-    meta: meta({ podReachable: true }),
   })
   async exposePort(
     @Input() input: SandboxExposePortRequest,
@@ -233,7 +230,6 @@ export class SandboxSelfRouter {
   @Mutation({
     input: sandboxActivityPostSchema,
     output: z.void(),
-    meta: meta({ podReachable: true }),
   })
   async activity(@Input() input: SandboxActivityPost, @Ctx() ctx: SandboxTrpcCtx): Promise<void> {
     const { threadId: requested, ...activity } = input
@@ -245,14 +241,6 @@ export class SandboxSelfRouter {
     const applied = await applyThreadActivity({ threadId, activity })
     if (applied === null) return
     this.signals.threadChanged({ threadId })
-    if (applied.ended === null) return
-    await this.notifications
-      ?.notifyTurnEnded({
-        threadId,
-        outcome: applied.ended.outcome,
-        activityAt: applied.ended.activityAt,
-      })
-      .catch(() => undefined)
   }
 
   @Subscription({ input: eventsWatchInputSchema, output: eventsWatchOutputSchema })

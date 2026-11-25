@@ -13,9 +13,6 @@ import { seedSessionUsers } from '../../../test/web-settings.fake-db'
 import { UserFilesRouter } from './user-files.router'
 import { UserFilesService } from './user-files.service'
 
-const SANDBOX_TOKENS = { 'sandbox-a': { threadId: 'thread-sbx-a', userId: 'user-a' } }
-const POD_TOKENS = { 'pod-a': { threadId: 'thread-pod-a', userId: 'user-a' } }
-
 const encode = (bytes: Uint8Array) => Buffer.from(bytes).toString('base64')
 const hashOf = (bytes: Uint8Array) => createHash('sha256').update(bytes).digest('hex')
 const fileOf = (text: string) => {
@@ -33,8 +30,6 @@ describe('UserFilesRouter', () => {
 
   beforeAll(async () => {
     app = await buildSessionTrpcApp({
-      sandboxTokens: SANDBOX_TOKENS,
-      podTokens: POD_TOKENS,
       providers: [UserFilesRouter, UserFilesService],
     })
   })
@@ -125,15 +120,6 @@ describe('UserFilesRouter', () => {
         input: { tree: 'skills', path: 'review/SKILL.md', baseRevision: 1 },
       }).expect(400)
     })
-  })
-
-  it('reaches a sandbox token for its own user and refuses a pod lease token on list', async () => {
-    await put('session-a', { tree: 'memory', path: 'm.md', ...fileOf('m') }).expect(200)
-
-    const sandbox = await list('sandbox-a', { tree: 'memory' }).expect(200)
-    expect(dataOf(sandbox.body)).toMatchObject({ files: [{ path: 'm.md' }] })
-    await list('pod-a', { tree: 'memory' }).expect(403)
-    await list(undefined, { tree: 'memory' }).expect(401)
   })
 
   it('answers 409 when the base revision is stale', async () => {
