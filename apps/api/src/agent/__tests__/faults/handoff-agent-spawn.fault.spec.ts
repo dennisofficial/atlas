@@ -50,7 +50,6 @@ describeHandoff({
   name: 'a sub-agent spawn that outlives a host handoff',
   prompt: PROMPT,
   knobs: { plugins: true },
-  drain: false,
 
   takeOverScripts({ sessionId }) {
     return {

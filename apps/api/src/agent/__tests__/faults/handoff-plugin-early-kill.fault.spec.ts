@@ -40,7 +40,6 @@ describeHandoff({
   name: 'a plugin call killed after its dispatch and before its first pod operation',
   prompt: 'start the service',
   knobs: { plugins: true },
-  drain: false,
 
   async start(ctx): Promise<HostProcess> {
     const started = ctx.path('started')

@@ -1,13 +1,11 @@
 import { crashedCallsOf } from '@dltech/atlas-core'
-import { logFieldsOf } from '@dltech/atlas-observability'
 
 import { settledWithin } from './crew/child-turns'
-import { DRAIN_DETACH_CAP_MS } from './drain-cap'
+import { DRAIN_TOOL_CALL_CAP_MS } from './drain-cap'
 import type { HeldEnding } from './held-ending'
 import { drainNeedsHolder, outcomeCommandPending } from './held-needs-holder'
 import type { HeldSessionDeps } from './held-session-deps'
 import type { HeldTurns } from './held-turns'
-import type { SessionRuntime } from './ports'
 import type { SessionRecord } from './record/record-adapter'
 
 export class HeldDrain {
@@ -18,7 +16,6 @@ export class HeldDrain {
       turns: HeldTurns
       ending: HeldEnding
       record(): SessionRecord | undefined
-      runtime(): SessionRuntime | undefined
       childrenPause(): Promise<void> | undefined
     },
   ) {}
@@ -47,56 +44,19 @@ export class HeldDrain {
   private async settleInFlight(): Promise<void> {
     if (!this.args.turns.turnRunning) return
     const startedAt = this.args.deps.timers.now()
-    await new Promise<void>((resolve) => {
-      const timer = this.args.deps.timers.setTimeout(() => {
-        void this.abortPastCap({ startedAt }).finally(resolve)
-      }, this.args.deps.drainCapMs)
-      void this.args.turns.whenIdle().then(() => {
-        this.args.deps.timers.clearTimeout(timer)
-        resolve()
-      })
-    })
-  }
-
-  private async abortPastCap(args: { startedAt: number }): Promise<void> {
-    this.logCap(args)
-    const detached = await settledWithin({
+    const settled = await settledWithin({
       timers: this.args.deps.timers,
-      ms: DRAIN_DETACH_CAP_MS,
-      done: this.detachInFlightCalls().catch((error: unknown) => {
-        this.warn({ message: 'detaching the in-flight calls failed', error })
-      }),
+      ms: this.toolCallInFlight() ? DRAIN_TOOL_CALL_CAP_MS : this.args.deps.drainCapMs,
+      done: this.args.turns.whenIdle(),
     })
-    if (!detached) {
-      this.warn({
-        message: `detaching the in-flight calls outlived ${DRAIN_DETACH_CAP_MS}ms; handing back without them`,
-      })
-    }
+    if (settled) return
+    this.logCap({ startedAt })
     this.args.turns.abort('handoff')
   }
 
-  private warn(args: { message: string; error?: unknown }): void {
-    this.args.deps.log?.warn({
-      source: 'holder.drain',
-      message: `session ${this.args.sessionId}: ${args.message}`,
-      ...(args.error === undefined ? {} : logFieldsOf({ error: args.error })),
-    })
-  }
-
-  private async detachInFlightCalls(): Promise<void> {
-    const record = this.args.record()
-    const state = record?.eventCache().loopState()
-    if (record === undefined || state === undefined) return
-    const daemonTools = this.args.runtime()?.daemonTools
-    const usesPodCall = (name: string): boolean => this.args.runtime()?.usesPodCall(name) === true
-    for (const call of crashedCallsOf(state)) {
-      if (daemonTools?.has(call.name) === true || usesPodCall(call.name)) continue
-      await record.append({
-        threadId: call.threadId,
-        runId: this.args.deps.ids.nextRunId(),
-        drafts: [{ type: 'tool-dispatched', callId: call.callId, name: call.name, detached: true }],
-      })
-    }
+  private toolCallInFlight(): boolean {
+    const state = this.args.record()?.eventCache().loopState()
+    return state !== undefined && crashedCallsOf(state).length > 0
   }
 
   private logCap(args: { startedAt: number }): void {

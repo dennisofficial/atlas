@@ -18,6 +18,7 @@ import { PauseSignal, type LoopTurnRunner, type TurnOutcome } from '@dltech/atla
 import { logFieldsOf } from '@dltech/atlas-observability'
 import type { PodCrew, SubagentSaid, SubagentSnapshot } from '@dltech/atlas-plugin-sdk'
 
+import { DRAIN_CHILD_PAUSE_CAP_MS } from '../drain-cap'
 import type { RoleModelChoice } from '../ports'
 import type { LeaseLostError, SessionRecord } from '../record/record-adapter'
 import { childInboxOf, type ChildInbox } from './child-inbox'
@@ -97,7 +98,7 @@ export class ChildRun {
     })
   }
 
-  static async open(args: ChildRunArgs): Promise<ChildRun> {
+  static async open(args: ChildRunArgs & { brief: string }): Promise<ChildRun> {
     const run = new ChildRun(
       args,
       args.deps.ids.nextThreadId(),
@@ -111,6 +112,7 @@ export class ChildRun {
       onLeaseLost: (error) => run.lost(error),
     })
     run.inbox = childInboxOf({ deps: args.deps, record: run.record, threadId: run.agentId })
+    await run.inbox.post(inboxInputOf({ text: args.brief }))
     if (args.worktree !== undefined)
       await seedWorktreeOf({
         record: run.record,
@@ -162,9 +164,14 @@ export class ChildRun {
   }): Promise<SubagentSaid> {
     await this.inbox.post(inboxInputOf(args))
     if (this.pump !== undefined) return { queued: true, snapshot: this.snapshot() }
-    if (!(await this.inbox.intake.hasQueued())) return { queued: false, snapshot: this.snapshot() }
-    this.begin({ restart: this.ending !== undefined })
+    await this.beginQueued()
     return { queued: false, snapshot: this.snapshot() }
+  }
+
+  async beginQueued(): Promise<void> {
+    if (this.pump !== undefined) return
+    if (!(await this.inbox.intake.hasQueued())) return
+    this.begin({ restart: this.ending !== undefined })
   }
 
   async notice(event: EventBody, options: { key: string }): Promise<void> {
@@ -220,13 +227,13 @@ export class ChildRun {
   private async settleOrAbort(): Promise<void> {
     const settled = await settledWithin({
       timers: this.args.deps.timers,
-      ms: this.args.deps.drainCapMs,
+      ms: DRAIN_CHILD_PAUSE_CAP_MS,
       done: this.done,
     })
     if (settled) return
     this.args.deps.log?.warn({
       source: 'holder.drain',
-      message: `sub-agent ${this.agentId} ran in flight for ${this.args.deps.drainCapMs}ms, past the drain cap; aborting it for the hand-off`,
+      message: `sub-agent ${this.agentId} did not pause within ${DRAIN_CHILD_PAUSE_CAP_MS}ms; aborting its turn for the hand-off`,
     })
     this.abort?.abort('handoff')
   }

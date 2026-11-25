@@ -13,7 +13,7 @@ import {
 } from '@dltech/atlas-core'
 import { FakeTool, ScriptedModel } from '@dltech/atlas-agent/testing'
 
-import { DRAIN_IN_FLIGHT_CAP_MS } from '../drain-cap'
+import { DRAIN_TOOL_CALL_CAP_MS } from '../drain-cap'
 import { flushUntil, makeRig, seedSession, SESSION, THREAD_ID, type HolderRig } from './holder-rig'
 
 const STEP_TEXT = 'working'
@@ -143,7 +143,7 @@ describe('SessionHolder drain with work in flight', () => {
     expect(lease.holderHostId).toBeNull()
   }, 15_000)
 
-  it('marks a call the cap detached so the next host runs it instead of settling a crash', async () => {
+  it('leaves a call that was in flight at the drain pending, for the next host to run', async () => {
     const model = new ScriptedModel([...script(), { text: 'done' }])
     const tool = new GatedTool()
     const a = await makeRig({ model: () => model, hostTools: [tool] })
@@ -152,22 +152,17 @@ describe('SessionHolder drain with work in flight', () => {
 
     const draining = a.holder.drain()
     await a.flush()
-    a.clock.advance(DRAIN_IN_FLIGHT_CAP_MS)
-
-    const detached = await flushUntil({
-      check: async () =>
-        (await eventsOf(a)).some(
-          (event) => event.type === 'tool-dispatched' && event.detached === true,
-        ),
-    })
-    expect(detached).toBe(true)
-    tool.releaseNow()
-    await a.flush()
+    a.clock.advance(DRAIN_TOOL_CALL_CAP_MS)
     await draining
 
     const drained = await eventsOf(a)
     expect(drained.filter((event) => event.type === 'tool-result')).toEqual([])
     expect(typesOf(drained)).not.toContain('nudge')
+    const { lease } = await a.plane.currentLease({ sessionId: SESSION })
+    expect(lease.holderHostId).toBeNull()
+
+    tool.releaseNow()
+    await a.flush()
 
     const b = await makeRig({
       plane: a.plane,

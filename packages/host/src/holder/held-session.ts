@@ -123,7 +123,6 @@ export class HeldSession {
       turns: this.turns,
       ending: this.ending,
       record: () => this.record,
-      runtime: () => this.runtime,
       childrenPause: () => this.crew?.pauseAll(),
     })
   }
