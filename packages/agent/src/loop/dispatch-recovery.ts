@@ -37,10 +37,13 @@ const restartProven = async (args: {
   call: PendingCall
   probe: PodHoldProbe
 }): Promise<boolean> => {
-  const dispatchedBootId = args.probe.dispatchedBootId(args.call.callId)
-  if (dispatchedBootId === undefined) return false
   const action = recoverCall({
-    facts: { dispatched: true, dispatchedBootId, resultRecorded: false, readOnly: false },
+    facts: {
+      dispatched: true,
+      dispatchedBootId: args.probe.dispatchedBootId(args.call.callId),
+      resultRecorded: false,
+      readOnly: false,
+    },
     answer: await args.probe.podAnswer(args.call),
     bootId: args.probe.daemonBootId() ?? '',
     variant: { doneRuns: true },

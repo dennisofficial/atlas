@@ -69,3 +69,26 @@ describe('recoverCall with an answered daemon', () => {
     ).toBe('run')
   })
 })
+
+describe('recoverCall for a dispatch that recorded no boot identity', () => {
+  const legacy = { ...facts, dispatchedBootId: undefined }
+
+  it('runs a call whose first holder named no boot, whatever boot answers', () => {
+    expect(
+      recoverCall({ facts: legacy, answer: EDaemonAnswer.NeverSeen, bootId: 'boot-b' }).type,
+    ).toBe('run')
+  })
+
+  it('never writes off a call whose dispatch cannot be dated', () => {
+    const answers = [EDaemonAnswer.NeverSeen, EDaemonAnswer.Running, EDaemonAnswer.Done] as const
+    for (const answer of answers) {
+      expect(recoverCall({ facts: legacy, answer, bootId: 'boot-b' }).type).not.toBe('interrupted')
+    }
+  })
+
+  it('still waits when the pod cannot be asked', () => {
+    expect(recoverCall({ facts: legacy, answer: 'unavailable', bootId: 'boot-b' }).type).toBe(
+      'wait',
+    )
+  })
+})

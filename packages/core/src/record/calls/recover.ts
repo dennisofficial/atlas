@@ -41,9 +41,9 @@ export function recoverCall(args: {
   if (answer === EDaemonAnswer.Running) return { type: 'attach' }
   if (answer === 'unavailable') return { type: 'wait' }
 
-  const sameBoot = facts.dispatchedBootId === bootId
-  if (facts.dispatched && facts.dispatchedBootId !== undefined && sameBoot) return { type: 'run' }
-  if (facts.dispatched && !sameBoot) {
+  if (facts.dispatched && facts.dispatchedBootId === undefined) return { type: 'run' }
+  if (facts.dispatched && facts.dispatchedBootId === bootId) return { type: 'run' }
+  if (facts.dispatched) {
     if (facts.readOnly || variant?.rerunAcrossBoot === true) return { type: 'rerun' }
     return { type: 'interrupted' }
   }

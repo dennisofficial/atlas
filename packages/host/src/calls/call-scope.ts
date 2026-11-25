@@ -3,7 +3,7 @@ import { createHash, randomUUID } from 'node:crypto'
 import { AsyncLocalStorage } from 'node:async_hooks'
 
 import { ToolDispatcher, type DispatchArgs, type DispatchableCall } from '@dltech/atlas-agent'
-import { CallInterruptedError, type EventDraft } from '@dltech/atlas-core'
+import { CallInterruptedError, type CallId, type Event, type EventDraft } from '@dltech/atlas-core'
 import { callKeySchema, type CallOp } from '@dltech/atlas-protocol'
 
 import { interruptedMessage } from './errors'
@@ -17,6 +17,7 @@ type CallScope = {
   tool?: string | undefined
   dispatchedBootId?: string | undefined
   attachOnly?: boolean | undefined
+  legacyKeys?: boolean | undefined
 }
 
 const storage = new AsyncLocalStorage<CallScope>()
@@ -42,6 +43,7 @@ export const scopeCallId = (): string | undefined => storage.getStore()?.callId
 export const runInCallScope = <T>(args: {
   scopeKey: string
   attachOnly?: boolean | undefined
+  legacyKeys?: boolean | undefined
   body(): T
 }): T =>
   storage.run(
@@ -50,8 +52,20 @@ export const runInCallScope = <T>(args: {
       next: 0,
       seen: new Map(),
       ...(args.attachOnly === undefined ? {} : { attachOnly: args.attachOnly }),
+      ...(args.legacyKeys === undefined ? {} : { legacyKeys: args.legacyKeys }),
     },
     args.body,
+  )
+
+export const dispatchedBeforeBoots = (args: {
+  events: readonly Event[]
+  callId: CallId
+}): boolean =>
+  args.events.some(
+    (event) =>
+      event.type === 'tool-dispatched' &&
+      event.callId === args.callId &&
+      event.bootId === undefined,
   )
 
 export const scopeAttachOnly = (): boolean => storage.getStore()?.attachOnly === true
@@ -68,6 +82,7 @@ export const scopedOpKey = (op: CallOp): string => {
   const identity = opIdentityOf(op)
   const scope = storage.getStore()
   if (scope === undefined) return `host-op-${identity}.0`
+  if (scope.legacyKeys === true) return nextKey()
   const seen = scope.seen.get(identity) ?? 0
   scope.seen.set(identity, seen + 1)
   return `${scope.scopeKey}.${identity}.${seen}`
@@ -85,6 +100,9 @@ export class ScopedToolDispatcher extends ToolDispatcher {
       next: 0,
       seen: new Map(),
       tool: args.call.name,
+      ...(dispatchedBeforeBoots({ events: args.events, callId: args.call.callId })
+        ? { legacyKeys: true }
+        : {}),
     }
     return storage.run(scope, async () => {
       try {
