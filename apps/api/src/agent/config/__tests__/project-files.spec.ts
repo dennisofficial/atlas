@@ -21,9 +21,11 @@ const row = (path: string, contents: string, mode = 0o600): SealedFileMountRow =
 
 const rowsOf = (args: {
   projectMounts?: readonly SealedFileMountRow[]
+  groupMounts?: readonly SealedFileMountRow[]
   userMounts?: readonly SealedFileMountRow[]
 }): ProjectFileRows => ({
   projectMounts: async () => args.projectMounts ?? [],
+  groupMounts: async () => args.groupMounts ?? [],
   userMounts: async () => args.userMounts ?? [],
 })
 
@@ -34,9 +36,20 @@ const mountOf = (path: string, contents: string): ScopedFileMount => ({
 })
 
 describe('mergedFileMounts', () => {
+  it('keeps the group mount over a personal one of the same path', () => {
+    const mounts = mergedFileMounts({
+      projectMounts: [],
+      groupMounts: [mountOf('~/.npmrc', 'group')],
+      userMounts: [mountOf('~/.npmrc', 'personal'), mountOf('~/notes.md', 'personal')],
+    })
+
+    expect(mounts).toEqual([mountOf('~/.npmrc', 'group'), mountOf('~/notes.md', 'personal')])
+  })
+
   it('keeps the project mount when a personal mount holds the same path', () => {
     const mounts = mergedFileMounts({
       projectMounts: [mountOf('~/notes.md', 'project')],
+      groupMounts: [],
       userMounts: [mountOf('~/notes.md', 'personal'), mountOf('~/.npmrc', 'personal')],
     })
 
@@ -46,6 +59,7 @@ describe('mergedFileMounts', () => {
   it('returns the personal mounts of a session without a project', () => {
     const mounts = mergedFileMounts({
       projectMounts: [],
+      groupMounts: [],
       userMounts: [mountOf('~/.npmrc', 'personal')],
     })
 

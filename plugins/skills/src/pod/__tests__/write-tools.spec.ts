@@ -6,11 +6,12 @@ import type {
   CloudSkillSource,
   CloudSkillWriteResult,
   CloudSkillWriter,
+  SkillScopeName,
 } from '../port'
 import { fakeDaemon, invoke, skillDir, textOf, turn } from './support'
 
 type Stored = {
-  scope: 'user' | 'project'
+  scope: SkillScopeName
   name: string
   description: string
   body: string

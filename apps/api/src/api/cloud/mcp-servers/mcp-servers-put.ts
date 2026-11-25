@@ -40,15 +40,17 @@ const grantClearingUpdate = (args: {
 
 export const putCloudServer = async (args: {
   cipher: SecretCipherService
-  scope: { userId: string } | { projectId: string }
-  idPrefix: 'mcp_' | 'pmcp_'
+  scope: { userId: string } | { projectId: string } | { groupId: string }
+  idPrefix: 'mcp_' | 'gmcp_' | 'pmcp_'
   name: string
   sealedSpec: string
 }): Promise<void> => {
   const conflictOn =
     'userId' in args.scope
       ? { userId: args.scope.userId, source: 'cloud' as const, name: args.name }
-      : { projectId: args.scope.projectId, source: 'cloud' as const, name: args.name }
+      : 'groupId' in args.scope
+        ? { groupId: args.scope.groupId, source: 'cloud' as const, name: args.name }
+        : { projectId: args.scope.projectId, source: 'cloud' as const, name: args.name }
   await db.transaction(async (tx: Tx) => {
     const existing = await tx.orm.public.McpServer.first(conflictOn)
     if (existing === null) {

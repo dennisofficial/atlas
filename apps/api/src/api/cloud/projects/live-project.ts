@@ -20,6 +20,7 @@ export function toProject(row: Row<'Project'>): Project {
     repo: row.repo,
     baseBranch: row.baseBranch,
     additionalRepos: reposOf(row),
+    groupId: row.groupId,
     description: row.description,
     shipBehavior: shipBehaviorOf(row.shipBehavior),
     createdAt: row.createdAt.toISOString(),

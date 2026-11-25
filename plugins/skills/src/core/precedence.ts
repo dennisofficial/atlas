@@ -3,8 +3,9 @@ import { ESkillOrigin, type SkillWarning } from './spec'
 const SHADOWING_RANK: Readonly<Record<ESkillOrigin, number>> = {
   [ESkillOrigin.BuiltIn]: 0,
   [ESkillOrigin.CloudUser]: 1,
-  [ESkillOrigin.CloudProject]: 2,
-  [ESkillOrigin.Repo]: 3,
+  [ESkillOrigin.CloudGroup]: 2,
+  [ESkillOrigin.CloudProject]: 3,
+  [ESkillOrigin.Repo]: 4,
 }
 
 export type OriginatedSkill = {

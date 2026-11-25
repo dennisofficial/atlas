@@ -18,8 +18,11 @@ const QUERY_TIMEOUT_MS = 10_000
 
 const DEFINED_IN = 'the cloud'
 
-const originOf = (scope: McpCloudRow['source']): EDefinitionOrigin =>
-  scope === 'user' ? EDefinitionOrigin.User : EDefinitionOrigin.Project
+const originOf = (scope: McpCloudRow['source']): EDefinitionOrigin => {
+  if (scope === 'user') return EDefinitionOrigin.User
+  if (scope === 'group') return EDefinitionOrigin.Group
+  return EDefinitionOrigin.Project
+}
 
 const rejectionOf = (args: {
   rejection: EMcpRejection
@@ -123,19 +126,30 @@ const readScope = (args: {
 export class McpServerReader {
   constructor(private readonly args: { db: Db; cipher: SecretCipher }) {}
 
+  private async groupIdOf(projectId: string | null): Promise<string | null> {
+    if (projectId === null) return null
+    const project = await this.args.db.orm.public.Project.first({ id: projectId })
+    return project?.groupId ?? null
+  }
+
   async read({ sessionId }: { sessionId: string }): Promise<McpCloudRead> {
     const session = await this.args.db.orm.public.Session.first({ id: sessionId })
     if (session === null) return { rows: [], rejections: [] }
+    const groupId = await this.groupIdOf(session.projectId)
     const servers = this.args.db.orm.public.McpServer
-    const [user, project] = await Promise.all([
+    const [user, group, project] = await Promise.all([
       servers.where({ userId: session.userId, source: 'cloud' }).all(),
+      groupId === null ? Promise.resolve([]) : servers.where({ groupId, source: 'cloud' }).all(),
       servers.where({ projectId: session.projectId, source: 'cloud' }).all(),
     ])
-    const userRead = readScope({ cipher: this.args.cipher, scope: 'user', rows: user })
-    const projectRead = readScope({ cipher: this.args.cipher, scope: 'project', rows: project })
+    const reads = [
+      readScope({ cipher: this.args.cipher, scope: 'user', rows: user }),
+      readScope({ cipher: this.args.cipher, scope: 'group', rows: group }),
+      readScope({ cipher: this.args.cipher, scope: 'project', rows: project }),
+    ]
     return {
-      rows: [...userRead.rows, ...projectRead.rows],
-      rejections: [...userRead.rejections, ...projectRead.rejections],
+      rows: reads.flatMap((read) => read.rows),
+      rejections: reads.flatMap((read) => read.rejections),
     }
   }
 }

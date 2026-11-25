@@ -10,7 +10,10 @@ import {
   upsertOfToggle,
   type McpRow,
 } from '@/features/settings/data/shared/mcp-mapping'
-import { useMcpResource } from '@/features/settings/data/shared/use-mcp-resource'
+import {
+  useMcpResource,
+  type McpResourceScope,
+} from '@/features/settings/data/shared/use-mcp-resource'
 import { EQueryState, type CloudQuery } from '@/lib/use-cloud-query'
 
 import { EMcpTransport } from '../fixtures/project-settings'
@@ -21,7 +24,7 @@ export const transportOfKind = (kind: EMcpTransportKind): EMcpTransport =>
 export const kindOfTransport = (transport: EMcpTransport): EMcpTransportKind =>
   transport === EMcpTransport.Http ? EMcpTransportKind.Http : EMcpTransportKind.Stdio
 
-export type ProjectMcp = {
+export type ScopedMcp = {
   query: CloudQuery<McpRow[]>
   add: (args: {
     id: string
@@ -34,8 +37,8 @@ export type ProjectMcp = {
   remove: (id: string) => Promise<void>
 }
 
-export function useProjectMcp(projectId: string): ProjectMcp {
-  const { query: raw, put, remove } = useMcpResource(projectId)
+export function useScopedMcp(scope: McpResourceScope): ScopedMcp {
+  const { query: raw, put, remove } = useMcpResource(scope)
   const servers: McpServerWire[] = raw.state === EQueryState.Ready ? raw.data : []
   const query = useMemo<CloudQuery<McpRow[]>>(
     () => (raw.state === EQueryState.Ready ? { ...raw, data: raw.data.map(rowOfServer) } : raw),

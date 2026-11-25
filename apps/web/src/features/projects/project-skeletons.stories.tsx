@@ -27,6 +27,7 @@ const project = (id: string, name: string, repo: string | null) => ({
   repo,
   baseBranch: null,
   additionalRepos: [],
+  groupId: null,
   description: '',
   shipBehavior: 'open-pull-request' as never,
   createdAt: '2026-10-01T00:00:00Z',

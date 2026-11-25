@@ -1,0 +1,1497 @@
+[
+  {
+    "id": "dropCheckConstraint.McpServer.McpServer_one_scope_67d0cc6e",
+    "label": "Drop check constraint \"McpServer_one_scope_67d0cc6e\" on \"McpServer\"",
+    "operationClass": "widening",
+    "target": {
+      "id": "postgres",
+      "details": {
+        "schema": "public",
+        "objectType": "checkConstraint",
+        "name": "McpServer_one_scope_67d0cc6e",
+        "table": "McpServer"
+      }
+    },
+    "precheck": [
+      {
+        "description": "ensure constraint \"McpServer_one_scope_67d0cc6e\" exists",
+        "sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"pg_constraint\" AS \"c\" INNER JOIN \"pg_namespace\" AS \"n\" ON \"n\".\"oid\" = \"c\".\"connamespace\" WHERE (\"c\".\"conname\" = $1 AND \"n\".\"nspname\" = $2 AND \"c\".\"conrelid\" = to_regclass($3))) AS \"result\"",
+        "params": [
+          "McpServer_one_scope_67d0cc6e",
+          "public",
+          "\"public\".\"McpServer\""
+        ]
+      }
+    ],
+    "execute": [
+      {
+        "description": "drop check constraint \"McpServer_one_scope_67d0cc6e\"",
+        "sql": "ALTER TABLE \"public\".\"McpServer\" DROP CONSTRAINT \"McpServer_one_scope_67d0cc6e\""
+      }
+    ],
+    "postcheck": [
+      {
+        "description": "verify constraint \"McpServer_one_scope_67d0cc6e\" does not exist",
+        "sql": "SELECT NOT EXISTS (SELECT 1 AS \"one\" FROM \"pg_constraint\" AS \"c\" INNER JOIN \"pg_namespace\" AS \"n\" ON \"n\".\"oid\" = \"c\".\"connamespace\" WHERE (\"c\".\"conname\" = $1 AND \"n\".\"nspname\" = $2 AND \"c\".\"conrelid\" = to_regclass($3))) AS \"result\"",
+        "params": [
+          "McpServer_one_scope_67d0cc6e",
+          "public",
+          "\"public\".\"McpServer\""
+        ]
+      }
+    ]
+  },
+  {
+    "id": "dropCheckConstraint.Skill.Skill_owner_check_67d0cc6e",
+    "label": "Drop check constraint \"Skill_owner_check_67d0cc6e\" on \"Skill\"",
+    "operationClass": "widening",
+    "target": {
+      "id": "postgres",
+      "details": {
+        "schema": "public",
+        "objectType": "checkConstraint",
+        "name": "Skill_owner_check_67d0cc6e",
+        "table": "Skill"
+      }
+    },
+    "precheck": [
+      {
+        "description": "ensure constraint \"Skill_owner_check_67d0cc6e\" exists",
+        "sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"pg_constraint\" AS \"c\" INNER JOIN \"pg_namespace\" AS \"n\" ON \"n\".\"oid\" = \"c\".\"connamespace\" WHERE (\"c\".\"conname\" = $1 AND \"n\".\"nspname\" = $2 AND \"c\".\"conrelid\" = to_regclass($3))) AS \"result\"",
+        "params": [
+          "Skill_owner_check_67d0cc6e",
+          "public",
+          "\"public\".\"Skill\""
+        ]
+      }
+    ],
+    "execute": [
+      {
+        "description": "drop check constraint \"Skill_owner_check_67d0cc6e\"",
+        "sql": "ALTER TABLE \"public\".\"Skill\" DROP CONSTRAINT \"Skill_owner_check_67d0cc6e\""
+      }
+    ],
+    "postcheck": [
+      {
+        "description": "verify constraint \"Skill_owner_check_67d0cc6e\" does not exist",
+        "sql": "SELECT NOT EXISTS (SELECT 1 AS \"one\" FROM \"pg_constraint\" AS \"c\" INNER JOIN \"pg_namespace\" AS \"n\" ON \"n\".\"oid\" = \"c\".\"connamespace\" WHERE (\"c\".\"conname\" = $1 AND \"n\".\"nspname\" = $2 AND \"c\".\"conrelid\" = to_regclass($3))) AS \"result\"",
+        "params": [
+          "Skill_owner_check_67d0cc6e",
+          "public",
+          "\"public\".\"Skill\""
+        ]
+      }
+    ]
+  },
+  {
+    "id": "table.GroupAccessGrant",
+    "label": "Create table \"GroupAccessGrant\"",
+    "summary": "Creates table \"GroupAccessGrant\"",
+    "operationClass": "additive",
+    "target": {
+      "id": "postgres",
+      "details": {
+        "schema": "public",
+        "objectType": "table",
+        "name": "GroupAccessGrant"
+      }
+    },
+    "precheck": [
+      {
+        "description": "ensure table \"GroupAccessGrant\" does not exist",
+        "sql": "SELECT (to_regclass($1)) IS NULL AS \"result\"",
+        "params": [
+          "\"public\".\"GroupAccessGrant\""
+        ]
+      }
+    ],
+    "execute": [
+      {
+        "description": "create table \"GroupAccessGrant\"",
+        "sql": "CREATE TABLE \"public\".\"GroupAccessGrant\" (\n  \"createdAt\" timestamptz(3) DEFAULT (now()) NOT NULL,\n  \"groupId\" text NOT NULL,\n  \"id\" text NOT NULL,\n  \"instruction\" text DEFAULT '' NOT NULL,\n  \"name\" text NOT NULL,\n  \"updatedAt\" timestamptz(3) NOT NULL,\n  PRIMARY KEY (\"id\")\n)",
+        "params": []
+      }
+    ],
+    "postcheck": [
+      {
+        "description": "verify table \"GroupAccessGrant\" exists",
+        "sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"pg_class\" AS \"c\" WHERE (\"c\".\"oid\" = to_regclass($1) AND (\"c\".\"relkind\" = $2 OR \"c\".\"relkind\" = $3))) AS \"result\"",
+        "params": [
+          "\"public\".\"GroupAccessGrant\"",
+          "r",
+          "p"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "table.GroupFileMount",
+    "label": "Create table \"GroupFileMount\"",
+    "summary": "Creates table \"GroupFileMount\"",
+    "operationClass": "additive",
+    "target": {
+      "id": "postgres",
+      "details": {
+        "schema": "public",
+        "objectType": "table",
+        "name": "GroupFileMount"
+      }
+    },
+    "precheck": [
+      {
+        "description": "ensure table \"GroupFileMount\" does not exist",
+        "sql": "SELECT (to_regclass($1)) IS NULL AS \"result\"",
+        "params": [
+          "\"public\".\"GroupFileMount\""
+        ]
+      }
+    ],
+    "execute": [
+      {
+        "description": "create table \"GroupFileMount\"",
+        "sql": "CREATE TABLE \"public\".\"GroupFileMount\" (\n  \"createdAt\" timestamptz(3) DEFAULT (now()) NOT NULL,\n  \"grantId\" text NOT NULL,\n  \"groupId\" text NOT NULL,\n  \"id\" text NOT NULL,\n  \"mode\" int4 DEFAULT 384 NOT NULL,\n  \"path\" text NOT NULL,\n  \"sealedContents\" text NOT NULL,\n  \"updatedAt\" timestamptz(3) NOT NULL,\n  PRIMARY KEY (\"id\")\n)",
+        "params": []
+      }
+    ],
+    "postcheck": [
+      {
+        "description": "verify table \"GroupFileMount\" exists",
+        "sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"pg_class\" AS \"c\" WHERE (\"c\".\"oid\" = to_regclass($1) AND (\"c\".\"relkind\" = $2 OR \"c\".\"relkind\" = $3))) AS \"result\"",
+        "params": [
+          "\"public\".\"GroupFileMount\"",
+          "r",
+          "p"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "table.GroupSecret",
+    "label": "Create table \"GroupSecret\"",
+    "summary": "Creates table \"GroupSecret\"",
+    "operationClass": "additive",
+    "target": {
+      "id": "postgres",
+      "details": {
+        "schema": "public",
+        "objectType": "table",
+        "name": "GroupSecret"
+      }
+    },
+    "precheck": [
+      {
+        "description": "ensure table \"GroupSecret\" does not exist",
+        "sql": "SELECT (to_regclass($1)) IS NULL AS \"result\"",
+        "params": [
+          "\"public\".\"GroupSecret\""
+        ]
+      }
+    ],
+    "execute": [
+      {
+        "description": "create table \"GroupSecret\"",
+        "sql": "CREATE TABLE \"public\".\"GroupSecret\" (\n  \"createdAt\" timestamptz(3) DEFAULT (now()) NOT NULL,\n  \"grantId\" text NOT NULL,\n  \"groupId\" text NOT NULL,\n  \"id\" text NOT NULL,\n  \"name\" text NOT NULL,\n  \"sealedValue\" text NOT NULL,\n  \"updatedAt\" timestamptz(3) NOT NULL,\n  PRIMARY KEY (\"id\")\n)",
+        "params": []
+      }
+    ],
+    "postcheck": [
+      {
+        "description": "verify table \"GroupSecret\" exists",
+        "sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"pg_class\" AS \"c\" WHERE (\"c\".\"oid\" = to_regclass($1) AND (\"c\".\"relkind\" = $2 OR \"c\".\"relkind\" = $3))) AS \"result\"",
+        "params": [
+          "\"public\".\"GroupSecret\"",
+          "r",
+          "p"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "table.GroupSetting",
+    "label": "Create table \"GroupSetting\"",
+    "summary": "Creates table \"GroupSetting\"",
+    "operationClass": "additive",
+    "target": {
+      "id": "postgres",
+      "details": {
+        "schema": "public",
+        "objectType": "table",
+        "name": "GroupSetting"
+      }
+    },
+    "precheck": [
+      {
+        "description": "ensure table \"GroupSetting\" does not exist",
+        "sql": "SELECT (to_regclass($1)) IS NULL AS \"result\"",
+        "params": [
+          "\"public\".\"GroupSetting\""
+        ]
+      }
+    ],
+    "execute": [
+      {
+        "description": "create table \"GroupSetting\"",
+        "sql": "CREATE TABLE \"public\".\"GroupSetting\" (\n  \"createdAt\" timestamptz(3) DEFAULT (now()) NOT NULL,\n  \"groupId\" text NOT NULL,\n  \"id\" text NOT NULL,\n  \"key\" text NOT NULL,\n  \"updatedAt\" timestamptz(3) NOT NULL,\n  \"value\" text NOT NULL,\n  PRIMARY KEY (\"id\")\n)",
+        "params": []
+      }
+    ],
+    "postcheck": [
+      {
+        "description": "verify table \"GroupSetting\" exists",
+        "sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"pg_class\" AS \"c\" WHERE (\"c\".\"oid\" = to_regclass($1) AND (\"c\".\"relkind\" = $2 OR \"c\".\"relkind\" = $3))) AS \"result\"",
+        "params": [
+          "\"public\".\"GroupSetting\"",
+          "r",
+          "p"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "table.ProjectGroup",
+    "label": "Create table \"ProjectGroup\"",
+    "summary": "Creates table \"ProjectGroup\"",
+    "operationClass": "additive",
+    "target": {
+      "id": "postgres",
+      "details": {
+        "schema": "public",
+        "objectType": "table",
+        "name": "ProjectGroup"
+      }
+    },
+    "precheck": [
+      {
+        "description": "ensure table \"ProjectGroup\" does not exist",
+        "sql": "SELECT (to_regclass($1)) IS NULL AS \"result\"",
+        "params": [
+          "\"public\".\"ProjectGroup\""
+        ]
+      }
+    ],
+    "execute": [
+      {
+        "description": "create table \"ProjectGroup\"",
+        "sql": "CREATE TABLE \"public\".\"ProjectGroup\" (\n  \"createdAt\" timestamptz(3) DEFAULT (now()) NOT NULL,\n  \"id\" text NOT NULL,\n  \"name\" text NOT NULL,\n  \"updatedAt\" timestamptz(3) NOT NULL,\n  \"userId\" text NOT NULL,\n  PRIMARY KEY (\"id\")\n)",
+        "params": []
+      }
+    ],
+    "postcheck": [
+      {
+        "description": "verify table \"ProjectGroup\" exists",
+        "sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"pg_class\" AS \"c\" WHERE (\"c\".\"oid\" = to_regclass($1) AND (\"c\".\"relkind\" = $2 OR \"c\".\"relkind\" = $3))) AS \"result\"",
+        "params": [
+          "\"public\".\"ProjectGroup\"",
+          "r",
+          "p"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "column.public.McpServer.groupId",
+    "label": "Add column \"groupId\" to \"McpServer\"",
+    "operationClass": "additive",
+    "target": {
+      "id": "postgres",
+      "details": {
+        "schema": "public",
+        "objectType": "column",
+        "name": "groupId",
+        "table": "McpServer"
+      }
+    },
+    "precheck": [
+      {
+        "description": "ensure column \"groupId\" is missing",
+        "sql": "SELECT NOT EXISTS (SELECT 1 AS \"one\" FROM \"information_schema\".\"columns\" WHERE (\"table_schema\" = $1 AND \"table_name\" = $2 AND \"column_name\" = $3)) AS \"result\"",
+        "params": [
+          "public",
+          "McpServer",
+          "groupId"
+        ]
+      }
+    ],
+    "execute": [
+      {
+        "description": "add column \"groupId\"",
+        "sql": "ALTER TABLE \"public\".\"McpServer\" ADD COLUMN \"groupId\" text"
+      }
+    ],
+    "postcheck": [
+      {
+        "description": "verify column \"groupId\" exists",
+        "sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"information_schema\".\"columns\" WHERE (\"table_schema\" = $1 AND \"table_name\" = $2 AND \"column_name\" = $3)) AS \"result\"",
+        "params": [
+          "public",
+          "McpServer",
+          "groupId"
+        ]
+      },
+      {
+        "description": "verify column \"groupId\" has type \"text\"",
+        "sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"pg_attribute\" AS \"a\" INNER JOIN \"pg_class\" AS \"c\" ON \"c\".\"oid\" = \"a\".\"attrelid\" INNER JOIN \"pg_namespace\" AS \"n\" ON \"n\".\"oid\" = \"c\".\"relnamespace\" WHERE (\"n\".\"nspname\" = $1 AND \"c\".\"relname\" = $2 AND \"a\".\"attname\" = $3 AND (format_type(\"a\".\"atttypid\", \"a\".\"atttypmod\")) = $4 AND NOT (\"a\".\"attisdropped\"))) AS \"result\"",
+        "params": [
+          "public",
+          "McpServer",
+          "groupId",
+          "text"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "column.public.Project.groupId",
+    "label": "Add column \"groupId\" to \"Project\"",
+    "operationClass": "additive",
+    "target": {
+      "id": "postgres",
+      "details": {
+        "schema": "public",
+        "objectType": "column",
+        "name": "groupId",
+        "table": "Project"
+      }
+    },
+    "precheck": [
+      {
+        "description": "ensure column \"groupId\" is missing",
+        "sql": "SELECT NOT EXISTS (SELECT 1 AS \"one\" FROM \"information_schema\".\"columns\" WHERE (\"table_schema\" = $1 AND \"table_name\" = $2 AND \"column_name\" = $3)) AS \"result\"",
+        "params": [
+          "public",
+          "Project",
+          "groupId"
+        ]
+      }
+    ],
+    "execute": [
+      {
+        "description": "add column \"groupId\"",
+        "sql": "ALTER TABLE \"public\".\"Project\" ADD COLUMN \"groupId\" text"
+      }
+    ],
+    "postcheck": [
+      {
+        "description": "verify column \"groupId\" exists",
+        "sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"information_schema\".\"columns\" WHERE (\"table_schema\" = $1 AND \"table_name\" = $2 AND \"column_name\" = $3)) AS \"result\"",
+        "params": [
+          "public",
+          "Project",
+          "groupId"
+        ]
+      },
+      {
+        "description": "verify column \"groupId\" has type \"text\"",
+        "sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"pg_attribute\" AS \"a\" INNER JOIN \"pg_class\" AS \"c\" ON \"c\".\"oid\" = \"a\".\"attrelid\" INNER JOIN \"pg_namespace\" AS \"n\" ON \"n\".\"oid\" = \"c\".\"relnamespace\" WHERE (\"n\".\"nspname\" = $1 AND \"c\".\"relname\" = $2 AND \"a\".\"attname\" = $3 AND (format_type(\"a\".\"atttypid\", \"a\".\"atttypmod\")) = $4 AND NOT (\"a\".\"attisdropped\"))) AS \"result\"",
+        "params": [
+          "public",
+          "Project",
+          "groupId",
+          "text"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "column.public.Skill.groupId",
+    "label": "Add column \"groupId\" to \"Skill\"",
+    "operationClass": "additive",
+    "target": {
+      "id": "postgres",
+      "details": {
+        "schema": "public",
+        "objectType": "column",
+        "name": "groupId",
+        "table": "Skill"
+      }
+    },
+    "precheck": [
+      {
+        "description": "ensure column \"groupId\" is missing",
+        "sql": "SELECT NOT EXISTS (SELECT 1 AS \"one\" FROM \"information_schema\".\"columns\" WHERE (\"table_schema\" = $1 AND \"table_name\" = $2 AND \"column_name\" = $3)) AS \"result\"",
+        "params": [
+          "public",
+          "Skill",
+          "groupId"
+        ]
+      }
+    ],
+    "execute": [
+      {
+        "description": "add column \"groupId\"",
+        "sql": "ALTER TABLE \"public\".\"Skill\" ADD COLUMN \"groupId\" text"
+      }
+    ],
+    "postcheck": [
+      {
+        "description": "verify column \"groupId\" exists",
+        "sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"information_schema\".\"columns\" WHERE (\"table_schema\" = $1 AND \"table_name\" = $2 AND \"column_name\" = $3)) AS \"result\"",
+        "params": [
+          "public",
+          "Skill",
+          "groupId"
+        ]
+      },
+      {
+        "description": "verify column \"groupId\" has type \"text\"",
+        "sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"pg_attribute\" AS \"a\" INNER JOIN \"pg_class\" AS \"c\" ON \"c\".\"oid\" = \"a\".\"attrelid\" INNER JOIN \"pg_namespace\" AS \"n\" ON \"n\".\"oid\" = \"c\".\"relnamespace\" WHERE (\"n\".\"nspname\" = $1 AND \"c\".\"relname\" = $2 AND \"a\".\"attname\" = $3 AND (format_type(\"a\".\"atttypid\", \"a\".\"atttypmod\")) = $4 AND NOT (\"a\".\"attisdropped\"))) AS \"result\"",
+        "params": [
+          "public",
+          "Skill",
+          "groupId",
+          "text"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "unique.GroupAccessGrant.GroupAccessGrant_groupId_name_key",
+    "label": "Add unique constraint on \"GroupAccessGrant\" (groupId, name)",
+    "operationClass": "additive",
+    "target": {
+      "id": "postgres",
+      "details": {
+        "schema": "public",
+        "objectType": "unique",
+        "name": "GroupAccessGrant_groupId_name_key",
+        "table": "GroupAccessGrant"
+      }
+    },
+    "precheck": [
+      {
+        "description": "ensure constraint \"GroupAccessGrant_groupId_name_key\" does not exist",
+        "sql": "SELECT NOT EXISTS (SELECT 1 AS \"one\" FROM \"pg_constraint\" AS \"c\" INNER JOIN \"pg_namespace\" AS \"n\" ON \"n\".\"oid\" = \"c\".\"connamespace\" WHERE (\"c\".\"conname\" = $1 AND \"n\".\"nspname\" = $2 AND \"c\".\"conrelid\" = to_regclass($3))) AS \"result\"",
+        "params": [
+          "GroupAccessGrant_groupId_name_key",
+          "public",
+          "\"public\".\"GroupAccessGrant\""
+        ]
+      }
+    ],
+    "execute": [
+      {
+        "description": "add unique constraint \"GroupAccessGrant_groupId_name_key\"",
+        "sql": "ALTER TABLE \"public\".\"GroupAccessGrant\" ADD CONSTRAINT \"GroupAccessGrant_groupId_name_key\" UNIQUE (\"groupId\", \"name\")"
+      }
+    ],
+    "postcheck": [
+      {
+        "description": "verify unique constraint \"GroupAccessGrant_groupId_name_key\" exists on (groupId, name)",
+        "sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"pg_constraint\" AS \"c\" INNER JOIN \"pg_namespace\" AS \"n\" ON \"n\".\"oid\" = \"c\".\"connamespace\" WHERE (\"c\".\"conname\" = $1 AND \"n\".\"nspname\" = $2 AND \"c\".\"conrelid\" = to_regclass($3) AND \"c\".\"contype\" = $4 AND (SELECT coalesce(jsonb_agg(key_attribute.attname ORDER BY key_column.position), '[]'::jsonb) FROM unnest(\"c\".\"conkey\"::int2[]) WITH ORDINALITY AS key_column(attnum, position) JOIN pg_attribute key_attribute ON key_attribute.attrelid = \"c\".\"conrelid\" AND key_attribute.attnum = key_column.attnum) = ($5)::jsonb)) AS \"result\"",
+        "params": [
+          "GroupAccessGrant_groupId_name_key",
+          "public",
+          "\"public\".\"GroupAccessGrant\"",
+          "u",
+          "[\"groupId\",\"name\"]"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "unique.GroupFileMount.GroupFileMount_groupId_path_key",
+    "label": "Add unique constraint on \"GroupFileMount\" (groupId, path)",
+    "operationClass": "additive",
+    "target": {
+      "id": "postgres",
+      "details": {
+        "schema": "public",
+        "objectType": "unique",
+        "name": "GroupFileMount_groupId_path_key",
+        "table": "GroupFileMount"
+      }
+    },
+    "precheck": [
+      {
+        "description": "ensure constraint \"GroupFileMount_groupId_path_key\" does not exist",
+        "sql": "SELECT NOT EXISTS (SELECT 1 AS \"one\" FROM \"pg_constraint\" AS \"c\" INNER JOIN \"pg_namespace\" AS \"n\" ON \"n\".\"oid\" = \"c\".\"connamespace\" WHERE (\"c\".\"conname\" = $1 AND \"n\".\"nspname\" = $2 AND \"c\".\"conrelid\" = to_regclass($3))) AS \"result\"",
+        "params": [
+          "GroupFileMount_groupId_path_key",
+          "public",
+          "\"public\".\"GroupFileMount\""
+        ]
+      }
+    ],
+    "execute": [
+      {
+        "description": "add unique constraint \"GroupFileMount_groupId_path_key\"",
+        "sql": "ALTER TABLE \"public\".\"GroupFileMount\" ADD CONSTRAINT \"GroupFileMount_groupId_path_key\" UNIQUE (\"groupId\", \"path\")"
+      }
+    ],
+    "postcheck": [
+      {
+        "description": "verify unique constraint \"GroupFileMount_groupId_path_key\" exists on (groupId, path)",
+        "sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"pg_constraint\" AS \"c\" INNER JOIN \"pg_namespace\" AS \"n\" ON \"n\".\"oid\" = \"c\".\"connamespace\" WHERE (\"c\".\"conname\" = $1 AND \"n\".\"nspname\" = $2 AND \"c\".\"conrelid\" = to_regclass($3) AND \"c\".\"contype\" = $4 AND (SELECT coalesce(jsonb_agg(key_attribute.attname ORDER BY key_column.position), '[]'::jsonb) FROM unnest(\"c\".\"conkey\"::int2[]) WITH ORDINALITY AS key_column(attnum, position) JOIN pg_attribute key_attribute ON key_attribute.attrelid = \"c\".\"conrelid\" AND key_attribute.attnum = key_column.attnum) = ($5)::jsonb)) AS \"result\"",
+        "params": [
+          "GroupFileMount_groupId_path_key",
+          "public",
+          "\"public\".\"GroupFileMount\"",
+          "u",
+          "[\"groupId\",\"path\"]"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "unique.GroupSecret.GroupSecret_groupId_name_key",
+    "label": "Add unique constraint on \"GroupSecret\" (groupId, name)",
+    "operationClass": "additive",
+    "target": {
+      "id": "postgres",
+      "details": {
+        "schema": "public",
+        "objectType": "unique",
+        "name": "GroupSecret_groupId_name_key",
+        "table": "GroupSecret"
+      }
+    },
+    "precheck": [
+      {
+        "description": "ensure constraint \"GroupSecret_groupId_name_key\" does not exist",
+        "sql": "SELECT NOT EXISTS (SELECT 1 AS \"one\" FROM \"pg_constraint\" AS \"c\" INNER JOIN \"pg_namespace\" AS \"n\" ON \"n\".\"oid\" = \"c\".\"connamespace\" WHERE (\"c\".\"conname\" = $1 AND \"n\".\"nspname\" = $2 AND \"c\".\"conrelid\" = to_regclass($3))) AS \"result\"",
+        "params": [
+          "GroupSecret_groupId_name_key",
+          "public",
+          "\"public\".\"GroupSecret\""
+        ]
+      }
+    ],
+    "execute": [
+      {
+        "description": "add unique constraint \"GroupSecret_groupId_name_key\"",
+        "sql": "ALTER TABLE \"public\".\"GroupSecret\" ADD CONSTRAINT \"GroupSecret_groupId_name_key\" UNIQUE (\"groupId\", \"name\")"
+      }
+    ],
+    "postcheck": [
+      {
+        "description": "verify unique constraint \"GroupSecret_groupId_name_key\" exists on (groupId, name)",
+        "sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"pg_constraint\" AS \"c\" INNER JOIN \"pg_namespace\" AS \"n\" ON \"n\".\"oid\" = \"c\".\"connamespace\" WHERE (\"c\".\"conname\" = $1 AND \"n\".\"nspname\" = $2 AND \"c\".\"conrelid\" = to_regclass($3) AND \"c\".\"contype\" = $4 AND (SELECT coalesce(jsonb_agg(key_attribute.attname ORDER BY key_column.position), '[]'::jsonb) FROM unnest(\"c\".\"conkey\"::int2[]) WITH ORDINALITY AS key_column(attnum, position) JOIN pg_attribute key_attribute ON key_attribute.attrelid = \"c\".\"conrelid\" AND key_attribute.attnum = key_column.attnum) = ($5)::jsonb)) AS \"result\"",
+        "params": [
+          "GroupSecret_groupId_name_key",
+          "public",
+          "\"public\".\"GroupSecret\"",
+          "u",
+          "[\"groupId\",\"name\"]"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "unique.GroupSetting.GroupSetting_groupId_key_key",
+    "label": "Add unique constraint on \"GroupSetting\" (groupId, key)",
+    "operationClass": "additive",
+    "target": {
+      "id": "postgres",
+      "details": {
+        "schema": "public",
+        "objectType": "unique",
+        "name": "GroupSetting_groupId_key_key",
+        "table": "GroupSetting"
+      }
+    },
+    "precheck": [
+      {
+        "description": "ensure constraint \"GroupSetting_groupId_key_key\" does not exist",
+        "sql": "SELECT NOT EXISTS (SELECT 1 AS \"one\" FROM \"pg_constraint\" AS \"c\" INNER JOIN \"pg_namespace\" AS \"n\" ON \"n\".\"oid\" = \"c\".\"connamespace\" WHERE (\"c\".\"conname\" = $1 AND \"n\".\"nspname\" = $2 AND \"c\".\"conrelid\" = to_regclass($3))) AS \"result\"",
+        "params": [
+          "GroupSetting_groupId_key_key",
+          "public",
+          "\"public\".\"GroupSetting\""
+        ]
+      }
+    ],
+    "execute": [
+      {
+        "description": "add unique constraint \"GroupSetting_groupId_key_key\"",
+        "sql": "ALTER TABLE \"public\".\"GroupSetting\" ADD CONSTRAINT \"GroupSetting_groupId_key_key\" UNIQUE (\"groupId\", \"key\")"
+      }
+    ],
+    "postcheck": [
+      {
+        "description": "verify unique constraint \"GroupSetting_groupId_key_key\" exists on (groupId, key)",
+        "sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"pg_constraint\" AS \"c\" INNER JOIN \"pg_namespace\" AS \"n\" ON \"n\".\"oid\" = \"c\".\"connamespace\" WHERE (\"c\".\"conname\" = $1 AND \"n\".\"nspname\" = $2 AND \"c\".\"conrelid\" = to_regclass($3) AND \"c\".\"contype\" = $4 AND (SELECT coalesce(jsonb_agg(key_attribute.attname ORDER BY key_column.position), '[]'::jsonb) FROM unnest(\"c\".\"conkey\"::int2[]) WITH ORDINALITY AS key_column(attnum, position) JOIN pg_attribute key_attribute ON key_attribute.attrelid = \"c\".\"conrelid\" AND key_attribute.attnum = key_column.attnum) = ($5)::jsonb)) AS \"result\"",
+        "params": [
+          "GroupSetting_groupId_key_key",
+          "public",
+          "\"public\".\"GroupSetting\"",
+          "u",
+          "[\"groupId\",\"key\"]"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "checkConstraint.McpServer.McpServer_one_scope_1e7116ff",
+    "label": "Add check constraint \"McpServer_one_scope_1e7116ff\" on \"McpServer\"",
+    "operationClass": "additive",
+    "target": {
+      "id": "postgres",
+      "details": {
+        "schema": "public",
+        "objectType": "checkConstraint",
+        "name": "McpServer_one_scope_1e7116ff",
+        "table": "McpServer"
+      }
+    },
+    "precheck": [
+      {
+        "description": "ensure constraint \"McpServer_one_scope_1e7116ff\" does not exist",
+        "sql": "SELECT NOT EXISTS (SELECT 1 AS \"one\" FROM \"pg_constraint\" AS \"c\" INNER JOIN \"pg_namespace\" AS \"n\" ON \"n\".\"oid\" = \"c\".\"connamespace\" WHERE (\"c\".\"conname\" = $1 AND \"n\".\"nspname\" = $2 AND \"c\".\"conrelid\" = to_regclass($3))) AS \"result\"",
+        "params": [
+          "McpServer_one_scope_1e7116ff",
+          "public",
+          "\"public\".\"McpServer\""
+        ]
+      }
+    ],
+    "execute": [
+      {
+        "description": "add check constraint \"McpServer_one_scope_1e7116ff\"",
+        "sql": "ALTER TABLE \"public\".\"McpServer\" ADD CONSTRAINT \"McpServer_one_scope_1e7116ff\" CHECK ((\"userId\" IS NOT NULL)::int + (\"projectId\" IS NOT NULL)::int + (\"groupId\" IS NOT NULL)::int = 1)"
+      }
+    ],
+    "postcheck": [
+      {
+        "description": "verify check constraint \"McpServer_one_scope_1e7116ff\" exists",
+        "sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"pg_constraint\" AS \"c\" INNER JOIN \"pg_namespace\" AS \"n\" ON \"n\".\"oid\" = \"c\".\"connamespace\" WHERE (\"c\".\"conname\" = $1 AND \"n\".\"nspname\" = $2 AND \"c\".\"conrelid\" = to_regclass($3) AND \"c\".\"contype\" = $4)) AS \"result\"",
+        "params": [
+          "McpServer_one_scope_1e7116ff",
+          "public",
+          "\"public\".\"McpServer\"",
+          "c"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "unique.McpServer.McpServer_groupId_source_name_key",
+    "label": "Add unique constraint on \"McpServer\" (groupId, source, name)",
+    "operationClass": "additive",
+    "target": {
+      "id": "postgres",
+      "details": {
+        "schema": "public",
+        "objectType": "unique",
+        "name": "McpServer_groupId_source_name_key",
+        "table": "McpServer"
+      }
+    },
+    "precheck": [
+      {
+        "description": "ensure constraint \"McpServer_groupId_source_name_key\" does not exist",
+        "sql": "SELECT NOT EXISTS (SELECT 1 AS \"one\" FROM \"pg_constraint\" AS \"c\" INNER JOIN \"pg_namespace\" AS \"n\" ON \"n\".\"oid\" = \"c\".\"connamespace\" WHERE (\"c\".\"conname\" = $1 AND \"n\".\"nspname\" = $2 AND \"c\".\"conrelid\" = to_regclass($3))) AS \"result\"",
+        "params": [
+          "McpServer_groupId_source_name_key",
+          "public",
+          "\"public\".\"McpServer\""
+        ]
+      }
+    ],
+    "execute": [
+      {
+        "description": "add unique constraint \"McpServer_groupId_source_name_key\"",
+        "sql": "ALTER TABLE \"public\".\"McpServer\" ADD CONSTRAINT \"McpServer_groupId_source_name_key\" UNIQUE (\"groupId\", \"source\", \"name\")"
+      }
+    ],
+    "postcheck": [
+      {
+        "description": "verify unique constraint \"McpServer_groupId_source_name_key\" exists on (groupId, source, name)",
+        "sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"pg_constraint\" AS \"c\" INNER JOIN \"pg_namespace\" AS \"n\" ON \"n\".\"oid\" = \"c\".\"connamespace\" WHERE (\"c\".\"conname\" = $1 AND \"n\".\"nspname\" = $2 AND \"c\".\"conrelid\" = to_regclass($3) AND \"c\".\"contype\" = $4 AND (SELECT coalesce(jsonb_agg(key_attribute.attname ORDER BY key_column.position), '[]'::jsonb) FROM unnest(\"c\".\"conkey\"::int2[]) WITH ORDINALITY AS key_column(attnum, position) JOIN pg_attribute key_attribute ON key_attribute.attrelid = \"c\".\"conrelid\" AND key_attribute.attnum = key_column.attnum) = ($5)::jsonb)) AS \"result\"",
+        "params": [
+          "McpServer_groupId_source_name_key",
+          "public",
+          "\"public\".\"McpServer\"",
+          "u",
+          "[\"groupId\",\"source\",\"name\"]"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "unique.ProjectGroup.ProjectGroup_userId_name_key",
+    "label": "Add unique constraint on \"ProjectGroup\" (userId, name)",
+    "operationClass": "additive",
+    "target": {
+      "id": "postgres",
+      "details": {
+        "schema": "public",
+        "objectType": "unique",
+        "name": "ProjectGroup_userId_name_key",
+        "table": "ProjectGroup"
+      }
+    },
+    "precheck": [
+      {
+        "description": "ensure constraint \"ProjectGroup_userId_name_key\" does not exist",
+        "sql": "SELECT NOT EXISTS (SELECT 1 AS \"one\" FROM \"pg_constraint\" AS \"c\" INNER JOIN \"pg_namespace\" AS \"n\" ON \"n\".\"oid\" = \"c\".\"connamespace\" WHERE (\"c\".\"conname\" = $1 AND \"n\".\"nspname\" = $2 AND \"c\".\"conrelid\" = to_regclass($3))) AS \"result\"",
+        "params": [
+          "ProjectGroup_userId_name_key",
+          "public",
+          "\"public\".\"ProjectGroup\""
+        ]
+      }
+    ],
+    "execute": [
+      {
+        "description": "add unique constraint \"ProjectGroup_userId_name_key\"",
+        "sql": "ALTER TABLE \"public\".\"ProjectGroup\" ADD CONSTRAINT \"ProjectGroup_userId_name_key\" UNIQUE (\"userId\", \"name\")"
+      }
+    ],
+    "postcheck": [
+      {
+        "description": "verify unique constraint \"ProjectGroup_userId_name_key\" exists on (userId, name)",
+        "sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"pg_constraint\" AS \"c\" INNER JOIN \"pg_namespace\" AS \"n\" ON \"n\".\"oid\" = \"c\".\"connamespace\" WHERE (\"c\".\"conname\" = $1 AND \"n\".\"nspname\" = $2 AND \"c\".\"conrelid\" = to_regclass($3) AND \"c\".\"contype\" = $4 AND (SELECT coalesce(jsonb_agg(key_attribute.attname ORDER BY key_column.position), '[]'::jsonb) FROM unnest(\"c\".\"conkey\"::int2[]) WITH ORDINALITY AS key_column(attnum, position) JOIN pg_attribute key_attribute ON key_attribute.attrelid = \"c\".\"conrelid\" AND key_attribute.attnum = key_column.attnum) = ($5)::jsonb)) AS \"result\"",
+        "params": [
+          "ProjectGroup_userId_name_key",
+          "public",
+          "\"public\".\"ProjectGroup\"",
+          "u",
+          "[\"userId\",\"name\"]"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "checkConstraint.Skill.Skill_owner_check_1e7116ff",
+    "label": "Add check constraint \"Skill_owner_check_1e7116ff\" on \"Skill\"",
+    "operationClass": "additive",
+    "target": {
+      "id": "postgres",
+      "details": {
+        "schema": "public",
+        "objectType": "checkConstraint",
+        "name": "Skill_owner_check_1e7116ff",
+        "table": "Skill"
+      }
+    },
+    "precheck": [
+      {
+        "description": "ensure constraint \"Skill_owner_check_1e7116ff\" does not exist",
+        "sql": "SELECT NOT EXISTS (SELECT 1 AS \"one\" FROM \"pg_constraint\" AS \"c\" INNER JOIN \"pg_namespace\" AS \"n\" ON \"n\".\"oid\" = \"c\".\"connamespace\" WHERE (\"c\".\"conname\" = $1 AND \"n\".\"nspname\" = $2 AND \"c\".\"conrelid\" = to_regclass($3))) AS \"result\"",
+        "params": [
+          "Skill_owner_check_1e7116ff",
+          "public",
+          "\"public\".\"Skill\""
+        ]
+      }
+    ],
+    "execute": [
+      {
+        "description": "add check constraint \"Skill_owner_check_1e7116ff\"",
+        "sql": "ALTER TABLE \"public\".\"Skill\" ADD CONSTRAINT \"Skill_owner_check_1e7116ff\" CHECK ((\"userId\" IS NOT NULL)::int + (\"projectId\" IS NOT NULL)::int + (\"groupId\" IS NOT NULL)::int = 1)"
+      }
+    ],
+    "postcheck": [
+      {
+        "description": "verify check constraint \"Skill_owner_check_1e7116ff\" exists",
+        "sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"pg_constraint\" AS \"c\" INNER JOIN \"pg_namespace\" AS \"n\" ON \"n\".\"oid\" = \"c\".\"connamespace\" WHERE (\"c\".\"conname\" = $1 AND \"n\".\"nspname\" = $2 AND \"c\".\"conrelid\" = to_regclass($3) AND \"c\".\"contype\" = $4)) AS \"result\"",
+        "params": [
+          "Skill_owner_check_1e7116ff",
+          "public",
+          "\"public\".\"Skill\"",
+          "c"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "unique.Skill.Skill_groupId_name_key",
+    "label": "Add unique constraint on \"Skill\" (groupId, name)",
+    "operationClass": "additive",
+    "target": {
+      "id": "postgres",
+      "details": {
+        "schema": "public",
+        "objectType": "unique",
+        "name": "Skill_groupId_name_key",
+        "table": "Skill"
+      }
+    },
+    "precheck": [
+      {
+        "description": "ensure constraint \"Skill_groupId_name_key\" does not exist",
+        "sql": "SELECT NOT EXISTS (SELECT 1 AS \"one\" FROM \"pg_constraint\" AS \"c\" INNER JOIN \"pg_namespace\" AS \"n\" ON \"n\".\"oid\" = \"c\".\"connamespace\" WHERE (\"c\".\"conname\" = $1 AND \"n\".\"nspname\" = $2 AND \"c\".\"conrelid\" = to_regclass($3))) AS \"result\"",
+        "params": [
+          "Skill_groupId_name_key",
+          "public",
+          "\"public\".\"Skill\""
+        ]
+      }
+    ],
+    "execute": [
+      {
+        "description": "add unique constraint \"Skill_groupId_name_key\"",
+        "sql": "ALTER TABLE \"public\".\"Skill\" ADD CONSTRAINT \"Skill_groupId_name_key\" UNIQUE (\"groupId\", \"name\")"
+      }
+    ],
+    "postcheck": [
+      {
+        "description": "verify unique constraint \"Skill_groupId_name_key\" exists on (groupId, name)",
+        "sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"pg_constraint\" AS \"c\" INNER JOIN \"pg_namespace\" AS \"n\" ON \"n\".\"oid\" = \"c\".\"connamespace\" WHERE (\"c\".\"conname\" = $1 AND \"n\".\"nspname\" = $2 AND \"c\".\"conrelid\" = to_regclass($3) AND \"c\".\"contype\" = $4 AND (SELECT coalesce(jsonb_agg(key_attribute.attname ORDER BY key_column.position), '[]'::jsonb) FROM unnest(\"c\".\"conkey\"::int2[]) WITH ORDINALITY AS key_column(attnum, position) JOIN pg_attribute key_attribute ON key_attribute.attrelid = \"c\".\"conrelid\" AND key_attribute.attnum = key_column.attnum) = ($5)::jsonb)) AS \"result\"",
+        "params": [
+          "Skill_groupId_name_key",
+          "public",
+          "\"public\".\"Skill\"",
+          "u",
+          "[\"groupId\",\"name\"]"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "index.GroupAccessGrant.GroupAccessGrant_groupId_idx_e2fb5578",
+    "label": "Create index \"GroupAccessGrant_groupId_idx_e2fb5578\" on \"GroupAccessGrant\"",
+    "operationClass": "additive",
+    "target": {
+      "id": "postgres",
+      "details": {
+        "schema": "public",
+        "objectType": "index",
+        "name": "GroupAccessGrant_groupId_idx_e2fb5578",
+        "table": "GroupAccessGrant"
+      }
+    },
+    "precheck": [
+      {
+        "description": "ensure index \"GroupAccessGrant_groupId_idx_e2fb5578\" does not exist",
+        "sql": "SELECT (to_regclass($1)) IS NULL AS \"result\"",
+        "params": [
+          "\"public\".\"GroupAccessGrant_groupId_idx_e2fb5578\""
+        ]
+      }
+    ],
+    "execute": [
+      {
+        "description": "create index \"GroupAccessGrant_groupId_idx_e2fb5578\"",
+        "sql": "CREATE INDEX \"GroupAccessGrant_groupId_idx_e2fb5578\" ON \"public\".\"GroupAccessGrant\" (\"groupId\")",
+        "params": []
+      }
+    ],
+    "postcheck": [
+      {
+        "description": "verify index \"GroupAccessGrant_groupId_idx_e2fb5578\" exists on \"GroupAccessGrant\" with the planned definition",
+        "sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"pg_class\" AS \"c\" INNER JOIN \"pg_index\" AS \"i\" ON \"i\".\"indexrelid\" = \"c\".\"oid\" INNER JOIN \"pg_am\" AS \"m\" ON \"m\".\"oid\" = \"c\".\"relam\" WHERE (\"c\".\"oid\" = to_regclass($1) AND (\"c\".\"relkind\" = $2 OR \"c\".\"relkind\" = $3) AND \"i\".\"indrelid\" = to_regclass($4) AND NOT (\"i\".\"indisunique\") AND \"m\".\"amname\" = $5 AND (\"i\".\"indexprs\" IS NULL AND (SELECT coalesce(jsonb_agg(key_attribute.attname ORDER BY key_column.position), '[]'::jsonb) FROM unnest(\"i\".\"indkey\"::int2[]) WITH ORDINALITY AS key_column(attnum, position) JOIN pg_attribute key_attribute ON key_attribute.attrelid = \"i\".\"indrelid\" AND key_attribute.attnum = key_column.attnum) = ($6)::jsonb) AND \"i\".\"indpred\" IS NULL)) AS \"result\"",
+        "params": [
+          "\"public\".\"GroupAccessGrant_groupId_idx_e2fb5578\"",
+          "i",
+          "I",
+          "\"public\".\"GroupAccessGrant\"",
+          "btree",
+          "[\"groupId\"]"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "index.GroupFileMount.GroupFileMount_grantId_idx_2360ae61",
+    "label": "Create index \"GroupFileMount_grantId_idx_2360ae61\" on \"GroupFileMount\"",
+    "operationClass": "additive",
+    "target": {
+      "id": "postgres",
+      "details": {
+        "schema": "public",
+        "objectType": "index",
+        "name": "GroupFileMount_grantId_idx_2360ae61",
+        "table": "GroupFileMount"
+      }
+    },
+    "precheck": [
+      {
+        "description": "ensure index \"GroupFileMount_grantId_idx_2360ae61\" does not exist",
+        "sql": "SELECT (to_regclass($1)) IS NULL AS \"result\"",
+        "params": [
+          "\"public\".\"GroupFileMount_grantId_idx_2360ae61\""
+        ]
+      }
+    ],
+    "execute": [
+      {
+        "description": "create index \"GroupFileMount_grantId_idx_2360ae61\"",
+        "sql": "CREATE INDEX \"GroupFileMount_grantId_idx_2360ae61\" ON \"public\".\"GroupFileMount\" (\"grantId\")",
+        "params": []
+      }
+    ],
+    "postcheck": [
+      {
+        "description": "verify index \"GroupFileMount_grantId_idx_2360ae61\" exists on \"GroupFileMount\" with the planned definition",
+        "sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"pg_class\" AS \"c\" INNER JOIN \"pg_index\" AS \"i\" ON \"i\".\"indexrelid\" = \"c\".\"oid\" INNER JOIN \"pg_am\" AS \"m\" ON \"m\".\"oid\" = \"c\".\"relam\" WHERE (\"c\".\"oid\" = to_regclass($1) AND (\"c\".\"relkind\" = $2 OR \"c\".\"relkind\" = $3) AND \"i\".\"indrelid\" = to_regclass($4) AND NOT (\"i\".\"indisunique\") AND \"m\".\"amname\" = $5 AND (\"i\".\"indexprs\" IS NULL AND (SELECT coalesce(jsonb_agg(key_attribute.attname ORDER BY key_column.position), '[]'::jsonb) FROM unnest(\"i\".\"indkey\"::int2[]) WITH ORDINALITY AS key_column(attnum, position) JOIN pg_attribute key_attribute ON key_attribute.attrelid = \"i\".\"indrelid\" AND key_attribute.attnum = key_column.attnum) = ($6)::jsonb) AND \"i\".\"indpred\" IS NULL)) AS \"result\"",
+        "params": [
+          "\"public\".\"GroupFileMount_grantId_idx_2360ae61\"",
+          "i",
+          "I",
+          "\"public\".\"GroupFileMount\"",
+          "btree",
+          "[\"grantId\"]"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "index.GroupSecret.GroupSecret_grantId_idx_2360ae61",
+    "label": "Create index \"GroupSecret_grantId_idx_2360ae61\" on \"GroupSecret\"",
+    "operationClass": "additive",
+    "target": {
+      "id": "postgres",
+      "details": {
+        "schema": "public",
+        "objectType": "index",
+        "name": "GroupSecret_grantId_idx_2360ae61",
+        "table": "GroupSecret"
+      }
+    },
+    "precheck": [
+      {
+        "description": "ensure index \"GroupSecret_grantId_idx_2360ae61\" does not exist",
+        "sql": "SELECT (to_regclass($1)) IS NULL AS \"result\"",
+        "params": [
+          "\"public\".\"GroupSecret_grantId_idx_2360ae61\""
+        ]
+      }
+    ],
+    "execute": [
+      {
+        "description": "create index \"GroupSecret_grantId_idx_2360ae61\"",
+        "sql": "CREATE INDEX \"GroupSecret_grantId_idx_2360ae61\" ON \"public\".\"GroupSecret\" (\"grantId\")",
+        "params": []
+      }
+    ],
+    "postcheck": [
+      {
+        "description": "verify index \"GroupSecret_grantId_idx_2360ae61\" exists on \"GroupSecret\" with the planned definition",
+        "sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"pg_class\" AS \"c\" INNER JOIN \"pg_index\" AS \"i\" ON \"i\".\"indexrelid\" = \"c\".\"oid\" INNER JOIN \"pg_am\" AS \"m\" ON \"m\".\"oid\" = \"c\".\"relam\" WHERE (\"c\".\"oid\" = to_regclass($1) AND (\"c\".\"relkind\" = $2 OR \"c\".\"relkind\" = $3) AND \"i\".\"indrelid\" = to_regclass($4) AND NOT (\"i\".\"indisunique\") AND \"m\".\"amname\" = $5 AND (\"i\".\"indexprs\" IS NULL AND (SELECT coalesce(jsonb_agg(key_attribute.attname ORDER BY key_column.position), '[]'::jsonb) FROM unnest(\"i\".\"indkey\"::int2[]) WITH ORDINALITY AS key_column(attnum, position) JOIN pg_attribute key_attribute ON key_attribute.attrelid = \"i\".\"indrelid\" AND key_attribute.attnum = key_column.attnum) = ($6)::jsonb) AND \"i\".\"indpred\" IS NULL)) AS \"result\"",
+        "params": [
+          "\"public\".\"GroupSecret_grantId_idx_2360ae61\"",
+          "i",
+          "I",
+          "\"public\".\"GroupSecret\"",
+          "btree",
+          "[\"grantId\"]"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "index.Project.Project_groupId_idx_e2fb5578",
+    "label": "Create index \"Project_groupId_idx_e2fb5578\" on \"Project\"",
+    "operationClass": "additive",
+    "target": {
+      "id": "postgres",
+      "details": {
+        "schema": "public",
+        "objectType": "index",
+        "name": "Project_groupId_idx_e2fb5578",
+        "table": "Project"
+      }
+    },
+    "precheck": [
+      {
+        "description": "ensure index \"Project_groupId_idx_e2fb5578\" does not exist",
+        "sql": "SELECT (to_regclass($1)) IS NULL AS \"result\"",
+        "params": [
+          "\"public\".\"Project_groupId_idx_e2fb5578\""
+        ]
+      }
+    ],
+    "execute": [
+      {
+        "description": "create index \"Project_groupId_idx_e2fb5578\"",
+        "sql": "CREATE INDEX \"Project_groupId_idx_e2fb5578\" ON \"public\".\"Project\" (\"groupId\")",
+        "params": []
+      }
+    ],
+    "postcheck": [
+      {
+        "description": "verify index \"Project_groupId_idx_e2fb5578\" exists on \"Project\" with the planned definition",
+        "sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"pg_class\" AS \"c\" INNER JOIN \"pg_index\" AS \"i\" ON \"i\".\"indexrelid\" = \"c\".\"oid\" INNER JOIN \"pg_am\" AS \"m\" ON \"m\".\"oid\" = \"c\".\"relam\" WHERE (\"c\".\"oid\" = to_regclass($1) AND (\"c\".\"relkind\" = $2 OR \"c\".\"relkind\" = $3) AND \"i\".\"indrelid\" = to_regclass($4) AND NOT (\"i\".\"indisunique\") AND \"m\".\"amname\" = $5 AND (\"i\".\"indexprs\" IS NULL AND (SELECT coalesce(jsonb_agg(key_attribute.attname ORDER BY key_column.position), '[]'::jsonb) FROM unnest(\"i\".\"indkey\"::int2[]) WITH ORDINALITY AS key_column(attnum, position) JOIN pg_attribute key_attribute ON key_attribute.attrelid = \"i\".\"indrelid\" AND key_attribute.attnum = key_column.attnum) = ($6)::jsonb) AND \"i\".\"indpred\" IS NULL)) AS \"result\"",
+        "params": [
+          "\"public\".\"Project_groupId_idx_e2fb5578\"",
+          "i",
+          "I",
+          "\"public\".\"Project\"",
+          "btree",
+          "[\"groupId\"]"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "foreignKey.GroupAccessGrant.GroupAccessGrant_groupId_fkey",
+    "label": "Add foreign key \"GroupAccessGrant_groupId_fkey\" on \"GroupAccessGrant\"",
+    "operationClass": "additive",
+    "target": {
+      "id": "postgres",
+      "details": {
+        "schema": "public",
+        "objectType": "foreignKey",
+        "name": "GroupAccessGrant_groupId_fkey",
+        "table": "GroupAccessGrant"
+      }
+    },
+    "precheck": [
+      {
+        "description": "ensure FK \"GroupAccessGrant_groupId_fkey\" does not exist",
+        "sql": "SELECT NOT EXISTS (SELECT 1 AS \"one\" FROM \"pg_constraint\" AS \"c\" INNER JOIN \"pg_namespace\" AS \"n\" ON \"n\".\"oid\" = \"c\".\"connamespace\" WHERE (\"c\".\"conname\" = $1 AND \"n\".\"nspname\" = $2 AND \"c\".\"conrelid\" = to_regclass($3))) AS \"result\"",
+        "params": [
+          "GroupAccessGrant_groupId_fkey",
+          "public",
+          "\"public\".\"GroupAccessGrant\""
+        ]
+      }
+    ],
+    "execute": [
+      {
+        "description": "add FK \"GroupAccessGrant_groupId_fkey\"",
+        "sql": "ALTER TABLE \"public\".\"GroupAccessGrant\"\nADD CONSTRAINT \"GroupAccessGrant_groupId_fkey\"\nFOREIGN KEY (\"groupId\")\nREFERENCES \"public\".\"ProjectGroup\" (\"id\")\nON DELETE CASCADE\nON UPDATE CASCADE"
+      }
+    ],
+    "postcheck": [
+      {
+        "description": "verify FK \"GroupAccessGrant_groupId_fkey\" exists with the planned columns, referenced table and actions",
+        "sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"pg_constraint\" AS \"c\" INNER JOIN \"pg_namespace\" AS \"n\" ON \"n\".\"oid\" = \"c\".\"connamespace\" WHERE (\"c\".\"conname\" = $1 AND \"n\".\"nspname\" = $2 AND \"c\".\"conrelid\" = to_regclass($3) AND \"c\".\"contype\" = $4 AND (SELECT coalesce(jsonb_agg(key_attribute.attname ORDER BY key_column.position), '[]'::jsonb) FROM unnest(\"c\".\"conkey\"::int2[]) WITH ORDINALITY AS key_column(attnum, position) JOIN pg_attribute key_attribute ON key_attribute.attrelid = \"c\".\"conrelid\" AND key_attribute.attnum = key_column.attnum) = ($5)::jsonb AND \"c\".\"confrelid\" = to_regclass($6) AND (SELECT coalesce(jsonb_agg(key_attribute.attname ORDER BY key_column.position), '[]'::jsonb) FROM unnest(\"c\".\"confkey\"::int2[]) WITH ORDINALITY AS key_column(attnum, position) JOIN pg_attribute key_attribute ON key_attribute.attrelid = \"c\".\"confrelid\" AND key_attribute.attnum = key_column.attnum) = ($7)::jsonb AND \"c\".\"confdeltype\" = $8 AND \"c\".\"confupdtype\" = $9)) AS \"result\"",
+        "params": [
+          "GroupAccessGrant_groupId_fkey",
+          "public",
+          "\"public\".\"GroupAccessGrant\"",
+          "f",
+          "[\"groupId\"]",
+          "\"public\".\"ProjectGroup\"",
+          "[\"id\"]",
+          "c",
+          "c"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "foreignKey.GroupFileMount.GroupFileMount_groupId_fkey",
+    "label": "Add foreign key \"GroupFileMount_groupId_fkey\" on \"GroupFileMount\"",
+    "operationClass": "additive",
+    "target": {
+      "id": "postgres",
+      "details": {
+        "schema": "public",
+        "objectType": "foreignKey",
+        "name": "GroupFileMount_groupId_fkey",
+        "table": "GroupFileMount"
+      }
+    },
+    "precheck": [
+      {
+        "description": "ensure FK \"GroupFileMount_groupId_fkey\" does not exist",
+        "sql": "SELECT NOT EXISTS (SELECT 1 AS \"one\" FROM \"pg_constraint\" AS \"c\" INNER JOIN \"pg_namespace\" AS \"n\" ON \"n\".\"oid\" = \"c\".\"connamespace\" WHERE (\"c\".\"conname\" = $1 AND \"n\".\"nspname\" = $2 AND \"c\".\"conrelid\" = to_regclass($3))) AS \"result\"",
+        "params": [
+          "GroupFileMount_groupId_fkey",
+          "public",
+          "\"public\".\"GroupFileMount\""
+        ]
+      }
+    ],
+    "execute": [
+      {
+        "description": "add FK \"GroupFileMount_groupId_fkey\"",
+        "sql": "ALTER TABLE \"public\".\"GroupFileMount\"\nADD CONSTRAINT \"GroupFileMount_groupId_fkey\"\nFOREIGN KEY (\"groupId\")\nREFERENCES \"public\".\"ProjectGroup\" (\"id\")\nON DELETE CASCADE\nON UPDATE CASCADE"
+      }
+    ],
+    "postcheck": [
+      {
+        "description": "verify FK \"GroupFileMount_groupId_fkey\" exists with the planned columns, referenced table and actions",
+        "sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"pg_constraint\" AS \"c\" INNER JOIN \"pg_namespace\" AS \"n\" ON \"n\".\"oid\" = \"c\".\"connamespace\" WHERE (\"c\".\"conname\" = $1 AND \"n\".\"nspname\" = $2 AND \"c\".\"conrelid\" = to_regclass($3) AND \"c\".\"contype\" = $4 AND (SELECT coalesce(jsonb_agg(key_attribute.attname ORDER BY key_column.position), '[]'::jsonb) FROM unnest(\"c\".\"conkey\"::int2[]) WITH ORDINALITY AS key_column(attnum, position) JOIN pg_attribute key_attribute ON key_attribute.attrelid = \"c\".\"conrelid\" AND key_attribute.attnum = key_column.attnum) = ($5)::jsonb AND \"c\".\"confrelid\" = to_regclass($6) AND (SELECT coalesce(jsonb_agg(key_attribute.attname ORDER BY key_column.position), '[]'::jsonb) FROM unnest(\"c\".\"confkey\"::int2[]) WITH ORDINALITY AS key_column(attnum, position) JOIN pg_attribute key_attribute ON key_attribute.attrelid = \"c\".\"confrelid\" AND key_attribute.attnum = key_column.attnum) = ($7)::jsonb AND \"c\".\"confdeltype\" = $8 AND \"c\".\"confupdtype\" = $9)) AS \"result\"",
+        "params": [
+          "GroupFileMount_groupId_fkey",
+          "public",
+          "\"public\".\"GroupFileMount\"",
+          "f",
+          "[\"groupId\"]",
+          "\"public\".\"ProjectGroup\"",
+          "[\"id\"]",
+          "c",
+          "c"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "foreignKey.GroupFileMount.GroupFileMount_grantId_fkey",
+    "label": "Add foreign key \"GroupFileMount_grantId_fkey\" on \"GroupFileMount\"",
+    "operationClass": "additive",
+    "target": {
+      "id": "postgres",
+      "details": {
+        "schema": "public",
+        "objectType": "foreignKey",
+        "name": "GroupFileMount_grantId_fkey",
+        "table": "GroupFileMount"
+      }
+    },
+    "precheck": [
+      {
+        "description": "ensure FK \"GroupFileMount_grantId_fkey\" does not exist",
+        "sql": "SELECT NOT EXISTS (SELECT 1 AS \"one\" FROM \"pg_constraint\" AS \"c\" INNER JOIN \"pg_namespace\" AS \"n\" ON \"n\".\"oid\" = \"c\".\"connamespace\" WHERE (\"c\".\"conname\" = $1 AND \"n\".\"nspname\" = $2 AND \"c\".\"conrelid\" = to_regclass($3))) AS \"result\"",
+        "params": [
+          "GroupFileMount_grantId_fkey",
+          "public",
+          "\"public\".\"GroupFileMount\""
+        ]
+      }
+    ],
+    "execute": [
+      {
+        "description": "add FK \"GroupFileMount_grantId_fkey\"",
+        "sql": "ALTER TABLE \"public\".\"GroupFileMount\"\nADD CONSTRAINT \"GroupFileMount_grantId_fkey\"\nFOREIGN KEY (\"grantId\")\nREFERENCES \"public\".\"GroupAccessGrant\" (\"id\")\nON DELETE CASCADE\nON UPDATE CASCADE"
+      }
+    ],
+    "postcheck": [
+      {
+        "description": "verify FK \"GroupFileMount_grantId_fkey\" exists with the planned columns, referenced table and actions",
+        "sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"pg_constraint\" AS \"c\" INNER JOIN \"pg_namespace\" AS \"n\" ON \"n\".\"oid\" = \"c\".\"connamespace\" WHERE (\"c\".\"conname\" = $1 AND \"n\".\"nspname\" = $2 AND \"c\".\"conrelid\" = to_regclass($3) AND \"c\".\"contype\" = $4 AND (SELECT coalesce(jsonb_agg(key_attribute.attname ORDER BY key_column.position), '[]'::jsonb) FROM unnest(\"c\".\"conkey\"::int2[]) WITH ORDINALITY AS key_column(attnum, position) JOIN pg_attribute key_attribute ON key_attribute.attrelid = \"c\".\"conrelid\" AND key_attribute.attnum = key_column.attnum) = ($5)::jsonb AND \"c\".\"confrelid\" = to_regclass($6) AND (SELECT coalesce(jsonb_agg(key_attribute.attname ORDER BY key_column.position), '[]'::jsonb) FROM unnest(\"c\".\"confkey\"::int2[]) WITH ORDINALITY AS key_column(attnum, position) JOIN pg_attribute key_attribute ON key_attribute.attrelid = \"c\".\"confrelid\" AND key_attribute.attnum = key_column.attnum) = ($7)::jsonb AND \"c\".\"confdeltype\" = $8 AND \"c\".\"confupdtype\" = $9)) AS \"result\"",
+        "params": [
+          "GroupFileMount_grantId_fkey",
+          "public",
+          "\"public\".\"GroupFileMount\"",
+          "f",
+          "[\"grantId\"]",
+          "\"public\".\"GroupAccessGrant\"",
+          "[\"id\"]",
+          "c",
+          "c"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "foreignKey.GroupSecret.GroupSecret_groupId_fkey",
+    "label": "Add foreign key \"GroupSecret_groupId_fkey\" on \"GroupSecret\"",
+    "operationClass": "additive",
+    "target": {
+      "id": "postgres",
+      "details": {
+        "schema": "public",
+        "objectType": "foreignKey",
+        "name": "GroupSecret_groupId_fkey",
+        "table": "GroupSecret"
+      }
+    },
+    "precheck": [
+      {
+        "description": "ensure FK \"GroupSecret_groupId_fkey\" does not exist",
+        "sql": "SELECT NOT EXISTS (SELECT 1 AS \"one\" FROM \"pg_constraint\" AS \"c\" INNER JOIN \"pg_namespace\" AS \"n\" ON \"n\".\"oid\" = \"c\".\"connamespace\" WHERE (\"c\".\"conname\" = $1 AND \"n\".\"nspname\" = $2 AND \"c\".\"conrelid\" = to_regclass($3))) AS \"result\"",
+        "params": [
+          "GroupSecret_groupId_fkey",
+          "public",
+          "\"public\".\"GroupSecret\""
+        ]
+      }
+    ],
+    "execute": [
+      {
+        "description": "add FK \"GroupSecret_groupId_fkey\"",
+        "sql": "ALTER TABLE \"public\".\"GroupSecret\"\nADD CONSTRAINT \"GroupSecret_groupId_fkey\"\nFOREIGN KEY (\"groupId\")\nREFERENCES \"public\".\"ProjectGroup\" (\"id\")\nON DELETE CASCADE\nON UPDATE CASCADE"
+      }
+    ],
+    "postcheck": [
+      {
+        "description": "verify FK \"GroupSecret_groupId_fkey\" exists with the planned columns, referenced table and actions",
+        "sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"pg_constraint\" AS \"c\" INNER JOIN \"pg_namespace\" AS \"n\" ON \"n\".\"oid\" = \"c\".\"connamespace\" WHERE (\"c\".\"conname\" = $1 AND \"n\".\"nspname\" = $2 AND \"c\".\"conrelid\" = to_regclass($3) AND \"c\".\"contype\" = $4 AND (SELECT coalesce(jsonb_agg(key_attribute.attname ORDER BY key_column.position), '[]'::jsonb) FROM unnest(\"c\".\"conkey\"::int2[]) WITH ORDINALITY AS key_column(attnum, position) JOIN pg_attribute key_attribute ON key_attribute.attrelid = \"c\".\"conrelid\" AND key_attribute.attnum = key_column.attnum) = ($5)::jsonb AND \"c\".\"confrelid\" = to_regclass($6) AND (SELECT coalesce(jsonb_agg(key_attribute.attname ORDER BY key_column.position), '[]'::jsonb) FROM unnest(\"c\".\"confkey\"::int2[]) WITH ORDINALITY AS key_column(attnum, position) JOIN pg_attribute key_attribute ON key_attribute.attrelid = \"c\".\"confrelid\" AND key_attribute.attnum = key_column.attnum) = ($7)::jsonb AND \"c\".\"confdeltype\" = $8 AND \"c\".\"confupdtype\" = $9)) AS \"result\"",
+        "params": [
+          "GroupSecret_groupId_fkey",
+          "public",
+          "\"public\".\"GroupSecret\"",
+          "f",
+          "[\"groupId\"]",
+          "\"public\".\"ProjectGroup\"",
+          "[\"id\"]",
+          "c",
+          "c"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "foreignKey.GroupSecret.GroupSecret_grantId_fkey",
+    "label": "Add foreign key \"GroupSecret_grantId_fkey\" on \"GroupSecret\"",
+    "operationClass": "additive",
+    "target": {
+      "id": "postgres",
+      "details": {
+        "schema": "public",
+        "objectType": "foreignKey",
+        "name": "GroupSecret_grantId_fkey",
+        "table": "GroupSecret"
+      }
+    },
+    "precheck": [
+      {
+        "description": "ensure FK \"GroupSecret_grantId_fkey\" does not exist",
+        "sql": "SELECT NOT EXISTS (SELECT 1 AS \"one\" FROM \"pg_constraint\" AS \"c\" INNER JOIN \"pg_namespace\" AS \"n\" ON \"n\".\"oid\" = \"c\".\"connamespace\" WHERE (\"c\".\"conname\" = $1 AND \"n\".\"nspname\" = $2 AND \"c\".\"conrelid\" = to_regclass($3))) AS \"result\"",
+        "params": [
+          "GroupSecret_grantId_fkey",
+          "public",
+          "\"public\".\"GroupSecret\""
+        ]
+      }
+    ],
+    "execute": [
+      {
+        "description": "add FK \"GroupSecret_grantId_fkey\"",
+        "sql": "ALTER TABLE \"public\".\"GroupSecret\"\nADD CONSTRAINT \"GroupSecret_grantId_fkey\"\nFOREIGN KEY (\"grantId\")\nREFERENCES \"public\".\"GroupAccessGrant\" (\"id\")\nON DELETE CASCADE\nON UPDATE CASCADE"
+      }
+    ],
+    "postcheck": [
+      {
+        "description": "verify FK \"GroupSecret_grantId_fkey\" exists with the planned columns, referenced table and actions",
+        "sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"pg_constraint\" AS \"c\" INNER JOIN \"pg_namespace\" AS \"n\" ON \"n\".\"oid\" = \"c\".\"connamespace\" WHERE (\"c\".\"conname\" = $1 AND \"n\".\"nspname\" = $2 AND \"c\".\"conrelid\" = to_regclass($3) AND \"c\".\"contype\" = $4 AND (SELECT coalesce(jsonb_agg(key_attribute.attname ORDER BY key_column.position), '[]'::jsonb) FROM unnest(\"c\".\"conkey\"::int2[]) WITH ORDINALITY AS key_column(attnum, position) JOIN pg_attribute key_attribute ON key_attribute.attrelid = \"c\".\"conrelid\" AND key_attribute.attnum = key_column.attnum) = ($5)::jsonb AND \"c\".\"confrelid\" = to_regclass($6) AND (SELECT coalesce(jsonb_agg(key_attribute.attname ORDER BY key_column.position), '[]'::jsonb) FROM unnest(\"c\".\"confkey\"::int2[]) WITH ORDINALITY AS key_column(attnum, position) JOIN pg_attribute key_attribute ON key_attribute.attrelid = \"c\".\"confrelid\" AND key_attribute.attnum = key_column.attnum) = ($7)::jsonb AND \"c\".\"confdeltype\" = $8 AND \"c\".\"confupdtype\" = $9)) AS \"result\"",
+        "params": [
+          "GroupSecret_grantId_fkey",
+          "public",
+          "\"public\".\"GroupSecret\"",
+          "f",
+          "[\"grantId\"]",
+          "\"public\".\"GroupAccessGrant\"",
+          "[\"id\"]",
+          "c",
+          "c"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "foreignKey.GroupSetting.GroupSetting_groupId_fkey",
+    "label": "Add foreign key \"GroupSetting_groupId_fkey\" on \"GroupSetting\"",
+    "operationClass": "additive",
+    "target": {
+      "id": "postgres",
+      "details": {
+        "schema": "public",
+        "objectType": "foreignKey",
+        "name": "GroupSetting_groupId_fkey",
+        "table": "GroupSetting"
+      }
+    },
+    "precheck": [
+      {
+        "description": "ensure FK \"GroupSetting_groupId_fkey\" does not exist",
+        "sql": "SELECT NOT EXISTS (SELECT 1 AS \"one\" FROM \"pg_constraint\" AS \"c\" INNER JOIN \"pg_namespace\" AS \"n\" ON \"n\".\"oid\" = \"c\".\"connamespace\" WHERE (\"c\".\"conname\" = $1 AND \"n\".\"nspname\" = $2 AND \"c\".\"conrelid\" = to_regclass($3))) AS \"result\"",
+        "params": [
+          "GroupSetting_groupId_fkey",
+          "public",
+          "\"public\".\"GroupSetting\""
+        ]
+      }
+    ],
+    "execute": [
+      {
+        "description": "add FK \"GroupSetting_groupId_fkey\"",
+        "sql": "ALTER TABLE \"public\".\"GroupSetting\"\nADD CONSTRAINT \"GroupSetting_groupId_fkey\"\nFOREIGN KEY (\"groupId\")\nREFERENCES \"public\".\"ProjectGroup\" (\"id\")\nON DELETE CASCADE\nON UPDATE CASCADE"
+      }
+    ],
+    "postcheck": [
+      {
+        "description": "verify FK \"GroupSetting_groupId_fkey\" exists with the planned columns, referenced table and actions",
+        "sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"pg_constraint\" AS \"c\" INNER JOIN \"pg_namespace\" AS \"n\" ON \"n\".\"oid\" = \"c\".\"connamespace\" WHERE (\"c\".\"conname\" = $1 AND \"n\".\"nspname\" = $2 AND \"c\".\"conrelid\" = to_regclass($3) AND \"c\".\"contype\" = $4 AND (SELECT coalesce(jsonb_agg(key_attribute.attname ORDER BY key_column.position), '[]'::jsonb) FROM unnest(\"c\".\"conkey\"::int2[]) WITH ORDINALITY AS key_column(attnum, position) JOIN pg_attribute key_attribute ON key_attribute.attrelid = \"c\".\"conrelid\" AND key_attribute.attnum = key_column.attnum) = ($5)::jsonb AND \"c\".\"confrelid\" = to_regclass($6) AND (SELECT coalesce(jsonb_agg(key_attribute.attname ORDER BY key_column.position), '[]'::jsonb) FROM unnest(\"c\".\"confkey\"::int2[]) WITH ORDINALITY AS key_column(attnum, position) JOIN pg_attribute key_attribute ON key_attribute.attrelid = \"c\".\"confrelid\" AND key_attribute.attnum = key_column.attnum) = ($7)::jsonb AND \"c\".\"confdeltype\" = $8 AND \"c\".\"confupdtype\" = $9)) AS \"result\"",
+        "params": [
+          "GroupSetting_groupId_fkey",
+          "public",
+          "\"public\".\"GroupSetting\"",
+          "f",
+          "[\"groupId\"]",
+          "\"public\".\"ProjectGroup\"",
+          "[\"id\"]",
+          "c",
+          "c"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "foreignKey.ProjectGroup.ProjectGroup_userId_fkey",
+    "label": "Add foreign key \"ProjectGroup_userId_fkey\" on \"ProjectGroup\"",
+    "operationClass": "additive",
+    "target": {
+      "id": "postgres",
+      "details": {
+        "schema": "public",
+        "objectType": "foreignKey",
+        "name": "ProjectGroup_userId_fkey",
+        "table": "ProjectGroup"
+      }
+    },
+    "precheck": [
+      {
+        "description": "ensure FK \"ProjectGroup_userId_fkey\" does not exist",
+        "sql": "SELECT NOT EXISTS (SELECT 1 AS \"one\" FROM \"pg_constraint\" AS \"c\" INNER JOIN \"pg_namespace\" AS \"n\" ON \"n\".\"oid\" = \"c\".\"connamespace\" WHERE (\"c\".\"conname\" = $1 AND \"n\".\"nspname\" = $2 AND \"c\".\"conrelid\" = to_regclass($3))) AS \"result\"",
+        "params": [
+          "ProjectGroup_userId_fkey",
+          "public",
+          "\"public\".\"ProjectGroup\""
+        ]
+      }
+    ],
+    "execute": [
+      {
+        "description": "add FK \"ProjectGroup_userId_fkey\"",
+        "sql": "ALTER TABLE \"public\".\"ProjectGroup\"\nADD CONSTRAINT \"ProjectGroup_userId_fkey\"\nFOREIGN KEY (\"userId\")\nREFERENCES \"public\".\"User\" (\"id\")\nON DELETE CASCADE\nON UPDATE CASCADE"
+      }
+    ],
+    "postcheck": [
+      {
+        "description": "verify FK \"ProjectGroup_userId_fkey\" exists with the planned columns, referenced table and actions",
+        "sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"pg_constraint\" AS \"c\" INNER JOIN \"pg_namespace\" AS \"n\" ON \"n\".\"oid\" = \"c\".\"connamespace\" WHERE (\"c\".\"conname\" = $1 AND \"n\".\"nspname\" = $2 AND \"c\".\"conrelid\" = to_regclass($3) AND \"c\".\"contype\" = $4 AND (SELECT coalesce(jsonb_agg(key_attribute.attname ORDER BY key_column.position), '[]'::jsonb) FROM unnest(\"c\".\"conkey\"::int2[]) WITH ORDINALITY AS key_column(attnum, position) JOIN pg_attribute key_attribute ON key_attribute.attrelid = \"c\".\"conrelid\" AND key_attribute.attnum = key_column.attnum) = ($5)::jsonb AND \"c\".\"confrelid\" = to_regclass($6) AND (SELECT coalesce(jsonb_agg(key_attribute.attname ORDER BY key_column.position), '[]'::jsonb) FROM unnest(\"c\".\"confkey\"::int2[]) WITH ORDINALITY AS key_column(attnum, position) JOIN pg_attribute key_attribute ON key_attribute.attrelid = \"c\".\"confrelid\" AND key_attribute.attnum = key_column.attnum) = ($7)::jsonb AND \"c\".\"confdeltype\" = $8 AND \"c\".\"confupdtype\" = $9)) AS \"result\"",
+        "params": [
+          "ProjectGroup_userId_fkey",
+          "public",
+          "\"public\".\"ProjectGroup\"",
+          "f",
+          "[\"userId\"]",
+          "\"public\".\"User\"",
+          "[\"id\"]",
+          "c",
+          "c"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "foreignKey.McpServer.McpServer_groupId_fkey",
+    "label": "Add foreign key \"McpServer_groupId_fkey\" on \"McpServer\"",
+    "operationClass": "additive",
+    "target": {
+      "id": "postgres",
+      "details": {
+        "schema": "public",
+        "objectType": "foreignKey",
+        "name": "McpServer_groupId_fkey",
+        "table": "McpServer"
+      }
+    },
+    "precheck": [
+      {
+        "description": "ensure FK \"McpServer_groupId_fkey\" does not exist",
+        "sql": "SELECT NOT EXISTS (SELECT 1 AS \"one\" FROM \"pg_constraint\" AS \"c\" INNER JOIN \"pg_namespace\" AS \"n\" ON \"n\".\"oid\" = \"c\".\"connamespace\" WHERE (\"c\".\"conname\" = $1 AND \"n\".\"nspname\" = $2 AND \"c\".\"conrelid\" = to_regclass($3))) AS \"result\"",
+        "params": [
+          "McpServer_groupId_fkey",
+          "public",
+          "\"public\".\"McpServer\""
+        ]
+      }
+    ],
+    "execute": [
+      {
+        "description": "add FK \"McpServer_groupId_fkey\"",
+        "sql": "ALTER TABLE \"public\".\"McpServer\"\nADD CONSTRAINT \"McpServer_groupId_fkey\"\nFOREIGN KEY (\"groupId\")\nREFERENCES \"public\".\"ProjectGroup\" (\"id\")\nON DELETE CASCADE\nON UPDATE CASCADE"
+      }
+    ],
+    "postcheck": [
+      {
+        "description": "verify FK \"McpServer_groupId_fkey\" exists with the planned columns, referenced table and actions",
+        "sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"pg_constraint\" AS \"c\" INNER JOIN \"pg_namespace\" AS \"n\" ON \"n\".\"oid\" = \"c\".\"connamespace\" WHERE (\"c\".\"conname\" = $1 AND \"n\".\"nspname\" = $2 AND \"c\".\"conrelid\" = to_regclass($3) AND \"c\".\"contype\" = $4 AND (SELECT coalesce(jsonb_agg(key_attribute.attname ORDER BY key_column.position), '[]'::jsonb) FROM unnest(\"c\".\"conkey\"::int2[]) WITH ORDINALITY AS key_column(attnum, position) JOIN pg_attribute key_attribute ON key_attribute.attrelid = \"c\".\"conrelid\" AND key_attribute.attnum = key_column.attnum) = ($5)::jsonb AND \"c\".\"confrelid\" = to_regclass($6) AND (SELECT coalesce(jsonb_agg(key_attribute.attname ORDER BY key_column.position), '[]'::jsonb) FROM unnest(\"c\".\"confkey\"::int2[]) WITH ORDINALITY AS key_column(attnum, position) JOIN pg_attribute key_attribute ON key_attribute.attrelid = \"c\".\"confrelid\" AND key_attribute.attnum = key_column.attnum) = ($7)::jsonb AND \"c\".\"confdeltype\" = $8 AND \"c\".\"confupdtype\" = $9)) AS \"result\"",
+        "params": [
+          "McpServer_groupId_fkey",
+          "public",
+          "\"public\".\"McpServer\"",
+          "f",
+          "[\"groupId\"]",
+          "\"public\".\"ProjectGroup\"",
+          "[\"id\"]",
+          "c",
+          "c"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "foreignKey.Project.Project_groupId_fkey",
+    "label": "Add foreign key \"Project_groupId_fkey\" on \"Project\"",
+    "operationClass": "additive",
+    "target": {
+      "id": "postgres",
+      "details": {
+        "schema": "public",
+        "objectType": "foreignKey",
+        "name": "Project_groupId_fkey",
+        "table": "Project"
+      }
+    },
+    "precheck": [
+      {
+        "description": "ensure FK \"Project_groupId_fkey\" does not exist",
+        "sql": "SELECT NOT EXISTS (SELECT 1 AS \"one\" FROM \"pg_constraint\" AS \"c\" INNER JOIN \"pg_namespace\" AS \"n\" ON \"n\".\"oid\" = \"c\".\"connamespace\" WHERE (\"c\".\"conname\" = $1 AND \"n\".\"nspname\" = $2 AND \"c\".\"conrelid\" = to_regclass($3))) AS \"result\"",
+        "params": [
+          "Project_groupId_fkey",
+          "public",
+          "\"public\".\"Project\""
+        ]
+      }
+    ],
+    "execute": [
+      {
+        "description": "add FK \"Project_groupId_fkey\"",
+        "sql": "ALTER TABLE \"public\".\"Project\"\nADD CONSTRAINT \"Project_groupId_fkey\"\nFOREIGN KEY (\"groupId\")\nREFERENCES \"public\".\"ProjectGroup\" (\"id\")\nON DELETE SET NULL\nON UPDATE CASCADE"
+      }
+    ],
+    "postcheck": [
+      {
+        "description": "verify FK \"Project_groupId_fkey\" exists with the planned columns, referenced table and actions",
+        "sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"pg_constraint\" AS \"c\" INNER JOIN \"pg_namespace\" AS \"n\" ON \"n\".\"oid\" = \"c\".\"connamespace\" WHERE (\"c\".\"conname\" = $1 AND \"n\".\"nspname\" = $2 AND \"c\".\"conrelid\" = to_regclass($3) AND \"c\".\"contype\" = $4 AND (SELECT coalesce(jsonb_agg(key_attribute.attname ORDER BY key_column.position), '[]'::jsonb) FROM unnest(\"c\".\"conkey\"::int2[]) WITH ORDINALITY AS key_column(attnum, position) JOIN pg_attribute key_attribute ON key_attribute.attrelid = \"c\".\"conrelid\" AND key_attribute.attnum = key_column.attnum) = ($5)::jsonb AND \"c\".\"confrelid\" = to_regclass($6) AND (SELECT coalesce(jsonb_agg(key_attribute.attname ORDER BY key_column.position), '[]'::jsonb) FROM unnest(\"c\".\"confkey\"::int2[]) WITH ORDINALITY AS key_column(attnum, position) JOIN pg_attribute key_attribute ON key_attribute.attrelid = \"c\".\"confrelid\" AND key_attribute.attnum = key_column.attnum) = ($7)::jsonb AND \"c\".\"confdeltype\" = $8 AND \"c\".\"confupdtype\" = $9)) AS \"result\"",
+        "params": [
+          "Project_groupId_fkey",
+          "public",
+          "\"public\".\"Project\"",
+          "f",
+          "[\"groupId\"]",
+          "\"public\".\"ProjectGroup\"",
+          "[\"id\"]",
+          "n",
+          "c"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "foreignKey.Skill.Skill_groupId_fkey",
+    "label": "Add foreign key \"Skill_groupId_fkey\" on \"Skill\"",
+    "operationClass": "additive",
+    "target": {
+      "id": "postgres",
+      "details": {
+        "schema": "public",
+        "objectType": "foreignKey",
+        "name": "Skill_groupId_fkey",
+        "table": "Skill"
+      }
+    },
+    "precheck": [
+      {
+        "description": "ensure FK \"Skill_groupId_fkey\" does not exist",
+        "sql": "SELECT NOT EXISTS (SELECT 1 AS \"one\" FROM \"pg_constraint\" AS \"c\" INNER JOIN \"pg_namespace\" AS \"n\" ON \"n\".\"oid\" = \"c\".\"connamespace\" WHERE (\"c\".\"conname\" = $1 AND \"n\".\"nspname\" = $2 AND \"c\".\"conrelid\" = to_regclass($3))) AS \"result\"",
+        "params": [
+          "Skill_groupId_fkey",
+          "public",
+          "\"public\".\"Skill\""
+        ]
+      }
+    ],
+    "execute": [
+      {
+        "description": "add FK \"Skill_groupId_fkey\"",
+        "sql": "ALTER TABLE \"public\".\"Skill\"\nADD CONSTRAINT \"Skill_groupId_fkey\"\nFOREIGN KEY (\"groupId\")\nREFERENCES \"public\".\"ProjectGroup\" (\"id\")\nON DELETE CASCADE\nON UPDATE CASCADE"
+      }
+    ],
+    "postcheck": [
+      {
+        "description": "verify FK \"Skill_groupId_fkey\" exists with the planned columns, referenced table and actions",
+        "sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"pg_constraint\" AS \"c\" INNER JOIN \"pg_namespace\" AS \"n\" ON \"n\".\"oid\" = \"c\".\"connamespace\" WHERE (\"c\".\"conname\" = $1 AND \"n\".\"nspname\" = $2 AND \"c\".\"conrelid\" = to_regclass($3) AND \"c\".\"contype\" = $4 AND (SELECT coalesce(jsonb_agg(key_attribute.attname ORDER BY key_column.position), '[]'::jsonb) FROM unnest(\"c\".\"conkey\"::int2[]) WITH ORDINALITY AS key_column(attnum, position) JOIN pg_attribute key_attribute ON key_attribute.attrelid = \"c\".\"conrelid\" AND key_attribute.attnum = key_column.attnum) = ($5)::jsonb AND \"c\".\"confrelid\" = to_regclass($6) AND (SELECT coalesce(jsonb_agg(key_attribute.attname ORDER BY key_column.position), '[]'::jsonb) FROM unnest(\"c\".\"confkey\"::int2[]) WITH ORDINALITY AS key_column(attnum, position) JOIN pg_attribute key_attribute ON key_attribute.attrelid = \"c\".\"confrelid\" AND key_attribute.attnum = key_column.attnum) = ($7)::jsonb AND \"c\".\"confdeltype\" = $8 AND \"c\".\"confupdtype\" = $9)) AS \"result\"",
+        "params": [
+          "Skill_groupId_fkey",
+          "public",
+          "\"public\".\"Skill\"",
+          "f",
+          "[\"groupId\"]",
+          "\"public\".\"ProjectGroup\"",
+          "[\"id\"]",
+          "c",
+          "c"
+        ]
+      }
+    ]
+  }
+]

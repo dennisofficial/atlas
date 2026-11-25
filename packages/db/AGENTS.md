@@ -34,6 +34,11 @@ data on Prisma 8 is stale. After a Prisma bump, run `bunx prisma skills sync`. T
   row. An access grant names a bundle of access plus the operator's instruction: `UserAccessGrant`
   and `ProjectAccessGrant`, whose members are the existing secret (and project file mount) rows
   linked by a nullable `grantId` that is set to null when the grant is deleted.
+- A project group is a user-owned set of projects that sits between the personal and project
+  scopes: `ProjectGroup` owns `Project.groupId` (nulled when the group is deleted) and carries its
+  own copy of every inheritable domain — `GroupAccessGrant` with `GroupSecret` and `GroupFileMount`,
+  `GroupSetting`, and a nullable `groupId` beside the `userId`/`projectId` columns of `Skill` and
+  `McpServer`, whose exactly-one-owner check counts three scopes.
 
 ## Migrations
 

@@ -83,6 +83,22 @@ describe('entry schema', () => {
     })
   })
 
+  it('tags a cloud group row with its own origin, above the user layer', () => {
+    const read = parseMcpRows({
+      rows: [
+        { source: 'user', spec: { name: 'user-one', transport: stdio } },
+        { source: 'group', spec: { name: 'group-one', transport: stdio } },
+        { source: 'project', spec: { name: 'project-one', transport: stdio } },
+      ],
+      definedIn: 'the cloud',
+    })
+    expect(read.entries.map((entry) => entry.origin)).toEqual([
+      EDefinitionOrigin.User,
+      EDefinitionOrigin.Group,
+      EDefinitionOrigin.Project,
+    ])
+  })
+
   it('reads cloud rows, keeping a valid row beside a broken one', () => {
     const read = parseMcpRows({
       rows: [

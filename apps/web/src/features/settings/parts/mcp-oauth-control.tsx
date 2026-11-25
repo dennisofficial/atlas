@@ -17,9 +17,9 @@ export function McpOauthControl({
 }: {
   serverId: string
   server: McpOauthServer | undefined
-  auth: McpOauth
+  auth: McpOauth | null
 }) {
-  if (server === undefined) return null
+  if (server === undefined || auth === null) return null
   const state = auth.stateOf(server)
   if (state === EMcpAuthState.SignedIn) {
     return (
@@ -50,8 +50,9 @@ export function McpSignOutItem({
   auth,
 }: {
   server: McpOauthServer | undefined
-  auth: McpOauth
+  auth: McpOauth | null
 }) {
-  if (server === undefined || auth.stateOf(server) !== EMcpAuthState.SignedIn) return null
+  if (server === undefined || auth === null || auth.stateOf(server) !== EMcpAuthState.SignedIn)
+    return null
   return <DropdownMenuItem onClick={() => auth.signOut(server.id)}>Sign out</DropdownMenuItem>
 }

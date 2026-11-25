@@ -2,7 +2,25 @@ import { db } from '@dltech/atlas-db'
 import { Injectable } from '@nestjs/common'
 import { ESkillScope, type SkillUsage } from '@dltech/atlas-wire'
 
-const usageStatement = (args: { userId: string; projectId?: string }) => {
+const usageStatement = (args: { userId: string; projectId?: string; groupId?: string }) => {
+  if (args.groupId !== undefined) {
+    return db.raw.sql`WITH loads AS (
+      SELECT e."at" AS at, e."type" AS type, e."canonical"::jsonb AS body
+        FROM "public"."Event" e
+        JOIN "public"."Thread" t ON t."id" = e."threadId"
+        JOIN "public"."Session" s ON s."id" = t."sessionId"
+        WHERE s."userId" = ${args.userId} AND e."type" IN ('context-loaded', 'tool-called')
+          AND e."at" > now() - interval '30 days'
+          AND s."projectId" IN (SELECT "id" FROM "Project" WHERE "groupId" = ${args.groupId})
+          AND pg_input_is_valid(e."canonical", 'jsonb')
+    ) SELECT u.key AS key, count(*)::int AS "usedCount30d", max(u.at) AS "lastUsedAt" FROM (
+      SELECT l.body ->> 'key' AS key, l.at AS at FROM loads l
+        WHERE l.type = 'context-loaded' AND l.body ->> 'slot' = 'skill'
+      UNION ALL
+      SELECT l.body -> 'input' ->> 'name' AS key, l.at AS at FROM loads l
+        WHERE l.type = 'tool-called' AND l.body ->> 'name' = 'skill'
+    ) u GROUP BY u.key`
+  }
   if (args.projectId === undefined) {
     return db.raw.sql`WITH loads AS (
       SELECT e."at" AS at, e."type" AS type, e."canonical"::jsonb AS body
@@ -42,6 +60,7 @@ export class SkillUsageService {
     userId: string
     scope: ESkillScope
     projectId?: string | undefined
+    groupId?: string | undefined
     skillNames: string[]
   }): Promise<Map<string, SkillUsage>> {
     const usage = new Map<string, SkillUsage>()
@@ -50,6 +69,9 @@ export class SkillUsageService {
       userId: args.userId,
       ...(args.scope === ESkillScope.Project && args.projectId !== undefined
         ? { projectId: args.projectId }
+        : {}),
+      ...(args.scope === ESkillScope.Group && args.groupId !== undefined
+        ? { groupId: args.groupId }
         : {}),
     })
       .returnsRow({

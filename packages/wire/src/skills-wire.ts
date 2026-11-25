@@ -1,7 +1,10 @@
 import { z } from 'zod'
 
+import { configLayerOwnerSchema, configLayerSchema } from './project-group-wire'
+
 export enum ESkillScope {
   Personal = 'personal',
+  Group = 'group',
   Project = 'project',
 }
 
@@ -10,6 +13,7 @@ export const skillScopeSchema = z.enum(ESkillScope)
 export const skillScopeInputSchema = z.strictObject({
   scope: skillScopeSchema,
   projectId: z.string().min(1).optional(),
+  groupId: z.string().min(1).optional(),
 })
 export type SkillScopeInput = z.infer<typeof skillScopeInputSchema>
 
@@ -21,6 +25,7 @@ export type SkillUsage = z.infer<typeof skillUsageSchema>
 
 export enum ESkillOrigin {
   Personal = 'personal',
+  Group = 'group',
   Project = 'project',
   BuiltIn = 'built-in',
 }
@@ -39,6 +44,21 @@ export const skillSummarySchema = z.object({
   overridesBuiltIn: z.boolean(),
 })
 export type SkillSummary = z.infer<typeof skillSummarySchema>
+
+export const skillLayerItemSchema = skillSummarySchema.extend({
+  overriddenBy: configLayerSchema.nullable(),
+})
+export type SkillLayerItem = z.infer<typeof skillLayerItemSchema>
+
+export const skillLayerSchema = z.object({
+  layer: configLayerSchema,
+  owner: configLayerOwnerSchema,
+  items: z.array(skillLayerItemSchema),
+})
+export type SkillLayer = z.infer<typeof skillLayerSchema>
+
+export const skillLayersSchema = z.object({ layers: z.array(skillLayerSchema) })
+export type SkillLayers = z.infer<typeof skillLayersSchema>
 
 export const skillFileMetaSchema = z.object({
   path: z.string().min(1),
@@ -101,6 +121,7 @@ export const skillGetRequestSchema = skillScopeInputSchema.extend({
 export const skillPutRequestSchema = z.strictObject({
   scope: skillScopeSchema,
   projectId: z.string().min(1).optional(),
+  groupId: z.string().min(1).optional(),
   skill: skillFieldSchema,
   path: z.string().min(1),
   content: z.string(),

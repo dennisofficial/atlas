@@ -6,7 +6,7 @@ import { skillWriterOf } from '../skill-writes'
 import { seedOwner } from './config-reader.fixture'
 
 const testDb = useTestDatabase()
-const OWNER = { userId: 'user-1', projectId: 'proj-1' }
+const OWNER = { userId: 'user-1', projectId: 'proj-1', groupId: null }
 
 const ENTRY = '---\nname: gamma\ndescription: does gamma\n---\n\ngamma body'
 

@@ -24,6 +24,7 @@ export const agentTypeFastSettingId = (typeName: string): string => `agents.type
 
 const AGENT_TYPE_MODEL_GROUPS: Readonly<Record<EDefinitionOrigin, string>> = {
   [EDefinitionOrigin.BuiltIn]: 'Built-in sub-agents',
+  [EDefinitionOrigin.Group]: 'Group-defined sub-agents',
   [EDefinitionOrigin.Project]: 'Repository-defined sub-agents',
   [EDefinitionOrigin.User]: 'Global user-defined sub-agents',
 }

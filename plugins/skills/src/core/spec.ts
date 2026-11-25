@@ -1,6 +1,7 @@
 export enum ESkillOrigin {
   BuiltIn = 'builtin',
   CloudUser = 'cloud-user',
+  CloudGroup = 'cloud-group',
   CloudProject = 'cloud-project',
   Repo = 'repo',
 }

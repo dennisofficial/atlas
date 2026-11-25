@@ -2,6 +2,7 @@ import { EAccessScope, type AccessGrant, type AccessScope } from '@dltech/atlas-
 
 export function scopeKeyOf(scope: AccessScope): string {
   if (scope.kind === EAccessScope.Personal) return EAccessScope.Personal
+  if (scope.kind === EAccessScope.Group) return `${scope.kind}:${scope.groupId}`
   return `${scope.kind}:${scope.projectId}`
 }
 

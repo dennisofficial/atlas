@@ -73,7 +73,7 @@ assembly, settings, ports, and the record folds. It imports `zod` and nothing el
 ### Resolve a setting
 
 - `ESettingId`, `ATLAS_SETTINGS`, `SETTING_PAGES`: the catalogue of settings.
-- `resolveSettings({...})`: the effective value of each setting, with the layer that won.
+- `resolveSettings({...})`: the effective value of each setting, with the layer that won. `EConfigLayer`, `CONFIG_LAYER_ORDER`, `layeredByKey({layers, keyOf})` and `effectiveByKey({layers, keyOf})` layer any other domain by key, from built-in to repo, and name the layer that overrides an item.
 - `toggleValueOf`, `choiceValueOf`, `textValueOf`: read one resolved value.
 
 ### Bind a port

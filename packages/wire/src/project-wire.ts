@@ -34,6 +34,7 @@ export const projectSchema = z.object({
   repo: githubRepoSchema.nullable(),
   baseBranch: gitBranchSchema.nullable(),
   additionalRepos: z.array(projectRepoSchema),
+  groupId: z.string().nullable(),
   repos: z.array(projectRepoTrackingSchema).optional(),
   description: z.string().default(''),
   shipBehavior: z.enum(EShipBehavior).default(EShipBehavior.OpenPullRequest),

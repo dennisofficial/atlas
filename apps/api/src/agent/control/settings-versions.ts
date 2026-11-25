@@ -23,12 +23,16 @@ const statementOf = (args: { db: Db; userId: string; projectId: string }) =>
       (SELECT count(*)::int AS "count",
               max(GREATEST("updatedAt", COALESCE("oauthUpdatedAt", "updatedAt"))) AS "touchedAt"
          FROM "McpServer"
-        WHERE ("userId" = ${args.userId} OR "projectId" = ${args.projectId})
+        WHERE ("userId" = ${args.userId}
+          OR "projectId" = ${args.projectId}
+          OR "groupId" = (SELECT "groupId" FROM "Project" WHERE "id" = ${args.projectId}))
           AND "source" = ${CLOUD}) mcp,
       (SELECT count(*)::int AS "count",
               max("updatedAt") AS "touchedAt"
          FROM "Skill"
-        WHERE "userId" = ${args.userId} OR "projectId" = ${args.projectId}) skill,
+        WHERE "userId" = ${args.userId}
+          OR "projectId" = ${args.projectId}
+          OR "groupId" = (SELECT "groupId" FROM "Project" WHERE "id" = ${args.projectId})) skill,
       (SELECT count(*)::int AS "count",
               max(GREATEST("updatedAt", COALESCE("tombstonedAt", "updatedAt"))) AS "touchedAt"
          FROM "UserFile"

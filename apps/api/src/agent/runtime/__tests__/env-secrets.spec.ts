@@ -9,6 +9,7 @@ describe('exportEnvSecretsOf', () => {
   it('exports the user and project secrets by name', () => {
     const exported = exportEnvSecretsOf({
       user: [secret('PERSONAL_TOKEN', 'personal')],
+      group: [],
       project: [secret('CLAUDE_SECURITY_TOKEN', 'project')],
     })
 
@@ -22,6 +23,7 @@ describe('exportEnvSecretsOf', () => {
   it('lets a project secret override the user secret of the same name', () => {
     const exported = exportEnvSecretsOf({
       user: [secret('API_KEY', 'personal')],
+      group: [],
       project: [secret('API_KEY', 'project')],
     })
 
@@ -31,6 +33,7 @@ describe('exportEnvSecretsOf', () => {
   it('skips names an env var cannot hold and Atlas-owned names', () => {
     const exported = exportEnvSecretsOf({
       user: [secret('search.brave', 'x'), secret('2LEADING_DIGIT', 'x')],
+      group: [],
       project: [secret(`${RESERVED_ENV_PREFIX}HOME`, '/atlas'), secret('GOOD_NAME_1', 'y')],
     })
 
@@ -38,7 +41,7 @@ describe('exportEnvSecretsOf', () => {
   })
 
   it('exports nothing when neither scope has a usable secret', () => {
-    expect(exportEnvSecretsOf({ user: [], project: [] })).toEqual({ env: {}, names: [] })
+    expect(exportEnvSecretsOf({ user: [], group: [], project: [] })).toEqual({ env: {}, names: [] })
   })
 })
 
@@ -48,6 +51,7 @@ describe('ShellEnvCell secrets', () => {
     cell.setSecrets(
       exportEnvSecretsOf({
         user: [secret('GH_TOKEN', 'from-a-secret'), secret('API_KEY', 'k')],
+        group: [],
         project: [],
       }),
     )
@@ -64,8 +68,8 @@ describe('ShellEnvCell secrets', () => {
 
   it('drops a secret the moment the cloud config stops listing it', () => {
     const cell = new ShellEnvCell({ identityOf: async () => ({ name: 'n', email: 'e' }) })
-    cell.setSecrets(exportEnvSecretsOf({ user: [secret('OLD_KEY', 'x')], project: [] }))
-    cell.setSecrets(exportEnvSecretsOf({ user: [], project: [] }))
+    cell.setSecrets(exportEnvSecretsOf({ user: [secret('OLD_KEY', 'x')], group: [], project: [] }))
+    cell.setSecrets(exportEnvSecretsOf({ user: [], group: [], project: [] }))
 
     expect(cell.current()).toEqual({})
   })

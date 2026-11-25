@@ -29,6 +29,7 @@ type ModelChoiceRow = {
 const repoSchema = z.object({ repo: z.string().min(1), branch: z.string().min(1).optional() })
 
 type ProjectRow = {
+  groupId: string | null
   repo: string | null
   baseBranch: string | null
   additionalRepos: unknown
@@ -88,12 +89,12 @@ export class ConfigReader implements ConfigSource {
     const session = await db.orm.public.Session.first({ id: sessionId })
     if (session === null) throw new SessionNotFoundError(sessionId)
     const { userId, projectId } = session
-    const [project, accounts, activeAccounts, settings, skills, sandbox] = await Promise.all([
-      this.projectOf(projectId),
+    const project = await this.projectOf(projectId)
+    const [accounts, activeAccounts, settings, skills, sandbox] = await Promise.all([
       db.orm.public.AgentAccount.where({ userId }).all(),
       db.orm.public.ActiveAccount.where({ userId }).all(),
       this.settingsOf({ userId, projectId }),
-      skillIndexOf({ db, userId, projectId }),
+      skillIndexOf({ db, userId, projectId, groupId: project?.groupId ?? null }),
       readSandboxConfig({ db, platform: this.args.platform, sessionId }),
     ])
     const models = this.modelSourceFor({ session, accounts, activeAccounts, settings })

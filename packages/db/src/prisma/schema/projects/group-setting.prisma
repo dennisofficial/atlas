@@ -1,0 +1,12 @@
+// use prisma-8
+model GroupSetting {
+  id        String               @id
+  groupId   String
+  key       String
+  value     String
+  createdAt TimestamptzJsDate(3) @default(now())
+  updatedAt TimestamptzJsDate(3) @onCreate(now()) @onUpdate(now())
+  group     ProjectGroup         @relation(fields: [groupId], references: [id], onDelete: Cascade, onUpdate: Cascade, index: "GroupSetting_groupId_key_key")
+
+  @@unique([groupId, key], map: "GroupSetting_groupId_key_key")
+}

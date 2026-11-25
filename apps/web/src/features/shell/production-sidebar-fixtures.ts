@@ -212,6 +212,7 @@ export const project: Project = {
   repo: 'https://github.com/dltech/atlas',
   baseBranch: 'main',
   additionalRepos: [],
+  groupId: null,
   description: 'Production sidebar verification',
   shipBehavior: 'open-pull-request' as Project['shipBehavior'],
   createdAt,

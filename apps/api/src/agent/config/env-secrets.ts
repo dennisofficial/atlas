@@ -15,6 +15,7 @@ export type SealedSecretRow = { name: string; sealedValue: string }
 
 export type EnvSecretRows = {
   userSecrets(args: { userId: string }): Promise<readonly SealedSecretRow[]>
+  groupSecrets(args: { projectId: string }): Promise<readonly SealedSecretRow[]>
   projectSecrets(args: { projectId: string }): Promise<readonly SealedSecretRow[]>
 }
 
@@ -49,12 +50,14 @@ export const readEnvSecrets = async (args: {
   userId: string
   projectId: string | null
 }): Promise<ExportedEnvSecrets> => {
-  const [user, project] = await Promise.all([
+  const [user, group, project] = await Promise.all([
     args.rows.userSecrets({ userId: args.userId }),
+    args.projectId === null ? [] : args.rows.groupSecrets({ projectId: args.projectId }),
     args.projectId === null ? [] : args.rows.projectSecrets({ projectId: args.projectId }),
   ])
   return exportEnvSecretsOf({
     user: openedSecrets({ cipher: args.cipher, rows: user }),
+    group: openedSecrets({ cipher: args.cipher, rows: group }),
     project: openedSecrets({ cipher: args.cipher, rows: project }),
   })
 }
@@ -81,6 +84,13 @@ export const envSecretsReader = (): EnvSecretsSource => {
             await db.orm.public.UserSecret.where({ userId: lookup.userId })
               .orderBy((row) => row.name.asc())
               .all(),
+          groupSecrets: async (lookup) => {
+            const project = await db.orm.public.Project.first({ id: lookup.projectId })
+            if (project === null || project.groupId === null) return []
+            return await db.orm.public.GroupSecret.where({ groupId: project.groupId })
+              .orderBy((row) => row.name.asc())
+              .all()
+          },
           projectSecrets: async (lookup) =>
             await db.orm.public.ProjectSecret.where({ projectId: lookup.projectId })
               .orderBy((row) => row.name.asc())

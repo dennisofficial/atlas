@@ -11,6 +11,8 @@ import {
   trpcQuery,
 } from '../session-trpc-test-app'
 import { GithubService } from '@dltech/atlas-github'
+import { EConfigLayer, type SkillLayers } from '@dltech/atlas-wire'
+import { GroupsService } from '../project-groups/project-groups.service'
 import { ProjectsService } from '../projects/projects.service'
 import { SkillUsageService } from './skill-usage.service'
 import { SkillsRouter } from './skills.router'
@@ -107,6 +109,7 @@ describe('SkillsRouter', () => {
         SkillsService,
         SkillUsageService,
         ProjectsService,
+        GroupsService,
         { provide: GithubService, useValue: { findToken: async () => undefined } },
       ],
     })
@@ -571,5 +574,107 @@ describe('SkillsRouter', () => {
       dataOf(after.body) as { skills: { name: string; origin: string }[] }
     ).skills.filter((row) => row.name === 'commit')
     expect(restored).toMatchObject([{ name: 'commit', origin: 'built-in' }])
+  })
+
+  const createGroup = async (args: { id: string; userId: string; name: string }) => {
+    await db.orm.public.ProjectGroup.create(args)
+  }
+
+  const putSkill = (args: {
+    token?: string
+    target: Record<string, unknown>
+    skill: string
+    description: string
+  }) =>
+    put(args.token ?? 'session-a', {
+      ...args.target,
+      skill: args.skill,
+      path: 'SKILL.md',
+      ...fileOf(skillMd({ name: args.skill, description: args.description })),
+    })
+
+  const named = (body: unknown, name: string): { name: string; description: string }[] =>
+    (body as { skills: { name: string; description: string }[] }).skills.filter(
+      (skill) => skill.name === name,
+    )
+
+  it('keeps a group skill apart from the personal layer and reads it back by group scope', async () => {
+    await createGroup({ id: 'grp-a', userId: USER_A, name: 'Comp AI' })
+
+    await putSkill({
+      target: { scope: 'group', groupId: 'grp-a' },
+      skill: 'triage',
+      description: 'triage issues',
+    }).expect(200)
+
+    const listed = await list('session-a', { scope: 'group', groupId: 'grp-a' }).expect(200)
+    expect(named(dataOf(listed.body), 'triage')).toMatchObject([
+      { description: 'triage issues', origin: 'group' },
+    ])
+    const personal = await list('session-a', { scope: 'personal' }).expect(200)
+    expect(named(dataOf(personal.body), 'triage')).toEqual([])
+  })
+
+  it('keeps another user out of a group and needs a groupId for group scope', async () => {
+    await createGroup({ id: 'grp-a', userId: USER_A, name: 'Comp AI' })
+
+    await list('session-b', { scope: 'group', groupId: 'grp-a' }).expect(404)
+    await putSkill({
+      token: 'session-b',
+      target: { scope: 'group', groupId: 'grp-a' },
+      skill: 'triage',
+      description: 'theirs',
+    }).expect(404)
+    await list('session-a', { scope: 'group' }).expect(400)
+  })
+
+  it('lays built-in, personal, group and project skills in order and marks the shadowed ones', async () => {
+    await createProject({ ownerUserId: USER_A, id: 'prj-1' })
+    await createGroup({ id: 'grp-a', userId: USER_A, name: 'Comp AI' })
+    await db.orm.public.Project.where({ id: 'prj-1' }).update({ groupId: 'grp-a' })
+
+    const targets = [
+      { target: { scope: 'personal' }, description: 'personal copy' },
+      { target: { scope: 'group', groupId: 'grp-a' }, description: 'group copy' },
+      { target: { scope: 'project', projectId: 'prj-1' }, description: 'project copy' },
+    ] as const
+    for (const one of targets) {
+      await putSkill({
+        target: one.target,
+        skill: 'review',
+        description: one.description,
+      }).expect(200)
+    }
+
+    const layered = await trpcQuery({
+      app,
+      path: 'skills.layered',
+      token: 'session-a',
+      input: { scope: 'project', projectId: 'prj-1' },
+    }).expect(200)
+    const layers = (dataOf(layered.body) as SkillLayers).layers
+
+    expect(layers.map((layer) => layer.layer)).toEqual([
+      EConfigLayer.BuiltIn,
+      EConfigLayer.Personal,
+      EConfigLayer.Group,
+      EConfigLayer.Project,
+    ])
+    expect(layers.map((layer) => layer.owner)).toEqual([
+      { id: null, name: 'built-ins' },
+      { id: null, name: 'Personal' },
+      { id: 'grp-a', name: 'Comp AI' },
+      { id: 'prj-1', name: 'prj-1' },
+    ])
+    const review = layers.flatMap((layer) =>
+      layer.items
+        .filter((item) => item.name === 'review')
+        .map((item) => [layer.layer, item.description, item.overriddenBy]),
+    )
+    expect(review).toEqual([
+      ['personal', 'personal copy', 'project'],
+      ['group', 'group copy', 'project'],
+      ['project', 'project copy', null],
+    ])
   })
 })

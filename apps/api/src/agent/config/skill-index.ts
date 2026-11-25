@@ -15,16 +15,20 @@ export const skillIndexOf = async (args: {
   db: Db
   userId: string
   projectId: string | null
+  groupId: string | null
 }): Promise<SkillIndexEntry[]> => {
   const skills = args.db.orm.public.Skill
   const user = await skills.where({ userId: args.userId }).select('name', 'description').all()
   if (args.projectId === null) return entriesOf({ rows: user, scope: 'user' }).sort(byName)
-  const project = await skills
-    .where({ projectId: args.projectId })
-    .select('name', 'description')
-    .all()
+  const [group, project] = await Promise.all([
+    args.groupId === null
+      ? Promise.resolve([])
+      : skills.where({ groupId: args.groupId }).select('name', 'description').all(),
+    skills.where({ projectId: args.projectId }).select('name', 'description').all(),
+  ])
   return [
     ...entriesOf({ rows: user, scope: 'user' }),
+    ...entriesOf({ rows: group, scope: 'group' }),
     ...entriesOf({ rows: project, scope: 'project' }),
   ].sort(byName)
 }

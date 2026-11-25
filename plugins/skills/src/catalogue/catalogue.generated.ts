@@ -9,9 +9,9 @@ export const BUILT_IN_SKILL_CATALOGUE: readonly BuiltInSkillCatalogueEntry[] = [
     updatedAt: "1970-01-01T00:00:00.000Z",
     entry: { path: 'SKILL.md', digest: "4fe6b8499fdaae06e5f98692ca16124c0c783bef4274aaff2403df99385045f6", sizeBytes: 5334 },
     files: [
-      { path: "references/cloud-config.md", digest: "d0b0fcedf6437835c9630d79671b0531048b1010a09717b5d3a23ff31562f117", sizeBytes: 3141, isText: true },
+      { path: "references/cloud-config.md", digest: "922e72608ee87f2931afebc1875bffdf10ad64de5823c31e3135dbfa27541199", sizeBytes: 3418, isText: true },
       { path: "references/cloud.md", digest: "088b8a0cb808a668c8d6d8c5f23b1d040938a332c68bee8cfe081936f4e50a6f", sizeBytes: 8514, isText: true },
-      { path: "references/config.md", digest: "2f56a0a1b74e8b4f91e71dd86999b2b13873236f190240bdcfde589b35bb25d2", sizeBytes: 9417, isText: true },
+      { path: "references/config.md", digest: "771e0b5c242e0f6cd3b61d96a901f4fc2d86ad9a70055048991bccd293beb720", sizeBytes: 9630, isText: true },
       { path: "references/plugins.md", digest: "7a57a8aedc026c845e3a3898fa913daa31c82e0de513f3563f68dd6c4c23fdf9", sizeBytes: 8489, isText: true },
       { path: "references/services.md", digest: "7bd259fe4f48b8454bd48957315eac3b1ac0c7f6383d49b460e74aed399cb170", sizeBytes: 12639, isText: true },
       { path: "references/worktrees.md", digest: "58c10032395e8c1bed56feb3a8004cae6af6b671176c2b2992057e64026d624d", sizeBytes: 9796, isText: true },

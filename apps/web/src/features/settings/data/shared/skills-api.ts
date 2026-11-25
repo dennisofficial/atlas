@@ -8,7 +8,7 @@ import type {
 import { api, cloudCall } from '@/lib/api-client'
 import { CloudApiError } from '@/lib/cloud-api'
 
-export type SkillScopeTarget = { scope: ESkillScope; projectId?: string }
+export type SkillScopeTarget = { scope: ESkillScope; projectId?: string; groupId?: string }
 
 const CONFLICT = 409
 

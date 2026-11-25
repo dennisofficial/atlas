@@ -65,7 +65,36 @@ const projectApiOf = (projectId: string): AccessMemberApi => ({
     (await cloudCall(api.projectResources.revealFileMount.query({ projectId, path }))).contents,
 })
 
+const groupApiOf = (groupId: string): AccessMemberApi => ({
+  setSecret: (args) =>
+    cloudCall(
+      api.groupResources.setSecret.mutate({
+        groupId,
+        name: args.name,
+        value: args.value,
+        grantId: args.grantId,
+      }),
+    ),
+  removeSecret: (name) => cloudCall(api.groupResources.removeSecret.mutate({ groupId, name })),
+  revealSecret: async (name) =>
+    (await cloudCall(api.groupResources.revealSecret.query({ groupId, name }))).value,
+  setFile: (args) =>
+    cloudCall(
+      api.groupResources.setFileMount.mutate({
+        groupId,
+        path: args.path,
+        contents: args.contents,
+        mode: args.mode,
+        grantId: args.grantId,
+      }),
+    ),
+  removeFile: (path) => cloudCall(api.groupResources.removeFileMount.mutate({ groupId, path })),
+  revealFile: async (path) =>
+    (await cloudCall(api.groupResources.revealFileMount.query({ groupId, path }))).contents,
+})
+
 export function accessMemberApiOf(scope: AccessScope): AccessMemberApi {
   if (scope.kind === EAccessScope.Personal) return personalApi
+  if (scope.kind === EAccessScope.Group) return groupApiOf(scope.groupId)
   return projectApiOf(scope.projectId)
 }

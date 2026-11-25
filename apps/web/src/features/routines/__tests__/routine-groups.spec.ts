@@ -11,6 +11,7 @@ const project = (id: string, name: string): Project => ({
   repo: null,
   baseBranch: null,
   additionalRepos: [],
+  groupId: null,
   description: '',
   shipBehavior: EShipBehavior.OpenPullRequest,
   createdAt: '2026-11-01T00:00:00Z',

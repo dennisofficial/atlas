@@ -1,20 +1,24 @@
 'use client'
 
-import { ESkillScope } from '@dltech/atlas-wire/web'
+import { useMemo } from 'react'
 
 import { SkillDetailPage } from '@/features/settings/parts/skill-detail-view'
+import {
+  sectionHrefOf,
+  skillTargetOf,
+  useSettingsScope,
+} from '@/features/settings/scope/settings-scope'
 import { useRouteParam } from '@/lib/route-param'
 
-import { useProjectContext } from './data/project-context'
-
-export function ProjectSkillDetailPage() {
-  const { projectId } = useProjectContext()
+export function SettingsSkillDetailPage() {
+  const scope = useSettingsScope()
   const skill = useRouteParam('skillId')
+  const target = useMemo(() => skillTargetOf(scope), [scope])
   return (
     <SkillDetailPage
-      target={{ scope: ESkillScope.Project, projectId, skill }}
-      listHref={`/projects/${encodeURIComponent(projectId)}/settings/skills`}
-      scopeLabel="Project"
+      target={{ ...target, skill }}
+      listHref={sectionHrefOf({ scope, section: 'skills' })}
+      scopeLabel={scope.kind === 'project' ? 'Project' : 'Group'}
     />
   )
 }

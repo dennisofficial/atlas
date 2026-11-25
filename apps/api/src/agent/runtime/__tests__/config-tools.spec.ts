@@ -10,7 +10,11 @@ import { configToolsOf } from '../config-tools'
 const storeOf = (): CloudConfigStore => {
   const project = fakeCloudConfig().client
   const personal = fakePersonalConfig().client
-  return { forProject: () => project, forPersonal: () => personal }
+  return {
+    forProject: () => project,
+    forGroupOfProject: () => personal,
+    forPersonal: () => personal,
+  }
 }
 
 describe('configToolsOf', () => {

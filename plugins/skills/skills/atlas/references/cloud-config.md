@@ -7,14 +7,14 @@ Use it only when the operator asks for a change.
 
 | Kind | Holds | Scopes |
 | --- | --- | --- |
-| `setting` | Atlas setting keys | project, personal |
-| `secret` | Environment variables | project, personal |
-| `file` | Files written into the sandbox | project, personal |
-| `grant` | A named group of secrets and files, plus an instruction | project, personal |
+| `setting` | Atlas setting keys | project, group, personal |
+| `secret` | Environment variables | project, group, personal |
+| `file` | Files written into the sandbox | project, group, personal |
+| `grant` | A named group of secrets and files, plus an instruction | project, group, personal |
 
-- `scope` is `project` (the project of this session) or `personal` (every project the operator runs).
-- A project secret or file with the same name or path wins over a personal one.
-- A session without a project has personal scope only; a project action fails.
+- `scope` is `project` (the project of this session), `group` (the group that project belongs to) or `personal` (every project the operator runs).
+- Precedence on the same name or path: project, then group, then personal.
+- A group scope is the group of this session's project. A session without a project has personal scope only; a project or group action fails. A project that belongs to no group fails a group action.
 - Actions: `list`, `read`, `set`, `remove`.
 
 ## Access grants
@@ -36,7 +36,7 @@ Use it only when the operator asks for a change.
 
 ## Files
 
-- A project path is relative to the repository. Paths inside `.git` are refused.
+- A project or group path is relative to the repository, or starts with `~/` or `@/`. Paths inside `.git` are refused.
 - A personal path starts with `~/` (the sandbox home) or `@/` (the Atlas home). A repo-relative personal path is refused.
 - `contents` is text, 64 KiB at most. `mode` is an octal string such as `"0600"` (the default) or `"644"`.
 - Atlas writes every file on each sandbox start, so an edit made in a session is lost on the next start.
@@ -53,6 +53,6 @@ Give the agent PlanetScale access:
 
 ## When a change takes effect
 
-- Settings and secrets: the next turn, in every sandbox of the scope.
+- Settings and secrets: the next turn, in every sandbox of the scope. A group change reaches every project in the group.
 - Files: the next sandbox start.
 - Grants and their instructions: the next turn, through the access notice.

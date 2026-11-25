@@ -1,9 +1,11 @@
 import { z } from 'zod'
 
+import { configLayerOwnerSchema, configLayerSchema } from '../project-group-wire'
 import { fileMountModeSchema } from './file-mounts-wire'
 
 export enum EAccessScope {
   Personal = 'personal',
+  Group = 'group',
   Project = 'project',
 }
 
@@ -17,6 +19,7 @@ export const ACCESS_GRANT_INSTRUCTION_MAX = 2000
 
 export const accessScopeSchema = z.discriminatedUnion('kind', [
   z.strictObject({ kind: z.literal(EAccessScope.Personal) }),
+  z.strictObject({ kind: z.literal(EAccessScope.Group), groupId: z.string().min(1) }),
   z.strictObject({ kind: z.literal(EAccessScope.Project), projectId: z.string().min(1) }),
 ])
 export type AccessScope = z.infer<typeof accessScopeSchema>
@@ -79,3 +82,32 @@ export const accessGrantMoveSchema = z.strictObject({
   member: accessGrantMemberSchema,
 })
 export type AccessGrantMove = z.infer<typeof accessGrantMoveSchema>
+
+export const accessGrantLayeredSecretSchema = accessGrantSecretSchema.extend({
+  overriddenBy: configLayerSchema.nullable(),
+})
+export type AccessGrantLayeredSecret = z.infer<typeof accessGrantLayeredSecretSchema>
+
+export const accessGrantLayeredFileSchema = accessGrantFileSchema.extend({
+  overriddenBy: configLayerSchema.nullable(),
+})
+export type AccessGrantLayeredFile = z.infer<typeof accessGrantLayeredFileSchema>
+
+export const accessGrantLayeredGrantSchema = accessGrantSchema.extend({
+  secrets: z.array(accessGrantLayeredSecretSchema),
+  files: z.array(accessGrantLayeredFileSchema),
+})
+export type AccessGrantLayeredGrant = z.infer<typeof accessGrantLayeredGrantSchema>
+
+export const accessGrantLayerSchema = z.object({
+  layer: configLayerSchema,
+  owner: configLayerOwnerSchema,
+  grants: z.array(accessGrantLayeredGrantSchema),
+})
+export type AccessGrantLayer = z.infer<typeof accessGrantLayerSchema>
+
+export const accessGrantLayeredListSchema = z.object({ layers: z.array(accessGrantLayerSchema) })
+export type AccessGrantLayeredList = z.infer<typeof accessGrantLayeredListSchema>
+
+export const accessGrantLayeredInputSchema = z.strictObject({ scope: accessScopeSchema })
+export type AccessGrantLayeredInput = z.infer<typeof accessGrantLayeredInputSchema>

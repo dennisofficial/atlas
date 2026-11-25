@@ -3,6 +3,7 @@ import {
   BotIcon,
   BrainIcon,
   FlaskConicalIcon,
+  FolderIcon,
   GaugeIcon,
   LockKeyholeIcon,
   PaletteIcon,
@@ -27,6 +28,7 @@ export enum ESettingsPage {
   Classifier = 'classifier',
   Secrets = 'secrets',
   Access = 'access',
+  Groups = 'groups',
   Appearance = 'appearance',
   Notifications = 'notifications',
   Security = 'security',
@@ -75,6 +77,7 @@ export const SETTINGS_NAV: SettingsNavGroup[] = [
     items: [
       { page: ESettingsPage.Secrets, label: 'Secrets & Env Vars', icon: VariableIcon },
       { page: ESettingsPage.Access, label: 'Access', icon: LockKeyholeIcon },
+      { page: ESettingsPage.Groups, label: 'Groups', icon: FolderIcon },
     ],
   },
   {

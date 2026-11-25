@@ -61,10 +61,29 @@ response payloads, the constants that both sides must agree on, and the sandbox 
 - `MEMORY_STALE_REVISION_CODE`, `MEMORY_EDIT_NO_MATCH_CODE`, `MEMORY_EDIT_AMBIGUOUS_CODE`: the
   memory error codes. `@dltech/atlas-core` owns these, and wire re-exports them.
 - `accessScopeSchema`, `accessGrantSchema`, `accessGrantSaveSchema`, `accessGrantMoveSchema`: a
-  grant at personal or project scope, the secrets and files it holds, and its writes. `EAccessScope`
-  and `EAccessMemberKind` name the scopes and the member kinds.
+  grant at personal, group or project scope, the secrets and files it holds, and its writes.
+  `EAccessScope` and `EAccessMemberKind` name the scopes and the member kinds.
 - `fileMountSummarySchema`, `projectFileMountSetSchema`, `personalFileMountSetSchema`: a file mount
   a sandbox gets, with its mode. A personal mount path must start with `~/` or `@/`.
+
+### Layer a project group
+
+A project group sits between the personal and the project scope: a user-owned set of projects whose
+settings, grants, skills and MCP servers apply to each project in it. `projectSchema` carries
+`groupId`, which is null while the project belongs to no group.
+- `projectGroupSchema`, `projectGroupListSchema`: a group with the ids of its projects.
+- `projectGroupSaveSchema`, `projectGroupKeySchema`, `projectGroupAssignSchema`: create or rename by
+  `id`, name one by `id`, and move a project into a group, or out of every group with a null
+  `groupId`.
+- `EConfigLayer`, `configLayerSchema`: the five layers from lowest to highest, `built-in`,
+  `personal`, `group`, `project` and `repo`. `@dltech/atlas-core` owns the enum, and wire re-exports
+  it.
+- `configLayerOwnerSchema`: the id and name of the row a layer comes from.
+- `accessGrantLayeredListSchema`: a scope's grants one layer at a time, lowest to highest, each
+  secret and file carrying the layer that overrides it. `layeredSettingsSchema` answers the same for
+  settings, from `projectResources.layeredSettings` and `groupResources.layeredSettings`.
+- `groupIdInputSchema`, `groupSecretSetSchema`, `groupFileMountSetSchema`,
+  `groupSettingsPatchSchema`: the writes of a group's secrets, files and settings.
 
 ### Provision a sandbox
 

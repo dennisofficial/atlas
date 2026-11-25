@@ -6,10 +6,11 @@ import { ESkillOrigin, ESkillWarning } from '../spec'
 const skill = (name: string, origin: ESkillOrigin) => ({ name, origin, warnings: [] })
 
 describe('resolveSkillShadowing', () => {
-  it('ranks repo over cloud project over cloud user over built-in, whatever the array order', () => {
+  it('ranks repo over cloud project over cloud group over cloud user over built-in', () => {
     const resolved = resolveSkillShadowing([
       skill('alpha', ESkillOrigin.BuiltIn),
       skill('alpha', ESkillOrigin.CloudUser),
+      skill('alpha', ESkillOrigin.CloudGroup),
       skill('alpha', ESkillOrigin.CloudProject),
       skill('alpha', ESkillOrigin.Repo),
     ])
@@ -17,7 +18,21 @@ describe('resolveSkillShadowing', () => {
     expect(resolved.shadowed.map((row) => row.shadowed.origin)).toEqual([
       ESkillOrigin.BuiltIn,
       ESkillOrigin.CloudUser,
+      ESkillOrigin.CloudGroup,
       ESkillOrigin.CloudProject,
+    ])
+  })
+
+  it('lets a group skill shadow a personal one and lose to a project one', () => {
+    const resolved = resolveSkillShadowing([
+      skill('alpha', ESkillOrigin.CloudGroup),
+      skill('alpha', ESkillOrigin.CloudUser),
+      skill('alpha', ESkillOrigin.CloudProject),
+    ])
+    expect(resolved.kept).toEqual([skill('alpha', ESkillOrigin.CloudProject)])
+    expect(resolved.shadowed.map((row) => row.shadowed.origin)).toEqual([
+      ESkillOrigin.CloudUser,
+      ESkillOrigin.CloudGroup,
     ])
   })
 

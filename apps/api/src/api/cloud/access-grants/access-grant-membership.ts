@@ -2,13 +2,15 @@ import { ConflictException, NotFoundException } from '@nestjs/common'
 import { isUniqueViolation, type Tx } from '@dltech/atlas-db'
 
 import {
+  cleanupGroupGrant,
   cleanupPersonalGrant,
   cleanupProjectGrant,
+  createGroupGrant,
   createPersonalGrant,
   createProjectGrant,
 } from '../../../_lib/access-grants/grant-of-one'
 
-export { cleanupPersonalGrant, cleanupProjectGrant }
+export { cleanupGroupGrant, cleanupPersonalGrant, cleanupProjectGrant }
 
 const GRANT_NOT_FOUND = 'access grant not found'
 const GRANT_NAME_TAKEN = 'a grant with that name already exists'
@@ -82,4 +84,31 @@ export const resolveProjectGrantId = async (args: {
   }
   if (args.existingGrantId !== null) return args.existingGrantId
   return createProjectGrant({ tx: args.tx, projectId: args.projectId, label: args.label })
+}
+
+export const assertGroupGrant = async (args: {
+  tx: Tx
+  groupId: string
+  grantId: string
+}): Promise<void> => {
+  const row = await args.tx.orm.public.GroupAccessGrant.where({
+    id: args.grantId,
+    groupId: args.groupId,
+  }).first()
+  if (row === null) throw new NotFoundException(GRANT_NOT_FOUND)
+}
+
+export const resolveGroupGrantId = async (args: {
+  tx: Tx
+  groupId: string
+  requestedGrantId: string | undefined
+  existingGrantId: string | null
+  label: string
+}): Promise<string> => {
+  if (args.requestedGrantId !== undefined) {
+    await assertGroupGrant({ tx: args.tx, groupId: args.groupId, grantId: args.requestedGrantId })
+    return args.requestedGrantId
+  }
+  if (args.existingGrantId !== null) return args.existingGrantId
+  return createGroupGrant({ tx: args.tx, groupId: args.groupId, label: args.label })
 }

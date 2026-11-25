@@ -1,9 +1,10 @@
 import { type Db, createDb, createPool } from '@dltech/atlas-db'
 import type { McpTransport } from '@dltech/atlas-plugin-mcp/core'
 import { SecretCipher } from '@dltech/atlas-pods/config/secret-cipher'
-import { EAccessScope } from '@dltech/atlas-wire/web'
+import { EAccessScope, EMcpServerScope } from '@dltech/atlas-wire/web'
 
 import type { GrantView, GrantWrite } from './cloud-config-grants'
+import { groupConfigClientOf } from './cloud-config-group'
 import { personalConfigClientOf } from './cloud-config-personal'
 import { projectConfigClientOf } from './cloud-config-project'
 import { databaseUrlWithTls } from './database-url'
@@ -60,16 +61,17 @@ export type CloudConfigClient = {
 
 export type McpConfigClient = {
   readonly projectId: string
-  listMcpServers(): Promise<readonly McpServerView[]>
-  readMcpServer(name: string): Promise<McpServerView | null>
-  putMcpServer(server: McpServerWrite): Promise<void>
-  removeMcpServer(name: string): Promise<boolean>
+  listMcpServers(scope?: EMcpServerScope): Promise<readonly McpServerView[]>
+  readMcpServer(name: string, scope?: EMcpServerScope): Promise<McpServerView | null>
+  putMcpServer(server: McpServerWrite, scope?: EMcpServerScope): Promise<void>
+  removeMcpServer(name: string, scope?: EMcpServerScope): Promise<boolean>
 }
 
 export type ProjectCloudConfigClient = CloudConfigClient & McpConfigClient
 
 export type CloudConfigStore = {
   forProject(projectId: string): ProjectCloudConfigClient
+  forGroupOfProject(projectId: string): CloudConfigClient
   forPersonal(userId: string): CloudConfigClient
 }
 
@@ -90,6 +92,7 @@ export const cloudConfigStore = (): CloudConfigStore => {
   }
   return {
     forProject: (projectId) => projectConfigClientOf({ ...opened(), projectId }),
+    forGroupOfProject: (projectId) => groupConfigClientOf({ ...opened(), projectId }),
     forPersonal: (userId) => personalConfigClientOf({ ...opened(), userId }),
   }
 }

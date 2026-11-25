@@ -13,7 +13,7 @@ import { z } from "zod";
 
 const t = initTRPC.create();
 const publicProcedure = t.procedure;
-import { accessGrantListInputSchema, accessGrantListSchema, accessGrantSaveSchema, accessGrantSavedSchema, accessGrantMoveSchema, accessGrantKeySchema, artifactBeginPublishInputSchema, artifactBeginPublishOutputSchema, artifactCommitPublishInputSchema, artifactCommitPublishOutputSchema, artifactListOutputSchema, artifactSubdomainInputSchema, artifactGetOutputSchema, artifactSourceExportOutputSchema, artifactUnpublishOutputSchema, composerUploadPresignInputSchema, composerUploadPresignReplySchema, composerUploadDiscardInputSchema, composerUploadDownloadInputSchema, composerUploadDownloadReplySchema, githubPrStatesOutputSchema, githubRepoListSchema, githubBranchesInputSchema, githubBranchListSchema, githubDeviceCodesSchema, githubPollConnectInputSchema, githubPollResultSchema, githubConnectionStateSchema, githubTokenSchema, harnessSecretListSchema, harnessSecretNamesSchema, harnessSecretSetSchema, harnessSecretNameSchema, mcpOauthServersInputSchema, mcpOauthServersResultSchema, mcpOauthBeginInputSchema, mcpOauthBeginResultSchema, mcpOauthServerRefSchema, mcpOauthAccessInputSchema, mcpOauthAccessResultSchema, personalMcpServerListSchema, personalMcpUpsertSchema, personalMcpNameSchema, memoryListSchema, memoryProjectQuerySchema, memoryKeySchema, memoryEntrySchema, memoryPutSchema, memorySummarySchema, memoryEditSchema, operatorAnswerInputSchema, projectIdInputSchema, settingListSchema, projectSettingsPatchSchema, projectSandboxSchema, projectSandboxSaveSchema, projectSecretListSchema, projectSecretKeySchema, projectSecretValueSchema, projectSecretSetSchema, projectFileMountListSchema, projectFileMountKeySchema, projectFileMountContentsSchema, projectFileMountSetSchema, projectRepoTreeSchema, resourceMcpServerListSchema, projectMcpServerPutSchema, projectMcpServerKeySchema, projectListSchema, projectSaveSchema, projectSchema, projectUpdateSchema, personalSecretSummaryListSchema, personalSecretNameSchema, personalSecretValueSchema, personalSecretNamesSchema, personalSecretSetSchema, settingsPatchSchema, personalSettingSetSchema, personalSettingKeySchema, skillCatalogueRequestSchema, skillCatalogueReplySchema, skillListRequestSchema, skillListReplySchema, skillListFilesRequestSchema, skillListFilesReplySchema, skillGetRequestSchema, skillFileContentSchema, skillPutRequestSchema, skillRevisionReplySchema, skillRemoveRequestSchema, skillRemovedReplySchema, skillRemoveSkillRequestSchema, skillRemoveSkillReplySchema, sshSigningKeyLeaseSchema, sshSigningKeyStatusSchema, sshSigningKeyUploadSchema, sessionStreamFollowInputSchema, personalFileMountListSchema, personalFileMountKeySchema, personalFileMountContentsSchema, personalFileMountSetSchema, userFilesListRequestSchema, userFilesListReplySchema, userFilesGetRequestSchema, userFilesGetReplySchema, userFilePutRequestSchema, userFileRevisionSchema, userFileRemoveRequestSchema, accountDtoSchema, createAccountInputSchema, setActiveInputSchema, activeAccountInputSchema, activeAccountDtoSchema, accountIdInputSchema, storedAccountDtoSchema, replaceSecretInputSchema, renameAccountInputSchema, setStatusInputSchema, classifierTestOutputSchema, authorizeDesktopInputSchema, authorizeDesktopReplySchema, exchangeDesktopCodeInputSchema, exchangeDesktopCodeReplySchema, modelsResponseSchema, providerSignInBeginInputSchema, providerSignInBeginSchema, providerSignInCompleteInputSchema, providerSignInPollInputSchema, providerSignInPollSchema, reportNotifyPresenceInputSchema, notifyWebPushKeyOutputSchema, registerNotifyDeviceInputSchema, registerNotifyDeviceOutputSchema, unregisterNotifyDeviceInputSchema, listNotifyDevicesOutputSchema, setNotifyDeviceEnabledInputSchema, trackNotificationInputSchema, sendTestNotificationOutputSchema } from "@dltech/atlas-wire";
+import { accessGrantListInputSchema, accessGrantListSchema, accessGrantLayeredInputSchema, accessGrantLayeredListSchema, accessGrantSaveSchema, accessGrantSavedSchema, accessGrantMoveSchema, accessGrantKeySchema, artifactBeginPublishInputSchema, artifactBeginPublishOutputSchema, artifactCommitPublishInputSchema, artifactCommitPublishOutputSchema, artifactListOutputSchema, artifactSubdomainInputSchema, artifactGetOutputSchema, artifactSourceExportOutputSchema, artifactUnpublishOutputSchema, composerUploadPresignInputSchema, composerUploadPresignReplySchema, composerUploadDiscardInputSchema, composerUploadDownloadInputSchema, composerUploadDownloadReplySchema, githubPrStatesOutputSchema, githubRepoListSchema, githubBranchesInputSchema, githubBranchListSchema, githubDeviceCodesSchema, githubPollConnectInputSchema, githubPollResultSchema, githubConnectionStateSchema, githubTokenSchema, harnessSecretListSchema, harnessSecretNamesSchema, harnessSecretSetSchema, harnessSecretNameSchema, mcpOauthServersInputSchema, mcpOauthServersResultSchema, mcpOauthBeginInputSchema, mcpOauthBeginResultSchema, mcpOauthServerRefSchema, mcpOauthAccessInputSchema, mcpOauthAccessResultSchema, personalMcpServerListSchema, mcpServerScopeSchema, mcpServerLayersSchema, scopedMcpServerPutSchema, scopedMcpServerKeySchema, memoryListSchema, memoryProjectQuerySchema, memoryKeySchema, memoryEntrySchema, memoryPutSchema, memorySummarySchema, memoryEditSchema, operatorAnswerInputSchema, groupIdInputSchema, projectSecretListSchema, groupSecretKeySchema, projectSecretValueSchema, groupSecretSetSchema, projectFileMountListSchema, groupFileMountKeySchema, projectFileMountContentsSchema, groupFileMountSetSchema, settingListSchema, groupSettingsPatchSchema, layeredSettingsSchema, projectGroupListSchema, projectGroupSaveSchema, projectGroupSchema, projectGroupKeySchema, projectGroupAssignSchema, projectIdInputSchema, projectSettingsPatchSchema, projectSandboxSchema, projectSandboxSaveSchema, projectSecretKeySchema, projectSecretSetSchema, projectFileMountKeySchema, projectFileMountSetSchema, projectRepoTreeSchema, resourceMcpServerListSchema, projectMcpServerPutSchema, projectMcpServerKeySchema, projectListSchema, projectSaveSchema, projectSchema, projectUpdateSchema, personalSecretSummaryListSchema, personalSecretNameSchema, personalSecretValueSchema, personalSecretNamesSchema, personalSecretSetSchema, settingsPatchSchema, personalSettingSetSchema, personalSettingKeySchema, skillCatalogueRequestSchema, skillCatalogueReplySchema, skillListRequestSchema, skillListReplySchema, skillLayersSchema, skillListFilesRequestSchema, skillListFilesReplySchema, skillGetRequestSchema, skillFileContentSchema, skillPutRequestSchema, skillRevisionReplySchema, skillRemoveRequestSchema, skillRemovedReplySchema, skillRemoveSkillRequestSchema, skillRemoveSkillReplySchema, sshSigningKeyLeaseSchema, sshSigningKeyStatusSchema, sshSigningKeyUploadSchema, sessionStreamFollowInputSchema, personalFileMountListSchema, personalFileMountKeySchema, personalFileMountContentsSchema, personalFileMountSetSchema, userFilesListRequestSchema, userFilesListReplySchema, userFilesGetRequestSchema, userFilesGetReplySchema, userFilePutRequestSchema, userFileRevisionSchema, userFileRemoveRequestSchema, accountDtoSchema, createAccountInputSchema, setActiveInputSchema, activeAccountInputSchema, activeAccountDtoSchema, accountIdInputSchema, storedAccountDtoSchema, replaceSecretInputSchema, renameAccountInputSchema, setStatusInputSchema, classifierTestOutputSchema, authorizeDesktopInputSchema, authorizeDesktopReplySchema, exchangeDesktopCodeInputSchema, exchangeDesktopCodeReplySchema, modelsResponseSchema, providerSignInBeginInputSchema, providerSignInBeginSchema, providerSignInCompleteInputSchema, providerSignInPollInputSchema, providerSignInPollSchema, reportNotifyPresenceInputSchema, notifyWebPushKeyOutputSchema, registerNotifyDeviceInputSchema, registerNotifyDeviceOutputSchema, unregisterNotifyDeviceInputSchema, listNotifyDevicesOutputSchema, setNotifyDeviceEnabledInputSchema, trackNotificationInputSchema, sendTestNotificationOutputSchema } from "@dltech/atlas-wire";
 import { sessionStreamOutputSchema, terminalStreamAttachInputSchema, terminalStreamFrameSchema, accountMeOutputSchema, contextMirrorListInputSchema, contextMirrorListOutputSchema, contextMirrorReadInputSchema, contextMirrorReadOutputSchema, diagramRepairInputSchema, diagramRepairOutputSchema, diagramRepairListInputSchema, diagramRepairListOutputSchema, filesTreeInputSchema, filesTreeOutputSchema, filesSearchInputSchema, filesSearchOutputSchema, filesReadInputSchema, filesReadOutputSchema, mediaPresignInputSchema, mediaPresignOutputSchema, mediaConfirmInputSchema, mediaConfirmOutputSchema, mediaUrlInputSchema, mediaUrlOutputSchema, routineListInputSchema, routineListOutputSchema, routineGetInputSchema, routineSchema, routineRunsInputSchema, routineRunsOutputSchema, routineCreateInputSchema, routineUpdateInputSchema, routineIdInputSchema, routineRemoveOutputSchema, routineRunOutputSchema, servicesLogInputSchema, servicesLogOutputSchema, sessionDraftPutInputSchema, sessionDraftSchema, sessionDraftGetInputSchema, sessionDraftGetOutputSchema, sessionDraftClearInputSchema, sessionDraftClearOutputSchema, sessionCreateInputSchema, sessionCreateOutputSchema, sessionListInputSchema, sessionListOutputSchema, sessionPostInputSchema, sessionPostOutputSchema, sessionWithdrawInputSchema, sessionWithdrawOutputSchema, sessionArchiveInputSchema, sessionArchiveOutputSchema, sessionMarkReadInputSchema, sessionMarkReadOutputSchema, sessionEventsInputSchema, sessionEventsOutputSchema, sessionBlobInputSchema, sessionBlobOutputSchema, sessionStatusInputSchema, sessionStatusOutputSchema, sessionRetryInputSchema, sessionRetryOutputSchema, sessionStopInputSchema, sessionStopOutputSchema, sessionCommandInputSchema, sessionCommandOutputSchema, sessionCommandsOutputSchema, sessionSubscribeInputSchema, sessionSubscribeOutputSchema, sessionUnsubscribeInputSchema, sessionUnsubscribeOutputSchema, sessionChangesInputSchema, sessionChangesOutputSchema, sessionChangeContentInputSchema, sessionChangeContentOutputSchema, sessionWakeInputSchema, sessionWakeOutputSchema, sessionSleepPodInputSchema, sessionSleepPodOutputSchema, sessionHoldPodInputSchema, sessionHoldPodOutputSchema, sessionViewInputSchema, sessionViewOutputSchema, sessionPodMetricsInputSchema, podMetricsStreamOutputSchema, terminalListInputSchema, terminalListOutputSchema, terminalOpenInputSchema, terminalOpenOutputSchema, terminalRenameInputSchema, terminalMutationOutputSchema, terminalWriteInputSchema, terminalResizeInputSchema, terminalCloseInputSchema, terminalReadInputSchema, terminalReadOutputSchema, usageReportInputSchema, usageReportDtoSchema } from "@dltech/atlas-protocol";
 
 const appRouter = t.router({
@@ -21,6 +21,10 @@ const appRouter = t.router({
     list: publicProcedure
       .input(accessGrantListInputSchema)
       .output(accessGrantListSchema)
+      .query(async () => "PLACEHOLDER_DO_NOT_REMOVE" as any),
+    layered: publicProcedure
+      .input(accessGrantLayeredInputSchema)
+      .output(accessGrantLayeredListSchema)
       .query(async () => "PLACEHOLDER_DO_NOT_REMOVE" as any),
     save: publicProcedure
       .input(accessGrantSaveSchema)
@@ -146,14 +150,19 @@ const appRouter = t.router({
     }),
   mcpServers: t.router({
     list: publicProcedure
+      .input(mcpServerScopeSchema.optional())
       .output(personalMcpServerListSchema)
       .query(async () => "PLACEHOLDER_DO_NOT_REMOVE" as any),
+    layered: publicProcedure
+      .input(mcpServerScopeSchema)
+      .output(mcpServerLayersSchema)
+      .query(async () => "PLACEHOLDER_DO_NOT_REMOVE" as any),
     put: publicProcedure
-      .input(personalMcpUpsertSchema)
+      .input(scopedMcpServerPutSchema)
       .output(z.void())
       .mutation(async () => "PLACEHOLDER_DO_NOT_REMOVE" as any),
     remove: publicProcedure
-      .input(personalMcpNameSchema)
+      .input(scopedMcpServerKeySchema)
       .output(z.void())
       .mutation(async () => "PLACEHOLDER_DO_NOT_REMOVE" as any)
     }),
@@ -188,6 +197,69 @@ const appRouter = t.router({
       .output(z.void())
       .mutation(async () => "PLACEHOLDER_DO_NOT_REMOVE" as any)
     }),
+  groupResources: t.router({
+    listSecrets: publicProcedure
+      .input(groupIdInputSchema)
+      .output(projectSecretListSchema)
+      .query(async () => "PLACEHOLDER_DO_NOT_REMOVE" as any),
+    revealSecret: publicProcedure
+      .input(groupSecretKeySchema)
+      .output(projectSecretValueSchema)
+      .query(async () => "PLACEHOLDER_DO_NOT_REMOVE" as any),
+    setSecret: publicProcedure
+      .input(groupSecretSetSchema)
+      .output(z.void())
+      .mutation(async () => "PLACEHOLDER_DO_NOT_REMOVE" as any),
+    removeSecret: publicProcedure
+      .input(groupSecretKeySchema)
+      .output(z.void())
+      .mutation(async () => "PLACEHOLDER_DO_NOT_REMOVE" as any),
+    listFileMounts: publicProcedure
+      .input(groupIdInputSchema)
+      .output(projectFileMountListSchema)
+      .query(async () => "PLACEHOLDER_DO_NOT_REMOVE" as any),
+    revealFileMount: publicProcedure
+      .input(groupFileMountKeySchema)
+      .output(projectFileMountContentsSchema)
+      .query(async () => "PLACEHOLDER_DO_NOT_REMOVE" as any),
+    setFileMount: publicProcedure
+      .input(groupFileMountSetSchema)
+      .output(z.void())
+      .mutation(async () => "PLACEHOLDER_DO_NOT_REMOVE" as any),
+    removeFileMount: publicProcedure
+      .input(groupFileMountKeySchema)
+      .output(z.void())
+      .mutation(async () => "PLACEHOLDER_DO_NOT_REMOVE" as any),
+    listSettings: publicProcedure
+      .input(groupIdInputSchema)
+      .output(settingListSchema)
+      .query(async () => "PLACEHOLDER_DO_NOT_REMOVE" as any),
+    patchSettings: publicProcedure
+      .input(groupSettingsPatchSchema)
+      .output(z.void())
+      .mutation(async () => "PLACEHOLDER_DO_NOT_REMOVE" as any),
+    layeredSettings: publicProcedure
+      .input(groupIdInputSchema)
+      .output(layeredSettingsSchema)
+      .query(async () => "PLACEHOLDER_DO_NOT_REMOVE" as any)
+    }),
+  projectGroups: t.router({
+    list: publicProcedure
+      .output(projectGroupListSchema)
+      .query(async () => "PLACEHOLDER_DO_NOT_REMOVE" as any),
+    save: publicProcedure
+      .input(projectGroupSaveSchema)
+      .output(projectGroupSchema)
+      .mutation(async () => "PLACEHOLDER_DO_NOT_REMOVE" as any),
+    remove: publicProcedure
+      .input(projectGroupKeySchema)
+      .output(z.void())
+      .mutation(async () => "PLACEHOLDER_DO_NOT_REMOVE" as any),
+    assign: publicProcedure
+      .input(projectGroupAssignSchema)
+      .output(z.void())
+      .mutation(async () => "PLACEHOLDER_DO_NOT_REMOVE" as any)
+    }),
   projectResources: t.router({
     listSettings: publicProcedure
       .input(projectIdInputSchema)
@@ -197,6 +269,10 @@ const appRouter = t.router({
       .input(projectSettingsPatchSchema)
       .output(z.void())
       .mutation(async () => "PLACEHOLDER_DO_NOT_REMOVE" as any),
+    layeredSettings: publicProcedure
+      .input(projectIdInputSchema)
+      .output(layeredSettingsSchema)
+      .query(async () => "PLACEHOLDER_DO_NOT_REMOVE" as any),
     getSandbox: publicProcedure
       .input(projectIdInputSchema)
       .output(projectSandboxSchema)
@@ -322,6 +398,10 @@ const appRouter = t.router({
     list: publicProcedure
       .input(skillListRequestSchema)
       .output(skillListReplySchema)
+      .query(async () => "PLACEHOLDER_DO_NOT_REMOVE" as any),
+    layered: publicProcedure
+      .input(skillListRequestSchema)
+      .output(skillLayersSchema)
       .query(async () => "PLACEHOLDER_DO_NOT_REMOVE" as any),
     listFiles: publicProcedure
       .input(skillListFilesRequestSchema)

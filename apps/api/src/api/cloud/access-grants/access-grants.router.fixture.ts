@@ -1,12 +1,19 @@
 import { EAccessScope, type AccessScope } from '@dltech/atlas-wire'
 import type { INestApplication } from '@nestjs/common'
 import { projectProviders } from '../projects/projects.router.fixture'
+import { GroupResourcesRouter } from '../project-groups/group-resources.router'
+import { GroupResourcesService } from '../project-groups/group-resources.service'
+import { GroupSettingsService } from '../project-groups/group-settings.service'
+import { ProjectGroupsRouter } from '../project-groups/project-groups.router'
+import { GroupsService } from '../project-groups/project-groups.service'
 import { SecretsRouter } from '../secrets/secrets.router'
 import { SecretsService } from '../secrets/secrets.service'
 import { UserFileMountsRouter } from '../user-file-mounts/user-file-mounts.router'
 import { UserFileMountsService } from '../user-file-mounts/user-file-mounts.service'
 import { buildSessionTrpcApp, dataOf, trpcMutation, trpcQuery } from '../session-trpc-test-app'
 import { AccessGrantsRouter } from './access-grants.router'
+import { GroupAccessGrantsService } from './group-access-grants.service'
+import { LayeredAccessGrantsService } from './layered-access-grants.service'
 import { AccessGrantsService } from './access-grants.service'
 import { PersonalAccessGrantsService } from './personal-access-grants.service'
 import { ProjectAccessGrantsService } from './project-access-grants.service'
@@ -18,6 +25,11 @@ export const projectScope = (projectId: string): AccessScope => ({
   projectId,
 })
 
+export const groupScope = (groupId: string): AccessScope => ({
+  kind: EAccessScope.Group,
+  groupId,
+})
+
 export type Grant = {
   id: string
   name: string
@@ -25,6 +37,17 @@ export type Grant = {
   secrets: { name: string; updatedAt: string }[]
   files: { path: string; mode: number; updatedAt: string }[]
   updatedAt: string
+}
+
+export type LayeredMember = { overriddenBy: string | null }
+
+export type GrantLayer = {
+  layer: string
+  owner: { id: string | null; name: string } | null
+  grants: (Grant & {
+    secrets: (Grant['secrets'][number] & LayeredMember)[]
+    files: (Grant['files'][number] & LayeredMember)[]
+  })[]
 }
 
 export const buildAccessGrantsApp = (): Promise<INestApplication> =>
@@ -36,6 +59,13 @@ export const buildAccessGrantsApp = (): Promise<INestApplication> =>
       UserFileMountsService,
       UserFileMountsRouter,
       AccessGrantsService,
+      GroupAccessGrantsService,
+      GroupsService,
+      GroupResourcesRouter,
+      GroupResourcesService,
+      GroupSettingsService,
+      LayeredAccessGrantsService,
+      ProjectGroupsRouter,
       PersonalAccessGrantsService,
       ProjectAccessGrantsService,
       AccessGrantsRouter,
@@ -54,6 +84,29 @@ export const accessGrantApi = (app: INestApplication) => ({
     }).expect(200)
     return (dataOf(response.body) as { grants: Grant[] }).grants
   },
+  layered: async (args: { scope: AccessScope; token?: string }): Promise<GrantLayer[]> => {
+    const response = await trpcQuery({
+      app,
+      path: 'accessGrants.layered',
+      token: args.token ?? 'session-a',
+      input: { scope: args.scope },
+    }).expect(200)
+    return (dataOf(response.body) as { layers: GrantLayer[] }).layers
+  },
+  groupCall: (args: { procedure: string; input: object; token?: string }) =>
+    trpcMutation({
+      app,
+      path: `groupResources.${args.procedure}`,
+      token: args.token ?? 'session-a',
+      input: args.input,
+    }),
+  groupQuery: (args: { procedure: string; input: object; token?: string }) =>
+    trpcQuery({
+      app,
+      path: `groupResources.${args.procedure}`,
+      token: args.token ?? 'session-a',
+      input: args.input,
+    }),
   save: (args: { input: object; token?: string }) =>
     trpcMutation({
       app,

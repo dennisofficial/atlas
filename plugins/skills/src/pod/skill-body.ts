@@ -23,7 +23,9 @@ export const isBuiltInSkill = (skill: CatalogueSkill): skill is BuiltInCatalogue
   'text' in skill
 
 export const isCloudSkill = (skill: CatalogueSkill): skill is CloudCatalogueSkill =>
-  skill.origin === ESkillOrigin.CloudUser || skill.origin === ESkillOrigin.CloudProject
+  skill.origin === ESkillOrigin.CloudUser ||
+  skill.origin === ESkillOrigin.CloudGroup ||
+  skill.origin === ESkillOrigin.CloudProject
 
 const editDistance = (left: string, right: string): number => {
   let previous = Array.from({ length: right.length + 1 }, (_, index) => index)
