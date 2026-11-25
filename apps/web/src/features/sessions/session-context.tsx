@@ -20,12 +20,7 @@ export function SessionContext({
   const stats = spend === null ? null : tokenStatsOf(spend)
   const cost = spend?.costUsd ?? null
   return (
-    <Context
-      className="ml-auto"
-      used={context.used}
-      limit={context.limit}
-      breakdown={[...context.breakdown]}
-    >
+    <Context used={context.used} limit={context.limit} breakdown={[...context.breakdown]}>
       {cost === null && stats === null ? null : (
         <p className="flex flex-wrap items-center gap-x-3 gap-y-1 text-xs leading-4 text-muted-foreground">
           {cost === null ? null : <Stat value={formatUsd(cost)} unit="spent" />}

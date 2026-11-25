@@ -441,6 +441,7 @@ export function SessionView({ sessionId }: { sessionId: string }) {
                         onOpenChange={choice.onOpenChange}
                       />
                     )}
+                    <span aria-hidden className="flex-1" />
                     <SessionContext context={model.context} spend={model.spend} />
                     <SessionUsage model={listed?.model} working={working} />
                   </ThreadComposer>
