@@ -7,7 +7,6 @@ import {
   requestWithdraw,
   withdrawStore,
   type WithdrawApi,
-  type WithdrawIntent,
 } from '@dltech/atlas-client/session'
 import {
   optimisticPlacementOf,
@@ -85,8 +84,11 @@ export function useQueuedTranscript(args: {
   const withdraw = async (params: { inboxId: string; restoreText: boolean }) => {
     const entry = queued.find((candidate) => candidate.id === params.inboxId)
     if (entry === undefined) return
-    const intent: WithdrawIntent = { sessionId, targetInboxId: Number(entry.id) }
-    const request = requestWithdraw({ api, intents: withdrawStore, intent })
+    const request = requestWithdraw({
+      api,
+      intents: withdrawStore,
+      target: { sessionId, targetInboxId: Number(entry.id) },
+    })
     if (!request.recorded) return
     if (params.restoreText) {
       onDraftChange(mergeWithdrawnIntoDraft({ withdrawn: entry.text, draft }))

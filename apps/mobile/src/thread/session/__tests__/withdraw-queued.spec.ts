@@ -39,7 +39,7 @@ describe('queuedWithdrawPlanOf', () => {
     expect(
       queuedWithdrawPlanOf({ sessionId: 'ses-1', pending, inboxId: 4, restoreText: true }),
     ).toEqual({
-      intent: { sessionId: 'ses-1', targetInboxId: 4 },
+      target: { sessionId: 'ses-1', targetInboxId: 4 },
       restore: { text: 'ship it', attachments: [attachment] },
     })
   })
@@ -47,7 +47,7 @@ describe('queuedWithdrawPlanOf', () => {
   it('restores nothing for a remove', () => {
     expect(
       queuedWithdrawPlanOf({ sessionId: 'ses-1', pending, inboxId: 4, restoreText: false }),
-    ).toEqual({ intent: { sessionId: 'ses-1', targetInboxId: 4 }, restore: undefined })
+    ).toEqual({ target: { sessionId: 'ses-1', targetInboxId: 4 }, restore: undefined })
   })
 
   it('has no plan for a message that is no longer queued', () => {

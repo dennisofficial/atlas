@@ -5,6 +5,7 @@ import {
   type WithdrawIntent,
   type WithdrawIntentPort,
   type WithdrawSettlement,
+  type WithdrawTarget,
 } from './withdraw-queue'
 
 const EMPTY: readonly WithdrawIntent[] = []
@@ -22,6 +23,7 @@ export type WithdrawStore = WithdrawIntentPort & {
 export const createWithdrawStore = (): WithdrawStore => {
   const bySession = new Map<string, readonly WithdrawIntent[]>()
   const listeners = new Map<string, Set<() => void>>()
+  let lastRequestId = 0
 
   const emit = (sessionId: string): void => {
     for (const listener of [...(listeners.get(sessionId) ?? [])]) listener()
@@ -37,19 +39,24 @@ export const createWithdrawStore = (): WithdrawStore => {
   }
 
   const holds = (intent: WithdrawIntent): boolean =>
-    intentsOf(intent.sessionId).some((entry) => entry.targetInboxId === intent.targetInboxId)
+    intentsOf(intent.sessionId).some((entry) => entry.requestId === intent.requestId)
+
+  const heldFor = (target: WithdrawTarget): boolean =>
+    intentsOf(target.sessionId).some((entry) => entry.targetInboxId === target.targetInboxId)
 
   return {
-    request: (intent) => {
-      if (holds(intent)) return false
-      replace(intent.sessionId, [...intentsOf(intent.sessionId), intent])
-      return true
+    request: (target) => {
+      if (heldFor(target)) return null
+      lastRequestId += 1
+      const intent: WithdrawIntent = { ...target, requestId: lastRequestId }
+      replace(target.sessionId, [...intentsOf(target.sessionId), intent])
+      return intent
     },
     discard: (intent) => {
       if (!holds(intent)) return
       replace(
         intent.sessionId,
-        intentsOf(intent.sessionId).filter((entry) => entry.targetInboxId !== intent.targetInboxId),
+        intentsOf(intent.sessionId).filter((entry) => entry.requestId !== intent.requestId),
       )
     },
     holds,

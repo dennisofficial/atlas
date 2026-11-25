@@ -97,11 +97,11 @@ export function usePendingTakeBack(args: {
     if (current.sessionId === null) return false
     const target = takeBackOf(current.pending)
     if (target === undefined) return false
-    const intent: WithdrawIntent = {
-      sessionId: current.sessionId,
-      targetInboxId: target.targetInboxId,
-    }
-    const request = requestWithdraw({ api: current.api, intents: withdrawStore, intent })
+    const request = requestWithdraw({
+      api: current.api,
+      intents: withdrawStore,
+      target: { sessionId: current.sessionId, targetInboxId: target.targetInboxId },
+    })
     if (!request.recorded) return true
     current.restore({
       text: mergeWithdrawnIntoDraft({ withdrawn: target.text, draft: current.draft.value }),

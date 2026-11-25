@@ -19,6 +19,7 @@ import {
   withdrawRefusalNoticeOf,
   withdrawSettlementsOf,
   type WithdrawIntent,
+  type WithdrawTarget,
 } from '../withdraw-queue'
 
 const eventsOf = (bodies: readonly RecordEventBody[]): readonly RecordEvent[] =>
@@ -48,7 +49,9 @@ const REFUSED: RecordEventBody = {
   reason: 'already-sent',
 }
 
-const intent: WithdrawIntent = { sessionId: 'ses-1', targetInboxId: 4 }
+const target: WithdrawTarget = { sessionId: 'ses-1', targetInboxId: 4 }
+
+const intent: WithdrawIntent = { ...target, requestId: 1 }
 
 describe('withdrawSettlementsOf', () => {
   it('leaves an intent unsettled until the holder answers', () => {
@@ -68,7 +71,7 @@ describe('withdrawSettlementsOf', () => {
   })
 
   it('refuses a target after the operator already saw the text come back', () => {
-    const restored = { sessionId: 'ses-1', targetInboxId: 4 }
+    const restored: WithdrawIntent = { ...target, requestId: 2 }
     expect(
       withdrawSettlementsOf({
         intents: [restored],
@@ -89,7 +92,7 @@ describe('withdrawSettlementsOf', () => {
   it('ignores an outcome for another target', () => {
     expect(
       withdrawSettlementsOf({
-        intents: [{ sessionId: 'ses-1', targetInboxId: 7 }],
+        intents: [{ ...target, targetInboxId: 7, requestId: 1 }],
         events: eventsOf([POSTED, WITHDRAWN]),
       }),
     ).toEqual([])
@@ -98,7 +101,7 @@ describe('withdrawSettlementsOf', () => {
   it('refuses a message the holder did not find, using the refusal inbox id', () => {
     expect(
       withdrawSettlementsOf({
-        intents: [{ sessionId: 'ses-1', targetInboxId: 11 }],
+        intents: [{ ...target, targetInboxId: 11, requestId: 1 }],
         events: eventsOf([{ type: 'input-refused', inboxId: 11, reason: 'already-consumed' }]),
       }),
     ).toEqual([{ targetInboxId: 11, status: 'refused', notice: ALREADY_SENT_NOTICE }])
@@ -125,12 +128,12 @@ describe('requestWithdraw', () => {
     const request = requestWithdraw({
       api: {
         withdraw: async () => {
-          heldWhenAsked = store.holds(intent)
+          heldWhenAsked = store.intentsOf('ses-1').length === 1
           return { ok: true }
         },
       },
       intents: store,
-      intent,
+      target,
     })
 
     expect(request.recorded).toBe(true)
@@ -140,11 +143,11 @@ describe('requestWithdraw', () => {
 
   it('ignores a second request for the same target', async () => {
     const store = createWithdrawStore()
-    store.request(intent)
+    store.request(target)
     const request = requestWithdraw({
       api: { withdraw: async () => ({ ok: true }) },
       intents: store,
-      intent,
+      target,
     })
 
     expect(request.recorded).toBe(false)
@@ -156,7 +159,7 @@ describe('requestWithdraw', () => {
     const request = requestWithdraw({
       api: { withdraw: async () => ({ ok: false, reason: 'already-consumed' }) },
       intents: store,
-      intent,
+      target,
     })
 
     expect(await request.outcome).toEqual({ kind: 'refused', notice: ALREADY_SENT_NOTICE })
@@ -168,7 +171,7 @@ describe('requestWithdraw', () => {
     const request = requestWithdraw({
       api: { withdraw: async () => ({ ok: false, reason: 'already-consumed' }) },
       intents: store,
-      intent,
+      target,
     })
 
     expect(
@@ -186,11 +189,30 @@ describe('requestWithdraw', () => {
         },
       },
       intents: store,
-      intent,
+      target,
     })
 
     store.takeSettlements({ sessionId: 'ses-1', events: eventsOf([POSTED, WITHDRAWN]) })
     expect(await request.outcome).toEqual({ kind: 'ignored' })
+  })
+
+  it('keeps a newer intent for the same target when an older request fails', async () => {
+    const store = createWithdrawStore()
+    let calls = 0
+    const api = {
+      withdraw: async () => {
+        calls += 1
+        if (calls === 1) throw new Error('offline')
+        return await new Promise<{ ok: true }>(() => undefined)
+      },
+    }
+    const first = requestWithdraw({ api, intents: store, target })
+    store.clear('ses-1')
+    const second = requestWithdraw({ api, intents: store, target })
+
+    expect(second.recorded).toBe(true)
+    expect(await first.outcome).toEqual({ kind: 'ignored' })
+    expect(store.intentsOf('ses-1')).toHaveLength(1)
   })
 
   it('reports a failure while the intent is still pending and unhides the row', async () => {
@@ -203,7 +225,7 @@ describe('requestWithdraw', () => {
         },
       },
       intents: store,
-      intent,
+      target,
     })
 
     expect(await request.outcome).toEqual({ kind: 'failed', failure })

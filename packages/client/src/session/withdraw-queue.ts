@@ -11,7 +11,9 @@ export const ALREADY_SENT_NOTICE = 'Already sent — the agent got it'
 
 export const WITHDRAW_UNKNOWN_NOTICE = 'That message is no longer queued'
 
-export type WithdrawIntent = { sessionId: string; targetInboxId: number }
+export type WithdrawTarget = { sessionId: string; targetInboxId: number }
+
+export type WithdrawIntent = WithdrawTarget & { requestId: number }
 
 export type WithdrawSettlement =
   | { targetInboxId: number; status: 'withdrawn' }
@@ -22,7 +24,7 @@ export type WithdrawApi = {
 }
 
 export type WithdrawIntentPort = {
-  request: (intent: WithdrawIntent) => boolean
+  request: (target: WithdrawTarget) => WithdrawIntent | null
   holds: (intent: WithdrawIntent) => boolean
   discard: (intent: WithdrawIntent) => void
 }
@@ -131,10 +133,14 @@ const settleWithdraw = async (args: {
 export const requestWithdraw = (args: {
   api: WithdrawApi
   intents: WithdrawIntentPort
-  intent: WithdrawIntent
+  target: WithdrawTarget
 }): WithdrawRequest => {
-  if (!args.intents.request(args.intent)) {
+  const intent = args.intents.request(args.target)
+  if (intent === null) {
     return { recorded: false, outcome: Promise.resolve({ kind: 'ignored' }) }
   }
-  return { recorded: true, outcome: settleWithdraw(args) }
+  return {
+    recorded: true,
+    outcome: settleWithdraw({ api: args.api, intents: args.intents, intent }),
+  }
 }

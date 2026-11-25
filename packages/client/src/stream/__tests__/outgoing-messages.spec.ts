@@ -1,7 +1,5 @@
 import { describe, expect, it } from 'bun:test'
 
-import type { RecordEvent } from '@dltech/atlas-core'
-
 import {
   EOutgoingPlacement,
   EStagedOutcome,
@@ -10,31 +8,8 @@ import {
   restorableStagedOf,
   stagedOutcomesOf,
   stagedPlacementOf,
-  stagedWithdrawOwnedIdsOf,
 } from '../outgoing-messages'
-
-type PartialEvent = { type: string } & Record<string, unknown>
-
-const eventsOf = (partials: readonly PartialEvent[]): RecordEvent[] =>
-  partials.map(
-    (partial, index) =>
-      ({
-        id: `event-${index}`,
-        seq: index + 1,
-        threadId: 'thread',
-        runId: 'run',
-        depth: 0,
-        at: '2026-11-18T00:00:00.000Z',
-        epoch: 0,
-        prevHash: 'a'.repeat(64),
-        ...partial,
-      }) as unknown as RecordEvent,
-  )
-
-const STAGED = [
-  { clientId: 'client-a', text: 'first' },
-  { clientId: 'client-b', text: 'second' },
-]
+import { eventsOf, STAGED, type PartialEvent } from './outgoing-messages-fixture'
 
 describe('placementOf', () => {
   it('puts a staged message in the queue while a turn is open and at the transcript end when idle', () => {
@@ -266,42 +241,5 @@ describe('restorableStagedOf', () => {
       events,
     })
     expect(restorable.map((entry) => entry.staged.clientId)).toEqual(['client-a'])
-  })
-})
-
-describe('stagedWithdrawOwnedIdsOf', () => {
-  const posted = [
-    {
-      type: 'input-posted',
-      inboxId: 4,
-      kind: 'message',
-      postedAt: 'now',
-      message: { text: 'first', clientId: 'client-a' },
-    },
-    {
-      type: 'input-posted',
-      inboxId: 5,
-      kind: 'message',
-      postedAt: 'now',
-      message: { text: 'second', clientId: 'client-b' },
-    },
-  ]
-
-  it('names the staged messages whose inbox the withdraw path owns', () => {
-    const owned = stagedWithdrawOwnedIdsOf({
-      events: eventsOf(posted),
-      clientIds: ['client-a', 'client-b'],
-      ownedInboxIds: new Set([4]),
-    })
-    expect([...owned]).toEqual(['client-a'])
-  })
-
-  it('names nothing while no inbox is owned', () => {
-    const owned = stagedWithdrawOwnedIdsOf({
-      events: eventsOf(posted),
-      clientIds: ['client-a', 'client-b'],
-      ownedInboxIds: new Set(),
-    })
-    expect(owned.size).toBe(0)
   })
 })

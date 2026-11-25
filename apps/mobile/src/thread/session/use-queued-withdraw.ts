@@ -65,7 +65,7 @@ export function useQueuedWithdraw(args: {
       const request = requestWithdraw({
         api: withdrawApi,
         intents: withdrawStore,
-        intent: plan.intent,
+        target: plan.target,
       })
       if (!request.recorded) return
       if (plan.restore !== undefined) onRestore(plan.restore)

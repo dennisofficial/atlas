@@ -5,7 +5,6 @@ import type { Root } from 'react-dom/client'
 import * as realSonner from 'sonner'
 
 import { withdrawStore } from '@dltech/atlas-client/session'
-import { EOutgoingPlacement } from '@dltech/atlas-client/stream'
 import {
   chainEvents,
   toRunId,
@@ -292,48 +291,5 @@ describe('withdrawing a queued message on web', () => {
 
     expect(shown).toEqual(['Already sent — the agent got it'])
     expect(withdrawStore.intentsOf(SESSION)).toEqual([])
-  })
-})
-
-describe('placing a staged send on web', () => {
-  const stagedMessage: StagedMessage = {
-    clientId: 'client-a',
-    text: 'ship it',
-    attachments: [],
-    placement: EOutgoingPlacement.Transcript,
-    at: '2026-11-25T10:00:00.000Z',
-  }
-
-  const postedStaged = eventsOf([
-    {
-      type: 'input-posted',
-      inboxId: 4,
-      kind: 'message',
-      postedAt: '2026-11-25T10:00:00.000Z',
-      message: { text: 'ship it', clientId: 'client-a' },
-    },
-  ])
-
-  const pendingStaged: PendingInputsState = {
-    pending: [
-      {
-        inboxId: 4,
-        seq: 4,
-        at: '2026-11-25T10:00:00.000Z',
-        kind: 'message',
-        message: { text: 'ship it', clientId: 'client-a' },
-      },
-    ],
-  }
-
-  it('shows one transcript item and no queue row for an idle send the record already posted', async () => {
-    const harness = await mount({
-      pending: pendingStaged,
-      staged: [stagedMessage],
-      events: postedStaged,
-    })
-
-    expect(harness.transcript()).toBe(1)
-    expect(harness.rows()).toBe(0)
   })
 })

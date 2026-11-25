@@ -1,10 +1,10 @@
 import { pendingMessagesOf, type Attachment, type PendingInputsState } from '@dltech/atlas-core'
-import type { WithdrawIntent, WithdrawSettlement } from '@dltech/atlas-client/session'
+import type { WithdrawSettlement, WithdrawTarget } from '@dltech/atlas-client/session'
 
 export type QueuedRestore = { text: string; attachments: readonly Attachment[] }
 
 export type QueuedWithdrawPlan = {
-  intent: WithdrawIntent
+  target: WithdrawTarget
   restore: QueuedRestore | undefined
 }
 
@@ -16,10 +16,10 @@ export const queuedWithdrawPlanOf = (args: {
 }): QueuedWithdrawPlan | undefined => {
   const entry = pendingMessagesOf(args.pending).find((input) => input.inboxId === args.inboxId)
   if (entry === undefined) return undefined
-  const intent: WithdrawIntent = { sessionId: args.sessionId, targetInboxId: args.inboxId }
-  if (!args.restoreText) return { intent, restore: undefined }
+  const target: WithdrawTarget = { sessionId: args.sessionId, targetInboxId: args.inboxId }
+  if (!args.restoreText) return { target, restore: undefined }
   return {
-    intent,
+    target,
     restore: {
       text: entry.message?.text ?? '',
       attachments: entry.message?.attachments ?? [],

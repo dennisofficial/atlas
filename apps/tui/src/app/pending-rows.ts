@@ -5,6 +5,15 @@ import { pendingMessagesOf } from '@dltech/atlas-core'
 import { EPendingKind, type PendingRow } from '../store'
 import type { StagedMessage } from './staged-messages'
 
+const inboxIdByClientId = (pending: PendingInputsState): ReadonlyMap<string, number> =>
+  new Map(
+    pendingMessagesOf(pending).flatMap((input) => {
+      const clientId = input.message?.clientId
+      if (clientId === undefined) return []
+      return [[clientId, input.inboxId] as const]
+    }),
+  )
+
 const sendingRows = (messages: readonly StagedMessage[], failed: boolean): readonly PendingRow[] =>
   messages.map((message) => ({
     kind: EPendingKind.Sending,
@@ -20,6 +29,11 @@ export const pendingRowsOf = (args: {
   working: boolean
   hiddenInboxIds?: ReadonlySet<number> | undefined
 }): readonly PendingRow[] => {
+  const inboxIds = inboxIdByClientId(args.pending)
+  const takenBack = (message: StagedMessage): boolean => {
+    const inboxId = inboxIds.get(message.clientId)
+    return inboxId !== undefined && args.hiddenInboxIds?.has(inboxId) === true
+  }
   const shown = new Set([
     ...args.staged.map((message) => message.clientId),
     ...args.refused.map((message) => message.clientId),
@@ -40,5 +54,15 @@ export const pendingRowsOf = (args: {
     ]
   })
 
-  return [...sendingRows(args.staged, false), ...sendingRows(args.refused, true), ...queued]
+  return [
+    ...sendingRows(
+      args.staged.filter((message) => !takenBack(message)),
+      false,
+    ),
+    ...sendingRows(
+      args.refused.filter((message) => !takenBack(message)),
+      true,
+    ),
+    ...queued,
+  ]
 }
