@@ -46,9 +46,9 @@ so production keeps it at `https://api.byatlas.io`.
 
 `AGENT37_TEMPLATE_ID` names the workspace template that `scripts/agent37-register-template.ts`
 registers from `ghcr.io/dennisofficial/atlas-sandbox` (name `atlas-sandbox`, `default_port` 47300, the daemon port).
-The `retag` job in `.github/workflows/sandbox-image.yml` runs that script on every release with the
-`sha-<7>` tag the `publish` job pushed. The template's digest therefore moves together with the image the
-Vercel provider gets.
+The `publish` job in `.github/workflows/sandbox-image.yml` runs that script on the run that pushes a
+new image digest, pinning the digest it just published. The template's digest therefore moves together
+with the image the Vercel provider gets, and a run whose image is identical re-pins nothing.
 A create hands the instance `ATLAS_DAEMON_BUNDLE_URL` (this host's `/agent/daemon/bundle`). The
 image's entrypoint then boots the daemon at PID 1. An Agent37 instance stops when its image's main
 command exits, so `atlas-boot.sh` has to stay PID 1. The template's entrypoint must never be set to
