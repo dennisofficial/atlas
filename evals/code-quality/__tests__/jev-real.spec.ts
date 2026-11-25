@@ -130,6 +130,19 @@ describe('runJevRealItem', () => {
     expect(row.error).toContain('model identity mismatch')
   })
 
+  test('accepts the recorded state written as an object', async () => {
+    const [item] = fixtureItems()
+    if (item === undefined) throw new Error('fixture is empty')
+    const objectState = { ...item, input: { state: JSON.parse(item.input.state as string) } }
+    const row = await runJevRealItem({
+      item: objectState,
+      policies: [singleResponsibilityPolicy],
+      decide: decideWith(nudgeAnswers),
+    })
+    expect(row.error).toBeNull()
+    expect(row.actual?.notify).toBe(true)
+  })
+
   test('records an unreadable recorded state as an errored row', async () => {
     const [item] = fixtureItems()
     if (item === undefined) throw new Error('fixture is empty')

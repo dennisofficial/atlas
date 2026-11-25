@@ -49,7 +49,9 @@ export const jevRealItemSchema = z.object({
   id: z.string().min(1).optional(),
   client_item_id: z.string().min(1).optional(),
   source_trace_id: z.string().min(1).nullish(),
-  input: z.object({ state: z.string().min(1) }),
+  input: z.object({
+    state: z.union([z.string().min(1), z.record(z.string(), z.unknown())]),
+  }),
   expected_output: z.object({ notify: z.boolean(), impact: z.enum(EQualityImpact) }),
   metadata: z.object({
     stratum: z.string().min(1),
@@ -180,8 +182,10 @@ export async function runJevRealItem({
   model?: string
 }): Promise<JevRealRow> {
   const expected = { notify: item.expected_output.notify, impact: item.expected_output.impact }
+  const recordedState =
+    typeof item.input.state === 'string' ? item.input.state : JSON.stringify(item.input.state)
   try {
-    const state = recordedStateSchema.parse(JSON.parse(item.input.state))
+    const state = recordedStateSchema.parse(JSON.parse(recordedState))
     const scope = interpretationScope({ item, state })
     const request = prepareQualityRequest({ scope, policies })
     const controller = new AbortController()
@@ -189,7 +193,7 @@ export async function runJevRealItem({
     let outcome: DecisionOutcome
     try {
       outcome = await decide({
-        state: item.input.state,
+        state: recordedState,
         questions: request.questions,
         signal: controller.signal,
         model,
