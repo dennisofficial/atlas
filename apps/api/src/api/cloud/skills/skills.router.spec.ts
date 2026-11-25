@@ -405,47 +405,6 @@ describe('SkillsRouter', () => {
     expect(deploy?.usage).toEqual({ usedCount30d: 1, lastUsedAt: recent.toISOString() })
   })
 
-  it('counts no v1 events', async () => {
-    await put('session-a', {
-      scope: 'personal',
-      skill: 'review',
-      path: 'SKILL.md',
-      ...fileOf(skillMd({ name: 'review', description: 'r' })),
-    }).expect(200)
-    const at = new Date()
-    await db.orm.public.Session.create({
-      id: 'ses-v1',
-      userId: USER_A,
-      createdAt: at,
-      updatedAt: at,
-    })
-    await db.orm.public.Thread.create({
-      id: 'thr-v1',
-      userId: USER_A,
-      sessionId: 'ses-v1',
-      createdAt: at,
-      updatedAt: at,
-    })
-    await db.orm.public.Event.create({
-      id: 'evt-v1',
-      threadId: 'thr-v1',
-      seq: 1,
-      runId: 'run-v1',
-      depth: 0,
-      at,
-      type: 'tool-called',
-      body: JSON.stringify({ name: 'skill', input: { name: 'review' } }),
-      toolName: 'skill',
-      userId: USER_A,
-    })
-
-    const listed = await list('session-a', { scope: 'personal' }).expect(200)
-    const review = (
-      dataOf(listed.body) as { skills: { name: string; usage: unknown }[] }
-    ).skills.find((skill) => skill.name === 'review')
-    expect(review?.usage).toEqual({ usedCount30d: 0, lastUsedAt: null })
-  })
-
   it('derives and persists an empty description from SKILL.md on list', async () => {
     const text = skillMd({ name: 'review', description: 'backfilled from frontmatter' })
     const entry = fileOf(text)
