@@ -52,7 +52,7 @@ they read. `apps/api` and `apps/trigger` both use it. It has no framework import
 ### Read the sandbox config
 
 - `readSandboxConfig({ db, platform, sessionId })` returns the provider, the platform credentials
-  and the vcpus and disk the session asked for.
+  and the vcpus, memory and disk the session asked for.
 - `sandboxConfigSourceOf({ db, env })` gives the read as a `SandboxConfigSource`.
 - `SessionNotFoundError` is what an unknown session raises.
 

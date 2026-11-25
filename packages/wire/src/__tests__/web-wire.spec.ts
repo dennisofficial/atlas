@@ -54,6 +54,24 @@ describe('web wire schemas', () => {
     }
   })
 
+  it('project sandbox accepts null or 1 to 64 GB of memory, defaulting an old payload to null', () => {
+    expect(
+      projectSandboxSchema.parse({ vcpus: null, diskGb: null, setupScript: '' }).memoryGb,
+    ).toBeNull()
+    for (const memoryGb of [null, 1, 4, 16, 64]) {
+      expect(
+        projectSandboxSchema.safeParse({ vcpus: 4, memoryGb, diskGb: null, setupScript: '' })
+          .success,
+      ).toBe(true)
+    }
+    for (const memoryGb of [0, 65, 16.5]) {
+      expect(
+        projectSandboxSchema.safeParse({ vcpus: 4, memoryGb, diskGb: null, setupScript: '' })
+          .success,
+      ).toBe(false)
+    }
+  })
+
   it('project defaults description and shipBehavior so an old payload still parses', () => {
     const parsed = projectSchema.parse({
       id: 'p',

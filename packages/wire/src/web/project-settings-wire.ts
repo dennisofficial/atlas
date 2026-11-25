@@ -1,6 +1,6 @@
 import { z } from 'zod'
 
-import { sandboxDiskGbSchema, sandboxVcpusSchema } from './setting-enums'
+import { sandboxDiskGbSchema, sandboxMemoryGbSchema, sandboxVcpusSchema } from './setting-enums'
 
 export enum EShipBehavior {
   OpenPullRequest = 'open-pr',
@@ -12,6 +12,7 @@ export const MAX_SETUP_SCRIPT_LENGTH = 20000
 
 export const projectSandboxSchema = z.object({
   vcpus: sandboxVcpusSchema.nullable(),
+  memoryGb: sandboxMemoryGbSchema.nullable().default(null),
   diskGb: sandboxDiskGbSchema.nullable(),
   setupScript: z.string().max(MAX_SETUP_SCRIPT_LENGTH),
 })

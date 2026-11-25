@@ -18,6 +18,7 @@ export type SandboxConfig =
       provider: ESandboxProvider
       credentials: SandboxCredentials
       vcpus?: number | undefined
+      memoryGb?: number | undefined
       diskGb?: number | undefined
     }
   | { configured: false; provider: ESandboxProvider; gap: string }
@@ -36,6 +37,7 @@ export class SessionNotFoundError extends Error {
 }
 
 const SANDBOX_VCPUS_KEY = 'sandbox.vcpus'
+const SANDBOX_MEMORY_GB_KEY = 'sandbox.memoryGb'
 const SANDBOX_DISK_GB_KEY = 'sandbox.diskGb'
 
 const sandboxProviderOf = (pinned: string | null | undefined): ESandboxProvider => {
@@ -48,6 +50,7 @@ const sandboxOf = (args: {
   provider: ESandboxProvider
   credentialSource: string
   vcpus: number | undefined
+  memoryGb: number | undefined
   diskGb: number | undefined
   platform: SandboxPlatform
 }): SandboxConfig => {
@@ -63,6 +66,7 @@ const sandboxOf = (args: {
     provider: args.provider,
     credentials,
     ...(args.vcpus === undefined ? {} : { vcpus: args.vcpus }),
+    ...(args.memoryGb === undefined ? {} : { memoryGb: args.memoryGb }),
     ...(args.diskGb === undefined ? {} : { diskGb: args.diskGb }),
   }
 }
@@ -95,14 +99,17 @@ export const readSandboxConfig = async (args: {
     session.projectId === null
       ? null
       : await args.db.orm.public.Project.first({ id: session.projectId })
-  const [personalVcpus, personalDiskGb] = await Promise.all([
+  const [personalVcpus, personalMemoryGb, personalDiskGb] = await Promise.all([
     personalNumberSettingOf({ db: args.db, userId: session.userId, key: SANDBOX_VCPUS_KEY }),
+    personalNumberSettingOf({ db: args.db, userId: session.userId, key: SANDBOX_MEMORY_GB_KEY }),
     personalNumberSettingOf({ db: args.db, userId: session.userId, key: SANDBOX_DISK_GB_KEY }),
   ])
+  const projectVcpus = project?.sandboxVcpus ?? null
   return sandboxOf({
     provider: sandboxProviderOf(session.sandboxProvider),
     credentialSource: session.credentialSource,
-    vcpus: project?.sandboxVcpus ?? personalVcpus,
+    vcpus: projectVcpus ?? personalVcpus,
+    memoryGb: projectVcpus === null ? personalMemoryGb : (project?.sandboxMemoryGb ?? undefined),
     diskGb: project?.sandboxDiskGb ?? personalDiskGb,
     platform: args.platform,
   })

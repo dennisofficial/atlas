@@ -11,7 +11,11 @@ import { Textarea } from '@dltech/atlas-ui/components/textarea'
 import { QueryGate } from '@/features/settings/data/shared/query-gate'
 import { useCloudSettings } from '@/lib/cloud-settings'
 import { defaultDiskGbOf, SandboxDiskSection } from '@/features/settings/parts/sandbox-disk-section'
-import { defaultVcpusOf, SandboxSizeSection } from '@/features/settings/parts/sandbox-size-section'
+import {
+  DEFAULT_SANDBOX_SIZE,
+  type SandboxSize,
+  SandboxSizeSection,
+} from '@/features/settings/parts/sandbox-size-section'
 import { SandboxPageSkeleton } from './project-skeletons'
 import { runAction } from '@/features/settings/data/shared/run-action'
 
@@ -92,7 +96,11 @@ export function SandboxPage() {
   const personal = useCloudSettings()
   const storedDiskGb = personal.query.data?.get('sandbox.diskGb')
   const storedVcpus = personal.query.data?.get('sandbox.vcpus')
-  const inheritedVcpus = defaultVcpusOf(typeof storedVcpus === 'number' ? storedVcpus : undefined)
+  const storedMemoryGb = personal.query.data?.get('sandbox.memoryGb')
+  const inherited: SandboxSize = {
+    vcpus: typeof storedVcpus === 'number' ? storedVcpus : DEFAULT_SANDBOX_SIZE.vcpus,
+    memoryGb: typeof storedMemoryGb === 'number' ? storedMemoryGb : DEFAULT_SANDBOX_SIZE.memoryGb,
+  }
   const inheritedDiskGb = defaultDiskGbOf(
     typeof storedDiskGb === 'number' ? storedDiskGb : undefined,
   )
@@ -107,11 +115,15 @@ export function SandboxPage() {
         return (
           <>
             <SandboxSizeSection
-              key={`size-${sandbox.vcpus}`}
-              value={sandbox.vcpus}
-              inheritedVcpus={inheritedVcpus}
+              key={`size-${String(sandbox.vcpus)}-${String(sandbox.memoryGb)}`}
+              value={
+                sandbox.vcpus === null ? null : { vcpus: sandbox.vcpus, memoryGb: sandbox.memoryGb }
+              }
+              inherited={inherited}
               withAccountDefault
-              onSave={(vcpus) => handleSave({ vcpus })}
+              onSave={(size) =>
+                handleSave({ vcpus: size?.vcpus ?? null, memoryGb: size?.memoryGb ?? null })
+              }
             />
             <SandboxDiskSection
               key={`disk-${sandbox.diskGb}`}

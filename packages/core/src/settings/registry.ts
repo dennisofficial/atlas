@@ -73,6 +73,7 @@ export enum ESettingId {
   ContainerIdleMinutes = 'container.idleMinutes',
   SandboxImage = 'sandbox.image',
   SandboxVcpus = 'sandbox.vcpus',
+  SandboxMemoryGb = 'sandbox.memoryGb',
   SandboxDiskGb = 'sandbox.diskGb',
   CloudUrl = 'cloud.url',
   GrillingCeremony = 'experimental.grillingCeremony',

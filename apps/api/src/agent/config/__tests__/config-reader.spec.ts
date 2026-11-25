@@ -40,6 +40,9 @@ const readerOver = (
 const vcpusOf = (sandbox: SandboxConfig): number | undefined =>
   sandbox.configured ? sandbox.vcpus : undefined
 
+const memoryGbOf = (sandbox: SandboxConfig): number | undefined =>
+  sandbox.configured ? sandbox.memoryGb : undefined
+
 const diskGbOf = (sandbox: SandboxConfig): number | undefined =>
   sandbox.configured ? sandbox.diskGb : undefined
 
@@ -286,6 +289,71 @@ describe('ConfigReader', () => {
     }
     const config = await readerOver(db, PLATFORM).read({ sessionId: 's-1' })
     expect(diskGbOf(config.sandbox)).toBe(want)
+  })
+
+  it.each([
+    {
+      name: "uses the session project's memory next to its vcpus",
+      projectVcpus: 4,
+      projectMemoryGb: 16,
+      personalMemoryGb: 32,
+      want: 16,
+    },
+    {
+      name: "never lends the owner's memory to a project that sets its own vcpus",
+      projectVcpus: 4,
+      projectMemoryGb: null,
+      personalMemoryGb: 32,
+      want: undefined,
+    },
+    {
+      name: "falls through to the owner's sandbox.memoryGb setting when the project sets no vcpus",
+      projectVcpus: null,
+      projectMemoryGb: null,
+      personalMemoryGb: 32,
+      want: 32,
+    },
+    {
+      name: 'leaves the memory to the smallest shape when neither layer sets one',
+      projectVcpus: null,
+      projectMemoryGb: null,
+      personalMemoryGb: null,
+      want: undefined,
+    },
+  ])(
+    'sizes pod memory: $name',
+    async ({ projectVcpus, projectMemoryGb, personalMemoryGb, want }) => {
+      const { db } = testDb()
+      await seedOwner(db)
+      await seedApiKeyAccount(db)
+      if (projectVcpus !== null || projectMemoryGb !== null) {
+        await db.orm.public.Project.where({ id: 'proj-1' }).update({
+          sandboxVcpus: projectVcpus,
+          sandboxMemoryGb: projectMemoryGb,
+        })
+      }
+      if (personalMemoryGb !== null) {
+        await seedSetting({ db, scope: 'user', key: 'sandbox.memoryGb', value: personalMemoryGb })
+      }
+      expect(memoryGbOf((await readerOver(db, PLATFORM).read({ sessionId: 's-1' })).sandbox)).toBe(
+        want,
+      )
+    },
+  )
+
+  it('carries the pod size a resize asked for, memory included', async () => {
+    const { db } = testDb()
+    await seedOwner(db)
+    await db.orm.v2.V2Session.where({ id: 's-1' }).update({
+      podDesiredVcpus: 4,
+      podDesiredMemoryGb: 16,
+      podSizeGeneration: 3,
+    })
+    expect((await readerOver().read({ sessionId: 's-1' })).podSize).toEqual({
+      desiredVcpus: 4,
+      desiredMemoryGb: 16,
+      generation: 3,
+    })
   })
 
   it('throws a typed error for an unknown session', async () => {

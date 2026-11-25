@@ -111,6 +111,8 @@ export const sandboxVcpusSchema = z
     message: 'must be 1 or an even number from 2 to 32',
   })
 
+export const sandboxMemoryGbSchema = z.number().int().min(1).max(64)
+
 export const sandboxDiskGbSchema = z
   .number()
   .int()
