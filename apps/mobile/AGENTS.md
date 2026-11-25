@@ -35,10 +35,7 @@ when no native one exists, and say why in the PR.
 
 ## Shipping
 
-- Fixes reach the phone by EAS OTA update, so keep a change JS-only. Do not add a native dependency
-  or change `app.config.ts` without asking.
-- Before you publish, check that `bunx eas-cli@latest fingerprint:generate --platform ios --json
-  --non-interactive` gives the same `hash` as the installed production build.
-- Publish from merged `main` with
-  `bunx eas-cli@latest update --channel production --environment production --platform ios
-  --message "<PR title> (#<n>)" --non-interactive`.
+- Merging to `main` ships the app. The EAS Production workflow (`.eas/workflows/production.yml`)
+  publishes an OTA update when a store build with the same fingerprint exists, and otherwise makes a
+  native build for TestFlight. Do not check fingerprints or run `eas update` by hand, and do not
+  avoid a native change to keep a change OTA-only.
