@@ -63,6 +63,18 @@ describe('summarizeJevReal', () => {
     expect(summary.precisionLowerBound).toBeCloseTo(0.2077, 4)
     expect(summary.recallWeight).toBeCloseTo(1 + 2 + 2, 10)
     expect(summary.weightedRecall).toBeCloseTo(3 / 5, 10)
+    expect(summary.weightedPrecision).toBeCloseTo(3 / 4, 10)
+  })
+
+  test('weights a false nudge on a rarely sampled item by its inclusion probability', () => {
+    const summary = summarizeJevReal({
+      rows: [
+        row({ expected: true, predicted: true, probability: 1 }),
+        row({ expected: false, predicted: true, probability: 0.05 }),
+      ],
+    })
+    expect(summary.precision).toBeCloseTo(1 / 2, 10)
+    expect(summary.weightedPrecision).toBeCloseTo(1 / 21, 10)
   })
 
   test('reports undefined precision when nothing was nudged, never success', () => {

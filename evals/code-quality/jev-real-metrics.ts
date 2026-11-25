@@ -20,6 +20,7 @@ export type JevRealSummary = {
   trueNegatives: number
   precision: number | null
   precisionLowerBound: number | null
+  weightedPrecision: number | null
   weightedRecall: number | null
   recallWeight: number
 }
@@ -56,13 +57,17 @@ export function summarizeJevReal({ rows }: { rows: readonly JevRealMetricRow[] }
     trueNegatives: 0,
     recallWeight: 0,
     truePositiveWeight: 0,
+    predictedWeight: 0,
     nudges: 0,
     expectedNudges: 0,
   }
   for (const row of scored) {
     const predicted = row.actual?.notify ?? false
     const labelled = row.expected.notify
-    if (predicted) counts.nudges += 1
+    if (predicted) {
+      counts.nudges += 1
+      counts.predictedWeight += weightOf({ row })
+    }
     if (labelled) counts.expectedNudges += 1
     if (predicted && labelled) {
       counts.truePositives += 1
@@ -91,6 +96,8 @@ export function summarizeJevReal({ rows }: { rows: readonly JevRealMetricRow[] }
       successes: counts.truePositives,
       total: predictedNudges,
     }),
+    weightedPrecision:
+      counts.predictedWeight === 0 ? null : counts.truePositiveWeight / counts.predictedWeight,
     weightedRecall:
       counts.recallWeight === 0 ? null : counts.truePositiveWeight / counts.recallWeight,
     recallWeight: counts.recallWeight,
@@ -107,6 +114,7 @@ export function formatJevRealText({ summary }: { summary: JevRealSummary }): str
     `nudges: ${summary.nudges} (labelled nudge: ${summary.expectedNudges})`,
     `tp: ${summary.truePositives} fp: ${summary.falsePositives} fn: ${summary.falseNegatives} tn: ${summary.trueNegatives}`,
     `precision: ${ratioText(summary.precision)} wilson95 lower: ${ratioText(summary.precisionLowerBound)}`,
+    `weighted precision: ${ratioText(summary.weightedPrecision)}`,
     `weighted recall: ${ratioText(summary.weightedRecall)} (weight ${summary.recallWeight.toFixed(2)})`,
   ].join('\n')
 }
