@@ -3,7 +3,8 @@ import { diagramKey } from '@dltech/atlas-core'
 export const MERMAID_FONT = '-apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif'
 
 export const DIAGRAM_ESTIMATE_HEIGHT = 200
-export const DIAGRAM_MIN_HEIGHT = 120
+export const DIAGRAM_MIN_HEIGHT = 48
+export const DIAGRAM_HINT_INSET = 56
 export const DIAGRAM_MAX_HEIGHT = 420
 export const DIAGRAM_HEIGHT_CACHE_LIMIT = 200
 export const DIAGRAM_MIN_SCALE = 0.4
@@ -98,14 +99,35 @@ export const diagramCardReducer = (
 export const fitScale = ({
   viewport,
   content,
+  inset = 0,
 }: {
   viewport: IDiagramSize
   content: IDiagramSize
+  inset?: number
 }): number => {
-  if (viewport.width <= 0 || viewport.height <= 0) return 1
+  const height = viewport.height - inset
+  if (viewport.width <= 0 || height <= 0) return 1
   if (content.width <= 0 || content.height <= 0) return 1
-  return Math.min(viewport.width / content.width, viewport.height / content.height, 1)
+  return Math.min(viewport.width / content.width, height / content.height, 1)
 }
+
+export const fitTransform = ({
+  viewport,
+  content,
+  inset = 0,
+  interactive,
+}: {
+  viewport: IDiagramSize
+  content: IDiagramSize
+  inset?: number
+  interactive: boolean
+}): IDiagramTransform => {
+  if (!interactive) return { scale: 1, x: 0, y: 0 }
+  return { scale: fitScale({ viewport, content, inset }), x: 0, y: -inset / 2 }
+}
+
+export const hasMermaidFence = (text: string): boolean =>
+  /(^|\n)\s*(?:`{3,}|~{3,})\s*mermaid\b/i.test(text)
 
 export const minScaleFor = (scale: number): number =>
   Math.max(Math.min(scale, DIAGRAM_MIN_SCALE), DIAGRAM_SCALE_FLOOR)

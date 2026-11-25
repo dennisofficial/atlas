@@ -4,32 +4,17 @@ import mermaid from 'mermaid'
 import { type CSSProperties, useEffect, useRef, useState } from 'react'
 
 import {
+  DIAGRAM_HINT_INSET,
   DIAGRAM_MIN_SCALE,
-  fitScale,
+  fitTransform,
   type IDiagramTransform,
   minScaleFor,
   zoomAbout,
 } from './diagram-layout'
-
-const THEME_CSS = `
-.node rect, .node polygon, .node circle, .node ellipse, .node path, .cluster rect { fill: var(--card) !important; stroke: var(--border) !important; }
-.nodeLabel, .nodeLabel p, .label, .label text, .edgeLabel, .edgeLabel p, text, text.actor > tspan, .noteText > tspan { fill: var(--foreground) !important; color: var(--foreground) !important; }
-.edgeLabel, .edgeLabel p, .edgeLabel rect, .labelBkg { background-color: var(--card) !important; fill: var(--card) !important; }
-rect.actor, rect.note, .labelBox { fill: var(--card) !important; stroke: var(--border) !important; }
-.actor-line { stroke: var(--border) !important; }
-.flowchart-link, .edgePath path, .messageLine0, .messageLine1 { stroke: var(--muted-foreground) !important; }
-.arrowheadPath, marker path { fill: var(--muted-foreground) !important; stroke: var(--muted-foreground) !important; }
-`
+import { hintStyle, type IMermaidColors, THEME_CSS, varsOf } from './mermaid-theme'
 
 const RESTING_TRANSFORM: IDiagramTransform = { scale: 1, x: 0, y: 0 }
 const INTERACTIVE_HINT = 'Pinch to zoom, drag to pan, double-tap to fit'
-
-export interface IMermaidColors {
-  card: string
-  border: string
-  foreground: string
-  mutedForeground: string
-}
 
 export interface IMermaidSize {
   width: number
@@ -44,36 +29,35 @@ export interface IMermaidViewProps {
   dom?: {
     matchContents?: boolean
     scrollEnabled?: boolean
-    style?: { flex?: number; backgroundColor?: string }
+    style?: { width?: number; height?: number; flex?: number; backgroundColor?: string }
   }
   onRendered?: (size: IMermaidSize) => Promise<void>
   onError?: (message: string) => Promise<void>
 }
 
-const varsOf = ({ colors, font }: { colors: IMermaidColors; font: string }): CSSProperties =>
-  ({
-    '--card': colors.card,
-    '--border': colors.border,
-    '--foreground': colors.foreground,
-    '--muted-foreground': colors.mutedForeground,
-    '--font-sans': font,
-  }) as CSSProperties
-
-const hintStyle = (colors: IMermaidColors): CSSProperties => ({
-  position: 'absolute',
-  bottom: 24,
-  margin: 0,
-  color: colors.mutedForeground,
-  fontFamily: 'inherit',
-  fontSize: 12,
-  textAlign: 'center',
-  width: '100%',
-})
-
 const messageOf = (cause: unknown): string =>
   cause instanceof Error && cause.message.length > 0
     ? cause.message
     : 'The diagram could not render.'
+
+const naturalSizeOf = (node: SVGSVGElement): IMermaidSize => {
+  const rect = node.getBoundingClientRect()
+  const box = node.viewBox?.baseVal
+  if (box === undefined || box.width <= 0 || box.height <= 0) {
+    return { width: rect.width, height: rect.height }
+  }
+  return { width: box.width, height: box.height }
+}
+
+const placeSvg = ({ node, size }: { node: SVGSVGElement; size: IMermaidSize }): void => {
+  node.removeAttribute('height')
+  node.style.display = 'block'
+  node.style.background = 'transparent'
+  node.style.width = '100%'
+  node.style.maxWidth = `${Math.ceil(size.width)}px`
+  node.style.height = 'auto'
+  node.style.margin = '0 auto'
+}
 
 export default function MermaidView({
   source,
@@ -95,20 +79,18 @@ export default function MermaidView({
   const transformRef = useRef(transform)
   transformRef.current = transform
   const [touched, setTouched] = useState(false)
-  const themeKey = `${colors.card}|${colors.border}|${colors.foreground}|${colors.mutedForeground}|${font}`
+  const themeKey = `${colors.card}|${colors.border}|${colors.foreground}|${colors.mutedForeground}|${colors.nodeFill}|${colors.nodeStroke}|${font}`
 
   const fittedTransform = (): IDiagramTransform => {
     const box = viewport.current?.getBoundingClientRect()
     const size = content.current
-    if (!interactive || box === undefined || size === undefined) return RESTING_TRANSFORM
-    return {
-      scale: fitScale({
-        viewport: { width: box.width, height: box.height },
-        content: size,
-      }),
-      x: 0,
-      y: 0,
-    }
+    if (box === undefined || size === undefined) return RESTING_TRANSFORM
+    return fitTransform({
+      viewport: { width: box.width, height: box.height },
+      content: size,
+      inset: DIAGRAM_HINT_INSET,
+      interactive,
+    })
   }
 
   useEffect(() => {
@@ -133,15 +115,8 @@ export default function MermaidView({
         target.innerHTML = svg
         const node = target.querySelector('svg')
         if (node === null) throw new Error('The diagram rendered empty.')
-        node.removeAttribute('height')
-        node.style.display = 'block'
-        node.style.background = 'transparent'
-        node.style.width = '100%'
-        node.style.height = 'auto'
-        node.style.margin = '0 auto'
-        const rect = node.getBoundingClientRect()
-        const current = transformRef.current.scale <= 0 ? 1 : transformRef.current.scale
-        const size = { width: rect.width / current, height: rect.height / current }
+        const size = naturalSizeOf(node)
+        placeSvg({ node, size })
         content.current = size
         const next = fittedTransform()
         minScale.current = minScaleFor(next.scale)
@@ -264,7 +239,7 @@ export default function MermaidView({
     width: '100%',
     height: '100%',
     display: 'flex',
-    alignItems: interactive ? 'center' : 'flex-start',
+    alignItems: 'center',
     justifyContent: 'center',
     ...varsOf({ colors, font }),
   }

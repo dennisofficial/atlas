@@ -53,6 +53,8 @@ const DiagramCardView = ({ source, closed }: IDiagramCardProps) => {
     border: theme.border,
     foreground: theme.foreground,
     mutedForeground: theme.mutedForeground,
+    nodeFill: dark ? withAlpha({ color: theme.foreground, alpha: 0.08 }) : theme.card,
+    nodeStroke: dark ? withAlpha({ color: theme.mutedForeground, alpha: 0.45 }) : theme.border,
   }
 
   const handleLayout = useCallback((event: LayoutChangeEvent) => {
@@ -118,15 +120,17 @@ const DiagramCardView = ({ source, closed }: IDiagramCardProps) => {
         <Icon icon={Maximize2} color={theme.mutedForeground} size={14} />
       </View>
       <View style={[styles.body, { height }]} onLayout={handleLayout}>
-        <MermaidView
-          source={source}
-          colors={colors}
-          font={MERMAID_FONT}
-          interactive={false}
-          onRendered={handleRendered}
-          onError={handleError}
-          dom={{ matchContents: true, scrollEnabled: false }}
-        />
+        {width > 0 ? (
+          <MermaidView
+            source={source}
+            colors={colors}
+            font={MERMAID_FONT}
+            interactive={false}
+            onRendered={handleRendered}
+            onError={handleError}
+            dom={{ matchContents: false, scrollEnabled: false, style: { width, height } }}
+          />
+        ) : null}
         {clamped ? (
           <View
             pointerEvents="none"
@@ -147,6 +151,7 @@ const DiagramCardView = ({ source, closed }: IDiagramCardProps) => {
 
 const styles = StyleSheet.create({
   card: {
+    alignSelf: 'stretch',
     borderWidth: StyleSheet.hairlineWidth,
     borderRadius: radius(2),
     overflow: 'hidden',

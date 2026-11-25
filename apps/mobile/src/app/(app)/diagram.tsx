@@ -6,7 +6,9 @@ import {
   ETextRole,
   ETextTone,
   Text,
+  useIsDark,
   useTheme,
+  withAlpha,
 } from '@dltech/atlas-ui-native'
 import { space } from '@dltech/atlas-ui/tokens'
 import * as Clipboard from 'expo-clipboard'
@@ -61,6 +63,7 @@ const diagramHeaderItems = ({
 
 export default function DiagramScreen() {
   const theme = useTheme()
+  const dark = useIsDark()
   const { id } = useLocalSearchParams<{ id?: string }>()
   const source = diagramSourceOf(id)
   const [mode, setMode] = useState(EDiagramMode.Diagram)
@@ -155,6 +158,10 @@ export default function DiagramScreen() {
             border: theme.border,
             foreground: theme.foreground,
             mutedForeground: theme.mutedForeground,
+            nodeFill: dark ? withAlpha({ color: theme.foreground, alpha: 0.08 }) : theme.card,
+            nodeStroke: dark
+              ? withAlpha({ color: theme.mutedForeground, alpha: 0.45 })
+              : theme.border,
           }}
           font={MERMAID_FONT}
           interactive

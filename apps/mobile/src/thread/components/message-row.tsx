@@ -17,6 +17,7 @@ import { Terminal } from 'lucide-react-native'
 import { StyleSheet, View } from 'react-native'
 
 import { DiagramCard } from '../diagrams/diagram-card'
+import { hasMermaidFence } from '../diagrams/diagram-layout'
 import { EMessageAuthor, type CommandRow, type MessageRow } from '../rows'
 import { MessageAttachments } from './message-attachments'
 
@@ -92,6 +93,8 @@ export const MessageRowView = ({
 
   if (row.command !== undefined) return <CommandMessage command={row.command} at={row.at} />
 
+  const bubbleStyle = hasMermaidFence(row.text) ? styles.diagramBubble : undefined
+
   if (row.staged === true) {
     return (
       <View style={[styles.you, styles.staged]}>
@@ -101,7 +104,7 @@ export const MessageRowView = ({
           attachments={row.attachments}
         />
         {row.text.trim().length > 0 ? (
-          <Bubble>
+          <Bubble style={bubbleStyle}>
             <Markdown value={row.text} breaks selectable renderDiagram={renderDiagram} />
           </Bubble>
         ) : null}
@@ -113,7 +116,7 @@ export const MessageRowView = ({
     <View style={styles.you}>
       <MessageAttachments threadId={threadId} sessionId={sessionId} attachments={row.attachments} />
       {row.text.trim().length > 0 ? (
-        <Bubble>
+        <Bubble style={bubbleStyle}>
           <Markdown value={row.text} breaks selectable renderDiagram={renderDiagram} />
         </Bubble>
       ) : null}
@@ -125,6 +128,9 @@ export const MessageRowView = ({
 const styles = StyleSheet.create({
   staged: {
     opacity: 0.45,
+  },
+  diagramBubble: {
+    alignSelf: 'stretch',
   },
   message: {
     gap: space(2),

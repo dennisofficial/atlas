@@ -15,6 +15,8 @@ import {
   EDiagramCardEvent,
   fitDiagramHeight,
   fitScale,
+  fitTransform,
+  hasMermaidFence,
   initialDiagramCardState,
   minScaleFor,
   diagramCardReducer,
@@ -97,6 +99,57 @@ describe('fitScale', () => {
     expect(
       fitScale({ viewport: { width: 0, height: 0 }, content: { width: 120, height: 90 } }),
     ).toBe(1)
+  })
+
+  test('reserves the hint band before fitting', () => {
+    expect(
+      fitScale({
+        viewport: { width: 390, height: 700 },
+        content: { width: 390, height: 1400 },
+        inset: 60,
+      }),
+    ).toBeCloseTo(0.457, 3)
+    expect(
+      fitScale({
+        viewport: { width: 390, height: 100 },
+        content: { width: 390, height: 400 },
+        inset: 200,
+      }),
+    ).toBe(1)
+  })
+})
+
+describe('fitTransform', () => {
+  test('centres the diagram in the area above the hint band', () => {
+    expect(
+      fitTransform({
+        viewport: { width: 390, height: 700 },
+        content: { width: 780, height: 700 },
+        inset: 60,
+        interactive: true,
+      }),
+    ).toEqual({ scale: 0.5, x: 0, y: -30 })
+  })
+
+  test('leaves an inline diagram at its natural size', () => {
+    expect(
+      fitTransform({
+        viewport: { width: 272, height: 200 },
+        content: { width: 120, height: 90 },
+        inset: 60,
+        interactive: false,
+      }),
+    ).toEqual({ scale: 1, x: 0, y: 0 })
+  })
+})
+
+describe('hasMermaidFence', () => {
+  test('finds a mermaid fence anywhere in the message', () => {
+    expect(hasMermaidFence('look:\n```mermaid\ngraph TD\nA-->B\n```')).toBe(true)
+    expect(hasMermaidFence('~~~Mermaid\ngraph TD\n~~~')).toBe(true)
+    expect(hasMermaidFence('hello world')).toBe(false)
+    expect(hasMermaidFence('```mermaidx\nA-->B\n```')).toBe(false)
+    expect(hasMermaidFence('```ts\nconst a = 1\n```')).toBe(false)
   })
 })
 
