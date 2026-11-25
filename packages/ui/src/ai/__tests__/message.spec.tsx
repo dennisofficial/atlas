@@ -3,6 +3,7 @@ import { afterAll, afterEach, beforeAll, describe, expect, it } from 'bun:test'
 import { act } from 'react'
 import type { ReactNode } from 'react'
 
+import { COLLAPSED_BODY_HEIGHT_PX } from '../internal/collapsible-body'
 import { AgentMessage, UserMessage } from '../message'
 
 beforeAll(() => {
@@ -26,6 +27,27 @@ const render = async (node: ReactNode): Promise<HTMLElement> => {
   await act(async () => root.render(node))
   return container
 }
+
+const stubContentHeight = (height: number): (() => void) => {
+  const original = Object.getOwnPropertyDescriptor(HTMLElement.prototype, 'offsetHeight')
+  Object.defineProperty(HTMLElement.prototype, 'offsetHeight', {
+    configurable: true,
+    get: () => height,
+  })
+  return () => {
+    if (original !== undefined)
+      Object.defineProperty(HTMLElement.prototype, 'offsetHeight', original)
+  }
+}
+
+const buttonNamed = ({
+  container,
+  name,
+}: {
+  container: HTMLElement
+  name: string
+}): HTMLButtonElement | undefined =>
+  [...container.querySelectorAll('button')].find((button) => button.textContent === name)
 
 const footerOf = (container: HTMLElement) => container.querySelector('[data-slot="message-footer"]')
 
@@ -122,6 +144,38 @@ describe('AgentMessage from another sender', () => {
       'From Fix login',
     )
     expect(bubble?.textContent).toContain('Login works.')
+  })
+
+  it('clamps a tall message and expands it on Show more', async () => {
+    const restore = stubContentHeight(COLLAPSED_BODY_HEIGHT_PX + 400)
+    const container = await render(
+      <AgentMessage caption="From V2 Feature Parity">A long brief.</AgentMessage>,
+    )
+    restore()
+    const body = container.querySelector<HTMLElement>('[data-slot="collapsible-body"]')
+    expect(body?.hasAttribute('data-clamped')).toBe(true)
+    expect(body?.style.maxHeight).toBe(`${COLLAPSED_BODY_HEIGHT_PX}px`)
+
+    const toggle = buttonNamed({ container, name: 'Show more' })
+    expect(toggle?.getAttribute('aria-expanded')).toBe('false')
+    await act(async () => toggle?.click())
+
+    expect(body?.hasAttribute('data-clamped')).toBe(false)
+    expect(body?.style.maxHeight).toBe('')
+    expect(buttonNamed({ container, name: 'Show less' })?.getAttribute('aria-expanded')).toBe(
+      'true',
+    )
+  })
+
+  it('leaves a short message unclamped with no toggle', async () => {
+    const restore = stubContentHeight(COLLAPSED_BODY_HEIGHT_PX - 40)
+    const container = await render(
+      <AgentMessage caption="From Fix login">Login works.</AgentMessage>,
+    )
+    restore()
+    const body = container.querySelector('[data-slot="collapsible-body"]')
+    expect(body?.hasAttribute('data-clamped')).toBe(false)
+    expect(buttonNamed({ container, name: 'Show more' })).toBeUndefined()
   })
 
   it('renders its own words without a bubble', async () => {
