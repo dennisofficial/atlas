@@ -210,6 +210,7 @@
         "expo-updates": "~58.0.21",
         "expo-web-browser": "~58.0.7",
         "lucide-react-native": "^1.67.0",
+        "mermaid": "^11.17.2",
         "posthog-react-native": "^4.85.2",
         "react": "19.3.0",
         "react-dom": "19.3.0",

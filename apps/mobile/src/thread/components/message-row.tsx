@@ -5,6 +5,7 @@ import {
   ETextRole,
   ETextTone,
   Icon,
+  type IRenderDiagramArgs,
   Markdown,
   MessageFooter,
   Text,
@@ -15,8 +16,13 @@ import { space } from '@dltech/atlas-ui/tokens'
 import { Terminal } from 'lucide-react-native'
 import { StyleSheet, View } from 'react-native'
 
+import { DiagramCard } from '../diagrams/diagram-card'
 import { EMessageAuthor, type CommandRow, type MessageRow } from '../rows'
 import { MessageAttachments } from './message-attachments'
+
+const renderDiagram = ({ source, closed }: IRenderDiagramArgs) => (
+  <DiagramCard source={source} closed={closed} />
+)
 
 const SentAt = ({ at, align }: { at: string | undefined; align?: 'start' | 'end' }) => {
   const clock = messageTimeOf({ at, now: Date.now() })
@@ -78,7 +84,7 @@ export const MessageRowView = ({
   if (row.author === EMessageAuthor.Atlas) {
     return (
       <View style={styles.message}>
-        <Markdown value={row.text} selectable />
+        <Markdown value={row.text} selectable renderDiagram={renderDiagram} />
         <SentAt at={row.at} />
       </View>
     )
@@ -96,7 +102,7 @@ export const MessageRowView = ({
         />
         {row.text.trim().length > 0 ? (
           <Bubble>
-            <Markdown value={row.text} breaks selectable />
+            <Markdown value={row.text} breaks selectable renderDiagram={renderDiagram} />
           </Bubble>
         ) : null}
       </View>
@@ -108,7 +114,7 @@ export const MessageRowView = ({
       <MessageAttachments threadId={threadId} sessionId={sessionId} attachments={row.attachments} />
       {row.text.trim().length > 0 ? (
         <Bubble>
-          <Markdown value={row.text} breaks selectable />
+          <Markdown value={row.text} breaks selectable renderDiagram={renderDiagram} />
         </Bubble>
       ) : null}
       <SentAt at={row.at} align="end" />
