@@ -8,6 +8,7 @@ import {
   type PodRebootFacts,
 } from '@dltech/atlas-core'
 
+import { reportPodStarted } from './pod-disk-grow-report'
 import { failureText } from './pod-resize-run'
 
 export type PodDisk = {
@@ -25,6 +26,7 @@ export type PodDiskGrowDeps = {
   closeRun(args: { podSessionId: string }): Promise<void>
   grow(args: { instanceId: string; diskGb: number }): Promise<void>
   recordDisk(args: { sessionId: string; diskGb: number }): Promise<void>
+  started?(args: { sessionId: string; diskGbFrom: number; diskGbTo: number }): Promise<void>
   notice(args: { sessionId: string; diskGb: number }): Promise<void>
   ceilingNotice(args: {
     sessionId: string
@@ -220,8 +222,15 @@ export const growPodDisk = async (args: {
     }
   }
   await deps.closeRun({ podSessionId: pod.podSessionId })
+  const diskGbFrom = pod.sizeGb ?? limitGbOf(pod.limitBytes)
   await deps.grow({ instanceId: pod.instanceId, diskGb })
   await recordGrew({ deps, sessionId: pod.podSessionId, diskGb })
+  await reportPodStarted({
+    deps,
+    sessionId: pod.podSessionId,
+    diskGbFrom,
+    diskGbTo: diskGb,
+  })
   await noticeGrew({ deps, sessionId: pod.podSessionId, diskGb })
   return { outcome: EPodDiskGrowOutcome.Grown, diskGb }
 }

@@ -145,7 +145,11 @@ describe('bash started with background true', () => {
 
     const outcome = await run({ launcher, input: { command: 'bun run build', background: true } })
 
-    expect(outcome).toEqual({ ok: false, reason: 'a shell with id shell-1a2b3c4d already exists' })
+    expect(outcome).toMatchObject({
+      ok: false,
+      reason: 'a shell with id shell-1a2b3c4d already exists',
+      spanDetail: { 'exec.outcome': 'exit', 'exec.program': 'bun run' },
+    })
   }, 30_000)
 
   it('tells the model where the shell goes and how to read and stop it', async () => {

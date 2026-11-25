@@ -83,6 +83,7 @@ export class HeldTurns {
   private readonly idleWaiters: (() => void)[] = []
   turnRunning = false
   onTurnEnd: (() => void | Promise<void>) | undefined
+  onTurnStart: (() => void) | undefined
 
   constructor(private readonly deps: HeldSessionDeps) {}
 
@@ -110,6 +111,7 @@ export class HeldTurns {
     let turnId: string | undefined
     try {
       turnId = await this.startTurn({ record: args.record, resume: args.resume })
+      this.reportTurnStarted()
       const outcome = args.resume
         ? await args.runner.resume({
             threadId: args.threadId,
@@ -147,6 +149,18 @@ export class HeldTurns {
       this.turnAbort = undefined
       const idle = this.idleWaiters.splice(0)
       for (const resolve of idle) resolve()
+    }
+  }
+
+  private reportTurnStarted(): void {
+    try {
+      this.onTurnStart?.()
+    } catch (error) {
+      this.deps.log?.warn({
+        source: 'holder.turn',
+        message: `starting the observations of a turn on ${this.deps.sessionId} failed`,
+        ...logFieldsOf({ error }),
+      })
     }
   }
 

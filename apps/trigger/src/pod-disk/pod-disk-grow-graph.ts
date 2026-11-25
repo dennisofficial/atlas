@@ -18,15 +18,35 @@ import {
   type PodDiskSweepDeps,
 } from '@dltech/atlas-pods'
 import { db } from '@dltech/atlas-db'
+import type { ProductAnalytics } from '@dltech/atlas-observability'
+import { serverObservability } from '@dltech/atlas-observability/node'
 import { triggerLog } from '../trigger-logger'
+import { capturePodDiskGrowStart } from './pod-disk-grow-analytics'
 
-export type PodDiskGrowGraph = { run(): Promise<PodDiskGrowSummary> }
+export type PodDiskGrowGraph = {
+  analytics: ProductAnalytics
+  run(): Promise<PodDiskGrowSummary>
+}
 
 const NOTHING_TO_DO: PodDiskGrowSummary = { checked: 0, grown: 0, waiting: 0, nudged: 0 }
+
+const versionOf = (env: Record<string, string | undefined>): string => {
+  const version = env['ATLAS_APP_VERSION']
+  return version === undefined || version === '' ? 'trigger' : version
+}
+
+const flushQuietly = async (analytics: ProductAnalytics): Promise<void> => {
+  try {
+    await analytics.flush()
+  } catch {
+    return
+  }
+}
 
 const depsOf = (args: {
   plane: ControlPlane
   disk: ReturnType<typeof agent37DiskOf>
+  analytics: ProductAnalytics
 }): PodDiskSweepDeps => {
   const growDeps: PodDiskGrowDeps = {
     facts: async (factsArgs) => {
@@ -42,6 +62,15 @@ const depsOf = (args: {
       await args.plane.recordPodDisk({
         sessionId: recordArgs.sessionId,
         diskGb: recordArgs.diskGb,
+      })
+    },
+    started: async (startedArgs) => {
+      await capturePodDiskGrowStart({
+        analytics: args.analytics,
+        plane: args.plane,
+        sessionId: startedArgs.sessionId,
+        diskGbFrom: startedArgs.diskGbFrom,
+        diskGbTo: startedArgs.diskGbTo,
       })
     },
     notice: async (noticeArgs) => {
@@ -81,12 +110,22 @@ const depsOf = (args: {
 }
 
 export function buildPodDiskGrowGraph(): PodDiskGrowGraph {
+  const { analytics } = serverObservability({ version: versionOf(process.env), env: process.env })
   const agent37 = readPodsEnv().agent37
-  if (agent37 === null) return { run: async () => NOTHING_TO_DO }
+  if (agent37 === null) return { analytics, run: async () => NOTHING_TO_DO }
   const plane = jobsControlPlaneOf({ db })
   const disk = agent37DiskOf({ client: liveAgent37Client({ apiKey: agent37.apiKey }) })
   return {
-    run: async () =>
-      await runPodDiskGrow({ deps: depsOf({ plane, disk }), maxGb: AGENT37_MAX_DISK_GB }),
+    analytics,
+    run: async () => {
+      try {
+        return await runPodDiskGrow({
+          deps: depsOf({ plane, disk, analytics }),
+          maxGb: AGENT37_MAX_DISK_GB,
+        })
+      } finally {
+        await flushQuietly(analytics)
+      }
+    },
   }
 }

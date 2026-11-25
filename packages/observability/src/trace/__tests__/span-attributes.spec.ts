@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'bun:test'
 
-import { spanAttributesOf } from '../trace.port'
+import { ESpanOutcome, spanAttributesOf } from '../trace.port'
 
 describe('spanAttributesOf', () => {
   it('flattens sizes into size-prefixed attributes and drops the sizes key itself', () => {
@@ -59,5 +59,30 @@ describe('spanAttributesOf', () => {
 
   it('returns nothing for a span with no fields', () => {
     expect(spanAttributesOf(undefined)).toEqual({})
+  })
+
+  it('spreads the extra a tool result reported ahead of the named fields', () => {
+    expect(
+      spanAttributesOf({
+        tool: 'bash',
+        outcome: ESpanOutcome.Ok,
+        extra: {
+          'exec.outcome': 'exit',
+          'exec.exitCode': 2,
+          'exec.durationMs': 41,
+          outcome: 'tampered',
+        },
+      }),
+    ).toEqual({
+      'exec.outcome': 'exit',
+      'exec.exitCode': 2,
+      'exec.durationMs': 41,
+      outcome: 'ok',
+      tool: 'bash',
+    })
+  })
+
+  it('drops the extra key itself when a span carries none', () => {
+    expect(spanAttributesOf({ tool: 'bash' })).toEqual({ tool: 'bash' })
   })
 })

@@ -115,7 +115,7 @@ const daemonOf = (args: {
   return { client, builds, restarts: () => restarts }
 }
 
-const wake = (args: { client: Agent37Client; generation: HostGeneration }): Promise<void> =>
+const wake = (args: { client: Agent37Client; generation: HostGeneration }): Promise<boolean> =>
   waitForAgent37Daemon({
     client: args.client,
     instanceId: 'inst-1',

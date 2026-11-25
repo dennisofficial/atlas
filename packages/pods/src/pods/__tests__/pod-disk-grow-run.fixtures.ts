@@ -22,6 +22,7 @@ type FakeArgs = {
   facts?: (podSessionId: string) => Promise<PodRebootFacts | undefined>
   grow?: (args: { instanceId: string; diskGb: number }) => Promise<void>
   recordDisk?: (args: { sessionId: string; diskGb: number }) => Promise<void>
+  started?: (args: { sessionId: string; diskGbFrom: number; diskGbTo: number }) => Promise<void>
   notice?: (args: { sessionId: string; diskGb: number }) => Promise<void>
   ceilingNotice?: (args: {
     sessionId: string
@@ -75,6 +76,9 @@ export const fakeDeps = (args: FakeArgs) => {
     recordDisk: async (recordArgs) => {
       calls.push(`recordDisk:${recordArgs.sessionId}:${recordArgs.diskGb}`)
       await (args.recordDisk ?? (async () => undefined))(recordArgs)
+    },
+    started: async (startedArgs) => {
+      await (args.started ?? (async () => undefined))(startedArgs)
     },
     notice: async (noticeArgs) => {
       calls.push(`notice:${noticeArgs.sessionId}:${noticeArgs.diskGb}`)

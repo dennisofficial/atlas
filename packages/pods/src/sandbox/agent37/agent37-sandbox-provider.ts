@@ -23,7 +23,7 @@ import {
 } from './agent37-daemon'
 import { agent37EndpointOf } from './agent37-endpoint'
 import { listAgent37Instances, removeAgent37Pod, sleepAgent37Pod } from './agent37-instance-sweep'
-import { readyAgent37Instance, repairAgent37IfWedged } from './agent37-lifecycle'
+import { agent37StartOf, readyAgent37Instance, repairAgent37IfWedged } from './agent37-lifecycle'
 import { resizeAgent37Instance } from './agent37-resize'
 import { agent37ResizeProbe } from './agent37-resize-state'
 import {
@@ -132,11 +132,11 @@ export class Agent37SandboxProvider extends SandboxProvider {
     target: SandboxTarget
     instanceId: string
     signal: AbortSignal
-  }): Promise<void> {
+  }): Promise<boolean> {
     const client = this.clientOf(apiKeyOf(args.target.credentials))
     const sandboxName = agent37InstanceNameOf(args.target.sandboxSessionId)
     const version = await agent37BundleVersionOf(this.args.daemonBundle.path)
-    await waitForAgent37Daemon({
+    return await waitForAgent37Daemon({
       client,
       instanceId: args.instanceId,
       want: {
@@ -189,13 +189,13 @@ export class Agent37SandboxProvider extends SandboxProvider {
     try {
       const resolved = await this.resolve(args)
       const client = this.clientOf(apiKeyOf(args.target.credentials))
-      await readyAgent37Instance({
+      const ready = await readyAgent37Instance({
         client,
         id: resolved.instanceId,
         signal: args.signal,
         log: this.args.log,
       })
-      await this.ensureDaemon({ ...args, instanceId: resolved.instanceId })
+      const repairedLater = await this.ensureDaemon({ ...args, instanceId: resolved.instanceId })
       // The endpoint carries the instance's real shape so the runtime can record it as applied.
       const readAt = new Date().toISOString()
       const instance = await client.get({ id: resolved.instanceId })
@@ -211,6 +211,7 @@ export class Agent37SandboxProvider extends SandboxProvider {
         instanceId: resolved.instanceId,
         token: this.tokenOf(resolved.sandboxName),
         sandboxName: resolved.sandboxName,
+        start: agent37StartOf({ created: resolved.created, ready, repairedLater }),
         ...(instance.resources?.cpu === undefined ? {} : { vcpus: instance.resources.cpu }),
         ...(instance.resources?.memory === undefined
           ? {}
