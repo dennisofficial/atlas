@@ -8,6 +8,7 @@ import {
   type RecordEventBody,
 } from '@dltech/atlas-core'
 
+import { createWithdrawStore } from '../withdraw-store'
 import {
   ALREADY_SENT_NOTICE,
   WITHDRAW_UNKNOWN_NOTICE,
@@ -114,29 +115,107 @@ describe('withdrawRefusalNoticeOf', () => {
   })
 })
 
+const QUEUED: ReadonlySet<number> = new Set([4])
+
 describe('requestWithdraw', () => {
-  it('accepts a queued request', async () => {
-    const asked: unknown[] = []
-    const outcome = await requestWithdraw({
+  it('records the intent before it asks the API', async () => {
+    const store = createWithdrawStore()
+    let heldWhenAsked = false
+    const request = requestWithdraw({
       api: {
-        withdraw: async (input) => {
-          asked.push(input)
+        withdraw: async () => {
+          heldWhenAsked = store.holds(intent)
           return { ok: true }
         },
       },
-      sessionId: 'ses-1',
-      targetInboxId: 4,
+      intents: store,
+      intent,
     })
-    expect(outcome).toEqual({ accepted: true })
-    expect(asked).toEqual([{ sessionId: 'ses-1', inboxId: 4 }])
+
+    expect(request.recorded).toBe(true)
+    expect(await request.outcome).toEqual({ kind: 'accepted' })
+    expect(heldWhenAsked).toBe(true)
   })
 
-  it('reports a refusal the API makes at once', async () => {
-    const outcome = await requestWithdraw({
-      api: { withdraw: async () => ({ ok: false, reason: 'already-consumed' }) },
-      sessionId: 'ses-1',
-      targetInboxId: 4,
+  it('ignores a second request for the same target', async () => {
+    const store = createWithdrawStore()
+    store.request(intent)
+    const request = requestWithdraw({
+      api: { withdraw: async () => ({ ok: true }) },
+      intents: store,
+      intent,
     })
-    expect(outcome).toEqual({ accepted: false, notice: ALREADY_SENT_NOTICE })
+
+    expect(request.recorded).toBe(false)
+    expect(await request.outcome).toEqual({ kind: 'ignored' })
+  })
+
+  it('refuses at once and lets the row come back', async () => {
+    const store = createWithdrawStore()
+    const request = requestWithdraw({
+      api: { withdraw: async () => ({ ok: false, reason: 'already-consumed' }) },
+      intents: store,
+      intent,
+    })
+
+    expect(await request.outcome).toEqual({ kind: 'refused', notice: ALREADY_SENT_NOTICE })
+    expect(store.intentsOf('ses-1')).toEqual([])
+  })
+
+  it('stays quiet when a refusal lands after the durable lane settled it', async () => {
+    const store = createWithdrawStore()
+    const request = requestWithdraw({
+      api: { withdraw: async () => ({ ok: false, reason: 'already-consumed' }) },
+      intents: store,
+      intent,
+    })
+
+    expect(
+      store.takeSettlements({
+        sessionId: 'ses-1',
+        events: eventsOf([POSTED, REFUSED]),
+        queuedInboxIds: QUEUED,
+        queueKnown: true,
+      }),
+    ).toEqual([{ targetInboxId: 4, status: 'refused', notice: ALREADY_SENT_NOTICE }])
+    expect(await request.outcome).toEqual({ kind: 'ignored' })
+  })
+
+  it('stays quiet when the call fails after the durable lane settled it', async () => {
+    const store = createWithdrawStore()
+    const request = requestWithdraw({
+      api: {
+        withdraw: async () => {
+          throw new Error('offline')
+        },
+      },
+      intents: store,
+      intent,
+    })
+
+    store.takeSettlements({
+      sessionId: 'ses-1',
+      events: eventsOf([POSTED, WITHDRAWN]),
+      queuedInboxIds: QUEUED,
+      queueKnown: true,
+    })
+    expect(await request.outcome).toEqual({ kind: 'ignored' })
+  })
+
+  it('reports a failure while the intent is still pending and unhides the row', async () => {
+    const store = createWithdrawStore()
+    const failure = new Error('offline')
+    const request = requestWithdraw({
+      api: {
+        withdraw: async () => {
+          throw failure
+        },
+      },
+      intents: store,
+      intent,
+    })
+
+    expect(await request.outcome).toEqual({ kind: 'failed', failure })
+    expect(store.intentsOf('ses-1')).toEqual([])
   })
 })

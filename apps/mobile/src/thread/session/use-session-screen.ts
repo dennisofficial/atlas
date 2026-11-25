@@ -175,6 +175,7 @@ export function useSessionScreen(args: {
     sessionId,
     pending: snapshot.pending,
     foldable: snapshot.foldable,
+    queueKnown: snapshot.cursor !== undefined || snapshot.status !== undefined,
     onRestore: restoreQueued,
     onNotice: reportNotice,
   })

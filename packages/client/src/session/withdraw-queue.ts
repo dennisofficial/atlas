@@ -21,7 +21,22 @@ export type WithdrawApi = {
   withdraw(input: SessionWithdrawInput): Promise<SessionWithdrawOutput>
 }
 
-export type WithdrawRequestOutcome = { accepted: true } | { accepted: false; notice: string }
+export type WithdrawIntentPort = {
+  request: (intent: WithdrawIntent) => boolean
+  holds: (intent: WithdrawIntent) => boolean
+  discard: (intent: WithdrawIntent) => void
+}
+
+export type WithdrawRequestOutcome =
+  | { kind: 'accepted' }
+  | { kind: 'ignored' }
+  | { kind: 'refused'; notice: string }
+  | { kind: 'failed'; failure: unknown }
+
+export type WithdrawRequest = {
+  recorded: boolean
+  outcome: Promise<WithdrawRequestOutcome>
+}
 
 export const withdrawRefusalNoticeOf = (reason: string): string =>
   reason === ALREADY_SENT_REASON || reason === EWithdrawRefusal.AlreadyConsumed
@@ -70,15 +85,34 @@ export const withdrawSettlementsOf = (args: {
   })
 }
 
-export const requestWithdraw = async (args: {
+const settleWithdraw = async (args: {
   api: WithdrawApi
-  sessionId: string
-  targetInboxId: number
+  intents: WithdrawIntentPort
+  intent: WithdrawIntent
 }): Promise<WithdrawRequestOutcome> => {
-  const result = await args.api.withdraw({
-    sessionId: args.sessionId,
-    inboxId: args.targetInboxId,
-  })
-  if (result.ok) return { accepted: true }
-  return { accepted: false, notice: withdrawRefusalNoticeOf(result.reason) }
+  try {
+    const result = await args.api.withdraw({
+      sessionId: args.intent.sessionId,
+      inboxId: args.intent.targetInboxId,
+    })
+    if (result.ok) return { kind: 'accepted' }
+    if (!args.intents.holds(args.intent)) return { kind: 'ignored' }
+    args.intents.discard(args.intent)
+    return { kind: 'refused', notice: withdrawRefusalNoticeOf(result.reason) }
+  } catch (failure) {
+    if (!args.intents.holds(args.intent)) return { kind: 'ignored' }
+    args.intents.discard(args.intent)
+    return { kind: 'failed', failure }
+  }
+}
+
+export const requestWithdraw = (args: {
+  api: WithdrawApi
+  intents: WithdrawIntentPort
+  intent: WithdrawIntent
+}): WithdrawRequest => {
+  if (!args.intents.request(args.intent)) {
+    return { recorded: false, outcome: Promise.resolve({ kind: 'ignored' }) }
+  }
+  return { recorded: true, outcome: settleWithdraw(args) }
 }

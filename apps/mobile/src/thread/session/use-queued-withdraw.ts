@@ -1,10 +1,9 @@
 import type { ApiClient } from '@dltech/atlas-api-router'
-import type { PendingInputsState, RecordEvent } from '@dltech/atlas-core'
+import { pendingMessagesOf, type PendingInputsState, type RecordEvent } from '@dltech/atlas-core'
 import { requestWithdraw, withdrawStore, type WithdrawApi } from '@dltech/atlas-client/session'
 import { useCallback, useEffect, useMemo, useSyncExternalStore } from 'react'
 
 import { queuedWithdrawPlanOf, withdrawalNoticesOf, type QueuedRestore } from './withdraw-queued'
-import './withdraw-persistence'
 
 export type QueuedWithdraw = {
   hiddenInboxIds: ReadonlySet<number>
@@ -12,15 +11,18 @@ export type QueuedWithdraw = {
   remove: (inboxId: number) => void
 }
 
+const WITHDRAW_FAILED = 'The message could not be withdrawn. Try again.'
+
 export function useQueuedWithdraw(args: {
   api: ApiClient | undefined
   sessionId: string
   pending: PendingInputsState
   foldable: readonly RecordEvent[]
+  queueKnown: boolean
   onRestore: (restored: QueuedRestore) => void
   onNotice: (notice: string) => void
 }): QueuedWithdraw {
-  const { api, sessionId, pending, foldable, onRestore, onNotice } = args
+  const { api, sessionId, pending, foldable, queueKnown, onRestore, onNotice } = args
   const subscribe = useCallback(
     (listener: () => void) => withdrawStore.subscribe({ sessionId, listener }),
     [sessionId],
@@ -31,12 +33,21 @@ export function useQueuedWithdraw(args: {
     () => new Set(intents.map((entry) => entry.targetInboxId)),
     [intents],
   )
+  const queuedInboxIds = useMemo(
+    () => new Set(pendingMessagesOf(pending).map((input) => input.inboxId)),
+    [pending],
+  )
 
   useEffect(() => {
-    const settled = withdrawStore.takeSettlements({ sessionId, events: foldable })
+    const settled = withdrawStore.takeSettlements({
+      sessionId,
+      events: foldable,
+      queuedInboxIds,
+      queueKnown,
+    })
     const notices = withdrawalNoticesOf(settled)
     if (notices.length > 0) onNotice(notices.join('\n'))
-  }, [sessionId, foldable, onNotice])
+  }, [sessionId, foldable, intents, queuedInboxIds, queueKnown, onNotice])
 
   const withdraw = useCallback(
     async (params: { inboxId: number; restoreText: boolean }) => {
@@ -48,22 +59,17 @@ export function useQueuedWithdraw(args: {
         restoreText: params.restoreText,
       })
       if (plan === undefined) return
-      if (!withdrawStore.request(plan.intent)) return
-      if (plan.restore !== undefined) onRestore(plan.restore)
       const withdrawApi: WithdrawApi = { withdraw: (input) => api.sessions.withdraw.mutate(input) }
-      try {
-        const outcome = await requestWithdraw({
-          api: withdrawApi,
-          sessionId,
-          targetInboxId: plan.intent.targetInboxId,
-        })
-        if (outcome.accepted) return
-        withdrawStore.discard(plan.intent)
-        onNotice(outcome.notice)
-      } catch {
-        withdrawStore.discard(plan.intent)
-        onNotice('The message could not be withdrawn. Try again.')
-      }
+      const request = requestWithdraw({
+        api: withdrawApi,
+        intents: withdrawStore,
+        intent: plan.intent,
+      })
+      if (!request.recorded) return
+      if (plan.restore !== undefined) onRestore(plan.restore)
+      const outcome = await request.outcome
+      if (outcome.kind === 'refused') onNotice(outcome.notice)
+      if (outcome.kind === 'failed') onNotice(WITHDRAW_FAILED)
     },
     [api, onNotice, onRestore, pending, sessionId],
   )

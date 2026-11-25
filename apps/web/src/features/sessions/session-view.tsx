@@ -220,6 +220,7 @@ export function SessionView({ sessionId }: { sessionId: string }) {
     pending: snapshot.pending,
     events: snapshot.events,
     foldable: snapshot.foldable,
+    queueKnown: snapshot.cursor !== undefined || snapshot.status !== undefined,
     staged: stagedRun.staged,
     items: transcriptItems,
     sessionNameOf,

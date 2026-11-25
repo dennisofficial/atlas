@@ -44,6 +44,7 @@ export function usePendingTakeBack(args: {
   sessionId: string | null
   pending: PendingInputsState
   foldable: readonly RecordEvent[]
+  queueKnown: boolean
   draft: DraftControls
   restore: ComposerRestore
   onProblem: (reason: string) => void
@@ -67,13 +68,23 @@ export function usePendingTakeBack(args: {
     [intents],
   )
 
+  const queuedInboxIds = useMemo(
+    () => new Set(pendingMessagesOf(args.pending).map((input) => input.inboxId)),
+    [args.pending],
+  )
+
   useEffect(() => {
     if (sessionId === null) return
-    const settled = withdrawStore.takeSettlements({ sessionId, events: args.foldable })
+    const settled = withdrawStore.takeSettlements({
+      sessionId,
+      events: args.foldable,
+      queuedInboxIds,
+      queueKnown: args.queueKnown,
+    })
     for (const entry of settled) {
       if (entry.status === 'refused') latest.current.onProblem(entry.notice)
     }
-  }, [sessionId, args.foldable])
+  }, [sessionId, args.foldable, intents, queuedInboxIds, args.queueKnown])
 
   const handleTakeBack = useCallback((): boolean => {
     const current = latest.current
@@ -84,26 +95,17 @@ export function usePendingTakeBack(args: {
       sessionId: current.sessionId,
       targetInboxId: target.targetInboxId,
     }
-    if (!withdrawStore.request(intent)) return true
+    const request = requestWithdraw({ api: current.api, intents: withdrawStore, intent })
+    if (!request.recorded) return true
     current.restore({
       text: mergeWithdrawnIntoDraft({ withdrawn: target.text, draft: current.draft.value }),
       attachments: target.attachments,
       reason: undefined,
     })
-    void requestWithdraw({
-      api: current.api,
-      sessionId: intent.sessionId,
-      targetInboxId: intent.targetInboxId,
+    void request.outcome.then((outcome) => {
+      if (outcome.kind === 'refused') latest.current.onProblem(outcome.notice)
+      if (outcome.kind === 'failed') latest.current.onProblem(messageOf(outcome.failure))
     })
-      .then((outcome) => {
-        if (outcome.accepted) return
-        withdrawStore.discard(intent)
-        latest.current.onProblem(outcome.notice)
-      })
-      .catch((failure: unknown) => {
-        withdrawStore.discard(intent)
-        latest.current.onProblem(messageOf(failure))
-      })
     return true
   }, [])
 

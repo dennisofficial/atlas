@@ -3,60 +3,30 @@ import type { RecordEvent } from '@dltech/atlas-core'
 import {
   withdrawSettlementsOf,
   type WithdrawIntent,
+  type WithdrawIntentPort,
   type WithdrawSettlement,
 } from './withdraw-queue'
 
 const EMPTY: readonly WithdrawIntent[] = []
 
-export type WithdrawStorePersistence = {
-  load: () => Promise<readonly unknown[]> | readonly unknown[]
-  save: (intents: readonly WithdrawIntent[]) => void
-}
-
-export type WithdrawStore = {
-  request: (intent: WithdrawIntent) => boolean
-  discard: (intent: WithdrawIntent) => void
+export type WithdrawStore = WithdrawIntentPort & {
   intentsOf: (sessionId: string) => readonly WithdrawIntent[]
   takeSettlements: (args: {
     sessionId: string
     events: readonly RecordEvent[]
+    queuedInboxIds: ReadonlySet<number>
+    queueKnown: boolean
   }) => readonly WithdrawSettlement[]
   clear: (sessionId: string) => void
-  hydrate: (intents: readonly WithdrawIntent[]) => void
-  attachPersistence: (persistence: WithdrawStorePersistence) => void
   subscribe: (args: { sessionId: string; listener: () => void }) => () => void
 }
 
-const isIntentOf = (value: unknown): value is WithdrawIntent =>
-  typeof value === 'object' &&
-  value !== null &&
-  typeof (value as WithdrawIntent).sessionId === 'string' &&
-  (value as WithdrawIntent).sessionId.length > 0 &&
-  Number.isInteger((value as WithdrawIntent).targetInboxId)
-
-export const validIntentsOf = (values: readonly unknown[]): readonly WithdrawIntent[] =>
-  values.filter(isIntentOf)
-
-export const createWithdrawStore = (args?: {
-  persistence?: WithdrawStorePersistence | undefined
-}): WithdrawStore => {
+export const createWithdrawStore = (): WithdrawStore => {
   const bySession = new Map<string, readonly WithdrawIntent[]>()
   const listeners = new Map<string, Set<() => void>>()
-  let persistence = args?.persistence
 
   const emit = (sessionId: string): void => {
     for (const listener of [...(listeners.get(sessionId) ?? [])]) listener()
-  }
-
-  const allIntents = (): readonly WithdrawIntent[] => [...bySession.values()].flat()
-
-  const persist = (): void => {
-    if (persistence === undefined) return
-    try {
-      persistence.save(allIntents())
-    } catch {
-      return
-    }
   }
 
   const intentsOf = (sessionId: string): readonly WithdrawIntent[] =>
@@ -68,66 +38,41 @@ export const createWithdrawStore = (args?: {
     emit(sessionId)
   }
 
-  const hydrate = (intents: readonly WithdrawIntent[]): void => {
-    const changed = new Set<string>()
-    for (const intent of validIntentsOf(intents)) {
-      const current = intentsOf(intent.sessionId)
-      if (current.some((entry) => entry.targetInboxId === intent.targetInboxId)) continue
-      bySession.set(intent.sessionId, [...current, intent])
-      changed.add(intent.sessionId)
-    }
-    if (changed.size === 0) return
-    for (const sessionId of changed) emit(sessionId)
-    persist()
-  }
+  const holds = (intent: WithdrawIntent): boolean =>
+    intentsOf(intent.sessionId).some((entry) => entry.targetInboxId === intent.targetInboxId)
 
-  const attachPersistence = (next: WithdrawStorePersistence): void => {
-    persistence = next
-    const loaded = next.load()
-    if (!(loaded instanceof Promise)) {
-      hydrate(validIntentsOf(loaded))
-      return
-    }
-    void loaded.then((intents) => hydrate(validIntentsOf(intents))).catch(() => undefined)
-  }
-
-  const store: WithdrawStore = {
+  return {
     request: (intent) => {
-      const current = intentsOf(intent.sessionId)
-      if (current.some((entry) => entry.targetInboxId === intent.targetInboxId)) return false
-      replace(intent.sessionId, [...current, intent])
-      persist()
+      if (holds(intent)) return false
+      replace(intent.sessionId, [...intentsOf(intent.sessionId), intent])
       return true
     },
     discard: (intent) => {
-      const current = intentsOf(intent.sessionId)
-      if (!current.some((entry) => entry.targetInboxId === intent.targetInboxId)) return
+      if (!holds(intent)) return
       replace(
         intent.sessionId,
-        current.filter((entry) => entry.targetInboxId !== intent.targetInboxId),
+        intentsOf(intent.sessionId).filter((entry) => entry.targetInboxId !== intent.targetInboxId),
       )
-      persist()
     },
+    holds,
     intentsOf,
-    takeSettlements: ({ sessionId, events }) => {
+    takeSettlements: ({ sessionId, events, queuedInboxIds, queueKnown }) => {
       const intents = intentsOf(sessionId)
+      if (intents.length === 0) return []
       const settlements = withdrawSettlementsOf({ intents, events })
-      if (settlements.length === 0) return []
       const settled = new Set(settlements.map((entry) => entry.targetInboxId))
-      replace(
-        sessionId,
-        intents.filter((entry) => !settled.has(entry.targetInboxId)),
+      const kept = intents.filter(
+        (entry) =>
+          !settled.has(entry.targetInboxId) &&
+          (!queueKnown || queuedInboxIds.has(entry.targetInboxId)),
       )
-      persist()
+      if (kept.length !== intents.length) replace(sessionId, kept)
       return settlements
     },
     clear: (sessionId) => {
       if (!bySession.has(sessionId)) return
       replace(sessionId, EMPTY)
-      persist()
     },
-    hydrate: (intents) => hydrate(intents),
-    attachPersistence,
     subscribe: ({ sessionId, listener }) => {
       const held = listeners.get(sessionId) ?? new Set<() => void>()
       listeners.set(sessionId, held)
@@ -138,9 +83,6 @@ export const createWithdrawStore = (args?: {
       }
     },
   }
-
-  if (args?.persistence !== undefined) attachPersistence(args.persistence)
-  return store
 }
 
 export const withdrawStore = createWithdrawStore()

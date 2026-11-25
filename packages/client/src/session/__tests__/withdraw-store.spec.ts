@@ -8,7 +8,7 @@ import {
   type RecordEventBody,
 } from '@dltech/atlas-core'
 
-import { createWithdrawStore, type WithdrawStorePersistence } from '../withdraw-store'
+import { createWithdrawStore } from '../withdraw-store'
 import type { WithdrawIntent } from '../withdraw-queue'
 
 const eventsOf = (bodies: readonly RecordEventBody[]): readonly RecordEvent[] =>
@@ -40,16 +40,7 @@ const REFUSED: RecordEventBody = {
 
 const intent: WithdrawIntent = { sessionId: 'ses-1', targetInboxId: 4 }
 
-const memoryPersistence = (): WithdrawStorePersistence & { held: WithdrawIntent[] } => {
-  const held: WithdrawIntent[] = []
-  return {
-    held,
-    load: () => held,
-    save: (intents) => {
-      held.splice(0, held.length, ...intents)
-    },
-  }
-}
+const QUEUED: ReadonlySet<number> = new Set([4])
 
 describe('the withdraw store', () => {
   it('records one intent per target', () => {
@@ -63,16 +54,33 @@ describe('the withdraw store', () => {
     const store = createWithdrawStore()
     store.request(intent)
     const settled = eventsOf([POSTED, WITHDRAWN])
-    expect(store.takeSettlements({ sessionId: 'ses-1', events: settled })).toEqual([
-      { targetInboxId: 4, status: 'withdrawn' },
-    ])
-    expect(store.takeSettlements({ sessionId: 'ses-1', events: settled })).toEqual([])
+    expect(
+      store.takeSettlements({
+        sessionId: 'ses-1',
+        events: settled,
+        queuedInboxIds: QUEUED,
+        queueKnown: true,
+      }),
+    ).toEqual([{ targetInboxId: 4, status: 'withdrawn' }])
+    expect(
+      store.takeSettlements({
+        sessionId: 'ses-1',
+        events: settled,
+        queuedInboxIds: QUEUED,
+        queueKnown: true,
+      }),
+    ).toEqual([])
   })
 
   it('forgets an intent once settled', () => {
     const store = createWithdrawStore()
     store.request(intent)
-    store.takeSettlements({ sessionId: 'ses-1', events: eventsOf([POSTED, REFUSED]) })
+    store.takeSettlements({
+      sessionId: 'ses-1',
+      events: eventsOf([POSTED, REFUSED]),
+      queuedInboxIds: QUEUED,
+      queueKnown: true,
+    })
     expect(store.intentsOf('ses-1')).toEqual([])
   })
 
@@ -81,6 +89,32 @@ describe('the withdraw store', () => {
     store.request(intent)
     store.discard(intent)
     expect(store.intentsOf('ses-1')).toEqual([])
+    expect(store.holds(intent)).toBe(false)
+  })
+
+  it('drops an unanswered intent once the queue no longer holds its target', () => {
+    const store = createWithdrawStore()
+    store.request(intent)
+    const settled = store.takeSettlements({
+      sessionId: 'ses-1',
+      events: eventsOf([POSTED]),
+      queuedInboxIds: new Set(),
+      queueKnown: true,
+    })
+    expect(settled).toEqual([])
+    expect(store.intentsOf('ses-1')).toEqual([])
+  })
+
+  it('keeps an unanswered intent until the queue is known', () => {
+    const store = createWithdrawStore()
+    store.request(intent)
+    store.takeSettlements({
+      sessionId: 'ses-1',
+      events: [],
+      queuedInboxIds: new Set(),
+      queueKnown: false,
+    })
+    expect(store.intentsOf('ses-1')).toEqual([intent])
   })
 
   it('settles an intent for one session and never another', () => {
@@ -88,7 +122,12 @@ describe('the withdraw store', () => {
     const other: WithdrawIntent = { sessionId: 'ses-2', targetInboxId: 4 }
     store.request(intent)
     store.request(other)
-    store.takeSettlements({ sessionId: 'ses-1', events: eventsOf([POSTED, WITHDRAWN]) })
+    store.takeSettlements({
+      sessionId: 'ses-1',
+      events: eventsOf([POSTED, WITHDRAWN]),
+      queuedInboxIds: QUEUED,
+      queueKnown: true,
+    })
     expect(store.intentsOf('ses-1')).toEqual([])
     expect(store.intentsOf('ses-2')).toEqual([other])
   })
@@ -111,32 +150,12 @@ describe('the withdraw store', () => {
     expect(store.intentsOf('ses-1')).not.toBe(before)
   })
 
-  it('persists an intent and picks it up in a fresh store', async () => {
-    const persistence = memoryPersistence()
-    const first = createWithdrawStore({ persistence })
-    first.request(intent)
-    const reloaded = createWithdrawStore({ persistence })
-    await Promise.resolve()
-    await Promise.resolve()
-    expect(reloaded.intentsOf('ses-1')).toEqual([intent])
-  })
-
-  it('drops a settled intent from the persisted set', async () => {
-    const persistence = memoryPersistence()
-    const store = createWithdrawStore({ persistence })
+  it('answers for the intent it still holds', () => {
+    const store = createWithdrawStore()
+    expect(store.holds(intent)).toBe(false)
     store.request(intent)
-    store.takeSettlements({ sessionId: 'ses-1', events: eventsOf([POSTED, WITHDRAWN]) })
-    expect(persistence.held).toEqual([])
-  })
-
-  it('ignores persisted entries that are not intents', async () => {
-    const persistence: WithdrawStorePersistence = {
-      load: () => [{ sessionId: 'ses-1', targetInboxId: 4 }, { sessionId: '' }, null, 7] as never,
-      save: () => undefined,
-    }
-    const store = createWithdrawStore({ persistence })
-    await Promise.resolve()
-    await Promise.resolve()
-    expect(store.intentsOf('ses-1')).toEqual([intent])
+    expect(store.holds(intent)).toBe(true)
+    store.clear('ses-1')
+    expect(store.holds(intent)).toBe(false)
   })
 })

@@ -115,6 +115,7 @@ export function ChatScreenHost(props: ChatScreenHostProps): React.ReactNode {
     sessionId: props.sessionId,
     pending: transcript.pending,
     foldable: transcript.foldable,
+    queueKnown: transcript.loaded,
     draft: composer.draft,
     restore: (restored) => restoreText.current(restored),
     onProblem: problemOf,

@@ -82,6 +82,22 @@ const REFUSED: RecordEventBody = {
   reason: 'already-sent',
 }
 
+type Deferred<T> = {
+  promise: Promise<T>
+  resolve: (value: T) => void
+  reject: (reason: unknown) => void
+}
+
+const deferred = <T,>(): Deferred<T> => {
+  let resolve: (value: T) => void = () => undefined
+  let reject: (reason: unknown) => void = () => undefined
+  const promise = new Promise<T>((accept, decline) => {
+    resolve = accept
+    reject = decline
+  })
+  return { promise, resolve, reject }
+}
+
 let root: Root | null = null
 let host: HTMLDivElement | null = null
 
@@ -103,7 +119,6 @@ afterEach(async () => {
   host = null
   withdrawStore.clear(SESSION)
   shown.length = 0
-  window.localStorage.clear()
 })
 
 type Harness = {
@@ -129,6 +144,7 @@ const mount = async (args: {
     pending: args.pending,
     events: eventsOf([POSTED]),
     foldable: eventsOf([POSTED]),
+    queueKnown: true,
     staged: [],
     items: [],
     draft: args.draft ?? 'a draft',
@@ -235,6 +251,38 @@ describe('withdrawing a queued message on web', () => {
 
     await act(async () => harness.show({ foldable: eventsOf([POSTED, REFUSED]) }))
     await act(async () => harness.show({ foldable: eventsOf([POSTED, REFUSED]) }))
+
+    expect(shown).toEqual(['Already sent — the agent got it'])
+    expect(withdrawStore.intentsOf(SESSION)).toEqual([])
+  })
+
+  it('toasts once when the refusal lands before the mutation answers', async () => {
+    const held = deferred<{ ok: true } | { ok: false; reason: 'already-consumed' }>()
+    const harness = await mount({
+      pending: pendingOf({ text: 'ship it' }),
+      onWithdraw: () => held.promise,
+    })
+
+    await act(async () => harness.edit())
+    await act(async () => harness.show({ foldable: eventsOf([POSTED, REFUSED]) }))
+    await act(async () => held.reject(new Error('offline')))
+
+    expect(shown).toEqual(['Already sent — the agent got it'])
+  })
+
+  it('settles an intent recorded after the event already arrived', async () => {
+    const held = deferred<{ ok: true }>()
+    const harness = await mount({
+      pending: pendingOf({ text: 'ship it' }),
+      onWithdraw: () => held.promise,
+    })
+
+    await act(async () => harness.show({ foldable: eventsOf([POSTED, REFUSED]) }))
+    expect(shown).toEqual([])
+
+    await act(async () => {
+      withdrawStore.request({ sessionId: SESSION, targetInboxId: 4 })
+    })
 
     expect(shown).toEqual(['Already sent — the agent got it'])
     expect(withdrawStore.intentsOf(SESSION)).toEqual([])
