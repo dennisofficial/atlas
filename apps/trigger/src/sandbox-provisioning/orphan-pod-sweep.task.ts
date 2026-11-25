@@ -15,7 +15,7 @@ import '../init'
 import { triggerLog } from '../trigger-logger'
 import { runOrphanPodSweep } from './orphan-pod-sweep'
 
-const v2ScopesOf = async (): Promise<PodSweepScope[]> => {
+const podScopesOf = async (): Promise<PodSweepScope[]> => {
   const env = readPodsEnv()
   const sandbox = sandboxProvidersOf({ env, db })
   const scopes: PodSweepScope[] = []
@@ -38,7 +38,7 @@ export const orphanPodSweepTask = schedules.task({
       log: (line) => triggerLog.log(line),
       deps: {
         pods: () => pods({ now }),
-        v2Scopes: v2ScopesOf,
+        podScopes: podScopesOf,
         softDeleteArchived: ({ cutoff, at }) =>
           db.transaction((tx) => softDeleteArchivedSessionsIn({ tx, cutoff, at })),
         markPreviewDeleting: async ({ podSessionId }) => {

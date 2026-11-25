@@ -1,6 +1,6 @@
 # src/agent
 
-The agent owns v2 sessions at runtime. It claims them from the control plane, wakes their sandboxes,
+The agent owns sessions at runtime. It claims them from the control plane, wakes their sandboxes,
 drives the loop and publishes live frames. It is a module of `apps/api`, `AgentModule`, mounted by
 the root `AppModule` beside `ApiModule`. There is no separate app, package or deploy. `src/api`
 reaches it only through `index.ts`, and nothing here imports `src/api`.

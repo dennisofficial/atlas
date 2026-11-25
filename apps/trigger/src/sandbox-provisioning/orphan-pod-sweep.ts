@@ -25,13 +25,13 @@ const retirementFenceOf =
 
 export type OrphanPodSweepDeps = {
   pods: () => Promise<Pods>
-  v2Scopes: () => Promise<readonly PodSweepScope[]>
+  podScopes: () => Promise<readonly PodSweepScope[]>
   softDeleteArchived: (args: { cutoff: Date; at: Date }) => Promise<number>
   markPreviewDeleting: (args: { podSessionId: string }) => Promise<void>
 }
 
 export type OrphanPodSweepRun = {
-  v2: PodSweepSummary | null
+  sweep: PodSweepSummary | null
   softDeleted: number | null
   failedScopes: string[]
 }
@@ -58,12 +58,12 @@ export async function runOrphanPodSweep(args: {
       return undefined
     }
   }
-  const v2 = await inScope({
-    label: 'v2 pods',
+  const sweep = await inScope({
+    label: 'pods',
     run: async () => {
       const pods = await args.deps.pods()
       return sweepPods({
-        scopes: await args.deps.v2Scopes(),
+        scopes: await args.deps.podScopes(),
         pods,
         fence: retirementFenceOf(args.now),
         onRetired: async ({ podSessionId }) => {
@@ -91,9 +91,9 @@ export async function runOrphanPodSweep(args: {
       })
     },
   })
-  if (v2 !== undefined) {
-    failedScopes.push(...v2.failedScopes)
-    succeeded += v2.scopes - v2.failedScopes.length
+  if (sweep !== undefined) {
+    failedScopes.push(...sweep.failedScopes)
+    succeeded += sweep.scopes - sweep.failedScopes.length
   }
   const softDeleted = await inScope({
     label: 'archive retention',
@@ -105,13 +105,13 @@ export async function runOrphanPodSweep(args: {
   })
   if (softDeleted !== undefined) {
     succeeded += 1
-    log(`soft-deleted ${softDeleted} v2 sessions archived past the grace`)
+    log(`soft-deleted ${softDeleted} sessions archived past the grace`)
   }
   if (succeeded === 0) {
     throw new Error(`orphan-pod-sweep could not run any scope: ${failedScopes.join(', ')}`)
   }
   return {
-    v2: v2 ?? null,
+    sweep: sweep ?? null,
     softDeleted: softDeleted ?? null,
     failedScopes,
   }

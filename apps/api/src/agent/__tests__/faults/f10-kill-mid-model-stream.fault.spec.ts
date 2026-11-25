@@ -12,7 +12,7 @@ const REDIS_URL = process.env.ATLAS_TEST_REDIS_URL
 
 const epochOf = (row: ReadEvent): number => (row.event as { epoch: number }).epoch
 
-const v2EventsOf = (rows: readonly ReadEvent[]): RecordEvent[] =>
+const eventsOf = (rows: readonly ReadEvent[]): RecordEvent[] =>
   rows.map((row) => row.event as RecordEvent)
 
 const textOfAssistantSaid = (row: ReadEvent): string =>
@@ -72,7 +72,7 @@ describe.skipIf(REDIS_URL === undefined)(
       await hostA.exited
 
       const status = sessionStatusOf({
-        events: v2EventsOf(before),
+        events: eventsOf(before),
         live: false,
         queuedSince: null,
         now: new Date().toISOString(),

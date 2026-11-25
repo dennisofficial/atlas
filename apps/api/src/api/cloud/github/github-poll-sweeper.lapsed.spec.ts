@@ -27,7 +27,7 @@ const inboxRecords = async (): Promise<number> => {
   }).length
 }
 
-const seedV2Thread = async (args: { sessionId: string; threadId: string }): Promise<void> => {
+const seedThread = async (args: { sessionId: string; threadId: string }): Promise<void> => {
   const plane = new ControlPlane({
     store: new PostgresControlStore(db),
     eventSchema: createRecordEventSchema({ pluginBodies: [] }),
@@ -81,10 +81,10 @@ describe('GithubPollSweeperService lapsed subscriptions', () => {
     expect(await inboxRecords()).toBe(0)
   })
 
-  it('keeps a lapsed row whose thread is a live v2 thread but still watched', async () => {
+  it('keeps a lapsed row whose thread is live but still watched', async () => {
     const held = await seedSubscription({
       id: 'sub-kept',
-      threadId: 'thr_v2_kept',
+      threadId: 'thr_kept',
       expiresAt: PAST(),
       liveUntil: new Date(Date.now() + 3_600_000),
     })
@@ -95,11 +95,11 @@ describe('GithubPollSweeperService lapsed subscriptions', () => {
     expect((await subscriptions()).map((row) => row.id)).toEqual([held.id])
   })
 
-  it('ends a lapsed row of a v2 thread with a subscription-ended record', async () => {
-    await seedV2Thread({ sessionId: 'ses_v2_lapsed', threadId: 'thr_v2_lapsed' })
+  it('ends a lapsed row of a thread with a subscription-ended record', async () => {
+    await seedThread({ sessionId: 'ses_lapsed', threadId: 'thr_lapsed' })
     await seedSubscription({
-      id: 'sub-v2',
-      threadId: 'thr_v2_lapsed',
+      id: 'sub-lapsed',
+      threadId: 'thr_lapsed',
       expiresAt: PAST(),
       liveUntil: PAST(),
     })

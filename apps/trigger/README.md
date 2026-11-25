@@ -1,6 +1,6 @@
 # apps/trigger
 
-The v2 background-job app. Every v2 job, cron and sweep is a trigger.dev task defined under
+The background-job app. Every job, cron and sweep is a trigger.dev task defined under
 `src/`, deployed here rather than from the API. Task ids and zod payload schemas live in
 `@dltech/atlas-jobs` (`packages/jobs`), which both this app and the API import; this app never
 imports `apps/api`, and `apps/api` never imports this one. See
@@ -24,7 +24,7 @@ slice 3).
    gh secret set TRIGGER_ACCESS_TOKEN
    ```
 
-   `.github/workflows/trigger-v2.yml` deploys with that secret and nothing else — no project ref
+   `.github/workflows/trigger.yml` deploys with that secret and nothing else — no project ref
    variable, because the ref is in `trigger.config.ts`.
 3. The API dispatches with the project's API key, `TRIGGER_JOBS_SECRET_KEY` in the API's tier files
    (production key in `.env.production.enc`, development key in `.env.local.enc`).
