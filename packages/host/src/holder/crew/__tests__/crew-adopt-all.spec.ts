@@ -5,6 +5,7 @@ import { toThreadId } from '@dltech/atlas-core'
 
 import type { HeldSessionDeps } from '../../held-session-deps'
 import type { SessionRuntime } from '../../ports'
+import { RecordBookkeeping } from '../../record/record-bookkeeping'
 import type { SessionRecord } from '../../record/record-adapter'
 import { RIG_MODEL_CHOICE } from '../../__tests__/rig-runtime'
 import { CrewRoom } from '../crew-room'
@@ -47,7 +48,9 @@ const crewOf = (args: {
       choiceFor: () => RIG_MODEL_CHOICE,
       modelChoice: RIG_MODEL_CHOICE,
     } as unknown as SessionRuntime,
-    parentRecord: { eventCache: () => ({ eventsAfter: () => [] }) } as unknown as SessionRecord,
+    parentRecord: {
+      eventCache: () => ({ eventsAfter: () => [], bookkeeping: () => new RecordBookkeeping() }),
+    } as unknown as SessionRecord,
     parentThreadId: PARENT,
     epoch: 1,
     signal: new AbortController().signal,

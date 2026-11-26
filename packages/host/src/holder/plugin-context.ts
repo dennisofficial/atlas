@@ -30,7 +30,12 @@ import type { RoleModelChoice, SessionRuntime } from './ports'
 import type { SessionRecord } from './record/record-adapter'
 
 export type PodStepRunner = {
-  run<T>(args: { op: string; input: unknown; run: (key: string) => Promise<T> }): Promise<T>
+  run<T>(args: {
+    op: string
+    input: unknown
+    identity?: unknown
+    run: (key: string, replayed?: boolean) => Promise<T>
+  }): Promise<T>
 }
 
 const hostStepFactsOf = (args: {
@@ -76,6 +81,12 @@ const crewOf = (args: { crew: PodCrew; step: PodStepRunner }): PodCrew => ({
     await args.step.run({
       op: 'host.agent.spawn',
       input: spawn,
+      identity: {
+        agentType: spawn.agentType,
+        intent: spawn.intent,
+        group: spawn.group,
+        worktree: spawn.worktree,
+      },
       run: async (key) => await args.crew.spawn({ ...spawn, agentId: derivedIdOf(`agent:${key}`) }),
     }),
   say: async (said) =>

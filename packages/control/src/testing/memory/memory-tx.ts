@@ -45,6 +45,7 @@ import {
   markInboxConsumedIn,
   readInboxEntriesIn,
   readInboxEntryIn,
+  inboxEntryWithClientIdIn,
   recentInboxEntriesIn,
 } from './memory-inbox'
 import {
@@ -503,6 +504,14 @@ export class MemoryTx extends MemoryTxViews implements ControlTx {
     forThread: ThreadId | null
   }) {
     return recentInboxEntriesIn({ state: this.state, ...params })
+  }
+
+  async inboxEntryWithClientId(params: {
+    sessionId: string
+    clientId: string
+    forThread: ThreadId | null
+  }) {
+    return inboxEntryWithClientIdIn({ state: this.state, ...params })
   }
 
   async notifyWake(sessionId: string): Promise<void> {

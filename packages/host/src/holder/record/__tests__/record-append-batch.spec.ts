@@ -206,4 +206,27 @@ describe('a fact the log already holds', () => {
     expect(facts.map((fact) => fact.key)).toEqual(['effect-result:a.0', 'effect-result:a.1'])
     expect(facts[0]?.value).toEqual({ id: 1 })
   })
+
+  it('keeps a later value of a fact kind whose key is written again on purpose', async () => {
+    const { plane, epoch } = await countedPlane()
+    const record = await openRecord({ plane, epoch })
+
+    await record.append({
+      threadId: THREAD,
+      runId: toRunId('run-1'),
+      drafts: [{ type: 'fact-recorded', key: 'latch:worker', kind: 'latch', value: 1 }],
+    })
+    await record.append({
+      threadId: THREAD,
+      runId: toRunId('run-2'),
+      drafts: [{ type: 'fact-recorded', key: 'latch:worker', kind: 'latch', value: 2 }],
+    })
+
+    const facts = record.eventCache().bookkeeping().factsWithPrefix('latch:worker')
+    expect(facts.map((fact) => fact.value)).toEqual([1, 2])
+    expect(record.eventCache().bookkeeping().fact('latch:worker')).toEqual({
+      found: true,
+      value: 1,
+    })
+  })
 })

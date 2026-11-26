@@ -4,8 +4,38 @@ import { EEffort } from '@dltech/atlas-core'
 import { ControlPlane } from '@dltech/atlas-control'
 import { InMemoryControlStore } from '@dltech/atlas-control/testing'
 
-import { podSessionsOf } from '../plugin-sessions'
+import { runInCallScope } from '../../calls/call-scope'
+import { runHostStep, type EffectResultLookup, type HostStepFacts } from '../host-step'
 import type { PodStepRunner } from '../plugin-context'
+import { podSessionsOf } from '../plugin-sessions'
+import type { StepRecord } from '../record/call-steps'
+
+const CALL_SCOPE = '11111111-1111-4111-8111-111111111111'
+
+const hostStepOf = (): { step: PodStepRunner; forget: () => void } => {
+  const steps: StepRecord[] = []
+  const results = new Map<string, unknown>()
+  const facts: HostStepFacts = {
+    recorded: () => steps.map((step) => ({ ...step })),
+    record: async (step) => {
+      steps.push(step)
+    },
+    result: <T>(stepKey: string): EffectResultLookup<T> => {
+      const key = `effect-result:${stepKey}`
+      return results.has(key) ? { found: true, value: results.get(key) as T } : { found: false }
+    },
+    recordResult: async (stepKey, value) => {
+      results.set(`effect-result:${stepKey}`, value)
+    },
+  }
+  return {
+    step: { run: async (step) => await runHostStep({ facts, ...step }) },
+    forget: () => results.clear(),
+  }
+}
+
+const inCall = <T>(body: () => Promise<T>): Promise<T> =>
+  runInCallScope({ scopeKey: CALL_SCOPE, body })
 
 const steppedOf = (): PodStepRunner => {
   let next = 0
@@ -97,6 +127,52 @@ describe('podSessionsOf', () => {
     const first = await replayable().spawn({ title: 'the peer', brief: 'read the port' })
     const second = await replayable().spawn({ title: 'the peer', brief: 'read the port' })
     expect(second).toEqual(first)
+    const roster = (await sessions.list()).filter((row) => row.spawnedBy === SPAWNER.sessionId)
+    expect(roster.map((row) => row.sessionId)).toEqual([first.sessionId])
+    expect(await inboxOf(plane, first.sessionId)).toHaveLength(1)
+  })
+
+  it('replays a spawn whose attached file changed between holders into the one session', async () => {
+    const { plane, sessions } = await rig()
+    const host = hostStepOf()
+    const replayable = () =>
+      podSessionsOf({
+        step: host.step,
+        plane,
+        sessionId: SPAWNER.sessionId,
+        model: () => TEAMMATE_MODEL,
+      })
+    const files = (text: string) => [{ path: 'plan.md', text }]
+    const first = await inCall(
+      async () => await replayable().spawn({ title: 'the peer', files: files('the first plan') }),
+    )
+    const second = await inCall(
+      async () => await replayable().spawn({ title: 'the peer', files: files('the second plan') }),
+    )
+    expect(second).toEqual(first)
+    const roster = (await sessions.list()).filter((row) => row.spawnedBy === SPAWNER.sessionId)
+    expect(roster.map((row) => row.sessionId)).toEqual([first.sessionId])
+    expect(await inboxOf(plane, first.sessionId)).toHaveLength(1)
+  })
+
+  it('makes one session when a holder crashed after the spawn and before its result fact', async () => {
+    const { plane, sessions } = await rig()
+    const host = hostStepOf()
+    const replayable = () =>
+      podSessionsOf({
+        step: host.step,
+        plane,
+        sessionId: SPAWNER.sessionId,
+        model: () => TEAMMATE_MODEL,
+      })
+    const first = await inCall(
+      async () => await replayable().spawn({ title: 'the peer', brief: 'read the port' }),
+    )
+    host.forget()
+    const replayed = await inCall(
+      async () => await replayable().spawn({ title: 'the peer', brief: 'read the port' }),
+    )
+    expect(replayed).toEqual(first)
     const roster = (await sessions.list()).filter((row) => row.spawnedBy === SPAWNER.sessionId)
     expect(roster.map((row) => row.sessionId)).toEqual([first.sessionId])
     expect(await inboxOf(plane, first.sessionId)).toHaveLength(1)

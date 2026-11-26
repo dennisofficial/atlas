@@ -67,8 +67,9 @@ only what it can rebuild or drop.
 - The dispatcher reuses a recorded step whose op and digest match, and asks the daemon before it
   replays it. A diverged step takes a slot above the maximum. The digest leaves out `env`,
   `tunnelToken` and the fields the daemon mints.
-- A call that a restart left open holds, and its recorded steps answer for themselves. Nothing is
-  interrupted: every effect a call can have now has an identity to replay into.
+- A call that a restart left open holds when it is a daemon tool, a read, or it recorded a step of
+  its own, pod or host, and its recorded steps then answer for themselves. A call that recorded no
+  step is interrupted, so an effect with no key of its own never runs a second time.
 - Every host-side effect a tool runs records `<callId>.<n>` before it runs and an
   `effect-result:<callId>.<n>` fact after, so a replay returns the effect it already made instead of
   making a second one: a crew spawn, `sessions.spawn`, a memory edit, a message, a routine create

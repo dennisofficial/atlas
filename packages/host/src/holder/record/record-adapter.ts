@@ -1,4 +1,5 @@
 import {
+  UPLOAD_PLACEMENT_KIND,
   chainEvents,
   projectedEvents,
   toLoopEvent,
@@ -16,7 +17,10 @@ import type { LogPort } from '@dltech/atlas-observability'
 
 import type { RemoteCalls } from '../../calls/remote-calls'
 import type { HostTimers } from '../ports'
+import { EFFECT_RESULT_KIND } from '../host-step'
+import { BASE_FACT_KIND } from '../held-prepare-bases'
 import { AppendRetry, type DaemonAck } from './append-retry'
+import { STEP_FACT_KIND } from './call-steps'
 import { LeaseLostError } from './lease-lost-error'
 import { RecordCache } from './record-cache'
 import { factsOfKindIn } from './record-facts'
@@ -32,6 +36,13 @@ export type { AppendBody }
 export const BLOB_SPILL_BYTES = 256 * 1024
 
 const STEP_EVENT_TYPES: ReadonlySet<string> = new Set(['assistant-said', 'tool-called'])
+
+export const FIRST_WRITE_WINS_KINDS: ReadonlySet<string> = new Set([
+  EFFECT_RESULT_KIND,
+  STEP_FACT_KIND,
+  BASE_FACT_KIND,
+  UPLOAD_PLACEMENT_KIND,
+])
 
 const postedInputAtsOf = (events: readonly RecordEvent[]): ReadonlyMap<number, string> =>
   new Map(
@@ -223,7 +234,9 @@ export class SessionRecord implements AgentRecordPort, ModelContextPort {
     const resolved = new Map<string, unknown>()
     const ackDaemons: DaemonAck[] = []
     for (const raw of args.drafts) {
-      if (raw.type === 'fact-recorded' && this.cache.bookkeeping().fact(raw.key).found) continue
+      if (raw.type === 'fact-recorded' && FIRST_WRITE_WINS_KINDS.has(raw.kind)) {
+        if (this.cache.bookkeeping().fact(raw.key).found) continue
+      }
       const draft = await prepareDraft(
         {
           cache: this.cache,

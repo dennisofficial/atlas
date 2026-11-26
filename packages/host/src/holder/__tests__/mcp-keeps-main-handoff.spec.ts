@@ -133,8 +133,17 @@ const runtimeOf = (): SessionRuntime =>
     effectOf: () => EToolEffect.Write,
   }) as unknown as SessionRuntime
 
+const crashedCallOf = (): PendingCall => ({
+  callId: toCallId(CALL_ID),
+  name: 'mcp_docs_search',
+  input: {},
+  ordinal: 0,
+  runId: RUN_ID,
+  threadId: THREAD_ID,
+})
+
 describe('mcp ops in a call scope', () => {
-  it('holds a tool call that crashed after an mcp send, which opened no step of its own', async () => {
+  it('interrupts a tool call that crashed after an mcp send, and never sends its line again', async () => {
     const daemon = daemonOf()
     const record = fakeRecordOf()
     const pod = podOf({ daemon, record })
@@ -154,7 +163,9 @@ describe('mcp ops in a call scope', () => {
 
     expect(daemon.sent).toEqual([LINE])
     expect(recordedStepsOf({ record, scopeKey: CALL_ID })).toHaveLength(0)
-    expect(crashSettleOf()).toBe(ECrashedCall.Hold)
+    expect(crashSettleOf({ runtime: runtimeOf(), record, call: crashedCallOf() })).toBe(
+      ECrashedCall.Interrupt,
+    )
     expect(daemon.sent).toEqual([LINE])
   })
 

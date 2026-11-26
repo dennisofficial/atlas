@@ -12,7 +12,6 @@ import {
   podServices,
   resultsOf,
   serviceStartCallOf,
-  startedIdsOf,
 } from './handoff-service-support'
 import { startRig } from '../../testing/fault-rig'
 import { contextFor, freshWorkspaceOf } from '../../testing/handoff-context'
@@ -27,7 +26,7 @@ describe.skipIf(REDIS_URL === undefined)(
   () => {
     const testDb = useTestDatabase()
 
-    it('runs its body once on the takeover, and reports a real result', async () => {
+    it('reports it interrupted and never runs its body a second time', async () => {
       const root = mkdtempSync(join(tmpdir(), `atlas-early-kill-${RUN}-`))
       const rig = await startRig({ databaseUrl: testDb().url, redisUrl: REDIS_URL ?? '' })
       try {
@@ -36,7 +35,7 @@ describe.skipIf(REDIS_URL === undefined)(
         const threadId = await rig.newSession({ sessionId, text: 'start the service' })
         const daemon = await rig.spawnDaemonFor({ sessionId })
         const ctx = contextFor({ rig, sessionId, threadId, daemon, workspace })
-        const held = ctx.path('held')
+        const held = join(workspace, 'held-before-the-first-pod-step')
         const command = listeningCommandOf({
           started: ctx.path('started'),
           runs: ctx.path('runs'),
@@ -78,26 +77,20 @@ describe.skipIf(REDIS_URL === undefined)(
           label: 'host-b',
           daemonUrl: daemon.url,
           workspace,
-          knobs: {
-            plugins: true,
-            pluginToolGate: { tool: 'service', waitFor: held, phase: 'before' },
-          },
+          knobs: { plugins: true },
           scripts: { [sessionId]: [{ text: 'host b finished' }] },
         })
         await rig.claim({ sessionId, label: 'host-b', timeoutMs: 30_000 })
         try {
-          await ctx.release('held')
-          await ctx.release('gate')
           await waitUntil({
-            what: 'the call to report its real result',
+            what: 'the call to report an interrupted result',
             check: async () => (await resultsOf(ctx)).length === 1,
           })
           const results = await resultsOf(ctx)
-          expect(results.filter(interruptedOf)).toHaveLength(0)
+          expect(results.filter(interruptedOf)).toHaveLength(1)
           expect(await dispatchesOf(ctx)).toHaveLength(1)
-          expect(ctx.runCount('runs')).toBe(1)
-          expect(await startedIdsOf(ctx)).toHaveLength(1)
-          expect(await podServices(ctx)).toHaveLength(1)
+          expect(ctx.runCount('runs')).toBe(0)
+          expect(await podServices(ctx)).toHaveLength(0)
         } catch (error: unknown) {
           throw new Error(
             `${error instanceof Error ? error.message : String(error)}\nhostB logs:\n${hostB.logs().join('\n')}`,

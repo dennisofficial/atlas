@@ -41,7 +41,7 @@ export const withdrawPayloadOf = (payload: string): WithdrawPayload | undefined 
   }
 }
 
-const clientIdOfPayload = (payload: string): string | undefined => {
+export const clientIdOfPayload = (payload: string): string | undefined => {
   try {
     const parsed: unknown = JSON.parse(payload)
     if (typeof parsed !== 'object' || parsed === null) return undefined
@@ -87,8 +87,19 @@ const alreadyPosted = async (params: {
   kind: string
   threadId: ThreadId | null
   clientId: string | undefined
+  replayed: boolean
 }): Promise<number | undefined> => {
   if (params.clientId === undefined) return undefined
+  if (params.replayed) {
+    const found = await params.tx.inboxEntryWithClientId({
+      sessionId: params.sessionId,
+      clientId: params.clientId,
+      forThread: params.threadId,
+    })
+    return found !== undefined && sameKindFamily(found.kind, params.kind)
+      ? found.inboxId
+      : undefined
+  }
   const recent = await params.tx.recentInboxEntries({
     sessionId: params.sessionId,
     limit: INBOX_IDEMPOTENCY_LOOKBACK,
@@ -125,6 +136,7 @@ export const postIn = async (params: {
   at: string
   threadId?: ThreadId | undefined
   senderSessionId?: string | undefined
+  replayed?: boolean | undefined
   wake?: boolean | undefined
 }): Promise<{ inboxId: number }> => {
   if (
@@ -143,6 +155,7 @@ export const postIn = async (params: {
     kind: params.kind,
     threadId,
     clientId: clientIdOfPayload(params.payload),
+    replayed: params.replayed === true,
   })
   if (existing !== undefined) return { inboxId: existing }
   const inboxId = await params.tx.allocateInboxId(params.sessionId)

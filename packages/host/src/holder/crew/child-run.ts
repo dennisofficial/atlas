@@ -135,6 +135,7 @@ export class ChildRun {
     const adopted = await adoptRecordOf({
       args,
       agentId: args.agentId,
+      ...(args.emptyLog === undefined ? {} : { emptyLog: args.emptyLog }),
       onLeaseLost: (error) => run.lost(error),
     })
     if (!adopted.ok) return adopted

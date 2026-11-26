@@ -16,6 +16,7 @@ const spawnedOf = async (args: {
   onFallback?: ((args: { agentId: ThreadId; model: RoleModelChoice }) => Promise<void>) | undefined
   input: SpawnInput
   key: string
+  replayed?: boolean | undefined
 }): Promise<SpawnedSession> => {
   const model = args.model()
   const sessionId = derivedIdOf(`session:${args.sessionId}:${args.key}`)
@@ -28,6 +29,7 @@ const spawnedOf = async (args: {
     modelEffort: model.effort,
     modelFast: model.fast,
     clientId: args.key,
+    replayed: args.replayed,
     ...(args.input.title === undefined ? {} : { title: args.input.title }),
     ...(args.input.brief === undefined ? {} : { brief: args.input.brief }),
     ...(args.input.nested === undefined ? {} : { nested: args.input.nested }),
@@ -52,13 +54,20 @@ export const podSessionsOf = (args: {
     await args.step.run({
       op: 'host.sessions.spawn',
       input,
-      run: async (key) =>
+      identity: {
+        title: input.title,
+        brief: input.brief,
+        nested: input.nested,
+        files: input.files?.map((file) => file.path),
+      },
+      run: async (key, replayed) =>
         await spawnedOf({
           plane: args.plane,
           sessionId: args.sessionId,
           model: args.model,
           input,
           key,
+          replayed,
           ...(args.onFallback === undefined ? {} : { onFallback: args.onFallback }),
         }),
     }),

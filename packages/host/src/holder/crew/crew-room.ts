@@ -1,11 +1,8 @@
 import {
   EAgentLostCause,
-  EAgentStatus,
   EKilledBy,
   EResumeOutcome,
   heldDraftOf,
-  lostAgentEnding,
-  type AgentLost,
   type CrewRoomMember,
   toThreadId,
   type EventDraft,
@@ -21,9 +18,9 @@ import type {
 import { ChildRun, type ChildRunArgs } from './child-run'
 import type { CrewSender } from './child-message'
 import { CHILD_READ_CONCURRENCY } from './child-reads'
-import { endingKeyOf, postNotice, threadLastSeq } from './child-reports'
 import { openChildrenOf, settledChildOf, type OpenChild } from './open-children'
 import { pooledMap } from './pooled-map'
+import { keyedSpawnOpenOf, lostSnapshotOf, postLostChild, spawnBriefKeyOf } from './spawn-replay'
 
 export type CrewRoomArgs = Omit<
   ChildRunArgs,
@@ -31,21 +28,6 @@ export type CrewRoomArgs = Omit<
 >
 
 class UnknownChild extends Error {}
-
-const spawnBriefKeyOf = (agentId: ThreadId): string => `spawn-brief:${agentId}`
-
-const lostSnapshotOf = (child: OpenChild): SubagentSnapshot => ({
-  agentId: child.agentId,
-  agentType: child.agentType,
-  intent: child.intent,
-  status: EAgentStatus.Failed,
-  turns: 0,
-  toolCalls: 0,
-  startedAt: child.spawnedAt,
-  prose:
-    'this sub-agent was started before the host changed and its log could not be read, so it never ran',
-  ...(child.worktree === undefined ? {} : { worktree: child.worktree }),
-})
 
 export class CrewRoom {
   private readonly runs = new Map<ThreadId, ChildRun>()
@@ -118,9 +100,15 @@ export class CrewRoom {
     if (run !== undefined) await this.startAdopted({ run, child })
   }
 
+  private emptyLogOf(agentId: ThreadId): 'resume' | 'lost' {
+    const keyed = keyedSpawnOpenOf({ record: this.args.parentRecord, agentId })
+    return keyed ? 'resume' : 'lost'
+  }
+
   private async openAdopted(child: OpenChild): Promise<ChildRun | undefined> {
     const adopted = await ChildRun.adopt({
       ...this.childArgs(),
+      emptyLog: this.emptyLogOf(child.agentId),
       agentType: child.agentType,
       intent: child.intent,
       agentId: child.agentId,
@@ -132,7 +120,7 @@ export class CrewRoom {
       ...(child.settled === undefined ? {} : { settled: child.settled }),
     })
     if (!adopted.ok) {
-      await this.lose({ child, lost: adopted.lost })
+      await postLostChild({ room: this.args, child, lost: adopted.lost })
       return undefined
     }
     this.runs.set(adopted.run.agentId, adopted.run)
@@ -275,6 +263,7 @@ export class CrewRoom {
     if (settled === undefined) throw new UnknownChild(`no sub-agent ${agentId} in this session`)
     const adopted = await ChildRun.adopt({
       ...this.childArgs(),
+      emptyLog: this.emptyLogOf(agentId),
       agentType: settled.agentType,
       intent: settled.intent,
       agentId,
@@ -293,21 +282,6 @@ export class CrewRoom {
       throw new Error(`the log of sub-agent ${agentId} could not be read: ${adopted.lost.detail}`)
     }
     throw new UnknownChild(`no sub-agent ${agentId} in this session`)
-  }
-
-  private async lose(args: { child: OpenChild; lost: AgentLost }): Promise<void> {
-    const seq = await threadLastSeq({
-      plane: this.args.deps.plane,
-      threadId: args.child.agentId,
-    }).catch(() => 0)
-    await postNotice(this.args, {
-      event: lostAgentEnding({
-        agent: args.child,
-        progress: { turns: 0, toolCalls: 0, prose: '' },
-        lost: args.lost,
-      }),
-      key: endingKeyOf({ agentId: args.child.agentId, seq }),
-    })
   }
 
   private find(agentId: string): ChildRun {

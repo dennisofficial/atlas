@@ -40,14 +40,18 @@ export type ChildRunArgs = {
 export type AdoptedChildArgs = ChildRunArgs & {
   agentId: ThreadId
   spawnedAt: string
+  emptyLog?: EmptyLog | undefined
   settled?: { status: EAgentStatus; endedAt: string } | undefined
 }
 
 type RecordArgs = {
   args: ChildRunArgs
   agentId: ThreadId
+  emptyLog?: EmptyLog | undefined
   onLeaseLost(error: LeaseLostError): void
 }
+
+export type EmptyLog = 'lost' | 'resume'
 
 export const childRecordOf = (spec: RecordArgs): Promise<SessionRecord> =>
   RecordAdapter.open({
@@ -79,7 +83,7 @@ export const adoptRecordOf = async (spec: RecordArgs): Promise<AdoptRecordResult
       lost: { cause: EAgentLostCause.RecordUnreadable, detail: messageOf(error) },
     }
   }
-  if (opened.eventCache().eventsAfter(0).length === 0)
+  if (opened.eventCache().eventsAfter(0).length === 0 && spec.emptyLog !== 'resume')
     return {
       ok: false,
       lost: { cause: EAgentLostCause.NeverStarted, detail: 'its log holds no events' },
@@ -88,7 +92,7 @@ export const adoptRecordOf = async (spec: RecordArgs): Promise<AdoptRecordResult
     record: opened,
     ids: spec.args.deps.ids,
     threadId: spec.agentId,
-    settleOf: () => crashSettleOf(),
+    settleOf: (call) => crashSettleOf({ runtime: spec.args.runtime, record: opened, call }),
   })
   return { ok: true, record: opened }
 }

@@ -1,5 +1,6 @@
 import { EInputKind, type InboxEntry, type ThreadId } from '@dltech/atlas-core'
 
+import { clientIdOfPayload } from '../../inbox-ops'
 import type { State } from './memory-state'
 
 export const allocateInboxIdIn = (params: { state: State; sessionId: string }): number => {
@@ -80,6 +81,19 @@ export const firstUnconsumedMessagesIn = (params: {
       .sort((left, right) => left.inboxId - right.inboxId)[0]
     return first === undefined ? [] : [{ ...first }]
   })
+
+export const inboxEntryWithClientIdIn = (params: {
+  state: State
+  sessionId: string
+  clientId: string
+  forThread: ThreadId | null
+}): InboxEntry | undefined => {
+  const found = (params.state.inbox.get(params.sessionId) ?? [])
+    .filter((entry) => entry.threadId === params.forThread)
+    .sort((left, right) => left.inboxId - right.inboxId)
+    .find((entry) => clientIdOfPayload(entry.payload) === params.clientId)
+  return found === undefined ? undefined : { ...found }
+}
 
 export const recentInboxEntriesIn = (params: {
   state: State

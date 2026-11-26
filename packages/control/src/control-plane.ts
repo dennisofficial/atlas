@@ -292,21 +292,30 @@ export class ControlPlane {
     nested?: boolean | undefined
     files?: readonly SpawnFile[] | undefined
     clientId?: string | undefined
+    replayed?: boolean | undefined
   }): Promise<{ inboxId: number | null } | { refused: string }> {
-    return this.store.transact(async (tx) => {
-      const spawner = await tx.readSession({
-        sessionId: params.spawnerSessionId,
+    const spawn = () =>
+      this.store.transact(async (tx) => {
+        const spawner = await tx.readSession({
+          sessionId: params.spawnerSessionId,
+        })
+        if (spawner === undefined) throw new Error(`unknown session ${params.spawnerSessionId}`)
+        const { modelRef, modelEffort, modelFast, ...rest } = params
+        return spawnPeerIn({
+          tx,
+          spawner,
+          ...rest,
+          model: { ref: modelRef, effort: modelEffort, fast: modelFast },
+          at: await this.nowIn(tx),
+        })
       })
-      if (spawner === undefined) throw new Error(`unknown session ${params.spawnerSessionId}`)
-      const { modelRef, modelEffort, modelFast, ...rest } = params
-      return spawnPeerIn({
-        tx,
-        spawner,
-        ...rest,
-        model: { ref: modelRef, effort: modelEffort, fast: modelFast },
-        at: await this.nowIn(tx),
+    try {
+      return await spawn()
+    } catch (error) {
+      return await spawn().catch(() => {
+        throw error
       })
-    })
+    }
   }
 
   async messagePeer(params: {
@@ -314,6 +323,7 @@ export class ControlPlane {
     toSessionId: string
     text: string
     clientId?: string | undefined
+    replayed?: boolean | undefined
   }): Promise<{ inboxId: number; title: string | null } | { refused: string }> {
     return this.store.transact(async (tx) => {
       const from = await tx.readSession({ sessionId: params.fromSessionId })
@@ -326,6 +336,7 @@ export class ControlPlane {
     sessionId: string
     text: string
     clientId?: string | undefined
+    replayed?: boolean | undefined
   }): Promise<{ inboxId: number } | { refused: string }> {
     return this.store.transact(async (tx) => {
       const session = await tx.readSession({ sessionId: params.sessionId })
@@ -817,6 +828,7 @@ export class ControlPlane {
     kind: string
     payload: string
     threadId?: ThreadId | undefined
+    replayed?: boolean | undefined
   }): Promise<{ inboxId: number }> {
     return this.store.transact(async (tx) => postIn({ tx, ...params, at: await this.nowIn(tx) }))
   }
@@ -918,7 +930,13 @@ export class ControlPlane {
   }
 
   async createRoutine(row: RoutineRow): Promise<RoutineRow> {
-    return this.store.transact((tx) => createRoutineIn({ tx, row }))
+    try {
+      return await this.store.transact((tx) => createRoutineIn({ tx, row }))
+    } catch (error) {
+      const existing = await this.store.transact((tx) => tx.readRoutine(row.routineId))
+      if (existing === undefined || existing.projectId !== row.projectId) throw error
+      return existing
+    }
   }
 
   async updateRoutine(params: {

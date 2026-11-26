@@ -45,6 +45,8 @@ a thread's event log.
 - `spawnPeer`, `messagePeer`, `reportToSpawner`, `podSessionsPlaced`, `podPeersPlaced`.
   A `clientId` makes a spawn brief or a message idempotent: the inbox drops a repeat, and a
   `spawnPeer` whose session id already exists returns that session when its spawner matches.
+  `replayed: true` looks the `clientId` up over the destination's whole inbox instead of the recent
+  window, which is what a replayed host effect sends.
 - `setSandboxInstanceId`, `setSandboxStatus`, `recordPodDesired`, `recordPodApplied`,
   `recordPodDisk`, `recordPodFailed`, `recordPodWaiting`, `parkPod`, `failPodPark`,
   `clearPodPark`. `claimPodWait` takes one recorded wait. `cancelPodWait` reverts a resize that

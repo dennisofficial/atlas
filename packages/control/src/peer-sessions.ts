@@ -30,6 +30,7 @@ const postSpawnBrief = async (params: {
   files: readonly SpawnFile[]
   clientId?: string | undefined
   at: string
+  replayed?: boolean | undefined
 }): Promise<{ inboxId: number | null } | PeerRefusal> => {
   const text = spawnBriefOf({ brief: params.brief, files: params.files })
   if (text === '') return { inboxId: null }
@@ -45,6 +46,7 @@ const postSpawnBrief = async (params: {
     }),
     at: params.at,
     senderSessionId: params.spawner.sessionId,
+    ...(params.replayed === undefined ? {} : { replayed: params.replayed }),
   })
   return { inboxId: posted.inboxId }
 }
@@ -61,6 +63,7 @@ export const spawnPeerIn = async (params: {
   files?: readonly SpawnFile[] | undefined
   clientId?: string | undefined
   at: string
+  replayed?: boolean | undefined
 }): Promise<{ inboxId: number | null } | PeerRefusal> => {
   const { tx, spawner } = params
   const files = params.files ?? []
@@ -68,7 +71,7 @@ export const spawnPeerIn = async (params: {
   if (refusal !== null) return { refused: refusal }
   const existing = await tx.lockSession(params.sessionId)
   if (existing !== undefined && existing.spawnedBySessionId === spawner.sessionId) {
-    return await postSpawnBrief({ ...params, files })
+    return await postSpawnBrief({ ...params, files, replayed: true })
   }
   if (existing !== undefined) {
     return { refused: `the session ${params.sessionId} already exists` }
@@ -94,6 +97,7 @@ export const reportToSpawnerIn = async (params: {
   text: string
   clientId?: string | undefined
   at: string
+  replayed?: boolean | undefined
 }): Promise<{ inboxId: number } | PeerRefusal> => {
   const spawnerId = params.session.spawnedBySessionId
   if (spawnerId === null) {
@@ -126,6 +130,7 @@ export const reportToSpawnerIn = async (params: {
     }),
     at: params.at,
     senderSessionId: params.session.sessionId,
+    ...(params.replayed === undefined ? {} : { replayed: params.replayed }),
   })
 }
 
@@ -136,6 +141,7 @@ export const messagePeerIn = async (params: {
   text: string
   clientId?: string | undefined
   at: string
+  replayed?: boolean | undefined
 }): Promise<{ inboxId: number; title: string | null } | PeerRefusal> => {
   const { tx, from } = params
   const to = await tx.lockSession(params.toSessionId)
@@ -157,6 +163,7 @@ export const messagePeerIn = async (params: {
     }),
     at: params.at,
     senderSessionId: from.sessionId,
+    ...(params.replayed === undefined ? {} : { replayed: params.replayed }),
   })
   return { inboxId: posted.inboxId, title: to.title }
 }

@@ -23,6 +23,7 @@ import {
 } from '@dltech/atlas-core'
 import type { HeldSessionDeps } from '../../held-session-deps'
 import type { SessionRuntime } from '../../ports'
+import { RecordBookkeeping } from '../../record/record-bookkeeping'
 import type { SessionRecord } from '../../record/record-adapter'
 import { CrewRoom } from '../crew-room'
 import { openChildrenOf } from '../open-children'
@@ -77,7 +78,14 @@ const parentRecordOf = (
   const appends: RecordEventBody[][] = []
   const record = {
     ownEvents: async () => [...events],
-    eventCache: () => ({ eventsAfter: () => [...events] }),
+    eventCache: () => ({
+      eventsAfter: () => [...events],
+      bookkeeping: () => {
+        const book = new RecordBookkeeping()
+        for (const event of events) book.step(event)
+        return book
+      },
+    }),
     append: async (args: {
       threadId: ThreadId
       runId: RunId

@@ -25,6 +25,7 @@ import { ScriptedModel, SequentialIds, fakeToolRegistry } from '@dltech/atlas-ag
 import { RIG_MODEL_CHOICE } from '../../__tests__/rig-runtime'
 import type { HeldSessionDeps } from '../../held-session-deps'
 import type { HostTimers, SessionRuntime } from '../../ports'
+import { RecordBookkeeping } from '../../record/record-bookkeeping'
 import type { SessionRecord } from '../../record/record-adapter'
 import { CrewRoom } from '../crew-room'
 import type { OpenChild } from '../open-children'
@@ -96,7 +97,11 @@ const runtimeOf = (model: ModelPort): SessionRuntime =>
 const parentRecordOf = (): SessionRecord =>
   ({
     ownEvents: async () => [],
-    eventCache: () => ({ eventsAfter: () => [], loopState: () => ({}) }),
+    eventCache: () => ({
+      eventsAfter: () => [],
+      loopState: () => ({}),
+      bookkeeping: () => new RecordBookkeeping(),
+    }),
     append: async () => [],
   }) as unknown as SessionRecord
 

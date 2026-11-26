@@ -28,8 +28,9 @@ const parentOf = async (params: {
   source: PodMessagesSource
   text: string
   clientId: string
+  replayed?: boolean | undefined
 }): Promise<MessageSent> => {
-  const { source, text, clientId } = params
+  const { source, text, clientId, replayed } = params
   if (source.selfAgentId !== undefined) {
     await source.crew.report({ text, clientId })
     return { delivered: true, to: PARENT_ADDRESS, queued: false }
@@ -38,6 +39,7 @@ const parentOf = async (params: {
     sessionId: source.sessionId,
     text,
     clientId,
+    replayed,
   })
   return 'refused' in sent
     ? refusing(sent.refused)
@@ -49,8 +51,9 @@ const peerOf = async (params: {
   to: string
   text: string
   clientId: string
+  replayed?: boolean | undefined
 }): Promise<MessageSent> => {
-  const { source, to, text, clientId } = params
+  const { source, to, text, clientId, replayed } = params
   const said = await source.crew.say({ agentId: to, text, clientId })
   if (said !== undefined) {
     const name = agentDisplayName({
@@ -64,6 +67,7 @@ const peerOf = async (params: {
     toSessionId: to,
     text,
     clientId,
+    replayed,
   })
   if ('refused' in sent) return refusing(sent.refused)
   return {
@@ -79,6 +83,7 @@ const sendOf = async (params: {
   to: string
   text: string
   clientId: string
+  replayed?: boolean | undefined
 }): Promise<MessageSent> => {
   const { source, to } = params
   if (to === PARENT_ADDRESS) return await parentOf(params)
@@ -92,7 +97,7 @@ export const podMessagesOf = (source: PodMessagesSource): PodMessages => ({
     await source.step.run({
       op: 'host.messages.send',
       input,
-      run: async (key) => await sendOf({ source, ...input, clientId: key }),
+      run: async (key, replayed) => await sendOf({ source, ...input, clientId: key, replayed }),
     }),
 })
 

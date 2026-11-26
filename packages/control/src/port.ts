@@ -464,6 +464,11 @@ export interface ControlTx {
     limit: number
     forThread: ThreadId | null
   }): Promise<InboxEntry[]>
+  inboxEntryWithClientId(params: {
+    sessionId: string
+    clientId: string
+    forThread: ThreadId | null
+  }): Promise<InboxEntry | undefined>
   firstUnconsumedMessages(params: { sessionIds: readonly string[] }): Promise<InboxEntry[]>
   notifyWake(sessionId: string): Promise<void>
   announce(change: SessionChange): Promise<void>

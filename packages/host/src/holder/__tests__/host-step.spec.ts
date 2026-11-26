@@ -100,6 +100,12 @@ describe('runHostStep', () => {
     expect(ran).toEqual([stepKey, stepKey])
     expect(replayed).toEqual({ sessionId: 's2' })
     expect(rig.steps).toHaveLength(1)
+    const third = await inScope(async () =>
+      spawnOf({ facts: rig.facts, ran, value: { sessionId: 's3' } }),
+    )
+    expect(third).toEqual({ sessionId: 's2' })
+    expect(ran).toEqual([stepKey, stepKey])
+    expect(rig.results.get(effectResultKeyOf(stepKey))).toEqual({ sessionId: 's2' })
   })
 
   it('appends a new slot when a replay runs a different effect at the same position', async () => {

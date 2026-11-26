@@ -101,6 +101,38 @@ export const firstUnconsumedMessagesIn = async (params: {
   return [...first.values()]
 }
 
+export const inboxEntryWithClientIdIn = async (params: {
+  tx: Tx
+  sessionId: string
+  clientId: string
+  forThread: ThreadId | null
+}): Promise<InboxEntry | undefined> => {
+  const rows = await params.tx.query(
+    params.tx.raw
+      .sql`SELECT i."sessionId", i."inboxId", i."kind", i."payload", i."postedAt", i."consumedSeq",
+        i."threadId", i."senderSessionId"
+      FROM "public"."InboxEntry" i
+      WHERE i."sessionId" = ${params.sessionId}
+        AND COALESCE(i."threadId", '') = ${params.forThread ?? ''}
+        AND i."payload"::jsonb ->> 'clientId' = ${params.clientId}
+      ORDER BY i."inboxId" ASC
+      LIMIT 1`
+      .returnsRow({
+        sessionId: 'pg/text@1',
+        inboxId: 'pg/int4@1',
+        kind: 'pg/text@1',
+        payload: 'pg/text@1',
+        postedAt: 'pg/timestamptz-date@1',
+        consumedSeq: { codecId: 'pg/int4@1', nullable: true },
+        threadId: { codecId: 'pg/text@1', nullable: true },
+        senderSessionId: { codecId: 'pg/text@1', nullable: true },
+      })
+      .build(),
+  )
+  const row = rows[0]
+  return row === undefined ? undefined : toInbox(row)
+}
+
 export const recentInboxEntriesIn = async (params: {
   tx: Tx
   sessionId: string

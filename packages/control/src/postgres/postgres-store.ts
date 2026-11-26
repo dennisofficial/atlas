@@ -117,6 +117,7 @@ import {
   insertInboxEntryIn,
   markInboxConsumedIn,
   readInboxEntriesIn,
+  inboxEntryWithClientIdIn,
   recentInboxEntriesIn,
   readInboxEntryIn,
 } from './postgres-inbox'
@@ -572,6 +573,14 @@ export class PostgresTx implements ControlTx {
     forThread: ThreadId | null
   }) {
     return recentInboxEntriesIn({ tx: this.tx, ...params })
+  }
+
+  async inboxEntryWithClientId(params: {
+    sessionId: string
+    clientId: string
+    forThread: ThreadId | null
+  }) {
+    return inboxEntryWithClientIdIn({ tx: this.tx, ...params })
   }
 
   async readInboxEntries(params: {
