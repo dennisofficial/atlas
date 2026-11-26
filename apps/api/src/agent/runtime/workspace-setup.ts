@@ -9,7 +9,6 @@ import {
 } from '@dltech/atlas-core'
 import {
   runInCallScope,
-  scopeKeyOf,
   type BootNotice,
   type CapturedBase,
   type PrepareResult,
@@ -94,7 +93,7 @@ const startSetupInBackground = (args: {
 }
 
 const scopeFor = (args: { sandboxName: string; phase: string }): string =>
-  scopeKeyOf({ runId: 'setup', callId: `${args.sandboxName}:${args.phase}` })
+  `setup:${args.sandboxName}:${args.phase}`
 
 export const ensureWorkspace = async (args: {
   calls: Pick<RemoteCalls, 'ackScope'>

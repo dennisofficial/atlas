@@ -20,6 +20,15 @@ import {
 
 const DECLARED = ['services:', '  web:', '    command: listen', '    port: 3000'].join('\n')
 
+const withDaemonId = (ctx: PluginPodContext, serviceId: string): PluginPodContext => ({
+  ...ctx,
+  call: async (op, options) => {
+    const result = await ctx.call(op, options)
+    if (result.status !== ECallStatus.Ok || result.op !== 'services.start') return result
+    return { ...result, value: { ...result.value, serviceId } }
+  },
+})
+
 const start = async (
   harness: ReturnType<typeof rig>,
   input: Record<string, unknown> = { description: 'web', command: 'listen', port: 3000 },
@@ -82,6 +91,21 @@ describe('the service tool', () => {
       port: 3000,
     })
     expect(textOf(outcome)).toContain('do not poll')
+  })
+
+  it('reports the id the daemon holds when a replayed start returns its journaled service', async () => {
+    const harness = rig()
+    const ctx = withDaemonId(harness.ctx, 'svc-orig00')
+    const outcome = await invoke({
+      ctx,
+      name: 'service',
+      input: { action: 'start', description: 'web', command: 'listen', port: 3000 },
+    })
+
+    expect(serviceIdOf(outcome)).toBe('svc-orig00')
+    expect(harness.log.filter((event) => event.type === 'service-started')).toMatchObject([
+      { serviceId: 'svc-orig00' },
+    ])
   })
 
   it('start falls back to the project directory and surfaces a daemon failure', async () => {

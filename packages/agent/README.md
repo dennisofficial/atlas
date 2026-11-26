@@ -91,8 +91,10 @@ A main agent, a sub-agent and a teammate all run this loop. It knows nothing of 
 
 ### Settle and report
 
-- `settleCrashedCalls({record, ids, threadId, effectOf})`, `ToolEffectResolver`: record an interrupted
-  result for each call a restart left open, unless `effectOf` says the call only reads.
+- `settleCrashedCalls({record, ids, threadId, settleOf})`, `CrashedCallSettle`, `ECrashedCall`: a call
+  a restart left open is held (`Hold`) so the loop settles it again from durable steps and the daemon's
+  answer, or has an interrupted result recorded (`Interrupt`) on a proven pod restart.
+  `ToolEffectResolver` stays the runtime's per-tool effect.
 - `AgentOutput`, `AgentOutputEvent`, `StepStreamEvent`, `StepKey`: report each step, chunk and tool
   output to a surface.
 

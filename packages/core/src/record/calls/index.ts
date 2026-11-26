@@ -13,8 +13,10 @@ export {
   recoverCall,
   type CallRecordFacts,
   type RecoverAction,
+  type RecoverAnswer,
   type RecoverVariant,
 } from './recover'
+export { planStep, type StepFact, type StepPlan } from './steps'
 export {
   checkCallHistory,
   ECallInvariant,

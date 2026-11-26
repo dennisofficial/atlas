@@ -81,7 +81,7 @@ describe('a call the drain detaches', () => {
     const rig = rigOf({
       script: [{ calls: [{ callId: 'call-1', name: 'slow', input: {} }] }, { text: 'done' }],
       tools: [tool],
-      overrides: { detachTool: (name) => draining && name === 'slow' },
+      overrides: { detachTool: (call) => draining && call.name === 'slow' },
     })
     await rig.record.append({
       threadId: THREAD,

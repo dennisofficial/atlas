@@ -38,13 +38,16 @@ const until = async (check: () => boolean): Promise<void> => {
   }
 }
 
-const drainOneCall = async (args: { name: string; detachOnHandoff: boolean }) => {
+const drainOneCall = async (args: {
+  name: string
+  detached: (call: { callId: string; name: string }) => boolean
+}) => {
   const tool = new HandedOffTool(args.name, 'unused')
   const pause = new PauseSignal()
   const rig = rigOf({
     script: [{ calls: [{ callId: 'call-1', name: args.name, input: {} }] }, { text: 'done' }],
     tools: [tool],
-    overrides: { detachTool: (name) => args.detachOnHandoff && name === args.name },
+    overrides: { detachTool: args.detached },
   })
   await rig.record.append({
     threadId: THREAD,
@@ -69,7 +72,7 @@ const drainOneCall = async (args: { name: string; detachOnHandoff: boolean }) =>
 describe('the synthetic handed-off result of a docking call', () => {
   for (const name of ['bash', 'read_file', 'write_file']) {
     it(`is never recorded for the daemon tool ${name}`, async () => {
-      const drained = await drainOneCall({ name, detachOnHandoff: true })
+      const drained = await drainOneCall({ name, detached: () => true })
 
       expect(drained.results).toEqual([])
       expect(drained.dispatches).toHaveLength(1)
@@ -83,7 +86,25 @@ describe('the synthetic handed-off result of a docking call', () => {
   }
 
   it('is recorded for a tool the drain keeps as host work', async () => {
-    const kept = await drainOneCall({ name: 'slow', detachOnHandoff: false })
+    const kept = await drainOneCall({ name: 'slow', detached: () => false })
+
+    expect(kept.results).toHaveLength(1)
+    expect(crashedCallsOf(kept.state)).toEqual([])
+  })
+
+  it('is never recorded for a plugin call whose in-flight pod op is a recorded step', async () => {
+    const drained = await drainOneCall({
+      name: 'service',
+      detached: (call) => call.callId === CALL,
+    })
+
+    expect(drained.results).toEqual([])
+    expect(drained.dispatches).toHaveLength(1)
+    expect(crashedCallsOf(drained.state).map((call) => call.callId)).toEqual([CALL])
+  })
+
+  it('is recorded for a plugin call whose in-flight pod op is not a recorded step', async () => {
+    const kept = await drainOneCall({ name: 'service', detached: () => false })
 
     expect(kept.results).toHaveLength(1)
     expect(crashedCallsOf(kept.state)).toEqual([])

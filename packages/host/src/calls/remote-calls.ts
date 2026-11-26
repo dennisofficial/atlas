@@ -163,6 +163,7 @@ export class RemoteCalls {
     dispatchedBootId?: string | undefined
     attachOnly?: boolean | undefined
     detachOnHandoff?: boolean | undefined
+    replayed?: boolean | undefined
   }): Promise<CallResult> {
     return this.state.invoke(args)
   }

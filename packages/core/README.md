@@ -7,8 +7,7 @@ assembly, settings, ports, and the record folds. It imports `zod` and nothing el
 
 - The ids and the event envelope, and the schema that decodes an event.
 - The rules that assemble a model request, and the trace of that assembly.
-- The settings definitions, the layers, and their resolution.
-- The port contracts and the port registry.
+- The settings definitions, the layers, their resolution, the port contracts and the port registry.
 - The record folds: log, inbox, lease, durability, summary target, views and session status.
 - The tool contract, the prompt fragment, the hook order, and the policy decisions.
 - The context envelope, the compaction plan, the plan of a thread, the commands, the skills and the memory.
@@ -43,6 +42,7 @@ assembly, settings, ports, and the record folds. It imports `zod` and nothing el
 - `eventsOfType({events, type})`: the events of one type, narrowed.
 - `openParkedCallsOf(events)`: the calls that still wait for a result.
 - `latestResourceOf({events, resource})`: the newest value of a loaded resource.
+- `recoverCall({facts, answer, bootId})`, `RecoverAction`, `planStep({scopeKey, recorded, consumed, op, digest, nextSlot})`, `StepFact`, `StepPlan`: what a new holder does with a call the log left open — ack, record, attach, run, rerun, interrupt, or `wait` — and how a tool call's daemon steps are named `<callId>.<n>`, reused only when op and digest match.
 - `isDurable(type)`: whether a replay keeps that row. `summaryTargetOf({events, throughSeq})`: the range a summary can cover. `unfinishedCommandIdsOf(events)`, `COMMAND_OUTCOMES`: the consumed commands that still owe an outcome, which a new holder replays; a pane command owes one `command-applied`. `uploadPlacementsOf(facts)`, `placementFactOf({fileId, placement})`, `UPLOAD_PLACEMENT_KIND`: where a file a message carried sits in the sandbox, read from the log as a `fact-recorded` fact keyed `upload:<fileId>` and written back as one. `FactRecord`, `FactDraft`: that fact.
 
 ### Assemble the model request
