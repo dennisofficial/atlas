@@ -78,6 +78,7 @@ export const openCall = (args: {
     waiting: false,
     detachOnHandoff: request.detachOnHandoff ?? scopeDetachOnHandoff(),
     ...(request.attachOnly === true ? { attachOnly: true } : {}),
+    ...(request.replayed === true ? { replayed: true } : {}),
   }
   if (!lane.detached()) call.waiters.push(waiter)
   lane.pending.set(request.key, call)
