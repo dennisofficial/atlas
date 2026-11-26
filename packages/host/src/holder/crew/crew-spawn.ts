@@ -9,6 +9,11 @@ import { scopeCallId } from '../../calls/call-scope'
 
 export const SPAWN_OP = 'crew.spawn'
 
+const stableWorktreeOf = (
+  worktree: WorktreeEntryInfo | undefined,
+): Pick<WorktreeEntryInfo, 'path' | 'branch'> | undefined =>
+  worktree === undefined ? undefined : { path: worktree.path, branch: worktree.branch }
+
 export type CrewRoomArgs = Omit<
   ChildRunArgs,
   'agentType' | 'intent' | 'group' | 'groupHold' | 'saySibling' | 'key'
@@ -44,7 +49,7 @@ export class CrewSpawn {
         intent: args.intent,
         prompt: args.prompt,
         group: args.group,
-        worktree: args.worktree,
+        worktree: stableWorktreeOf(args.worktree),
       },
     })
     return step === undefined
