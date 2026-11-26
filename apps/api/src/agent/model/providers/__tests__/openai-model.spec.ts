@@ -51,7 +51,7 @@ const STREAM = sse([
   },
 ])
 
-const REF = { providerId: 'openai', modelId: 'gpt-5.1' }
+const REF = { providerId: 'openai', modelId: 'gpt-5.5' }
 
 const oauth = (providerAccountId?: string): Credential => ({
   kind: EAuthKind.Oauth,

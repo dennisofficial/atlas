@@ -7,8 +7,8 @@ import {
   DEEPSEEK_FLASH,
   EXPIRED_ACCOUNTS,
   GATEWAY_ONLY_ACCOUNTS,
-  GPT_5,
-  GPT_5_MINI,
+  GPT_5_5,
+  GPT_5_4_MINI,
   modelPickerOf,
   NO_ACCOUNTS,
   saveNothing,
@@ -65,11 +65,11 @@ export const CustomOverrides = {
         'model.id': CLAUDE_OPUS_5,
         'model.effort': 'max',
         'model.fast': true,
-        'agents.subagentModel': GPT_5,
+        'agents.subagentModel': GPT_5_5,
         'agents.subagentEffort': 'low',
         'agents.type.builder': CLAUDE_SONNET_5,
         'agents.type.builder.effort': 'high',
-        'model.quickModel': GPT_5_MINI,
+        'model.quickModel': GPT_5_4_MINI,
       }}
     />
   ),
@@ -90,7 +90,7 @@ export const ProviderRemoved = {
 
 export const SubagentProviderRemoved = {
   render: () => (
-    <Screen accounts={GATEWAY_ONLY_ACCOUNTS} stored={{ 'agents.type.builder': GPT_5 }} />
+    <Screen accounts={GATEWAY_ONLY_ACCOUNTS} stored={{ 'agents.type.builder': GPT_5_5 }} />
   ),
 }
 
