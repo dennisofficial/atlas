@@ -30,11 +30,11 @@ describe('startFailureReason', () => {
       startFailureReason(
         new CredentialsUnavailableError('no openai account', {
           providerId: 'openai',
-          modelId: 'gpt-5',
+          modelId: 'gpt-5.6',
         }),
       ),
     ).toBe(
-      "Your main agent is set to GPT-5, but OpenAI isn't connected. Connect OpenAI in Settings → Providers, or pick another model in Settings → Models & Effort, then retry.",
+      "Your main agent is set to GPT-5.6, but OpenAI isn't connected. Connect OpenAI in Settings → Providers, or pick another model in Settings → Models & Effort, then retry.",
     )
   })
 
