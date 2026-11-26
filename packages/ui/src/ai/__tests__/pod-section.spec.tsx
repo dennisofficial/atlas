@@ -100,15 +100,18 @@ describe('pod section header', () => {
     expect(starting).not.toContain('>Running<')
   })
 
-  it('keeps the stop ahead of a start and of a resize', () => {
-    const html = htmlOf({
-      stopping: true,
-      starting: true,
-      pendingShape: { vcpus: 8, memoryGb: 64 },
-    })
+  it('keeps the stop ahead of a start', () => {
+    const html = htmlOf({ stopping: true, starting: true })
     expect(html).toContain('Stopping…')
     expect(html).not.toContain('Starting…')
-    expect(html).not.toContain('Resizing…')
+    expect(html).toContain('aria-label="Stopping pod"')
+  })
+
+  it('reads resizing while a stopped pod is woken to be resized', () => {
+    const html = htmlOf({ stopping: true, pendingShape: { vcpus: 8, memoryGb: 64 } })
+    expect(html).toContain('Resizing…')
+    expect(html).not.toContain('Stopping…')
+    expect(html).toContain('aria-label="Resizing pod"')
   })
 
   it('offers an outlined square to stop and a play triangle to start, both unfilled', () => {
