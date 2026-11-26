@@ -1,7 +1,7 @@
 import { join } from 'node:path'
 
 import type { FileSystemPort } from '@dltech/atlas-core'
-import { runInCallScope, scopeKeyOf, type RemoteCalls } from '@dltech/atlas-host'
+import { runInCallScope, type RemoteCalls } from '@dltech/atlas-host'
 import type { LogPort } from '@dltech/atlas-observability'
 
 import type { SigningKey, SigningKeyReader } from '../tokens/signing-key-reader'
@@ -9,7 +9,7 @@ import { abortable } from './abortable'
 import type { SigningConfig } from './shell-env'
 import { ALLOWED_SIGNERS_FILE, SIGNING_KEY_FILE, stateDirOf } from './workspace-state'
 
-const SIGNING_SCOPE = scopeKeyOf({ runId: 'setup', callId: 'signing' })
+const SIGNING_SCOPE = 'setup:signing'
 
 const withTrailingNewline = (text: string): string => (text.endsWith('\n') ? text : `${text}\n`)
 
