@@ -105,8 +105,9 @@ only what it can rebuild or drop.
 
 ### Drain and fail
 
-- `DRAIN_IN_FLIGHT_CAP_MS`, `DRAIN_DETACH_CAP_MS`, `LEASE_HAND_BACK_MARGIN_MS`,
-  `DRAIN_HANDOFF_BUDGET_MS`: the drain budget.
+- `DRAIN_IN_FLIGHT_CAP_MS`, `DRAIN_STREAM_ABORT_CAP_MS`, `LEASE_HAND_BACK_MARGIN_MS`,
+  `DRAIN_HANDOFF_BUDGET_MS`: the drain budget. A drain waits for the model step and the record
+  tail, then hands back; it writes nothing about an open tool call and never cancels one.
 - `SandboxUnavailableError`, `SANDBOX_UNREACHABLE_GUIDANCE`, `ReadyTimeoutError`, `FencedError`,
   `OpMismatchError`, `ProtocolViolationError`: the failures of a lost, fenced or broken sandbox.
 - `isReadOnlyOp(op)`: whether an op reads only, so a retry is safe.
