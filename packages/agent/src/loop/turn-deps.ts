@@ -19,7 +19,6 @@ import type { AgentRecordPort, ModelContextPort } from '../record/agent-record.p
 import type { ToolDispatcher } from '../tools/dispatch'
 import type { SaidUploadsPort } from '../uploads/said-uploads.port'
 import type { AgentOutput } from './agent-output'
-import type { InProcessWork } from './in-process-work'
 import type { LoopWatch } from './loop-watchdog'
 import type { ModelWaitObserver, SleepPrevention } from './loop-ports'
 import type { OnceLedger } from './once-ledger.port'
@@ -54,8 +53,6 @@ export type TurnDeps = {
   sleepPrevention?: SleepPrevention | undefined
   waitState?: ModelWaitObserver | undefined
   detachTool?: ((name: string) => boolean) | undefined
-  podTool?: ((name: string) => boolean) | undefined
-  inProcess?: InProcessWork | undefined
   normalizeFailure: NormalizeFailure
   failureDiagnostics?: FailureDiagnostics | undefined
   onceLedger?: OnceLedger | undefined

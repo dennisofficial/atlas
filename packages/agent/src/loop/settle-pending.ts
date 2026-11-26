@@ -16,10 +16,10 @@ import {
 } from '@dltech/atlas-core'
 
 import type { AgentRecordPort } from '../record/agent-record.port'
-import type { InProcessWork } from './in-process-work'
 import type { OnceLedger } from './once-ledger.port'
 import type { PauseSignal } from './pause-signal'
 
+import { detachedDispatchDraft } from '../tools/dispatch-drafts'
 import type { DispatchableCall, ToolDispatcher } from '../tools/dispatch'
 
 export type ToolOutputNotice = ToolOutputChunk & { callId: CallId }
@@ -38,6 +38,13 @@ export type SettlePending = (args: {
   pause?: PauseSignal | undefined
 }) => Promise<SettledPending>
 
+const hostDetachedOnHandoff = (args: {
+  signal: AbortSignal
+  detach: ((name: string) => boolean) | undefined
+  name: string
+}): boolean =>
+  args.signal.aborted && args.signal.reason === 'handoff' && args.detach?.(args.name) === false
+
 export function createSettlePending(deps: {
   record: AgentRecordPort
   dispatch: ToolDispatcher
@@ -46,8 +53,6 @@ export function createSettlePending(deps: {
   onToolOutput?: OnToolOutputNotice | undefined
   onceLedger?: OnceLedger | undefined
   detachTool?: ((name: string) => boolean) | undefined
-  podTool?: ((name: string) => boolean) | undefined
-  inProcess?: InProcessWork | undefined
 }): SettlePending {
   const isSafe = (call: DispatchableCall): boolean => {
     const declarations = new Map((deps.tools?.() ?? []).map((tool) => [tool.name, tool]))
@@ -114,26 +119,28 @@ export function createSettlePending(deps: {
       const settled = await Promise.all(
         run.map(async (call) => {
           if (detaching) return []
-          const settledWork =
-            deps.podTool?.(call.name) === true ? undefined : deps.inProcess?.begin()
-          try {
-            const drafts = await settleOne({
-              call,
-              events: current,
-              signal,
-              projectDirectory,
-              homeDirectory,
-              activeWorktree,
-              paused,
+          const drafts = await settleOne({
+            call,
+            events: current,
+            signal,
+            projectDirectory,
+            homeDirectory,
+            activeWorktree,
+            paused,
+          })
+          if (hostDetachedOnHandoff({ signal, detach, name: call.name })) {
+            await deps.record.append({
+              threadId,
+              runId: call.runId,
+              drafts: [detachedDispatchDraft(call)],
             })
-            if ((signal.aborted || paused()) && detach?.(call.name) === true) return []
-            if (drafts.length > 0) {
-              await deps.record.append({ threadId, runId: call.runId, drafts, signal })
-            }
-            return drafts
-          } finally {
-            settledWork?.()
+            return []
           }
+          if ((signal.aborted || paused()) && detach?.(call.name) === true) return []
+          if (drafts.length > 0) {
+            await deps.record.append({ threadId, runId: call.runId, drafts, signal })
+          }
+          return drafts
         }),
       )
 

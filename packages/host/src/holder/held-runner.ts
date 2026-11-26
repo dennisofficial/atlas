@@ -213,8 +213,6 @@ export const createLoopRunner = (args: {
       epoch: args.epoch,
     }),
     detachTool: (tool) => args.isDraining() && runtime.daemonTools.has(tool),
-    podTool: (tool) => runtime.daemonTools.has(tool),
-    inProcess: args.turns.work,
     launchDirectory: runtime.launchDirectory,
     normalizeFailure: runtime.normalizeFailure,
     retry: retryDepsFromTimers(deps.timers),

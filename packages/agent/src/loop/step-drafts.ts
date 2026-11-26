@@ -102,7 +102,9 @@ export function draftsFor(step: StepDraftsArgs): EventDraft[] {
 export function handoffAbortedDrafts(step: StepDraftsArgs): EventDraft[] {
   if (step.result.parts.length === 0) return []
   return withStepUsage({
-    drafts: [{ type: 'assistant-said', parts: step.result.parts, interrupted: true }],
+    drafts: [
+      { type: 'assistant-said', parts: step.result.parts, interrupted: true, aborted: 'handoff' },
+    ],
     step,
   })
 }

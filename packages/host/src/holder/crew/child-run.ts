@@ -14,16 +14,10 @@ import {
   type RunFailure,
   type ThreadId,
 } from '@dltech/atlas-core'
-import {
-  InProcessWorkCounter,
-  PauseSignal,
-  type LoopTurnRunner,
-  type TurnOutcome,
-} from '@dltech/atlas-agent'
+import { PauseSignal, type LoopTurnRunner, type TurnOutcome } from '@dltech/atlas-agent'
 import { logFieldsOf } from '@dltech/atlas-observability'
 import type { PodCrew, SubagentSaid, SubagentSnapshot } from '@dltech/atlas-plugin-sdk'
 
-import { DRAIN_STREAM_ABORT_CAP_MS } from '../drain-cap'
 import type { RoleModelChoice } from '../ports'
 import type { LeaseLostError, SessionRecord } from '../record/record-adapter'
 import { childInboxOf, type ChildInbox } from './child-inbox'
@@ -43,7 +37,8 @@ import {
 import { childRunnerOf } from './child-runner'
 import { ChildTranscript } from './child-transcript'
 import { GroupRunState } from './group-run-state'
-import { driveLifecycle, settledWithin, type DriveArgs } from './child-turns'
+import { drainChildTurn } from './child-drain'
+import { driveLifecycle, type DriveArgs } from './child-turns'
 import { lastSeqOf } from './child-reports'
 import {
   adoptRecordOf,
@@ -63,7 +58,6 @@ export class ChildRun {
   private inbox!: ChildInbox
   private readonly transcript: ChildTranscript
   private readonly pauseSignal = new PauseSignal()
-  private readonly work = new InProcessWorkCounter()
   private record!: SessionRecord
   private runner!: LoopTurnRunner
   private pump: Promise<void> | undefined
@@ -220,40 +214,20 @@ export class ChildRun {
   pause(): Promise<void> {
     this.handingOff = true
     this.pauseSignal.pause()
-    this.pausing ??= this.settleModelWork()
+    this.pausing ??= drainChildTurn({
+      timers: this.args.deps.timers,
+      drainCapMs: this.args.deps.drainCapMs,
+      agentId: this.agentId,
+      pause: this.pauseSignal,
+      done: this.done,
+      log: this.args.deps.log,
+    })
     return this.pausing
   }
 
   handoff(): void {
     this.handingOff = true
     this.abort?.abort('handoff')
-  }
-
-  private async settleModelWork(): Promise<void> {
-    const idled = await settledWithin({
-      timers: this.args.deps.timers,
-      ms: DRAIN_STREAM_ABORT_CAP_MS,
-      done: this.whenQuiet(),
-    })
-    if (idled) return
-    this.pauseSignal.abortModelStep()
-    const aborted = await settledWithin({
-      timers: this.args.deps.timers,
-      ms: DRAIN_STREAM_ABORT_CAP_MS,
-      done: this.whenQuiet(),
-    })
-    if (aborted) return
-    this.args.deps.log?.warn({
-      source: 'holder.drain',
-      message: `sub-agent ${this.agentId} kept its model stream ${DRAIN_STREAM_ABORT_CAP_MS}ms past its abort; handing off without it`,
-    })
-  }
-
-  private async whenQuiet(): Promise<void> {
-    for (;;) {
-      await Promise.all([this.pauseSignal.whenModelIdle(), this.work.whenIdle()])
-      if (!this.pauseSignal.modelStepRunning && !this.work.running) return
-    }
   }
 
   dispose(): void {
@@ -337,7 +311,6 @@ export class ChildRun {
         intake: this.inbox.intake,
         notify: (event, options) => this.notice(event, options),
         isDraining: () => this.handingOff,
-        inProcess: this.work,
         onFallback: (refs) => this.transcript.fellBack(refs),
       })
       await driveLifecycle({

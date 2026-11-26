@@ -1,11 +1,15 @@
 import {
   DEFAULT_RETRY_POLICY,
+  EProviderFailureKind,
+  EProviderFailureScope,
+  EProviderRetry,
   planRetry,
   retryReasonOf,
   type Assembled,
   type ChunkFilter,
   type ModelPort,
   type ModelStepResult,
+  type NormalizedProviderFailure,
   type RetryPolicy,
   type ToolDeclaration,
 } from '@dltech/atlas-core'
@@ -20,7 +24,6 @@ import { takeModelStep, type SteppedTurn } from './model-step'
 import type { StepStreamer } from './streamed-chunks'
 import {
   HandoffAborted,
-  asksToGiveUp,
   interruptibleSleep,
   recordedWaitMs,
   settleRecordedDeadline,
@@ -105,6 +108,14 @@ async function attemptModelStep(args: {
   }
 }
 
+const asksToGiveUp = (failure: NormalizedProviderFailure, spent: boolean): boolean => {
+  if (failure.retry === EProviderRetry.Transient) return spent
+  return (
+    failure.scope === EProviderFailureScope.Credential &&
+    (failure.kind === EProviderFailureKind.Quota || failure.kind === EProviderFailureKind.Auth)
+  )
+}
+
 /**
  * A clock jump cuts the in-progress backoff short so a woken machine retries on fresh
  * connections, but it never refunds attempts: five provider attempts is a hard cap per step.
@@ -130,13 +141,19 @@ export async function takeModelStepWithRetry(args: {
   let wake = new AbortController()
   const stopWatching = args.retry?.clockJumps?.onJump(() => wake.abort())
   const handoff = new AbortController()
+  const paused = new AbortController()
   let handoffAborted = false
-  const stopPause = args.pause?.onModelAbort(() => {
+  const stopModelAbort = args.pause?.onModelAbort(() => {
     handoffAborted = true
     handoff.abort()
   })
-  const sleepSignal =
+  const stopPause = args.pause?.onPause(() => paused.abort())
+  const modelSignal =
     args.pause === undefined ? args.signal : AbortSignal.any([args.signal, handoff.signal])
+  const sleepSignal =
+    args.pause === undefined
+      ? args.signal
+      : AbortSignal.any([args.signal, handoff.signal, paused.signal])
 
   try {
     let attempts = 0
@@ -181,13 +198,13 @@ export async function takeModelStepWithRetry(args: {
           tools: args.tools,
           onChunk,
           assembled,
-          signal: sleepSignal,
+          signal: modelSignal,
         }).finally(() => ended?.())
       }
       const attempt =
         args.streamer === undefined
           ? await run(args.onChunk)
-          : await args.streamer.attempt({ filter: args.onChunk, signal: sleepSignal, run })
+          : await args.streamer.attempt({ filter: args.onChunk, signal: modelSignal, run })
 
       if (attempt.ok) return handoffAborted ? { ...attempt, handoffAborted: true } : attempt
 
@@ -289,6 +306,7 @@ export async function takeModelStepWithRetry(args: {
     }
   } finally {
     stopWatching?.()
+    stopModelAbort?.()
     stopPause?.()
   }
 }

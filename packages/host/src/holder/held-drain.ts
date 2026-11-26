@@ -1,4 +1,5 @@
 import type { PauseSignal } from '@dltech/atlas-agent'
+import { crashedCallsOf } from '@dltech/atlas-core'
 import { logFieldsOf } from '@dltech/atlas-observability'
 
 import { settledWithin } from './crew/child-turns'
@@ -27,8 +28,8 @@ export class HeldDrain {
     const children = this.args.childrenPause()
     this.args.pendingHandoff()
     await this.settleInFlight()
-    await this.settleRecordTail()
     await children
+    await this.settleRecordTail()
     const record = this.args.record()
     const { plane, sessionId } = this.args.deps
     const commandUnfinished = await outcomeCommandPending({
@@ -49,12 +50,12 @@ export class HeldDrain {
   private async settleInFlight(): Promise<void> {
     if (!this.args.turns.turnRunning) return
     const startedAt = this.args.deps.timers.now()
-    const quiet = await settledWithin({
+    const settled = await settledWithin({
       timers: this.args.deps.timers,
       ms: this.args.deps.drainCapMs,
-      done: this.whenInFlightIdle(),
+      done: this.args.turns.whenIdle(),
     })
-    if (quiet) return
+    if (settled) return
     this.logCap({ startedAt })
     this.args.pause.abortModelStep()
     const aborted = await settledWithin({
@@ -66,18 +67,6 @@ export class HeldDrain {
       this.warn({
         message: `the model stream outlived the ${DRAIN_STREAM_ABORT_CAP_MS}ms abort; handing back without it`,
       })
-    }
-    if (this.args.turns.work.running) {
-      this.warn({
-        message: `in-process tool work outlived the ${this.args.deps.drainCapMs}ms drain cap; handing back without it`,
-      })
-    }
-  }
-
-  private async whenInFlightIdle(): Promise<void> {
-    for (;;) {
-      await Promise.all([this.args.pause.whenModelIdle(), this.args.turns.work.whenIdle()])
-      if (!this.args.pause.modelStepRunning && !this.args.turns.work.running) return
     }
   }
 
@@ -105,9 +94,12 @@ export class HeldDrain {
   }
 
   private logCap(args: { startedAt: number }): void {
+    const state = this.args.record()?.eventCache().loopState()
+    const call = state === undefined ? undefined : crashedCallsOf(state)[0]
+    const inFlight = call === undefined ? 'an in-flight model step' : `the tool call ${call.name}`
     this.args.deps.log?.warn({
       source: 'holder.drain',
-      message: `session ${this.args.sessionId} ran an in-flight model step for ${this.args.deps.timers.now() - args.startedAt}ms, past the ${this.args.deps.drainCapMs}ms drain cap; aborting the model stream`,
+      message: `session ${this.args.sessionId} ran ${inFlight} for ${this.args.deps.timers.now() - args.startedAt}ms, past the ${this.args.deps.drainCapMs}ms drain cap; aborting the model stream`,
     })
   }
 }

@@ -193,6 +193,9 @@ describe('SessionHolder drain with work in flight', () => {
     const results = after.filter((event) => event.type === 'tool-result')
     expect(results).toHaveLength(1)
     expect(results[0]).toMatchObject({ callId: 'call-1', output: 'done' })
+    expect(
+      results.filter((event) => (event as { interrupted?: boolean }).interrupted === true),
+    ).toEqual([])
     expect(bTool.invocations).toEqual([])
     expect(typesOf(after)).not.toContain('nudge')
   }, 20_000)
@@ -214,7 +217,8 @@ describe('SessionHolder drain with work in flight', () => {
     await a.flush()
 
     const caps = log.entries.filter((entry) => entry.source === 'holder.drain')
-    expect(caps.map((entry) => entry.message).join('\n')).toContain('in-process tool work outlived')
+    expect(caps.map((entry) => entry.message).join('\n')).toContain('the tool call slow')
+    expect(caps.map((entry) => entry.message).join('\n')).toContain('aborting the model stream')
     expect((await eventsOf(a)).filter((event) => event.type === 'tool-result')).toEqual([])
     const { lease } = await a.plane.currentLease({ sessionId: SESSION })
     expect(lease.holderHostId).toBeNull()

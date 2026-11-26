@@ -64,7 +64,7 @@ describe.skipIf(REDIS_URL === undefined)('a clean drain mid plugin call', () => 
       label: 'host-a',
       daemonUrl: daemon.url,
       workspace,
-      knobs: { plugins: true },
+      knobs: { plugins: true, drainCapMs: 1_000 },
       scripts: {
         [sessionId]: [
           {

@@ -13,7 +13,7 @@ const PARENT_TEXT = `PARENT-DONE-${RUN}`
 const CALL_ID = 'c1'
 const INTENT = 'gated'
 
-const KNOBS: HostKnobs = { plugins: true }
+const KNOBS: HostKnobs = { plugins: true, drainCapMs: 10_000 }
 
 const threadEventsOf = async (args: {
   ctx: HandoffContext

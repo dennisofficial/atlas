@@ -142,7 +142,14 @@ export class HeldSession {
     this.observation?.drain()
     this.pause.pause()
     this.record?.markDraining()
+    this.abortCallsWaitingOnTheWorkspace()
     this.reconciler?.request()
+  }
+
+  private abortCallsWaitingOnTheWorkspace(): void {
+    if (!this.turns.turnRunning) return
+    if (this.runtime?.workspaceGate?.blocked !== true) return
+    this.turns.abort('handoff')
   }
 
   run(args: { lease: Lease; threadId: ThreadId; claimMs?: number }): Promise<HeldOutcome> {
@@ -208,7 +215,6 @@ export class HeldSession {
       },
     })
     this.record = record
-    runtime.remoteCalls.onPodOp = () => this.turns.work.releaseToPod()
     reconcileResizeGate({ record, runtime })
     if (this.lifetimeAbort.signal.aborted) return record.fence()
     if (this.draining) record.markDraining()
