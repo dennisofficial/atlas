@@ -14,6 +14,7 @@ import {
 
 import { RecordCache } from '../record-cache'
 import { RecordResumeCache } from '../record-resume'
+import { probeOf } from './resume-fixtures'
 
 const AT = '2026-11-06T12:00:00.000Z'
 
@@ -122,6 +123,60 @@ describe('RecordResumeCache', () => {
     expect(resume.size()).toBe(1)
     expect(resume.take(toThreadId('thread-2'))).toBeUndefined()
     expect(resume.take(toThreadId('thread-1'))).toBe(first)
+  })
+
+  it('drops a record that outgrew the per-record limit after it was kept', async () => {
+    const threads = new Map([['thread-1', logOf({ threadId: 'thread-1', prefix: 'a' })]])
+    const probe = probeOf(planeOf(threads))
+    const measure = await loaded({
+      plane: probe.plane,
+      threadId: 'thread-1',
+      resume: new RecordResumeCache(),
+    })
+    const resume = new RecordResumeCache({ maxRecordBytes: measure.retainedBytes() })
+    const live = await loaded({ plane: probe.plane, threadId: 'thread-1', resume })
+    const grown = chainEvents({
+      threadId: toThreadId('thread-1'),
+      runId: toRunId('run-1'),
+      epoch: 1,
+      at: AT,
+      bodies: [said('grown')],
+      from: live.currentHead(),
+    })
+    threads.set('thread-1', [...(threads.get('thread-1') ?? []), ...grown])
+    live.extend({ events: grown, head: lastHead(grown) })
+
+    probe.reads.length = 0
+    const reloaded = await loaded({ plane: probe.plane, threadId: 'thread-1', resume })
+
+    expect(probe.reads[0]).toBe(0)
+    expect(reloaded.eventsAfter(0).map((event) => event.seq)).toEqual([1, 2, 3, 4])
+  })
+
+  it('trims the budget against the current size of a kept record', async () => {
+    const plane = twoThreads()
+    const measure = new RecordResumeCache()
+    const first = await loaded({ plane, threadId: 'thread-1', resume: measure })
+    const second = await loaded({ plane, threadId: 'thread-2', resume: measure })
+    const resume = new RecordResumeCache({
+      maxBytes: first.retainedBytes() + second.retainedBytes(),
+    })
+    resume.keep(first)
+    resume.keep(second)
+    expect(resume.size()).toBe(2)
+
+    const grown = chainEvents({
+      threadId: toThreadId('thread-1'),
+      runId: toRunId('run-1'),
+      epoch: 1,
+      at: AT,
+      bodies: [said('grown')],
+      from: first.currentHead(),
+    })
+    first.extend({ events: grown, head: lastHead(grown) })
+
+    expect(resume.take(toThreadId('thread-2'))).toBe(second)
+    expect(resume.take(toThreadId('thread-1'))).toBeUndefined()
   })
 
   it('refuses a record larger than the per-record limit', async () => {

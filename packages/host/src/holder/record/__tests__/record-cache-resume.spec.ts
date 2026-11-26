@@ -188,6 +188,33 @@ describe('RecordCache resume', () => {
     )
   })
 
+  it('retains the bytes of a blob it committed itself', async () => {
+    const { plane, epoch } = await openThread()
+    await appendTo({ plane, epoch, bodies: [said('spill the result')] })
+    const resume = new RecordResumeCache()
+    const live = await RecordCache.load({ plane, threadId: THREAD, resume })
+    const spilled = await appendSpilled({
+      plane,
+      epoch,
+      body: {
+        type: 'tool-result',
+        callId: toCallId('call-1'),
+        name: 'bash',
+        output: { text: 'x'.repeat(100_000) },
+      },
+      thresholdBytes: 64,
+    })
+
+    live.extend({ events: spilled.events, head: spilled.head, resolved: spilled.resolved })
+    const fresh = await RecordCache.load({ plane, threadId: THREAD })
+    const resumed = await RecordCache.load({ plane, threadId: THREAD, resume })
+
+    expect(live.resolvedBlobBytes()).toBeGreaterThan(100_000)
+    expect(live.resolvedBlobBytes()).toBe(fresh.resolvedBlobBytes())
+    expect(live.retainedBytes()).toBe(fresh.retainedBytes())
+    expect(resumed.retainedBytes()).toBe(fresh.retainedBytes())
+  })
+
   it('resumes to the state a full load reaches, including a suffix committed after it', async () => {
     const { plane, epoch } = await openThread()
     const resume = new RecordResumeCache()

@@ -1,6 +1,7 @@
 import { ControlPlane } from '@dltech/atlas-control'
 import { InMemoryControlStore } from '@dltech/atlas-control/testing'
 import {
+  blobValueOf,
   chainEvents,
   spillBody,
   toRunId,
@@ -68,14 +69,16 @@ export const appendSpilled = async (args: {
   epoch: number
   body: RecordEventBody
   thresholdBytes: number
-}): Promise<{ head: LogHead; events: RecordEvent[] }> => {
+}): Promise<{ head: LogHead; events: RecordEvent[]; resolved: Map<string, unknown> }> => {
   const spilled = spillBody({ body: args.body, thresholdBytes: args.thresholdBytes })
-  return appendTo({
+  const appended = await appendTo({
     plane: args.plane,
     epoch: args.epoch,
     bodies: [spilled.body],
     blobs: spilled.blobs,
   })
+  const resolved = new Map(spilled.blobs.map((blob) => [blob.hash, blobValueOf(blob.bytes)]))
+  return { ...appended, resolved }
 }
 
 export type ReadPage = Awaited<ReturnType<ControlPlane['readEvents']>>

@@ -21,6 +21,7 @@ import {
 import type { ControlPlane } from '@dltech/atlas-control'
 import type { LogPort } from '@dltech/atlas-observability'
 
+import { RecordBlobs } from './record-blobs'
 import { RecordBookkeeping } from './record-bookkeeping'
 import { RecordLoopEvents } from './record-loop'
 import { readPagesOf } from './record-pages'
@@ -58,8 +59,8 @@ export class RecordCache {
   private revealed = false
   private diverged = false
   private visibleCache: RecordEvent[] | undefined = undefined
-  private blobValues = new Map<string, unknown>()
-  private fetchedBlobBytes = 0
+  private blobs = new RecordBlobs()
+  private fetchedBytes = 0
   private retained: number | undefined = undefined
   private head: LogHead = { seq: 0, hash: '' as LogHead['hash'] }
 
@@ -72,18 +73,18 @@ export class RecordCache {
     resume?: RecordResumeCache | undefined
   }): Promise<RecordCache> {
     const held = args.resume?.take(args.threadId)
-    const heldBytes = held?.fetchedBlobBytes ?? 0
+    const heldBytes = held?.fetchedBytes ?? 0
     const resumed = held?.resumable() ? held.detach() : undefined
     const cache =
       resumed !== undefined && (await resumed.resume()) ? resumed : new RecordCache(args)
     if (cache !== resumed) await cache.fill()
     args.resume?.keep(cache)
-    const fetched = cache.fetchedBlobBytes - (cache === resumed ? heldBytes : 0)
+    const fetched = cache.fetchedBytes - (cache === resumed ? heldBytes : 0)
     if (fetched > 0) {
       args.log?.info({
         source: 'holder.record',
         message: 'resolved blob values into the record cache',
-        data: { blobs: cache.blobValues.size, bytes: fetched },
+        data: { blobs: cache.blobs.size(), bytes: fetched },
       })
     }
     return cache
@@ -145,6 +146,7 @@ export class RecordCache {
     this.revealed = false
     this.diverged = false
     this.retained = undefined
+    this.blobs.prune(events)
     this.book = new RecordBookkeeping()
     this.loops.reset()
     this.visibleCache = undefined
@@ -163,7 +165,7 @@ export class RecordCache {
     const missing = new Set<string>()
     for (const event of events) {
       for (const ref of blobRefsOf(event)) {
-        if (!this.blobValues.has(ref.hash)) missing.add(ref.hash)
+        if (!this.blobs.has(ref.hash)) missing.add(ref.hash)
       }
     }
     const hashes = [...missing]
@@ -173,19 +175,19 @@ export class RecordCache {
       for (const [index, blob] of fetched.entries()) {
         const hash = slice[index] as string
         if (blob === undefined) throw new Error(`the record store lost blob ${hash}`)
-        this.blobValues.set(hash, blobValueOf(blob.bytes))
-        this.fetchedBlobBytes += blob.bytes.byteLength
+        this.blobs.retain({ hash, value: blobValueOf(blob.bytes), bytes: blob.bytes.byteLength })
+        this.fetchedBytes += blob.bytes.byteLength
       }
     }
     this.retained = undefined
   }
 
   resolvedBlobBytes(): number {
-    return this.fetchedBlobBytes
+    return this.blobs.retainedBytes()
   }
 
   retainedBytes(): number {
-    this.retained ??= this.fetchedBlobBytes + eventsBytes(this.events)
+    this.retained ??= this.resolvedBlobBytes() + eventsBytes(this.events)
     return this.retained
   }
 
@@ -195,8 +197,8 @@ export class RecordCache {
 
   detach(): RecordCache {
     const copy = new RecordCache(this.args)
-    copy.blobValues = new Map(this.blobValues)
-    copy.fetchedBlobBytes = this.fetchedBlobBytes
+    copy.blobs = this.blobs.copy()
+    copy.fetchedBytes = this.fetchedBytes
     copy.head = this.head
     copy.rebuild([...this.events])
     copy.diverged = this.diverged
@@ -205,7 +207,7 @@ export class RecordCache {
 
   resolvedEvent(event: RecordEvent): RecordEvent {
     if (blobRefsOf(event).length === 0) return event
-    return resolveBody({ body: event, values: this.blobValues })
+    return resolveBody({ body: event, values: this.blobs.valuesOf() })
   }
 
   currentHead(): LogHead {
@@ -250,7 +252,7 @@ export class RecordCache {
     head: LogHead
     resolved?: ReadonlyMap<string, unknown> | undefined
   }): void {
-    for (const [hash, value] of args.resolved ?? []) this.blobValues.set(hash, value)
+    for (const [hash, value] of args.resolved ?? []) this.blobs.retainLocal({ hash, value })
     for (const event of this.afterCached(args.events)) {
       if (revealsHidden({ state: this.visibility, event })) {
         this.revealed = true

@@ -16,10 +16,11 @@ export class RecordResumeCache {
   }
 
   take(threadId: ThreadId): RecordCache | undefined {
+    this.trim()
     const cache = this.records.get(threadId)
     if (cache === undefined) return undefined
     this.records.delete(threadId)
-    return cache
+    return cache.retainedBytes() > this.maxRecordBytes ? undefined : cache
   }
 
   keep(cache: RecordCache): void {

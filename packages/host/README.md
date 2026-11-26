@@ -78,9 +78,8 @@ only what it can rebuild or drop.
 ### Keep the record
 
 - `SessionRecord`: the `AgentRecordPort` and `ModelContextPort` over the control plane.
-- `RecordCache`: keeps the events of a thread in memory, and resumes them on the next take-over instead of
-  replaying the thread. A take-over resumes a detached copy, so a late write from the previous holder never
-  reaches it, and a record whose own history edits left it unlike a full fill is not offered at all.
+- `RecordCache`: keeps the events of a thread in memory and resumes them on the next take-over
+  from a detached copy; a record its own history edits left unlike a full fill is not offered.
 - `RecordOnceLedger`: the `OnceLedger` backed by the record cache.
 - `PictureStore`, `storePictures`: move a tool result's pictures into the media store at append,
   so the event holds a `MediaPart`; one the store does not take becomes `[picture not kept: …]`.
@@ -95,8 +94,7 @@ only what it can rebuild or drop.
   session changed. The checkout id is `sha256(sessionId, repo, realpath(worktreePath))`, so it is
   session-scoped: one worktree path keeps two rows for two sessions.
 - `TerminalDemand`, `PanelDemand`, `PANEL_HOLD_TTL_MS`: keep a pod awake for a terminal or panel.
-  `HostBus.panelHoldMs` reads the hold that another host published, so a claim keeps a panel that
-  was already beating before this host heard a beat.
+  `HostBus.panelHoldMs` reads another host's hold, so a claim keeps a panel already beating.
 
 ### Route a pod call to its holder
 
