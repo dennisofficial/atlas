@@ -3,7 +3,11 @@ import { describe, expect, it } from 'bun:test'
 import { PANEL_WIDTH } from '../../layout/pane-layout'
 import { ESessionsListLayout } from '../../layout/posture'
 import { OVERLAY_MIN_WIDTH, OVERLAY_WIDTH_RATIO } from '../sessions-overlay'
-import { drawerGeometryOf, drawerSwipeEnabledOf } from '../drawer-layout'
+import {
+  drawerGeometryOf,
+  drawerSwipeEnabledOf,
+  opensDrawerWithoutSessionOf,
+} from '../drawer-layout'
 
 describe('drawerGeometryOf', () => {
   it('opens full width over the session on an iPhone', () => {
@@ -28,6 +32,26 @@ describe('drawerGeometryOf', () => {
       permanent: true,
       width: PANEL_WIDTH,
     })
+  })
+})
+
+describe('opensDrawerWithoutSessionOf', () => {
+  it('shows the sessions list on an iPhone with no session open', () => {
+    expect(
+      opensDrawerWithoutSessionOf({ listLayout: ESessionsListLayout.Stacked, selected: null }),
+    ).toBe(true)
+  })
+
+  it('keeps the drawer closed by default on a Duo unfolded portrait', () => {
+    expect(
+      opensDrawerWithoutSessionOf({ listLayout: ESessionsListLayout.Overlay, selected: null }),
+    ).toBe(false)
+  })
+
+  it('never opens the drawer over an open session', () => {
+    expect(
+      opensDrawerWithoutSessionOf({ listLayout: ESessionsListLayout.Stacked, selected: 'ses_a' }),
+    ).toBe(false)
   })
 })
 
