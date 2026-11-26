@@ -213,6 +213,7 @@ export const Transcript = ({
       scrollsToTop={false}
       renderItem={renderRow}
       contentInsetAdjustmentBehavior="automatic"
+      scrollToOverflowEnabled
       contentContainerStyle={insets.content}
       scrollIndicatorInsets={insets.indicator}
       keyboardDismissMode="interactive"
