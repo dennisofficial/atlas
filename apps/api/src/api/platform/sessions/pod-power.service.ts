@@ -4,7 +4,7 @@ import { INBOX_KIND_STOP } from '@dltech/atlas-core'
 import type { SessionSleepPodOutput } from '@dltech/atlas-protocol'
 
 import { JobsProjectDispatcher } from '../../../_core/ports/job-dispatcher'
-import { readPodBusy } from '@dltech/atlas-pods'
+import { readPodStopBusy } from '@dltech/atlas-pods'
 import { PodTurnRunningError } from './pod-power.error'
 import {
   podSleepIdempotencyKey,
@@ -34,15 +34,13 @@ export class PodPowerService implements PodPower {
     force: boolean
   }): Promise<SessionSleepPodOutput> {
     const podSessionId = args.session.podSessionId ?? args.session.sessionId
-    const busy = await readPodBusy({ plane: this.plane, session: args.session })
+    const busy = await readPodStopBusy({ plane: this.plane, session: args.session })
     if (busy.busy && !args.force) throw new PodTurnRunningError({ running: busy.running })
     if (busy.busy) {
       await this.plane.post({ sessionId: podSessionId, kind: INBOX_KIND_STOP, payload: '{}' })
     }
-    // The stop stays unread until the turn ends, and demand is what the claim loop reads: releasing
-    // here would let another host claim the session and wake the pod this sleep is about to stop.
-    // The job keeps the lease until the turn ends, then releases it and sleeps the pod.
-    await this.dispatchSleep({ podSessionId })
+    const { parkedAt } = await this.plane.parkPod({ sessionId: podSessionId })
+    await this.dispatchSleep({ podSessionId, parkedAt })
     return { state: 'sleeping' }
   }
 
@@ -58,9 +56,16 @@ export class PodPowerService implements PodPower {
     }
   }
 
-  private async dispatchSleep(args: { podSessionId: string }): Promise<void> {
+  private async dispatchSleep(args: {
+    podSessionId: string
+    parkedAt?: string | undefined
+  }): Promise<void> {
     const { lease } = await this.plane.currentLease({ sessionId: args.podSessionId })
-    const payload = { sessionId: args.podSessionId, epoch: lease.epoch }
+    const payload = {
+      sessionId: args.podSessionId,
+      epoch: lease.epoch,
+      ...(args.parkedAt === undefined ? {} : { parkedAt: args.parkedAt }),
+    }
     await this.dispatcher.dispatch({
       task: podSleepTaskContract,
       payload,

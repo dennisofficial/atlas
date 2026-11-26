@@ -109,6 +109,23 @@ export const projectConfigClientOf = (args: {
         await rows.where({ projectId, name }).update({ sealedValue, grantId })
       })
     },
+    moveSecret: async ({ name, grant }) =>
+      db.transaction(async (tx) => {
+        const rows = tx.orm.public.ProjectSecret
+        const existing = await rows.where({ projectId, name }).first()
+        if (existing === null) return false
+        const grantId = await projectGrantIdOf({
+          tx,
+          projectId,
+          name: grant,
+          current: existing.grantId,
+          member: 'secret',
+        })
+        if (existing.grantId === grantId) return true
+        await rows.where({ projectId, name }).update({ grantId })
+        await cleanupProjectGrant({ tx, projectId, grantId: existing.grantId })
+        return true
+      }),
     removeSecret: async (name) => {
       const problem = envNameProblem(name)
       if (problem !== undefined) throw new Error(problem)
@@ -164,6 +181,23 @@ export const projectConfigClientOf = (args: {
         const row = await tx.orm.public.ProjectFileMount.where({ projectId, path }).first()
         if (row === null) return false
         await tx.orm.public.ProjectFileMount.where({ projectId, path }).deleteAndCount()
+        return true
+      }),
+    moveFileMount: async ({ path, grant }) =>
+      db.transaction(async (tx) => {
+        const rows = tx.orm.public.ProjectFileMount
+        const existing = await rows.where({ projectId, path }).first()
+        if (existing === null) return false
+        const grantId = await projectGrantIdOf({
+          tx,
+          projectId,
+          name: grant,
+          current: existing.grantId,
+          member: 'file',
+        })
+        if (existing.grantId === grantId) return true
+        await rows.where({ projectId, path }).update({ grantId })
+        await cleanupProjectGrant({ tx, projectId, grantId: existing.grantId })
         return true
       }),
     listGrants: async () => {

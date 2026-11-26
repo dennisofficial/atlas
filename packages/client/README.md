@@ -21,27 +21,27 @@ The headless client library that web, the TUI and the mobile app share.
 
 ## Entry points
 
-| Import                                          | Use it for                                                                                                              |
-| ----------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------- |
-| `@dltech/atlas-client/stream`                   | The stream connection, the session follower, the log, the window and the overlay.                                       |
-| `@dltech/atlas-client/channel`                  | The pod delta channel, the frame codecs and the tool requests.                                                          |
-| `@dltech/atlas-client/chat`                     | The chat transport, the step chunks and the step messages.                                                              |
-| `@dltech/atlas-client/crew`                     | The crew readout, the sub-agent state and the background work.                                                          |
-| `@dltech/atlas-client/session`                  | The session create input, the rewind, the image upload, the composer attachments, the message input and the draft sync. |
-| `@dltech/atlas-client/account`                  | The Atlas Cloud device-code login.                                                                                      |
-| `@dltech/atlas-client/transcript`               | The transcript rows, the tool runs and the turn rows.                                                                   |
-| `@dltech/atlas-client/stream-fixture`           | A fake scheduler and transport, and the event factories, for a spec.                                                    |
-| `@dltech/atlas-client/transcript-fixture`       | The event drafts and the step signals of a transcript, for a spec.                                                      |
-| `@dltech/atlas-client/transcript-tool-fixture`  | The tool call and result drafts, for a spec.                                                                            |
-| `@dltech/atlas-client/transcript-tools-fixture` | A sample tool call and shell call, for a spec or a prototype.                                                           |
+| Import                                          | Use it for                                                                                                                                      |
+| ----------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------- |
+| `@dltech/atlas-client/stream`                   | The stream connection, the session follower, the log, the window and the overlay.                                                               |
+| `@dltech/atlas-client/channel`                  | The pod delta channel, the frame codecs and the tool requests.                                                                                  |
+| `@dltech/atlas-client/chat`                     | The chat transport, the step chunks and the step messages.                                                                                      |
+| `@dltech/atlas-client/crew`                     | The crew readout, the sub-agent state and the background work.                                                                                  |
+| `@dltech/atlas-client/session`                  | The session create input, the rewind, the image upload, the composer attachments, the message input, the draft sync and the sandbox start view. |
+| `@dltech/atlas-client/account`                  | The Atlas Cloud device-code login.                                                                                                              |
+| `@dltech/atlas-client/transcript`               | The transcript rows, the tool runs and the turn rows.                                                                                           |
+| `@dltech/atlas-client/stream-fixture`           | A fake scheduler and transport, and the event factories, for a spec.                                                                            |
+| `@dltech/atlas-client/transcript-fixture`       | The event drafts and the step signals of a transcript, for a spec.                                                                              |
+| `@dltech/atlas-client/transcript-tool-fixture`  | The tool call and result drafts, for a spec.                                                                                                    |
+| `@dltech/atlas-client/transcript-tools-fixture` | A sample tool call and shell call, for a spec or a prototype.                                                                                   |
 
 ## Capabilities
 
 ### Follow a session
 
 - `createStreamConnection({ transport, scheduler, networkSignal?, eventSchema?, knownEventTypes?, views? })`:
-  the `StreamConnection`. `follow({ sessionId, threadId?, log? })` follows one thread, the main one
-  by default; `followSessions()` gives the live list.
+  the `StreamConnection`. `follow({ sessionId, threadId?, log? })` follows one thread (main by default),
+  and a reopen of one of the last 8 closed follows shows it at once; `followSessions()` is the list.
 - `createSessionFollower(args)`: a session's follower, its connection state and snapshot.
   `HYDRATE_TIMEOUT_MS` bounds the first load. `createSessionsFeed({ follow, write })` holds the list.
 - `StreamTransport`, `StreamScheduler`, `StreamNetworkSignal`, `systemStreamScheduler`,
@@ -80,7 +80,7 @@ The headless client library that web, the TUI and the mobile app share.
   sub-agent's type, intent, state.
 - `noticeEntriesOf(event)`: one event's notice rows. `thinkingVisibilityOf`, `foldThoughts`, `toolsAboveThoughts`: the folds.
 - `revealedText({ key, text, gate })`, `runAttentionOf(args)`, `plural(many, one, rest?)`,
-  `formatElapsed(ms)`: the revealed text and the helpers that a surface also uses.
+  `formatElapsed(ms)`: the revealed text and the helpers that a surface also uses. `stabilisedEntries(args)`: an unchanged entry carried onto its previous identity, and `stabilisedBy(args)` for a row.
 
 ### Feed the chat transport
 
@@ -101,7 +101,7 @@ The headless client library that web, the TUI and the mobile app share.
   `rewindKillsOf(args)`, `mergedDraftOf(args)`: the picked message, its sequence, the draft ahead of the composer, and the work the rewind stops.
 - `restorePlanOf(attachments)`, `requestRewind(args)`: the attachments back in their composer
   stores, and the queued command. `RewindApi`, `RewoundMessage`, `RestorePlan`, `RestoredMedia`,
-  `RewindKillRow`: the types.
+  `RewindKillRow`: the types. `quickStopRestoresOf(args)`, `quickStopRestoresToApply(args)`: the composer text and attachments that a quick stop gives back, one `QuickStopRestore` for each rewind.
 
 ### Start a session and upload a composer image
 
@@ -111,7 +111,7 @@ The headless client library that web, the TUI and the mobile app share.
 - `EAttachmentStatus`, `HeldStatus`, `OCTET_STREAM`, `MAX_UPLOAD_MB`: the held attachment type and
   its limits. `planAttach({ files, held })`: `accepted`, `oversize` and `droppedOverflow`.
   `withProgress`, `withFailed`, `withoutAttachment`, `readyAttachments`, `isUploading`, `hasFailed`: the holder updates. `TOO_MANY_FILES`, `REMOVE_FAILED_FILES`, `tooLargeNotice(name)`, `uploadFailedNotice(name)`: the notices.
-- `sessionCreateInputOf(args)`, `initialProjectIdOf(args)`: a new session's create input and project.
+- `sessionCreateInputOf(args)`, `initialProjectIdOf(args)`: a new session's create input and project. `sessionBootViewOf(args)` gives the sandbox start steps, and `BootView` types them.
 - `composerSendStateOf`, `contextPercentOf`, `createDraftSync(args)`: send, context, draft write.
 - `queuedMessagesOf`, `queuedNoticesOf`, `stagedQueuedMessagesOf`, `optimisticPlacementOf(args)`: the queued rows. `WithdrawTarget`, `WithdrawIntent` (a target plus the request id it was minted for), `WithdrawSettlement`, `withdrawSettlementsOf(args)`, `withdrawRefusalNoticeOf(reason)`: the Edit or Remove of one queued row, settled by the durable `input-withdrawn` or `input-refused`. `requestWithdraw(args)`, `createWithdrawStore()`, `withdrawStore`: the withdraw request and the in-memory per-session intents that hide a row until the settlement for its target arrives; an answer that belongs to an older request for the same target leaves the newer intent held. `operatorSaidOf(said)`, `withdrawOwnedInboxIdsOf(args)`: the messages the operator owns, so the withdraw path alone restores the text and reports a refusal. `ToolPicture` and `firstPictureIn(args)` (in `transcript`) read the media ref a tool result carried.
 

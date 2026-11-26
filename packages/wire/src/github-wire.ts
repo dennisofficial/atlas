@@ -1,47 +1,37 @@
+import {
+  EGithubPollStatus,
+  EGithubPrStreamFrame,
+  GITHUB_REPO_PATTERN,
+  githubDeviceCodesSchema,
+  githubPollResultSchema,
+  githubPrEventSchema,
+  githubPrStateSchema,
+  githubPrStreamFrameSchema,
+  type GithubDeviceCodes,
+  type GithubPollResult,
+  type GithubPrEvent,
+  type GithubPrState,
+  type GithubPrStreamFrame,
+} from '@dltech/atlas-core'
 import { z } from 'zod'
 
-import { GITHUB_REPO_PATTERN } from './project-wire'
-
-export enum EGithubPollStatus {
-  Pending = 'pending',
-  SlowDown = 'slow-down',
-  Denied = 'denied',
-  Expired = 'expired',
-  MissingScopes = 'missing-scopes',
-  Connected = 'connected',
+export {
+  EGithubPollStatus,
+  EGithubPrStreamFrame,
+  githubDeviceCodesSchema,
+  githubPollResultSchema,
+  githubPrEventSchema,
+  githubPrStateSchema,
+  githubPrStreamFrameSchema,
+  type GithubDeviceCodes,
+  type GithubPollResult,
+  type GithubPrEvent,
+  type GithubPrState,
+  type GithubPrStreamFrame,
 }
-
-export enum EGithubPrStreamFrame {
-  PrState = 'pr-state',
-  PrEvent = 'pr-event',
-  Heartbeat = 'heartbeat',
-}
-
-export const githubDeviceCodesSchema = z.object({
-  deviceCode: z.string(),
-  userCode: z.string(),
-  verificationUrl: z.string(),
-  expiresInMs: z.number(),
-  intervalMs: z.number(),
-})
-export type GithubDeviceCodes = z.infer<typeof githubDeviceCodesSchema>
 
 export const githubPollConnectInputSchema = z.strictObject({ deviceCode: z.string().min(1) })
 export type GithubPollConnectInput = z.infer<typeof githubPollConnectInputSchema>
-
-export const githubPollResultSchema = z.discriminatedUnion('status', [
-  z.object({ status: z.literal(EGithubPollStatus.Pending) }),
-  z.object({ status: z.literal(EGithubPollStatus.SlowDown) }),
-  z.object({ status: z.literal(EGithubPollStatus.Denied) }),
-  z.object({ status: z.literal(EGithubPollStatus.Expired) }),
-  z.object({ status: z.literal(EGithubPollStatus.MissingScopes), missing: z.array(z.string()) }),
-  z.object({
-    status: z.literal(EGithubPollStatus.Connected),
-    login: z.string(),
-    scopes: z.array(z.string()),
-  }),
-])
-export type GithubPollResult = z.infer<typeof githubPollResultSchema>
 
 export const githubConnectionStateSchema = z.discriminatedUnion('connected', [
   z.object({ connected: z.literal(false) }),
@@ -80,29 +70,6 @@ export const githubSubscribeInputSchema = z
   })
 export type GithubSubscribeInput = z.infer<typeof githubSubscribeInputSchema>
 
-export const githubPrStateSchema = z.object({
-  repoFullName: z.string(),
-  prNumber: z.number().int(),
-  title: z.string(),
-  url: z.string(),
-  state: z.string(),
-  headBranch: z.string(),
-  headSha: z.string(),
-  checksRunning: z.number().int(),
-  checksPassed: z.number().int(),
-  checksFailed: z.number().int(),
-  checksExpected: z.number().int().optional(),
-  checksState: z.string().nullable().optional(),
-  mergeable: z.boolean().nullable(),
-  mergeQueued: z.boolean().optional(),
-  autoMerge: z.boolean().optional(),
-  version: z.number().int(),
-  updatedAt: z.string(),
-  polled: z.boolean().optional(),
-  pollingInstallUrl: z.string().optional(),
-})
-export type GithubPrState = z.infer<typeof githubPrStateSchema>
-
 export const githubAppInstallRecommendationSchema = z.object({
   installUrl: z.string(),
   repoFullName: z.string(),
@@ -132,23 +99,6 @@ export const githubDismissAppInstallNoticeInputSchema = z.object({
 export type GithubDismissAppInstallNoticeInput = z.infer<
   typeof githubDismissAppInstallNoticeInputSchema
 >
-
-export const githubPrEventSchema = z.object({
-  id: z.string(),
-  repoFullName: z.string(),
-  prNumber: z.number().int(),
-  kind: z.string(),
-  payload: z.record(z.string(), z.unknown()),
-  createdAt: z.string(),
-})
-export type GithubPrEvent = z.infer<typeof githubPrEventSchema>
-
-export const githubPrStreamFrameSchema = z.discriminatedUnion('type', [
-  z.object({ type: z.literal(EGithubPrStreamFrame.PrState), state: githubPrStateSchema }),
-  z.object({ type: z.literal(EGithubPrStreamFrame.PrEvent), event: githubPrEventSchema }),
-  z.object({ type: z.literal(EGithubPrStreamFrame.Heartbeat) }),
-])
-export type GithubPrStreamFrame = z.infer<typeof githubPrStreamFrameSchema>
 
 export const githubPrAckEventsInputSchema = z.strictObject({
   threadId: z.string().min(1),

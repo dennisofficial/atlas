@@ -30,6 +30,7 @@ describe('a message from another session', () => {
   it('names the session that sent it, above a message rather than inside a notice', () => {
     const view = sessionTranscriptOf({
       events: mint(peerSaid('ses_2')),
+      foldable: mint(peerSaid('ses_2')),
       overlay: undefined,
       sessionNameOf: (id) => (id === 'ses_2' ? 'Fix login' : undefined),
     })
@@ -43,6 +44,7 @@ describe('a message from another session', () => {
   it('never falls back to a raw id when the session is unknown', () => {
     const view = sessionTranscriptOf({
       events: mint(peerSaid('ses_2')),
+      foldable: mint(peerSaid('ses_2')),
       overlay: undefined,
       sessionNameOf: () => undefined,
     })
@@ -80,9 +82,11 @@ describe('a rewind that landed inside an earlier turn', () => {
         },
       ]),
     )
-    const stopped = sessionTranscriptOf({ events, overlay: undefined }).items.filter(
-      (item) => item.kind === ETranscriptKind.Agent && item.stopped === true,
-    )
+    const stopped = sessionTranscriptOf({
+      events,
+      foldable: events,
+      overlay: undefined,
+    }).items.filter((item) => item.kind === ETranscriptKind.Agent && item.stopped === true)
 
     expect(
       stopped.map((item) => (item.kind === ETranscriptKind.Agent ? item.resume : null)),
@@ -104,6 +108,7 @@ const mint = (bodies: readonly RecordEventBody[]): RecordEvent[] =>
 
 const snapshotOf = (params: Partial<SessionSnapshot>): SessionSnapshot => ({
   events: [],
+  foldable: params.events ?? [],
   cursor: undefined,
   status: undefined,
   overlay: undefined,
@@ -405,6 +410,19 @@ describe('a stopped turn in the transcript', () => {
       snapshotOf({ events: mint([...stoppedRun(), { type: 'user-said', text: 'carry on' }]) }),
     ).items
     const reply = items.find((item) => item.kind === ETranscriptKind.Agent)
+
+    expect(reply?.kind === ETranscriptKind.Agent ? reply.resume : null).toEqual({
+      kind: EResumePoint.NotResumable,
+      because: 'A message follows the stop; the turn continues from it.',
+    })
+  })
+
+  it('takes the resume point from the retained log, not the visible window', () => {
+    const answered = mint([...stoppedRun(), { type: 'user-said', text: 'carry on' }])
+    const view = sessionTranscriptOf(
+      snapshotOf({ events: answered.slice(0, -1), foldable: answered }),
+    )
+    const reply = view.items.find((item) => item.kind === ETranscriptKind.Agent)
 
     expect(reply?.kind === ETranscriptKind.Agent ? reply.resume : null).toEqual({
       kind: EResumePoint.NotResumable,

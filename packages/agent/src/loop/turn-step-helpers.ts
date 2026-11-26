@@ -9,7 +9,7 @@ import {
 
 import { watchStepLoop, type WatchOutcome } from './loop-watchdog'
 import { appendShellCompletionNudge } from './shell-completion'
-import { interruptedDrafts } from './step-drafts'
+import { handoffAbortedDrafts, interruptedDrafts } from './step-drafts'
 import type { TrackedTurnDeps } from './tracked-turn-deps'
 import { eventsForLoopWatch } from './turn-reads'
 import type { TurnPosition } from './turn-position-state'
@@ -38,6 +38,21 @@ export async function recordAbandonedStep({
   })
   if (abandoned.length > 0) await record.append({ threadId, runId, drafts: abandoned })
   await appendShellCompletionNudge({ record, threadId, runId, seenThrough })
+}
+
+export async function recordHandoffAborted({
+  deps,
+  threadId,
+  runId,
+  result,
+}: {
+  deps: TrackedTurnDeps
+  threadId: ThreadId
+  runId: RunId
+  result: ModelStepResult
+}): Promise<void> {
+  const drafts = handoffAbortedDrafts({ result, model: deps.model })
+  if (drafts.length > 0) await deps.record.append({ threadId, runId, drafts })
 }
 
 export async function watchTurnStep({

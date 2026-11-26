@@ -4,6 +4,7 @@ import {
   podBusyFactsOfView,
   podBusyOf,
   podResizeBusyOf,
+  podStopBusyOf,
   type PodBusy,
   type PodBusyFacts,
   type PodRebootFacts,
@@ -43,6 +44,11 @@ export const readPodBusy = async (args: {
   plane: ControlPlane
   session: BusySession
 }): Promise<PodBusy> => podBusyOf(await readPodBusyFacts(args))
+
+export const readPodStopBusy = async (args: {
+  plane: ControlPlane
+  session: BusySession
+}): Promise<PodBusy> => podStopBusyOf(await readPodBusyFacts(args))
 
 export const readPodResizeBusy = async (args: {
   plane: ControlPlane

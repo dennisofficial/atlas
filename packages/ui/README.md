@@ -22,22 +22,23 @@ The package ships TypeScript source with no build step.
 
 ## Entry points
 
-| Import                             | Use it for                                                         |
-| ---------------------------------- | ------------------------------------------------------------------ |
-| `@dltech/atlas-ui`                 | `cn` and the tokens, from one import.                              |
-| `@dltech/atlas-ui/tokens`          | Pure token values. No platform import.                             |
-| `@dltech/atlas-ui/brand`           | Pure brand data: `EBrand`, `BRAND_PATHS`, `brandOfProvider`.       |
-| `@dltech/atlas-ui/components/*`    | A vendored component, such as `components/button`.                 |
-| `@dltech/atlas-ui/ai/*`            | An AI pattern, such as `ai/message` or `ai/tool`.                  |
-| `@dltech/atlas-ui/lib/*`           | `lib/utils` (`cn`), `lib/language-of-path`, `lib/shiki-languages`. |
-|                                    | `lib/mermaid-parse` checks a diagram source.                       |
-| `@dltech/atlas-ui/lib/highlighter` | The lazy shiki highlighter.                                        |
-| `@dltech/atlas-ui/hooks/*`         | `hooks/use-highlighted-code`, `hooks/use-mobile`.                  |
-| `@dltech/atlas-ui/fixtures/*`      | Development data, such as `fixtures/settings-agent`.               |
-| `@dltech/atlas-ui/fixtures/*.json` | Raw recorded data, such as `real-transcript.json`.                 |
-| `@dltech/atlas-ui/theme.css`       | The generated color variables.                                     |
-| `@dltech/atlas-ui/base.css`        | The base layer and the safe-area variables.                        |
-| `@dltech/atlas-ui/fonts.css`       | The Geist, JetBrains Mono and Space Grotesk faces.                 |
+| Import                               | Use it for                                                         |
+| ------------------------------------ | ------------------------------------------------------------------ |
+| `@dltech/atlas-ui`                   | `cn` and the tokens, from one import.                              |
+| `@dltech/atlas-ui/tokens`            | Pure token values. No platform import.                             |
+| `@dltech/atlas-ui/brand`             | Pure brand data: `EBrand`, `BRAND_PATHS`, `brandOfProvider`.       |
+| `@dltech/atlas-ui/sandbox-boot-copy` | The sandbox start title and summary, with no platform import.      |
+| `@dltech/atlas-ui/components/*`      | A vendored component, such as `components/button`.                 |
+| `@dltech/atlas-ui/ai/*`              | An AI pattern, such as `ai/message` or `ai/tool`.                  |
+| `@dltech/atlas-ui/lib/*`             | `lib/utils` (`cn`), `lib/language-of-path`, `lib/shiki-languages`. |
+|                                      | `lib/mermaid-parse` checks a diagram source.                       |
+| `@dltech/atlas-ui/lib/highlighter`   | The lazy shiki highlighter.                                        |
+| `@dltech/atlas-ui/hooks/*`           | `hooks/use-highlighted-code`, `hooks/use-mobile`.                  |
+| `@dltech/atlas-ui/fixtures/*`        | Development data, such as `fixtures/settings-agent`.               |
+| `@dltech/atlas-ui/fixtures/*.json`   | Raw recorded data, such as `real-transcript.json`.                 |
+| `@dltech/atlas-ui/theme.css`         | The generated color variables.                                     |
+| `@dltech/atlas-ui/base.css`          | The base layer and the safe-area variables.                        |
+| `@dltech/atlas-ui/fonts.css`         | The Geist, JetBrains Mono and Space Grotesk faces.                 |
 
 ## Capabilities
 
@@ -66,6 +67,12 @@ The package ships TypeScript source with no build step.
 - `ai/diagram-repair`: `DiagramRepairProvider` gives every `ai/message-response` below it a repair
   handler, and each message hands over its own text, so a broken chart repairs wherever it renders.
   `repairDiagrams={false}` opts one message out, as a streaming reply does.
+
+### Describe the sandbox start
+
+- `sandboxBootTitle(state)`, `sandboxBootSummary({ steps, state, elapsedMs })`: the title and the
+  progress of the sandbox start group. `EBootStepState` and `formatElapsed` sit beside them. The
+  module has no platform import, so `apps/mobile` reads the same words as `ai/sandbox-boot`.
 
 ### Check a diagram
 

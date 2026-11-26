@@ -154,6 +154,7 @@ export function describeControlPlaneSessions(params: ConformanceParams): void {
           desiredShape: { vcpus: 4, memoryGb: 8 },
           desiredVcpus: 4,
           phase: 'waiting',
+          power: { phase: 'asleep' },
           sizing: VERCEL_SIZING,
         })
 
@@ -172,6 +173,7 @@ export function describeControlPlaneSessions(params: ConformanceParams): void {
           desiredShape: { vcpus: 4, memoryGb: 8 },
           desiredVcpus: 4,
           phase: 'steady',
+          power: { phase: 'asleep' },
           sizing: VERCEL_SIZING,
         })
       })
@@ -190,6 +192,7 @@ export function describeControlPlaneSessions(params: ConformanceParams): void {
           desiredShape: { vcpus: 8, memoryGb: 16 },
           desiredVcpus: 8,
           phase: 'resizing',
+          power: { phase: 'asleep' },
           sizing: VERCEL_SIZING,
         })
         expect(second).toBe(first + 1)
@@ -211,6 +214,7 @@ export function describeControlPlaneSessions(params: ConformanceParams): void {
           desiredVcpus: 4,
           phase: 'failed',
           error: 'no sandbox',
+          power: { phase: 'asleep' },
           sizing: VERCEL_SIZING,
         })
       })
@@ -249,6 +253,7 @@ export function describeControlPlaneSessions(params: ConformanceParams): void {
           desiredShape: { vcpus: 2, memoryGb: 4 },
           desiredVcpus: 2,
           phase: 'steady',
+          power: { phase: 'asleep' },
           sizing: VERCEL_SIZING,
         })
       })
@@ -353,6 +358,8 @@ export function describeControlPlaneSessions(params: ConformanceParams): void {
         podAppliedGeneration: null,
         podResizeError: null,
         podWaitingSince: null,
+        podParkedAt: null,
+        podParkError: null,
         routineId: null,
       })
       expect(await plane.head({ threadId: THREAD })).toEqual({ seq: 0, hash: expect.any(String) })
@@ -920,6 +927,68 @@ export function describeControlPlaneSessions(params: ConformanceParams): void {
 
       await plane.setSessionArchived({ sessionId: SESSION, archivedAt: null })
       expect(await claimable()).toEqual([SESSION])
+    })
+
+    describe('pod park', () => {
+      const parkedRow = () => plane.readSession({ sessionId: SESSION })
+
+      it('records the park, clears it, and reports the second clear as unchanged', async () => {
+        await seedSession({ sessionId: SESSION, offsetMs: 0 })
+        const { parkedAt } = await plane.parkPod({ sessionId: SESSION })
+
+        expect((await parkedRow())?.podParkedAt).toBe(parkedAt)
+        expect((await parkedRow())?.podParkError).toBeNull()
+        expect(await plane.clearPodPark({ sessionId: SESSION })).toBe(true)
+        expect(await plane.clearPodPark({ sessionId: SESSION })).toBe(false)
+        expect((await parkedRow())?.podParkedAt).toBeNull()
+      })
+
+      it('fails only the park its record still names', async () => {
+        await seedSession({ sessionId: SESSION, offsetMs: 0 })
+        const { parkedAt } = await plane.parkPod({ sessionId: SESSION })
+
+        expect(
+          await plane.failPodPark({
+            sessionId: SESSION,
+            parkedAt: after({ iso: parkedAt, offsetMs: 1000 }),
+            error: 'sleep failed',
+          }),
+        ).toBe(false)
+        expect(
+          await plane.failPodPark({ sessionId: SESSION, parkedAt, error: 'sleep failed' }),
+        ).toBe(true)
+        expect((await parkedRow())?.podParkError).toBe('sleep failed')
+        expect((await parkedRow())?.podParkedAt).toBe(parkedAt)
+      })
+
+      it('clears the park when a message asks for a holder and keeps it on a stop', async () => {
+        await seedSession({ sessionId: SESSION, offsetMs: 0 })
+        await plane.parkPod({ sessionId: SESSION })
+
+        await plane.post({ sessionId: SESSION, kind: 'stop', payload: '{}' })
+        expect((await parkedRow())?.podParkedAt).not.toBeNull()
+
+        await plane.post({ sessionId: SESSION, kind: 'user', payload: '"wake up"' })
+        expect((await parkedRow())?.podParkedAt).toBeNull()
+      })
+
+      it('starts a fresh park after a clear and keeps the newest park on failure', async () => {
+        await seedSession({ sessionId: SESSION, offsetMs: 0 })
+        const first = await plane.parkPod({ sessionId: SESSION })
+        await plane.clearPodPark({ sessionId: SESSION })
+        setNow(after({ iso: T0, offsetMs: 5000 }))
+        const second = await plane.parkPod({ sessionId: SESSION })
+
+        expect(
+          await plane.failPodPark({
+            sessionId: SESSION,
+            parkedAt: first.parkedAt,
+            error: 'stale failure',
+          }),
+        ).toBe(false)
+        expect((await parkedRow())?.podParkedAt).toBe(second.parkedAt)
+        expect((await parkedRow())?.podParkError).toBeNull()
+      })
     })
   })
 }

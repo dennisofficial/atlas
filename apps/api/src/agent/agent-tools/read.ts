@@ -4,7 +4,6 @@ import {
   EPathForm,
   EPathPresence,
   EToolEffect,
-  FileCapabilitiesPort,
   imageMediaType,
   nativeFileMediaType,
   SchemaTool,
@@ -148,7 +147,6 @@ function noticeFor(args: { path: string; scan: Selection }): string | undefined 
 
 export type ReadToolArgs = {
   files: AgentFileSystemPort
-  fileCapabilities?: FileCapabilitiesPort | undefined
   pathEnv?: PathEnvironment | undefined
 }
 
@@ -176,13 +174,11 @@ export class ReadTool extends SchemaTool<typeof inputSchema> {
   ]
 
   private readonly files: AgentFileSystemPort
-  private readonly fileCapabilities: FileCapabilitiesPort | undefined
   private readonly pathEnv: PathEnvironment | undefined
 
   constructor(args: ReadToolArgs) {
     super()
     this.files = args.files
-    this.fileCapabilities = args.fileCapabilities
     this.pathEnv = args.pathEnv
   }
 
@@ -233,12 +229,6 @@ export class ReadTool extends SchemaTool<typeof inputSchema> {
 
     const fileMediaType = nativeFileMediaType(head)
     if (fileMediaType !== null) {
-      if (this.fileCapabilities !== undefined && !this.fileCapabilities.acceptsFiles()) {
-        return {
-          ok: false,
-          reason: `${path} is a ${fileMediaType} file, which this model cannot read.`,
-        }
-      }
       return await readFile({
         path,
         mediaType: fileMediaType,

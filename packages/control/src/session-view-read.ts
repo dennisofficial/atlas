@@ -4,6 +4,7 @@ import {
   messageAfterFailureOf,
   queuedSinceOfInbox,
   type PodShape,
+  podPowerOf,
   podSizingOf,
   SANDBOX_MEMORY_GB_PER_VCPU,
   sessionViewOf,
@@ -220,6 +221,28 @@ const sandboxChoiceOf = (
   }
 }
 
+const podWithPowerOf = (args: {
+  session: ControlSessionRow | undefined
+  sandbox: SessionStatusOutput['sandbox']
+  live: LiveView
+}): SessionStatusOutput['pod'] => {
+  const { session } = args
+  if (session === undefined) return undefined
+  const pod = podStatusOf(session)
+  if (pod === undefined) return undefined
+  return {
+    ...pod,
+    power: podPowerOf({
+      parkedAt: session.podParkedAt,
+      parkError: session.podParkError,
+      sandboxStatus: args.sandbox?.status,
+      sandboxStatusAt: args.sandbox?.at,
+      live: args.live.live,
+      wantsHolder: args.live.lease.wantsHolder,
+    }),
+  }
+}
+
 export const statusOutputOf = (args: {
   live: LiveView
   pending: PendingInputsState
@@ -228,8 +251,8 @@ export const statusOutputOf = (args: {
   session: ControlSessionRow | undefined
 }): SessionStatusOutput => {
   const { live } = args
-  const pod = podStatusOf(args.session)
   const sandbox = sandboxOf(args.session)
+  const pod = podWithPowerOf({ session: args.session, sandbox, live })
   const { status } = live.value
   const queued = queuedRowsOf({ pending: args.pending, inbox: args.inbox })
   const commands = [...args.running, ...commandsOf(args.pending)]

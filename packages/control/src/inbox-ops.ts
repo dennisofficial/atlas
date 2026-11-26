@@ -2,12 +2,13 @@ import {
   EInputKind,
   INBOX_KIND_EVENT,
   INBOX_KIND_RECORD,
+  INBOX_KIND_STOP,
   isCommandInputKind,
   type ThreadId,
 } from '@dltech/atlas-core'
 import { INBOX_KIND_MESSAGE, inboxMessageSchema } from '@dltech/atlas-protocol'
 
-import { wakesHolderOf } from './claim-ops'
+import { asksForHolderOf, wakesHolderOf } from './claim-ops'
 import { LeaseConflictError, MainThreadOnlyKindError } from './errors'
 import type { ControlTx } from './port'
 
@@ -155,6 +156,9 @@ export const postIn = async (params: {
     threadId,
     senderSessionId: params.senderSessionId ?? null,
   })
+  if (asksForHolderOf(params.kind) && params.kind !== INBOX_KIND_STOP) {
+    await params.tx.clearPodPark({ sessionId: params.sessionId })
+  }
   await requestHolderFor({ tx: params.tx, sessionId: params.sessionId, kind: params.kind })
   if (params.wake !== false) await params.tx.notifyWake(params.sessionId)
   await params.tx.announce({ sessionId: params.sessionId })

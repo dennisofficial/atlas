@@ -1,0 +1,327 @@
+[
+  {
+    "id": "dropConstraint.Memory.Memory_userId_scope_project_name_key",
+    "label": "Drop constraint \"Memory_userId_scope_project_name_key\" on \"Memory\"",
+    "operationClass": "widening",
+    "target": {
+      "id": "postgres",
+      "details": {
+        "schema": "public",
+        "objectType": "unique",
+        "name": "Memory_userId_scope_project_name_key",
+        "table": "Memory"
+      }
+    },
+    "precheck": [
+      {
+        "description": "ensure constraint \"Memory_userId_scope_project_name_key\" exists",
+        "sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"pg_constraint\" AS \"c\" INNER JOIN \"pg_namespace\" AS \"n\" ON \"n\".\"oid\" = \"c\".\"connamespace\" WHERE (\"c\".\"conname\" = $1 AND \"n\".\"nspname\" = $2 AND \"c\".\"conrelid\" = to_regclass($3))) AS \"result\"",
+        "params": [
+          "Memory_userId_scope_project_name_key",
+          "public",
+          "\"public\".\"Memory\""
+        ]
+      }
+    ],
+    "execute": [
+      {
+        "description": "drop constraint \"Memory_userId_scope_project_name_key\"",
+        "sql": "ALTER TABLE \"public\".\"Memory\" DROP CONSTRAINT \"Memory_userId_scope_project_name_key\""
+      }
+    ],
+    "postcheck": [
+      {
+        "description": "verify constraint \"Memory_userId_scope_project_name_key\" does not exist",
+        "sql": "SELECT NOT EXISTS (SELECT 1 AS \"one\" FROM \"pg_constraint\" AS \"c\" INNER JOIN \"pg_namespace\" AS \"n\" ON \"n\".\"oid\" = \"c\".\"connamespace\" WHERE (\"c\".\"conname\" = $1 AND \"n\".\"nspname\" = $2 AND \"c\".\"conrelid\" = to_regclass($3))) AS \"result\"",
+        "params": [
+          "Memory_userId_scope_project_name_key",
+          "public",
+          "\"public\".\"Memory\""
+        ]
+      }
+    ]
+  },
+  {
+    "id": "table.GroupInstruction",
+    "label": "Create table \"GroupInstruction\"",
+    "summary": "Creates table \"GroupInstruction\"",
+    "operationClass": "additive",
+    "target": {
+      "id": "postgres",
+      "details": {
+        "schema": "public",
+        "objectType": "table",
+        "name": "GroupInstruction"
+      }
+    },
+    "precheck": [
+      {
+        "description": "ensure table \"GroupInstruction\" does not exist",
+        "sql": "SELECT (to_regclass($1)) IS NULL AS \"result\"",
+        "params": [
+          "\"public\".\"GroupInstruction\""
+        ]
+      }
+    ],
+    "execute": [
+      {
+        "description": "create table \"GroupInstruction\"",
+        "sql": "CREATE TABLE \"public\".\"GroupInstruction\" (\n  \"content\" text,\n  \"createdAt\" timestamptz(3) DEFAULT (now()) NOT NULL,\n  \"groupId\" text NOT NULL,\n  \"id\" text NOT NULL,\n  \"updatedAt\" timestamptz(3) NOT NULL,\n  PRIMARY KEY (\"id\")\n)",
+        "params": []
+      }
+    ],
+    "postcheck": [
+      {
+        "description": "verify table \"GroupInstruction\" exists",
+        "sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"pg_class\" AS \"c\" WHERE (\"c\".\"oid\" = to_regclass($1) AND (\"c\".\"relkind\" = $2 OR \"c\".\"relkind\" = $3))) AS \"result\"",
+        "params": [
+          "\"public\".\"GroupInstruction\"",
+          "r",
+          "p"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "column.public.Memory.groupId",
+    "label": "Add column \"groupId\" to \"Memory\"",
+    "operationClass": "additive",
+    "target": {
+      "id": "postgres",
+      "details": {
+        "schema": "public",
+        "objectType": "column",
+        "name": "groupId",
+        "table": "Memory"
+      }
+    },
+    "precheck": [
+      {
+        "description": "ensure column \"groupId\" is missing",
+        "sql": "SELECT NOT EXISTS (SELECT 1 AS \"one\" FROM \"information_schema\".\"columns\" WHERE (\"table_schema\" = $1 AND \"table_name\" = $2 AND \"column_name\" = $3)) AS \"result\"",
+        "params": [
+          "public",
+          "Memory",
+          "groupId"
+        ]
+      }
+    ],
+    "execute": [
+      {
+        "description": "add column \"groupId\"",
+        "sql": "ALTER TABLE \"public\".\"Memory\" ADD COLUMN \"groupId\" text DEFAULT '' NOT NULL"
+      }
+    ],
+    "postcheck": [
+      {
+        "description": "verify column \"groupId\" exists",
+        "sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"information_schema\".\"columns\" WHERE (\"table_schema\" = $1 AND \"table_name\" = $2 AND \"column_name\" = $3)) AS \"result\"",
+        "params": [
+          "public",
+          "Memory",
+          "groupId"
+        ]
+      },
+      {
+        "description": "verify column \"groupId\" has type \"text\"",
+        "sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"pg_attribute\" AS \"a\" INNER JOIN \"pg_class\" AS \"c\" ON \"c\".\"oid\" = \"a\".\"attrelid\" INNER JOIN \"pg_namespace\" AS \"n\" ON \"n\".\"oid\" = \"c\".\"relnamespace\" WHERE (\"n\".\"nspname\" = $1 AND \"c\".\"relname\" = $2 AND \"a\".\"attname\" = $3 AND (format_type(\"a\".\"atttypid\", \"a\".\"atttypmod\")) = $4 AND NOT (\"a\".\"attisdropped\"))) AS \"result\"",
+        "params": [
+          "public",
+          "Memory",
+          "groupId",
+          "text"
+        ]
+      },
+      {
+        "description": "verify column \"groupId\" is NOT NULL",
+        "sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"information_schema\".\"columns\" WHERE (\"table_schema\" = $1 AND \"table_name\" = $2 AND \"column_name\" = $3 AND \"is_nullable\" = $4)) AS \"result\"",
+        "params": [
+          "public",
+          "Memory",
+          "groupId",
+          "NO"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "unique.GroupInstruction.GroupInstruction_groupId_key",
+    "label": "Add unique constraint on \"GroupInstruction\" (groupId)",
+    "operationClass": "additive",
+    "target": {
+      "id": "postgres",
+      "details": {
+        "schema": "public",
+        "objectType": "unique",
+        "name": "GroupInstruction_groupId_key",
+        "table": "GroupInstruction"
+      }
+    },
+    "precheck": [
+      {
+        "description": "ensure constraint \"GroupInstruction_groupId_key\" does not exist",
+        "sql": "SELECT NOT EXISTS (SELECT 1 AS \"one\" FROM \"pg_constraint\" AS \"c\" INNER JOIN \"pg_namespace\" AS \"n\" ON \"n\".\"oid\" = \"c\".\"connamespace\" WHERE (\"c\".\"conname\" = $1 AND \"n\".\"nspname\" = $2 AND \"c\".\"conrelid\" = to_regclass($3))) AS \"result\"",
+        "params": [
+          "GroupInstruction_groupId_key",
+          "public",
+          "\"public\".\"GroupInstruction\""
+        ]
+      }
+    ],
+    "execute": [
+      {
+        "description": "add unique constraint \"GroupInstruction_groupId_key\"",
+        "sql": "ALTER TABLE \"public\".\"GroupInstruction\" ADD CONSTRAINT \"GroupInstruction_groupId_key\" UNIQUE (\"groupId\")"
+      }
+    ],
+    "postcheck": [
+      {
+        "description": "verify unique constraint \"GroupInstruction_groupId_key\" exists on (groupId)",
+        "sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"pg_constraint\" AS \"c\" INNER JOIN \"pg_namespace\" AS \"n\" ON \"n\".\"oid\" = \"c\".\"connamespace\" WHERE (\"c\".\"conname\" = $1 AND \"n\".\"nspname\" = $2 AND \"c\".\"conrelid\" = to_regclass($3) AND \"c\".\"contype\" = $4 AND (SELECT coalesce(jsonb_agg(key_attribute.attname ORDER BY key_column.position), '[]'::jsonb) FROM unnest(\"c\".\"conkey\"::int2[]) WITH ORDINALITY AS key_column(attnum, position) JOIN pg_attribute key_attribute ON key_attribute.attrelid = \"c\".\"conrelid\" AND key_attribute.attnum = key_column.attnum) = ($5)::jsonb)) AS \"result\"",
+        "params": [
+          "GroupInstruction_groupId_key",
+          "public",
+          "\"public\".\"GroupInstruction\"",
+          "u",
+          "[\"groupId\"]"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "unique.Memory.Memory_userId_scope_groupId_project_name_key",
+    "label": "Add unique constraint on \"Memory\" (userId, scope, groupId, project, name)",
+    "operationClass": "additive",
+    "target": {
+      "id": "postgres",
+      "details": {
+        "schema": "public",
+        "objectType": "unique",
+        "name": "Memory_userId_scope_groupId_project_name_key",
+        "table": "Memory"
+      }
+    },
+    "precheck": [
+      {
+        "description": "ensure constraint \"Memory_userId_scope_groupId_project_name_key\" does not exist",
+        "sql": "SELECT NOT EXISTS (SELECT 1 AS \"one\" FROM \"pg_constraint\" AS \"c\" INNER JOIN \"pg_namespace\" AS \"n\" ON \"n\".\"oid\" = \"c\".\"connamespace\" WHERE (\"c\".\"conname\" = $1 AND \"n\".\"nspname\" = $2 AND \"c\".\"conrelid\" = to_regclass($3))) AS \"result\"",
+        "params": [
+          "Memory_userId_scope_groupId_project_name_key",
+          "public",
+          "\"public\".\"Memory\""
+        ]
+      }
+    ],
+    "execute": [
+      {
+        "description": "add unique constraint \"Memory_userId_scope_groupId_project_name_key\"",
+        "sql": "ALTER TABLE \"public\".\"Memory\" ADD CONSTRAINT \"Memory_userId_scope_groupId_project_name_key\" UNIQUE (\"userId\", \"scope\", \"groupId\", \"project\", \"name\")"
+      }
+    ],
+    "postcheck": [
+      {
+        "description": "verify unique constraint \"Memory_userId_scope_groupId_project_name_key\" exists on (userId, scope, groupId, project, name)",
+        "sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"pg_constraint\" AS \"c\" INNER JOIN \"pg_namespace\" AS \"n\" ON \"n\".\"oid\" = \"c\".\"connamespace\" WHERE (\"c\".\"conname\" = $1 AND \"n\".\"nspname\" = $2 AND \"c\".\"conrelid\" = to_regclass($3) AND \"c\".\"contype\" = $4 AND (SELECT coalesce(jsonb_agg(key_attribute.attname ORDER BY key_column.position), '[]'::jsonb) FROM unnest(\"c\".\"conkey\"::int2[]) WITH ORDINALITY AS key_column(attnum, position) JOIN pg_attribute key_attribute ON key_attribute.attrelid = \"c\".\"conrelid\" AND key_attribute.attnum = key_column.attnum) = ($5)::jsonb)) AS \"result\"",
+        "params": [
+          "Memory_userId_scope_groupId_project_name_key",
+          "public",
+          "\"public\".\"Memory\"",
+          "u",
+          "[\"userId\",\"scope\",\"groupId\",\"project\",\"name\"]"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "index.Memory.Memory_userId_groupId_idx",
+    "label": "Create index \"Memory_userId_groupId_idx\" on \"Memory\"",
+    "operationClass": "additive",
+    "target": {
+      "id": "postgres",
+      "details": {
+        "schema": "public",
+        "objectType": "index",
+        "name": "Memory_userId_groupId_idx",
+        "table": "Memory"
+      }
+    },
+    "precheck": [
+      {
+        "description": "ensure index \"Memory_userId_groupId_idx\" does not exist",
+        "sql": "SELECT (to_regclass($1)) IS NULL AS \"result\"",
+        "params": [
+          "\"public\".\"Memory_userId_groupId_idx\""
+        ]
+      }
+    ],
+    "execute": [
+      {
+        "description": "create index \"Memory_userId_groupId_idx\"",
+        "sql": "CREATE INDEX \"Memory_userId_groupId_idx\" ON \"public\".\"Memory\" (\"userId\", \"groupId\")",
+        "params": []
+      }
+    ],
+    "postcheck": [
+      {
+        "description": "verify index \"Memory_userId_groupId_idx\" exists on \"Memory\" with the planned definition",
+        "sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"pg_class\" AS \"c\" INNER JOIN \"pg_index\" AS \"i\" ON \"i\".\"indexrelid\" = \"c\".\"oid\" INNER JOIN \"pg_am\" AS \"m\" ON \"m\".\"oid\" = \"c\".\"relam\" WHERE (\"c\".\"oid\" = to_regclass($1) AND (\"c\".\"relkind\" = $2 OR \"c\".\"relkind\" = $3) AND \"i\".\"indrelid\" = to_regclass($4) AND NOT (\"i\".\"indisunique\") AND \"m\".\"amname\" = $5 AND (\"i\".\"indexprs\" IS NULL AND (SELECT coalesce(jsonb_agg(key_attribute.attname ORDER BY key_column.position), '[]'::jsonb) FROM unnest(\"i\".\"indkey\"::int2[]) WITH ORDINALITY AS key_column(attnum, position) JOIN pg_attribute key_attribute ON key_attribute.attrelid = \"i\".\"indrelid\" AND key_attribute.attnum = key_column.attnum) = ($6)::jsonb) AND \"i\".\"indpred\" IS NULL)) AS \"result\"",
+        "params": [
+          "\"public\".\"Memory_userId_groupId_idx\"",
+          "i",
+          "I",
+          "\"public\".\"Memory\"",
+          "btree",
+          "[\"userId\",\"groupId\"]"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "foreignKey.GroupInstruction.GroupInstruction_groupId_fkey",
+    "label": "Add foreign key \"GroupInstruction_groupId_fkey\" on \"GroupInstruction\"",
+    "operationClass": "additive",
+    "target": {
+      "id": "postgres",
+      "details": {
+        "schema": "public",
+        "objectType": "foreignKey",
+        "name": "GroupInstruction_groupId_fkey",
+        "table": "GroupInstruction"
+      }
+    },
+    "precheck": [
+      {
+        "description": "ensure FK \"GroupInstruction_groupId_fkey\" does not exist",
+        "sql": "SELECT NOT EXISTS (SELECT 1 AS \"one\" FROM \"pg_constraint\" AS \"c\" INNER JOIN \"pg_namespace\" AS \"n\" ON \"n\".\"oid\" = \"c\".\"connamespace\" WHERE (\"c\".\"conname\" = $1 AND \"n\".\"nspname\" = $2 AND \"c\".\"conrelid\" = to_regclass($3))) AS \"result\"",
+        "params": [
+          "GroupInstruction_groupId_fkey",
+          "public",
+          "\"public\".\"GroupInstruction\""
+        ]
+      }
+    ],
+    "execute": [
+      {
+        "description": "add FK \"GroupInstruction_groupId_fkey\"",
+        "sql": "ALTER TABLE \"public\".\"GroupInstruction\"\nADD CONSTRAINT \"GroupInstruction_groupId_fkey\"\nFOREIGN KEY (\"groupId\")\nREFERENCES \"public\".\"ProjectGroup\" (\"id\")\nON DELETE CASCADE\nON UPDATE CASCADE"
+      }
+    ],
+    "postcheck": [
+      {
+        "description": "verify FK \"GroupInstruction_groupId_fkey\" exists with the planned columns, referenced table and actions",
+        "sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"pg_constraint\" AS \"c\" INNER JOIN \"pg_namespace\" AS \"n\" ON \"n\".\"oid\" = \"c\".\"connamespace\" WHERE (\"c\".\"conname\" = $1 AND \"n\".\"nspname\" = $2 AND \"c\".\"conrelid\" = to_regclass($3) AND \"c\".\"contype\" = $4 AND (SELECT coalesce(jsonb_agg(key_attribute.attname ORDER BY key_column.position), '[]'::jsonb) FROM unnest(\"c\".\"conkey\"::int2[]) WITH ORDINALITY AS key_column(attnum, position) JOIN pg_attribute key_attribute ON key_attribute.attrelid = \"c\".\"conrelid\" AND key_attribute.attnum = key_column.attnum) = ($5)::jsonb AND \"c\".\"confrelid\" = to_regclass($6) AND (SELECT coalesce(jsonb_agg(key_attribute.attname ORDER BY key_column.position), '[]'::jsonb) FROM unnest(\"c\".\"confkey\"::int2[]) WITH ORDINALITY AS key_column(attnum, position) JOIN pg_attribute key_attribute ON key_attribute.attrelid = \"c\".\"confrelid\" AND key_attribute.attnum = key_column.attnum) = ($7)::jsonb AND \"c\".\"confdeltype\" = $8 AND \"c\".\"confupdtype\" = $9)) AS \"result\"",
+        "params": [
+          "GroupInstruction_groupId_fkey",
+          "public",
+          "\"public\".\"GroupInstruction\"",
+          "f",
+          "[\"groupId\"]",
+          "\"public\".\"ProjectGroup\"",
+          "[\"id\"]",
+          "c",
+          "c"
+        ]
+      }
+    ]
+  }
+]

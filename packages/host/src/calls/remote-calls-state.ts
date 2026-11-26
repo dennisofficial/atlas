@@ -1,23 +1,25 @@
-import { EDaemonAnswer } from '@dltech/atlas-core'
 import type { LogPort } from '@dltech/atlas-observability'
-import { ECallFailure } from '@dltech/atlas-protocol'
-import type { CallResult, DaemonFrame } from '@dltech/atlas-protocol'
+import type { CallResult } from '@dltech/atlas-protocol'
 
 import { Answers } from './answers'
+import { callLaneOf } from './call-lane'
 import { openCall, type CallLane, type OpenCallArgs } from './call-open'
+import { CancelObligations } from './cancel-obligations'
 import { scopeDispatchedBootId } from './call-scope'
-import { FencedError, ProtocolViolationError, type DaemonAnswer } from './errors'
+import { FencedError, ProtocolViolationError } from './errors'
 import { handleHello } from './hello-reply'
 import { DaemonLink } from './link'
 import { READY_TIMEOUT_MS, withReadyDeadline } from './ready-deadline'
 import { ReadyGate, type ReadyReply } from './ready-gate'
 import {
-  failedResult,
   handedOffResult,
   handleDaemonFrame,
   rejectPending,
+  type FrameSink,
   type Pending,
 } from './remote-calls-frames'
+import { settleCall, settleFailed } from './remote-calls-settle'
+import { frameSinkOf } from './remote-calls-sink'
 import type { RemoteCallsArgs } from './remote-calls'
 import { interruptPendingForResize } from './restart-interrupt'
 import { ScopeAcks } from './scope-acks'
@@ -28,6 +30,7 @@ type StateArgs = RemoteCallsArgs & { releaseResize(): void; resizeReason(): stri
 
 export class RemoteCallsState {
   private readonly pending = new Map<string, Pending>()
+  private readonly cancels: CancelObligations
   private readonly acks: ScopeAcks
   private readonly answers: Answers
   private readonly link: DaemonLink
@@ -37,6 +40,7 @@ export class RemoteCallsState {
 
   private epoch = 0
   private linkBootId: string | undefined
+  private capabilities: readonly string[] = []
   private fencedAt: number | undefined
   private closed = false
   private detached = false
@@ -64,6 +68,11 @@ export class RemoteCallsState {
         onFatal: (error) => this.failAll(error),
       },
     })
+    this.cancels = new CancelObligations({
+      link: this.link,
+      epoch: () => this.epoch,
+      bootId: () => this.linkBootId,
+    })
     this.answers = new Answers({ link: this.link, epoch: () => this.epoch })
     this.onReady = args.onReady
     this.acks = new ScopeAcks({
@@ -75,7 +84,7 @@ export class RemoteCallsState {
       gone: () => this.fenced || this.closed,
       readyWithin: (signal) => this.readyWithin(signal),
     })
-    this.lane = {
+    this.lane = callLaneOf({
       pending: this.pending,
       answers: this.answers,
       detached: () => this.detached,
@@ -85,27 +94,26 @@ export class RemoteCallsState {
       ready: (signal) => this.readyWithin(signal),
       arrived: (frame) => {
         this.linkBootId = frame.bootId
+        this.capabilities = frame.capabilities ?? []
         this.link.markReady()
         this.gate.resolve(frame)
       },
       flushAcks: () => this.acks.flush(),
+      flushCancels: (bootId) => this.cancels.flush(bootId),
       logged: (fields) =>
         this.log?.info({
           source: 'calls.link',
           message: 'daemon link back up',
-          data: { sessionId: args.sessionId, ...fields },
+          data: { sessionId: this.args.sessionId, ...fields },
         }),
       helloReady: (hello) => this.onReady?.(hello),
       listed: () => [...this.pending.values()],
-      sendCancel: (call) => {
-        if (!this.link.ready) return
-        this.link.send({ kind: 'cancel', key: call.key, epoch: this.epoch })
-      },
+      sendCancel: (call) => this.cancels.cancel(call.key),
       sendRun: (call) => this.sendRun(call),
       resizeReason: () => this.args.resizeReason(),
       settle: (call, result) => this.settle(call, result),
       schedulePing: () => this.link.schedulePing(),
-    }
+    })
   }
 
   open(args: { epoch: number }): void {
@@ -149,6 +157,10 @@ export class RemoteCallsState {
     return this.linkBootId
   }
 
+  daemonCapabilities(): readonly string[] {
+    return this.capabilities
+  }
+
   linked(): boolean {
     return this.link.ready && !this.fenced && !this.closed
   }
@@ -158,7 +170,7 @@ export class RemoteCallsState {
     this.args.releaseResize()
     this.answers.refuseAll()
     for (const call of [...this.pending.values()]) {
-      if (call.done) continue
+      if (call.done || call.detachOnHandoff !== true) continue
       this.settle(call, handedOffResult(call))
     }
   }
@@ -171,6 +183,7 @@ export class RemoteCallsState {
     this.answers.refuseAll()
     const error = new FencedError(`session ${this.args.sessionId} closed its daemon link`)
     rejectPending({ pending: this.pending, error })
+    this.cancels.clear()
     this.acks.releaseAll()
     this.gate.rejectSoon(error)
   }
@@ -197,9 +210,7 @@ export class RemoteCallsState {
     interruptPendingForResize({
       pending: this.pending,
       reason: args.reason,
-      cancel: (call) => {
-        if (this.link.ready) this.link.send({ kind: 'cancel', key: call.key, epoch: this.epoch })
-      },
+      cancel: (call) => this.cancels.cancel(call.key),
       settle: (call, result) => this.settle(call, result),
     })
   }
@@ -218,20 +229,11 @@ export class RemoteCallsState {
   }
 
   private settle(call: Pending, result: CallResult): void {
-    if (call.done) return
-    call.done = true
-    this.pending.delete(call.key)
-    call.detach?.()
-    for (const waiter of call.waiters) {
-      waiter.settle(result)
-    }
+    settleCall({ pending: this.pending, call, result })
   }
 
   private settleError(call: Pending, error: Error): void {
-    this.settle(
-      call,
-      failedResult({ op: call.op.op, code: ECallFailure.Internal, message: error.message }),
-    )
+    settleFailed({ pending: this.pending, call, error })
   }
 
   private sendRun(call: Pending): void {
@@ -271,20 +273,20 @@ export class RemoteCallsState {
     this.log?.error({ source: 'remote-calls', message: error.message })
   }
 
-  private sink() {
-    return {
+  private sink(): FrameSink {
+    return frameSinkOf({
       pending: this.pending,
-      settleAck: (args: { key: string; found: boolean }) => this.acks.settle(args),
       link: this.link,
-      settle: (call: Pending, result: CallResult) => this.settle(call, result),
-      settleError: (call: Pending, error: Error) => this.settleError(call, error),
-      sendRun: (call: Pending) => this.sendRun(call),
-      failAll: (error: Error) => this.failAll(error),
-      handleHelloReply: (frame: { bootId: string; version: string }) =>
-        handleHello(this.lane, frame),
-      answered: (key: string, state: DaemonAnswer | EDaemonAnswer) =>
-        this.answers.settle({ key, state }),
-      emitEvent: (frame: Extract<DaemonFrame, { kind: 'event' }>) => this.args.onEvent?.(frame),
-    }
+      settleAck: (args) => this.acks.settle(args),
+      settle: (call, result) => this.settle(call, result),
+      settleError: (call, error) => this.settleError(call, error),
+      sendRun: (call) => this.sendRun(call),
+      failAll: (error) => this.failAll(error),
+      handleHelloReply: (frame) => handleHello(this.lane, frame),
+      answered: (key, state) => this.answers.settle({ key, state }),
+      emitEvent: (frame) => {
+        this.args.onEvent?.(frame)
+      },
+    })
   }
 }

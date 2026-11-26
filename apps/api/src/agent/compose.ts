@@ -87,7 +87,7 @@ export type ComposeAgentHostArgs = {
 
 export const composeAgentHost = (args: ComposeAgentHostArgs): SessionHolder => {
   const timers = args.timers ?? { now: () => Date.now(), ...systemTimers }
-  const mcpControl = mcpControlPort(args.macLink)
+  const mcpControl = mcpControlPort({ env: args.env, macLink: args.macLink })
   const cipher = new SecretCipher(args.env.secretsEncryptionKey)
   const terminalDemand = new TerminalDemand()
   const panelDemand = new PanelDemand()
@@ -110,10 +110,10 @@ export const composeAgentHost = (args: ComposeAgentHostArgs): SessionHolder => {
       media: args.media,
       ...(args.mediaStore === undefined ? {} : { mediaStore: args.mediaStore }),
       plugins: composedPlugins,
-      configWrites: cloudConfigStore(),
-      envSecrets: envSecretsReader(),
-      access: accessSourceOf(),
-      projectFiles: projectFilesSourceOf(),
+      configWrites: cloudConfigStore(args.env),
+      envSecrets: envSecretsReader(args.env),
+      access: accessSourceOf(args.env),
+      projectFiles: projectFilesSourceOf(args.env),
       terminalStreams: (sessionId) => terminalDemand.countOf(sessionId),
       panelHolds: (sessionId) => panelDemand.countOf(sessionId),
       podSizing: args.plane,

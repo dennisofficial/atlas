@@ -55,6 +55,7 @@ const SERVER_COLUMNS = [
   'id',
   'userId',
   'projectId',
+  'groupId',
   'name',
   'source',
   'sealedSpec',
@@ -69,8 +70,15 @@ const SERVER_COLUMNS = [
   'oauthUpdatedAt',
 ] as const
 
-const scopeOf = (args: { userId?: string | undefined; projectId?: string | undefined }) =>
-  args.projectId === undefined ? { userId: args.userId ?? '' } : { projectId: args.projectId }
+const scopeOf = (args: {
+  userId?: string | undefined
+  groupId?: string | undefined
+  projectId?: string | undefined
+}) => {
+  if (args.projectId !== undefined) return { projectId: args.projectId }
+  if (args.groupId !== undefined) return { groupId: args.groupId }
+  return { userId: args.userId ?? '' }
+}
 
 export class McpOauthStore {
   constructor(private readonly db: Db) {}
@@ -126,6 +134,7 @@ export class McpOauthStore {
 
   findByName(args: {
     userId?: string | undefined
+    groupId?: string | undefined
     projectId?: string | undefined
     source: 'cloud' | 'repo'
     name: string
@@ -139,6 +148,7 @@ export class McpOauthStore {
 
   async touchRepoServer(args: {
     userId?: string | undefined
+    groupId?: string | undefined
     projectId?: string | undefined
     name: string
     url: string
@@ -181,6 +191,20 @@ export class McpOauthStore {
   async projectOwner(args: { projectId: string }): Promise<string | null> {
     const row = await this.db.orm.public.Project.select('ownerUserId').first({ id: args.projectId })
     return row?.ownerUserId ?? null
+  }
+
+  async groupOwner(args: { groupId: string }): Promise<string | null> {
+    const row = await this.db.orm.public.ProjectGroup.select('userId').first({ id: args.groupId })
+    return row?.userId ?? null
+  }
+
+  async ownsRow(args: { row: McpServerGrantRow; userId: string }): Promise<boolean> {
+    if (args.row.userId !== null) return args.row.userId === args.userId
+    if (args.row.projectId !== null) {
+      return (await this.projectOwner({ projectId: args.row.projectId })) === args.userId
+    }
+    if (args.row.groupId === null) return false
+    return (await this.groupOwner({ groupId: args.row.groupId })) === args.userId
   }
 
   async writeGrant(args: {

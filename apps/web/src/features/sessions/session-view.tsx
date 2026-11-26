@@ -7,7 +7,7 @@ import { clientOnlyReason } from '@dltech/atlas-commands'
 import type { Attachment } from '@dltech/atlas-core'
 
 import { liveBackgroundOf } from '@dltech/atlas-client/crew'
-import { mergedDraftOf } from '@dltech/atlas-client/session'
+import { mergedDraftOf, sessionBootViewOf } from '@dltech/atlas-client/session'
 import {
   blockingCommandOf,
   ESessionConnection,
@@ -38,7 +38,6 @@ import { headerStateOfSession, isSessionWorking } from './data/session-state'
 import { sessionLog, sessionStream } from './data/session-stream'
 import { useSessionRewind } from './data/use-session-rewind'
 import { sessionRefusalsOf } from './data/session-refusals'
-import { sessionBootViewOf } from './data/session-boot-view'
 import { sessionModelOf } from './data/session-model'
 import { sessionTranscriptOf } from './data/session-transcript'
 import { SessionDiagramRepairProvider } from '@/features/threads/data/session-diagram-repair-provider'
@@ -145,11 +144,12 @@ export function SessionView({ sessionId }: { sessionId: string }) {
     () =>
       sessionTranscriptOf({
         events: snapshot.events,
+        foldable: snapshot.foldable,
         overlay: snapshot.overlay,
         reveal,
         sessionNameOf,
       }),
-    [snapshot.events, snapshot.overlay, reveal, sessionNameOf],
+    [snapshot.events, snapshot.foldable, snapshot.overlay, reveal, sessionNameOf],
   )
   const { items: transcriptItems, repairDiagram } = useDiagramRepairedTranscript({
     sessionId,
@@ -166,8 +166,8 @@ export function SessionView({ sessionId }: { sessionId: string }) {
     [snapshot.foldable, snapshot.status, snapshot.setupOutput, snapshot.connection],
   )
   const operatorRequest = useMemo(
-    () => pendingOperatorRequestOf({ events: snapshot.events }),
-    [snapshot.events],
+    () => pendingOperatorRequestOf({ events: snapshot.foldable }),
+    [snapshot.foldable],
   )
   const model = useMemo(() => sessionViewModelOf(snapshot.view), [snapshot.view])
   const background = useMemo(
@@ -257,10 +257,10 @@ export function SessionView({ sessionId }: { sessionId: string }) {
   const [dismissedRefusals, setDismissedRefusals] = useState<ReadonlySet<number>>(new Set())
   const refusals = useMemo(
     () =>
-      sessionRefusalsOf(snapshot.events).filter(
+      sessionRefusalsOf(snapshot.foldable).filter(
         (refusal) => !dismissedRefusals.has(refusal.inboxId),
       ),
-    [snapshot.events, dismissedRefusals],
+    [snapshot.foldable, dismissedRefusals],
   )
   const dismissRefusals = () =>
     setDismissedRefusals((current) => {
@@ -307,13 +307,13 @@ export function SessionView({ sessionId }: { sessionId: string }) {
   const repair = useCredentialRepair({
     sessionId,
     mainThreadId: listed?.mainThreadId,
-    events: snapshot.events,
+    events: snapshot.foldable,
     onSwitchModel: () => choice.setOpen(true),
     retryAfterModel: switchRetry,
   })
   const failure = useSessionRunFailure({
     sessionId,
-    events: snapshot.events,
+    events: snapshot.foldable,
     working,
     openAgent,
     onSwitchModel: () => choice.setOpen(true),

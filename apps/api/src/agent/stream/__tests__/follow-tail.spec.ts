@@ -63,7 +63,23 @@ describe('follow tail open', () => {
     const catchups = rig.analytics.eventsOf('session_catchup')
     expect(catchups).toHaveLength(1)
     expect(catchups[0]?.properties?.start).toBe('tail')
+    expect(catchups[0]?.properties?.tail_missed).toBe(false)
     expect(catchups[0]?.properties?.events).toBe(STREAM_TAIL_EVENTS)
+  })
+
+  it('marks the catch-up when an opted-in cold open finds no tail base and replays the log', async () => {
+    await longLogOf(rig)
+    rig.tailBaseMissing = true
+    await rig.subscribe({ session: rig.open(), tailViewVersion: SESSION_VIEW_VERSION })
+    await rig.untilSeq(HEAD)
+    await rig.settled()
+
+    expect(rig.frames('base')).toHaveLength(0)
+    expect(rig.seqs()[0]).toBe(1)
+    const catchups = rig.analytics.eventsOf('session_catchup')
+    expect(catchups[0]?.properties?.start).toBe('cold')
+    expect(catchups[0]?.properties?.tail_missed).toBe(true)
+    expect(catchups[0]?.properties?.events).toBe(HEAD)
   })
 
   it('replays the whole log when the client does not opt in', async () => {

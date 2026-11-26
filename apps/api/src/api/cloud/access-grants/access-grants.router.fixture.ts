@@ -1,6 +1,7 @@
 import { EAccessScope, type AccessScope } from '@dltech/atlas-wire'
 import type { INestApplication } from '@nestjs/common'
 import { projectProviders } from '../projects/projects.router.fixture'
+import { GroupInstructionsService } from '../project-groups/group-instructions.service'
 import { GroupResourcesRouter } from '../project-groups/group-resources.router'
 import { GroupResourcesService } from '../project-groups/group-resources.service'
 import { GroupSettingsService } from '../project-groups/group-settings.service'
@@ -65,6 +66,7 @@ export const buildAccessGrantsApp = (): Promise<INestApplication> =>
       GroupResourcesRouter,
       GroupResourcesService,
       GroupSettingsService,
+      GroupInstructionsService,
       LayeredAccessGrantsService,
       ProjectGroupsRouter,
       PersonalAccessGrantsService,

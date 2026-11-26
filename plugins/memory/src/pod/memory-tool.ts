@@ -62,7 +62,7 @@ const inputSchema = baseSchema.superRefine((input, context) => {
 
 const description = [
   'Memory is named entries stored in Atlas Cloud.',
-  'scope is global or project. global covers every project and holds what stays true when the repository changes. project covers this repository and every clone of it.',
+  "scope is global, group or project. global covers every project and holds what stays true when the repository changes. group covers every project in the operator's project group and holds what holds across all of them. project covers this repository and every clone of it.",
   'name is lowercase words joined by hyphens, at most 100 characters, and states the claim, like bun-deflate-is-raw-not-zlib.',
   `action write needs scope, name, description, type and body. It saves a memory, or replaces the one with this name in this scope. type is user, feedback, project or reference. description is one line and one claim of at most ${MEMORY_INDEX_DESCRIPTION_CHARS} characters, which the index shows. body puts the fact first, then Why and How to apply, in at most ${MAX_MEMORY_BODY_CHARS} characters.`,
   'action read needs scope and name, and returns the body, the revision and the date of the last update.',

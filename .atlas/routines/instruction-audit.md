@@ -36,9 +36,11 @@ R21 clean 2026-11-25. R13: 0 raw hex, 105 arbitrary-value `className` hits in `a
 
 ## Backlog (ranked)
 
-1. R7 — remaining `process.env` reads in `apps/api` app code: `src/_lib/version/api-version.ts:17` (`ATLAS_APP_VERSION`,
-   reached from `agent/analytics/singleton.ts`, built outside DI), `src/_core/config/env/env.module.ts:15` (`NODE_ENV`),
-   `src/agent/config/env.ts:69` (default parameter, 9 lazy callers in `src/agent/config/*`).
+1. R7 — remaining `process.env` reads in `apps/api` app code: `src/agent/config/env.ts:69` (default parameter) via 4
+   lazy callers that open their own pool off module-level singletons: `instructions.ts:56`, `session-data.ts:36`,
+   `mcp-servers.ts:158`, `operator-control.ts:31` (built in `registered-plugins.ts:63-65` and `skills.ts`,
+   `quality-settings.ts`, so the env must reach `pluginsOf`). Then `src/_lib/version/api-version.ts:17`
+   (`ATLAS_APP_VERSION`, analytics singleton outside DI) and `src/_core/config/env/env.module.ts:15` (`NODE_ENV`).
 2. R20 — schema keys with no tier line: `ARTIFACT_DOMAIN` (`sections/artifacts.ts:13`), `CHANGES_S3_BUCKET`,
    `CHANGES_S3_PREFIX`, `CONTEXT_S3_PREFIX`, `CHANGES_GC_GRACE_MS` (`sections/changes.ts:11,12,15,18`), `EMAIL_FROM`
    (`sections/email.ts:10`), `PREVIEW_DOMAIN` (`sections/cloudflare.ts:14`). Needs the decrypt key to add lines.
@@ -61,6 +63,16 @@ R21 clean 2026-11-25. R13: 0 raw hex, 105 arbitrary-value `className` hits in `a
   enforced by `apps/tui/src/__tests__/package.spec.ts`.
 
 ## Runs
+
+### 2026-11-26
+
+- Instruction edits since 2026-11-25 (`packages/db`, `evals`, `apps/mobile` AGENTS.md) are prose: access grants,
+  project groups, `eval:jev-real`, Hermes source maps. Nothing new to measure; rule list unchanged.
+- Fixed R7 for 5 of the 9 lazy `readAgentHostEnv()` callers: `accessSourceOf`, `cloudConfigStore`,
+  `envSecretsReader`, `projectFilesSourceOf`, `mcpControlPort` now take the host env from `composeAgentHost`.
+  `database-ports-env.spec.ts` pins that each opens the env's database (an insecure-URL error names the host);
+  pinned on main via `process.env` first; 5 mutations back to `process.env` each failed, restored byte for byte.
+- `src/agent/config` + `src/agent/__tests__`: the same 15 specs fail on clean main here (no Postgres/Redis).
 
 ### 2026-11-25
 

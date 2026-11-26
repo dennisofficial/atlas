@@ -68,6 +68,14 @@ describe('enteredWorktreePathOf', () => {
     expect(path).toBeUndefined()
   })
 
+  it('finds a worktree entered before the visible tail', () => {
+    const retained = [entered({ seq: 1, threadId: 't1', path: '/work/wt' })]
+    const tail = retained.slice(1)
+
+    expect(enteredWorktreePathOf({ events: tail, threadId: 't1' })).toBeUndefined()
+    expect(enteredWorktreePathOf({ events: retained, threadId: 't1' })).toBe('/work/wt')
+  })
+
   it('answers nothing before any worktree is entered', () => {
     expect(enteredWorktreePathOf({ events: [], threadId: 't1' })).toBeUndefined()
   })

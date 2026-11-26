@@ -65,17 +65,19 @@ export const actionForAnswer = (args: {
   currentBootId: string | undefined
   answer: DaemonAnswer
 }): RecoverAction =>
-  recoverCall({
-    facts: {
-      dispatched: true,
-      dispatchedBootId: args.dispatchedBootId,
-      resultRecorded: false,
-      readOnly: isReadOnlyOp(args.op),
-    },
-    answer: args.answer === 'unavailable' ? EDaemonAnswer.NeverSeen : args.answer,
-    bootId: args.currentBootId ?? '',
-    variant: { doneRuns: true },
-  })
+  args.currentBootId === undefined
+    ? { type: 'wait' }
+    : recoverCall({
+        facts: {
+          dispatched: true,
+          dispatchedBootId: args.dispatchedBootId,
+          resultRecorded: false,
+          readOnly: isReadOnlyOp(args.op),
+        },
+        answer: args.answer,
+        bootId: args.currentBootId,
+        variant: { doneRuns: true },
+      })
 
 export const needsRun = (action: RecoverAction): boolean =>
   action.type === 'run' || action.type === 'rerun' || action.type === 'attach'

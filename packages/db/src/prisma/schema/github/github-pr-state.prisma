@@ -31,4 +31,5 @@ model GithubPrState {
   @@id([repoFullName, prNumber])
   @@index([headSha])
   @@index([headRepoFullName, headBranch])
+  @@index([baseBranch, state])
 }

@@ -71,6 +71,8 @@ export const startExec = async (args: {
   key: string
   command: string
   timeoutMs?: number | undefined
+  deadlineMs?: number | undefined
+  shellId?: string | undefined
 }): Promise<void> => {
   args.session.send({
     kind: 'run',
@@ -80,6 +82,8 @@ export const startExec = async (args: {
       op: 'exec',
       argv: ['/bin/sh', '-c', args.command],
       ...(args.timeoutMs === undefined ? {} : { timeoutMs: args.timeoutMs }),
+      ...(args.deadlineMs === undefined ? {} : { deadlineMs: args.deadlineMs }),
+      ...(args.shellId === undefined ? {} : { shellId: args.shellId }),
     },
   })
   await args.session.until((frame) => frame.kind === 'output' && frame.key === args.key, {

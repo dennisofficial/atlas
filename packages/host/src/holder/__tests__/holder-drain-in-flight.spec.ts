@@ -2,6 +2,7 @@ import { describe, expect, it } from 'bun:test'
 
 import {
   EFinishReason,
+  EToolEffect,
   ModelPort,
   toCallId,
   type Assembled,
@@ -12,18 +13,20 @@ import {
   type RecordEvent,
 } from '@dltech/atlas-core'
 import { FakeTool, ScriptedModel } from '@dltech/atlas-agent/testing'
+import { LogPort } from '@dltech/atlas-observability'
 
-import { DRAIN_IN_FLIGHT_CAP_MS } from '../drain-cap'
+import { DRAIN_IN_FLIGHT_CAP_MS, DRAIN_STREAM_ABORT_CAP_MS } from '../drain-cap'
 import { flushUntil, makeRig, seedSession, SESSION, THREAD_ID, type HolderRig } from './holder-rig'
 
 const STEP_TEXT = 'working'
 
 class GatedTool extends FakeTool {
   started = false
+  runs = 0
   private release: (() => void) | undefined
 
-  constructor() {
-    super('slow', 'done')
+  constructor(effect: EToolEffect = EToolEffect.Read) {
+    super('slow', 'done', undefined, effect)
   }
 
   releaseNow(): void {
@@ -32,10 +35,18 @@ class GatedTool extends FakeTool {
 
   override async invoke(): Promise<ToolOutcome> {
     this.started = true
+    this.runs += 1
     await new Promise<void>((resolve) => {
       this.release = resolve
     })
     return { ok: true, output: 'done', modelText: 'done' }
+  }
+}
+
+class MemoryLog extends LogPort {
+  readonly entries: { source: unknown; message: string }[] = []
+  record(entry: Parameters<LogPort['record']>[0]): void {
+    this.entries.push({ source: entry.source, message: entry.message })
   }
 }
 
@@ -121,54 +132,49 @@ describe('SessionHolder drain with work in flight', () => {
     expect(lease.holderHostId).toBeNull()
   }, 15_000)
 
-  it('records a host-side tool that was in flight when the drain began', async () => {
+  it('waits for an in-process tool to finish and records its result before handing back', async () => {
     const model = new ScriptedModel([...script(), { text: 'done' }])
-    const tool = new GatedTool()
+    const tool = new GatedTool(EToolEffect.Write)
     const a = await makeRig({ model: () => model, hostTools: [tool] })
     await started(a, 'go')
     expect(await flushUntil({ check: () => tool.started })).toBe(true)
 
-    const draining = a.holder.drain()
+    let drained = false
+    const draining = a.holder.drain().then(() => {
+      drained = true
+    })
     await a.flush()
+    expect(drained).toBe(false)
+
     tool.releaseNow()
     await draining
+    await a.flush()
 
-    const events = await eventsOf(a)
-    const results = events.filter((event) => event.type === 'tool-result')
+    const after = await eventsOf(a)
+    const results = after.filter((event) => event.type === 'tool-result')
     expect(results).toHaveLength(1)
-    expect(results[0]).not.toMatchObject({ interrupted: true })
-    expect(model.requests).toHaveLength(1)
-    expect(typesOf(events)).not.toContain('nudge')
+    expect(results[0]).toMatchObject({ callId: 'call-1', output: 'done' })
+    expect(after.filter((event) => event.type === 'tool-dispatched')).toHaveLength(1)
+    expect(typesOf(after)).not.toContain('nudge')
+    expect(tool.runs).toBe(1)
     const { lease } = await a.plane.currentLease({ sessionId: SESSION })
     expect(lease.holderHostId).toBeNull()
   }, 15_000)
 
-  it('marks a call the cap detached so the next host runs it instead of settling a crash', async () => {
+  it('leaves no open call for the next host, which neither reruns nor interrupts it', async () => {
     const model = new ScriptedModel([...script(), { text: 'done' }])
-    const tool = new GatedTool()
+    const tool = new GatedTool(EToolEffect.Write)
     const a = await makeRig({ model: () => model, hostTools: [tool] })
     await started(a, 'go')
     expect(await flushUntil({ check: () => tool.started })).toBe(true)
 
     const draining = a.holder.drain()
     await a.flush()
-    a.clock.advance(DRAIN_IN_FLIGHT_CAP_MS)
-
-    const detached = await flushUntil({
-      check: async () =>
-        (await eventsOf(a)).some(
-          (event) => event.type === 'tool-dispatched' && event.detached === true,
-        ),
-    })
-    expect(detached).toBe(true)
     tool.releaseNow()
-    await a.flush()
     await draining
+    await a.flush()
 
-    const drained = await eventsOf(a)
-    expect(drained.filter((event) => event.type === 'tool-result')).toEqual([])
-    expect(typesOf(drained)).not.toContain('nudge')
-
+    const bTool = new FakeTool('slow', 'done', undefined, EToolEffect.Write)
     const b = await makeRig({
       plane: a.plane,
       store: a.store,
@@ -176,23 +182,47 @@ describe('SessionHolder drain with work in flight', () => {
       clock: a.clock,
       daemon: a.daemon,
       script: [{ text: 'done' }],
-      hostTools: [new FakeTool('slow', 'done')],
+      hostTools: [bTool],
     })
     await b.holder.start()
     await b.wake()
-
-    const rerun = await flushUntil({
-      check: async () => (await eventsOf(a)).some((event) => event.type === 'tool-result'),
-      attempts: 200,
-      clock: a.clock,
-    })
-    expect(rerun).toBe(true)
+    await b.flush()
+    await a.flush()
 
     const after = await eventsOf(a)
-    expect(after.filter((event) => event.type === 'tool-result')).toHaveLength(1)
+    const results = after.filter((event) => event.type === 'tool-result')
+    expect(results).toHaveLength(1)
+    expect(results[0]).toMatchObject({ callId: 'call-1', output: 'done' })
     expect(
-      after.filter((event) => event.type === 'tool-result' && event.interrupted === true),
+      results.filter((event) => (event as { interrupted?: boolean }).interrupted === true),
     ).toEqual([])
+    expect(bTool.invocations).toEqual([])
     expect(typesOf(after)).not.toContain('nudge')
   }, 20_000)
+
+  it('hands back at the drain cap when an in-process tool never finishes', async () => {
+    const model = new ScriptedModel([...script(), { text: 'done' }])
+    const tool = new GatedTool(EToolEffect.Write)
+    const log = new MemoryLog()
+    const a = await makeRig({ model: () => model, hostTools: [tool], log })
+    await started(a, 'go')
+    expect(await flushUntil({ check: () => tool.started })).toBe(true)
+
+    const draining = a.holder.drain()
+    await a.flush()
+    a.clock.advance(DRAIN_IN_FLIGHT_CAP_MS)
+    await a.flush()
+    a.clock.advance(DRAIN_STREAM_ABORT_CAP_MS)
+    await draining
+    await a.flush()
+
+    const caps = log.entries.filter((entry) => entry.source === 'holder.drain')
+    expect(caps.map((entry) => entry.message).join('\n')).toContain('the tool call slow')
+    expect(caps.map((entry) => entry.message).join('\n')).toContain('aborting the model stream')
+    expect((await eventsOf(a)).filter((event) => event.type === 'tool-result')).toEqual([])
+    const { lease } = await a.plane.currentLease({ sessionId: SESSION })
+    expect(lease.holderHostId).toBeNull()
+    tool.releaseNow()
+    await a.flush()
+  }, 15_000)
 })

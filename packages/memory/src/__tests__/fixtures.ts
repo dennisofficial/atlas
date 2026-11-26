@@ -14,6 +14,7 @@ import {
 export const USER_A = 'user-a'
 export const USER_B = 'user-b'
 export const PROJECT = 'acme/widgets'
+export const GROUP = 'pgr_comp_ai'
 
 export const globalNote = ({
   name,
@@ -35,7 +36,8 @@ export const memoryOpsOf = (db: Db) => ({
   get: (args: MemoryKey) => getMemory({ db, ...args }),
   edit: (args: Omit<Parameters<typeof editMemory>[0], 'db'>) => editMemory({ db, ...args }),
   remove: (args: MemoryKey) => removeMemory({ db, ...args }),
-  list: (args: { userId: string; project?: string | undefined }) => listMemories({ db, ...args }),
+  list: (args: { userId: string; project?: string | undefined; groupId?: string | undefined }) =>
+    listMemories({ db, ...args }),
   listAll: (args: { userId: string }) => listAllMemories({ db, ...args }),
   rowsOf: () =>
     db.orm.public.Memory.where((row) => row.id.neq(''))

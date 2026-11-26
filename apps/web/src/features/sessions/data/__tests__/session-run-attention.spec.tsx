@@ -89,6 +89,16 @@ describe('sessionAttentionOf', () => {
       sessionAttentionOf({ events: eventsOf([{ type: 'user-said', text: 'go' }]), working: false }),
     ).toBeNull()
   })
+
+  it('keeps a failure the visible tail no longer holds', () => {
+    const retained = eventsOf([
+      { type: 'user-said', text: 'go' },
+      { type: 'run-failed', failure: extraUsage },
+    ])
+
+    expect(sessionAttentionOf({ events: retained.slice(0, 1), working: false })).toBeNull()
+    expect(sessionAttentionOf({ events: retained, working: false })?.failure).toEqual(extraUsage)
+  })
 })
 
 describe('sessionFailureCardOf', () => {

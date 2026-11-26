@@ -1,6 +1,8 @@
 import { describe, expect, it } from 'bun:test'
 import {
   chainEvents,
+  EServiceStatus,
+  ESessionStatus,
   ETurnCause,
   INBOX_KIND_STOP,
   toRunId,
@@ -55,6 +57,16 @@ const prepare = async (args: {
   await args.plane.revoke({ sessionId: args.sessionId, wantsHolder: false })
 }
 
+const tickingClock = () => {
+  let at = Date.parse(NOW)
+  return {
+    now: (): string => new Date(at).toISOString(),
+    tick: (): void => {
+      at += 1_000
+    },
+  }
+}
+
 const codeOf = async (work: Promise<unknown>): Promise<string | undefined> => {
   const failure = (await work.catch((error: unknown) => error)) as {
     getResponse?: () => unknown
@@ -75,9 +87,10 @@ describe('SessionsService.sleepPod', () => {
 
     expect(await codeOf(refused)).toBe(POD_TURN_RUNNING)
     expect(dispatcher.dispatches).toHaveLength(0)
+    expect((await plane.readSession({ sessionId: created.sessionId }))?.podParkedAt).toBeNull()
   })
 
-  it('stops the turn through the inbox and dispatches the sleep with force', async () => {
+  it('stops the turn through the inbox, parks the pod and dispatches the sleep with force', async () => {
     const { plane, service, dispatcher } = setup()
     const created = await service.create({ userId: 'user-a', projectId: 'proj-a' })
     await startTurn({ plane, sessionId: created.sessionId, threadId: created.mainThreadId })
@@ -89,10 +102,11 @@ describe('SessionsService.sleepPod', () => {
 
     const inbox = await plane.readInbox({ sessionId: created.sessionId, afterId: 0, limit: 20 })
     expect(inbox.map((entry) => entry.kind)).toContain(INBOX_KIND_STOP)
+    expect((await plane.readSession({ sessionId: created.sessionId }))?.podParkedAt).toBe(NOW)
     expect(dispatcher.dispatches).toEqual([
       {
-        payload: { sessionId: created.sessionId, epoch: lease.epoch },
-        idempotencyKey: `pod-sleep:${created.sessionId}:${lease.epoch}`,
+        payload: { sessionId: created.sessionId, epoch: lease.epoch, parkedAt: NOW },
+        idempotencyKey: `pod-sleep:${created.sessionId}:${NOW}`,
       },
     ])
   })
@@ -124,6 +138,36 @@ describe('SessionsService.sleepPod', () => {
     const inbox = await plane.readInbox({ sessionId: created.sessionId, afterId: 0, limit: 20 })
     expect(inbox.map((entry) => entry.kind)).not.toContain(INBOX_KIND_STOP)
     expect(dispatcher.dispatches).toHaveLength(1)
+    expect((await plane.readSession({ sessionId: created.sessionId }))?.podParkedAt).toBe(NOW)
+  })
+
+  it('stops a pod that is only running services without asking for confirmation', async () => {
+    const { plane, service, dispatcher } = setup()
+    const created = await service.create({ userId: 'user-a', projectId: 'proj-a' })
+    plane.readSessionBusy = (async () => ({
+      at: 0,
+      status: { state: ESessionStatus.Idle },
+      setupRunning: false,
+      pluginViews: {
+        services: [
+          {
+            serviceId: 'svc-1',
+            command: 'bun run dev',
+            status: EServiceStatus.Running,
+            ready: true,
+            changedAt: NOW,
+          },
+        ],
+      },
+    })) as unknown as typeof plane.readSessionBusy
+
+    expect(await service.sleepPod({ userId: 'user-a', sessionId: created.sessionId })).toEqual({
+      state: 'sleeping',
+    })
+
+    const inbox = await plane.readInbox({ sessionId: created.sessionId, afterId: 0, limit: 20 })
+    expect(inbox.map((entry) => entry.kind)).not.toContain(INBOX_KIND_STOP)
+    expect(dispatcher.dispatches).toHaveLength(1)
   })
 
   it('refuses another user', async () => {
@@ -137,27 +181,32 @@ describe('SessionsService.sleepPod', () => {
 })
 
 describe('SessionsService.sleepPod idempotency', () => {
-  it('keys one sleep once, so a repeated request does not sleep twice', async () => {
-    const { plane, service, dispatcher } = setup()
+  it('gives every stop its own run, so a second press is not deduped away', async () => {
+    const clock = tickingClock()
+    const { plane, service, dispatcher } = setup({ clock: clock.now })
     const created = await service.create({ userId: 'user-a', projectId: 'proj-a' })
     await prepare({ plane, sessionId: created.sessionId, threadId: created.mainThreadId })
 
     await service.sleepPod({ userId: 'user-a', sessionId: created.sessionId })
+    clock.tick()
     await service.sleepPod({ userId: 'user-a', sessionId: created.sessionId })
 
     const keys = dispatcher.dispatches.map((dispatch) => dispatch.idempotencyKey)
     expect(keys).toHaveLength(2)
-    expect(keys[0]).toBe(keys[1])
-    expect(keys[0]).toStartWith(`pod-sleep:${created.sessionId}:`)
+    expect(keys[0]).toBe(`pod-sleep:${created.sessionId}:${NOW}`)
+    expect(keys[1]).not.toBe(keys[0])
   })
 
   it('keys the next sleep separately once the pod was woken again', async () => {
-    const { plane, service, dispatcher } = setup()
+    const clock = tickingClock()
+    const { plane, service, dispatcher } = setup({ clock: clock.now })
     const created = await service.create({ userId: 'user-a', projectId: 'proj-a' })
     await prepare({ plane, sessionId: created.sessionId, threadId: created.mainThreadId })
 
     await service.sleepPod({ userId: 'user-a', sessionId: created.sessionId })
+    clock.tick()
     await service.wakePod({ userId: 'user-a', sessionId: created.sessionId })
+    clock.tick()
     await service.sleepPod({ userId: 'user-a', sessionId: created.sessionId })
 
     const keys = dispatcher.dispatches.map((dispatch) => dispatch.idempotencyKey)

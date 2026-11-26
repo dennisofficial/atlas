@@ -1,3 +1,4 @@
+import type { BootStepChild, BootStepView, BootView } from '@dltech/atlas-client/session'
 import {
   BOOT_STEP_ORDER,
   EBootStep,
@@ -11,6 +12,8 @@ import {
   type PodStatus,
   type RecordedBootStep,
 } from '@dltech/atlas-wire/web'
+
+export type { BootStepChild, BootStepView, BootView } from '@dltech/atlas-client/session'
 
 export const FAILED_FALLBACK = 'The sandbox failed to start.'
 export const SETUP_SCRIPT_FAILED_DETAIL = 'The agent was told why. The session continues.'
@@ -58,32 +61,6 @@ function labelOf(args: {
   const resumed = args.folded[EBootStep.Provision].outcome === EBootStepOutcome.Resumed
   if (args.id === EBootStep.Clone && resumed) return RESUMED_CLONE_LABEL
   return BOOT_LABELS[args.id]
-}
-
-export type BootStepChild = {
-  id: string
-  label: string
-  state: EBootStepState
-  detail?: string
-}
-
-export type BootStepView = {
-  id: EBootStep
-  label: string
-  state: EBootStepState
-  detail?: string
-  children?: BootStepChild[]
-  command?: string
-  output?: string
-}
-
-export type BootView = {
-  steps: BootStepView[]
-  state: EBootStepState
-  title?: string
-  error?: string
-  elapsedMs?: number
-  startedAtMs?: number
 }
 
 const atOf = (step: RecordedBootStep): number => Date.parse(step.at)

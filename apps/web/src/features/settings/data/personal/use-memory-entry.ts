@@ -11,12 +11,13 @@ export function useMemoryEntry(args: {
   group: MemoryScopeGroup
   summary: MemoryEntry | null
 }): CloudQuery<MemoryEntry | null> {
-  const { scope, project } = args.group
+  const { scope, project, groupId } = args.group
   const name = args.summary?.name ?? null
   const load = useCallback(
-    () => (name === null ? Promise.resolve(null) : fetchMemoryEntry({ scope, project, name })),
-    [scope, project, name],
+    () =>
+      name === null ? Promise.resolve(null) : fetchMemoryEntry({ scope, project, groupId, name }),
+    [scope, project, groupId, name],
   )
-  const key = `memory-entry:${scope}:${project}:${name}:${args.summary?.revision}`
+  const key = `memory-entry:${scope}:${project}:${groupId}:${name}:${args.summary?.revision}`
   return useCloudQuery({ key, load })
 }

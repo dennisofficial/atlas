@@ -66,7 +66,6 @@ describe('port registry', () => {
       ProcessPort: true,
       FileSystemPort: true,
       AgentFileSystemPort: true,
-      FileCapabilitiesPort: true,
       WorkspacePort: true,
       WorkspaceFactsPort: true,
       WorkspaceIdentityPort: true,

@@ -1,6 +1,8 @@
-import type { StepFailure, TranscriptModel } from '@dltech/atlas-client/transcript'
-
-import { stabilisedEntries } from './stable-entries'
+import {
+  stabilisedEntries,
+  type StepFailure,
+  type TranscriptModel,
+} from '@dltech/atlas-client/transcript'
 
 const sameFailure = (left: StepFailure | null, right: StepFailure | null): boolean =>
   left === right ||

@@ -3,7 +3,8 @@ import React from 'react'
 import type { SidebarCrewFold } from '../../../store/subagent-row'
 import { plural } from '@dltech/atlas-client/transcript'
 import { usePress } from '../../hooks/use-press'
-import { shellNameLabel, shellSidebarReadout, type ShellSnapshot } from '../../shells-model'
+import { shellName } from '@dltech/atlas-core'
+import { shellSidebarReadout, type ShellSnapshot } from '../../shells-model'
 import { glyph, theme } from '../../theme'
 import type { Span } from '../spans'
 import { Row, Section } from './row'
@@ -54,7 +55,7 @@ export function ShellsSection(props: {
           {...press(props.onOpen === undefined ? undefined : () => props.onOpen?.(shell.shellId))}
         >
           <Row
-            label={shellNameLabel(shell)}
+            label={shellName(shell)}
             labelFg={theme.hover}
             cells={props.cells}
             mark={markFor(shell)}

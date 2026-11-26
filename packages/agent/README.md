@@ -37,7 +37,9 @@ A main agent, a sub-agent and a teammate all run this loop. It knows nothing of 
 - `TurnOutcome`, `ETurnStatus`: how a turn ends: `completed`, `paused`, `idle`, `interrupted`,
   `failed`, `waiting-for-model`, `parked` or `relocation-paused`.
 - `PauseSignal`: pause a running turn at the next step boundary. `say`, `runTurn` and `resume` take it
-  as `pause`; a paused turn ends `relocation-paused`.
+  as `pause`; a paused turn ends `relocation-paused`. `beginModelStep` refuses a new model step once
+  paused, `abortModelStep` cuts the stream and nothing else for a hand-off, and `whenModelIdle`
+  reports when no stream is in flight.
 - `TurnDeps.uploads`: a `SaidUploadsPort` places the files of a said message on disk. The loop asks it only for the files the log holds no placement fact for, and appends one `upload-placement` fact per placed file through `AgentRecordPort.appendFacts`.
 
 ### Trace a turn
@@ -89,8 +91,10 @@ A main agent, a sub-agent and a teammate all run this loop. It knows nothing of 
 
 ### Settle and report
 
-- `settleCrashedCalls({record, ids, threadId, effectOf})`, `ToolEffectResolver`: record an interrupted
-  result for each call a restart left open, unless `effectOf` says the call only reads.
+- `settleCrashedCalls({record, ids, threadId, settleOf})`, `CrashedCallSettle`, `ECrashedCall`: a call
+  a restart left open is held (`Hold`) so the loop settles it again from durable steps and the daemon's
+  answer, or has an interrupted result recorded (`Interrupt`) on a proven pod restart.
+  `ToolEffectResolver` stays the runtime's per-tool effect.
 - `AgentOutput`, `AgentOutputEvent`, `StepStreamEvent`, `StepKey`: report each step, chunk and tool
   output to a surface.
 
@@ -129,6 +133,9 @@ const outcome = await runner.say({ threadId, text: 'What changed?' })
   `normalizeFailure`. `TurnDeps` requires them.
 - Do not read the filesystem or the network here. Add a port to `TurnDeps` instead.
 - Do not write to the log directly. Every draft goes through `AgentRecordPort`.
+- An adapter for `AgentRecordPort` overrides `factsOfKind({threadId, kind})` and
+  `appendFacts({threadId, runId, facts})`. The loop keeps where it placed each attached file in them,
+  and the base class keeps none.
 
 ## See also
 

@@ -7,7 +7,11 @@ import {
   sessionStateLineOf,
   startFailureOf,
 } from '@dltech/atlas-client/stream'
-import { quickStopRestoresToApply } from '@dltech/atlas-client/session'
+import {
+  quickStopRestoresToApply,
+  sessionBootViewOf,
+  type BootView,
+} from '@dltech/atlas-client/session'
 import { turnStartedAtOf } from '@dltech/atlas-client/transcript'
 import type { Attachment } from '@dltech/atlas-core'
 import { randomUUID } from 'expo-crypto'
@@ -19,13 +23,14 @@ import type { SessionNameOf, ThreadRow } from '../rows'
 import { agentLinksOf, type AgentLinks } from './agent-links'
 import type { ContextMeter } from '../composer/context-reading'
 import { queuedDockOf, type QueuedDockState } from './queued-dock'
-import { stagedRowsOf, viewOf, type ThreadView } from './rows'
+import { stagedRowsOf, type ThreadView } from './rows'
 import { sessionHeaderOf, type SessionHeader } from './session-header'
 import { sessionStream } from './session-stream'
 import { handledQuickStopsOf, rememberHandledQuickStops } from './handled-quick-stops'
 import { clientIdOfSend, settlementOf, type StagedSend } from './staged-send'
 import { useSession } from './use-session'
 import { useSessionRows } from './use-session-rows'
+import { useThreadView } from './use-thread-view'
 import { useSessionCommands, type SessionCommands } from './use-session-commands'
 import { useOperatorRequest, type OperatorRequestControl } from './use-operator-request'
 import { useQueuedWithdraw } from './use-queued-withdraw'
@@ -35,6 +40,7 @@ const TICK_MS = 1_000
 
 export type SessionScreen = ThreadView & {
   now: number
+  boot: BootView | null
   stateLine: string | null
   canReconnect: boolean
   header: SessionHeader
@@ -87,10 +93,20 @@ export function useSessionScreen(args: {
     events: snapshot.foldable,
     reportHidden,
   })
-  const operator = useOperatorRequest({ api, sessionId, events: snapshot.events })
+  const operator = useOperatorRequest({ api, sessionId, events: snapshot.foldable })
   const [now, setNow] = useState(() => Date.now())
-  const view = useMemo(() => viewOf({ snapshot, now }), [snapshot, now])
+  const view = useThreadView({ snapshot, now })
   const blocking = useMemo(() => blockingCommandOf(snapshot.status), [snapshot.status])
+  const boot = useMemo(
+    () =>
+      sessionBootViewOf({
+        events: snapshot.foldable,
+        status: snapshot.status,
+        setupOutput: snapshot.setupOutput,
+        catchingUp: snapshot.connection === ESessionConnection.CatchingUp,
+      }),
+    [snapshot.foldable, snapshot.status, snapshot.setupOutput, snapshot.connection],
+  )
   const [staged, setStaged] = useState<readonly StagedSend[]>([])
   const agentLinks = useMemo(() => agentLinksOf({ events: snapshot.events }), [snapshot.events])
   const [restored, setRestored] = useState<
@@ -255,6 +271,7 @@ export function useSessionScreen(args: {
   return {
     ...view,
     now,
+    boot,
     stateLine: sessionStateLineOf(snapshot),
     canReconnect: canReconnectOf(snapshot),
     header,

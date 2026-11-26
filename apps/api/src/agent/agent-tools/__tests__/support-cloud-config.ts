@@ -80,6 +80,13 @@ const configOf = (state: FakeConfigState): CloudConfigClient => ({
     const granted = grantOf({ state, grant, existing, member: 'secret' })
     state.secrets.set(name, { value, grant: granted })
   },
+  moveSecret: async ({ name, grant }) => {
+    const existing = state.secrets.get(name)
+    if (existing === undefined) return false
+    const granted = grantOf({ state, grant, existing, member: 'secret' })
+    state.secrets.set(name, { ...existing, grant: granted })
+    return true
+  },
   removeSecret: async (name) => state.secrets.delete(name),
   listFileMounts: async () =>
     [...state.mounts.entries()]
@@ -89,6 +96,13 @@ const configOf = (state: FakeConfigState): CloudConfigClient => ({
     const existing = state.mounts.get(path)
     const granted = grantOf({ state, grant, existing, member: 'file' })
     state.mounts.set(path, { contents, mode, grant: granted })
+  },
+  moveFileMount: async ({ path, grant }) => {
+    const existing = state.mounts.get(path)
+    if (existing === undefined) return false
+    const granted = grantOf({ state, grant, existing, member: 'file' })
+    state.mounts.set(path, { ...existing, grant: granted })
+    return true
   },
   removeFileMount: async (path) => state.mounts.delete(path),
   listGrants: async () => grantViewsOf(state),

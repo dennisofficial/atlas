@@ -1,4 +1,4 @@
-import { ERepoTracking } from '@dltech/atlas-wire'
+import { ERepoTracking } from '@dltech/atlas-core'
 import { db } from '@dltech/atlas-db'
 import { normalizedRepo } from './github-pr-identity'
 import { ERepoHookStatus } from './github-realtime.types'

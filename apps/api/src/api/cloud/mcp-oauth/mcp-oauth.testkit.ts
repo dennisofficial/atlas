@@ -42,6 +42,8 @@ export const addCloudServer = async (
   env: ReturnType<typeof build>,
   args: {
     userId?: string | undefined
+    groupId?: string | undefined
+    groupOwner?: string | undefined
     projectId?: string | undefined
     projectOwner?: string | undefined
     name?: string | undefined
@@ -51,8 +53,12 @@ export const addCloudServer = async (
 ): Promise<ServerGrantRow> => {
   const userId = args.userId === undefined ? 'user-a' : args.userId
   const projectId = args.projectId
+  const groupId = args.groupId
   if (projectId !== undefined) {
     env.store.projectOwners.set(projectId, args.projectOwner ?? 'user-a')
+  }
+  if (groupId !== undefined) {
+    env.store.groupOwners.set(groupId, args.groupOwner ?? 'user-a')
   }
   const name = args.name ?? 'posthog'
   const url = args.url ?? SERVER
@@ -67,9 +73,10 @@ export const addCloudServer = async (
     }),
   )
   const row: ServerGrantRow = {
-    id: `server-${userId}-${projectId ?? ''}-${name}-${env.store.servers.size}`,
-    userId: projectId === undefined ? userId : null,
+    id: `server-${userId}-${projectId ?? ''}-${groupId ?? ''}-${name}-${env.store.servers.size}`,
+    userId: projectId === undefined && groupId === undefined ? userId : null,
     projectId: projectId ?? null,
+    groupId: groupId ?? null,
     name,
     source: EMcpServerSource.Cloud,
     sealedSpec,

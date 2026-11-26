@@ -29,6 +29,7 @@ import type { SealedPending, ServerGrantRow } from './mcp-oauth.types'
 
 const PENDING_TTL_MS = 10 * 60_000
 const PROJECT_NOT_FOUND_MESSAGE = 'project not found'
+const GROUP_NOT_FOUND_MESSAGE = 'group not found'
 const SERVER_NOT_FOUND = 'mcp server not found'
 
 @Injectable()
@@ -44,17 +45,15 @@ export class McpOauthService {
   async servers(args: {
     userId: string
     projectId?: string | undefined
+    groupId?: string | undefined
   }): Promise<McpOauthServer[]> {
-    const scope =
-      args.projectId === undefined
-        ? { userId: args.userId }
-        : {
-            projectId: await this.ownedProject({
-              userId: args.userId,
-              projectId: args.projectId,
-            }),
-          }
-    const rows = await this.store.listServers(scope)
+    const rows = await this.store.listServers(
+      await this.scopeOf({
+        userId: args.userId,
+        ...(args.projectId === undefined ? {} : { projectId: args.projectId }),
+        ...(args.groupId === undefined ? {} : { groupId: args.groupId }),
+      }),
+    )
     return rows.map((row) => toWireMcpOauthServer({ cipher: this.cipher, row }))
   }
 
@@ -231,13 +230,41 @@ export class McpOauthService {
     ) {
       return row
     }
+    if (
+      row.groupId !== null &&
+      (await this.store.groupOwner({ groupId: row.groupId })) === args.userId
+    ) {
+      return row
+    }
     throw new NotFoundException(SERVER_NOT_FOUND)
+  }
+
+  private async scopeOf(args: {
+    userId: string
+    projectId?: string | undefined
+    groupId?: string | undefined
+  }): Promise<{ userId: string } | { groupId: string } | { projectId: string }> {
+    if (args.projectId !== undefined) {
+      return {
+        projectId: await this.ownedProject({ userId: args.userId, projectId: args.projectId }),
+      }
+    }
+    if (args.groupId !== undefined) {
+      return { groupId: await this.ownedGroup({ userId: args.userId, groupId: args.groupId }) }
+    }
+    return { userId: args.userId }
   }
 
   private async ownedProject(args: { userId: string; projectId: string }): Promise<string> {
     const owner = await this.store.projectOwner({ projectId: args.projectId })
     if (owner !== args.userId) throw new NotFoundException(PROJECT_NOT_FOUND_MESSAGE)
     return args.projectId
+  }
+
+  private async ownedGroup(args: { userId: string; groupId: string }): Promise<string> {
+    const owner = await this.store.groupOwner({ groupId: args.groupId })
+    if (owner !== args.userId) throw new NotFoundException(GROUP_NOT_FOUND_MESSAGE)
+    return args.groupId
   }
 
   private serverUrlOf(row: ServerGrantRow): string | undefined {

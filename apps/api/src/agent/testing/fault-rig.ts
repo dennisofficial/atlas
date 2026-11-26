@@ -10,50 +10,19 @@ import { FaultProxy } from '@dltech/atlas-host/testing'
 
 import { controlEventSchema } from '../registered-plugins'
 import { createRedisLiveFrames } from '../bus/redis-live-frames'
-import type { EHostFault } from './host-faults'
 import { seedSession, type NewSessionArgs } from './rig-seed'
+import type { HostKnobs, HostProcess, PanelBeats, ReadEvent } from './rig-types'
 import { startDaemon, type RigDaemon } from './rig-daemon'
 import { collectLines } from './rig-process'
 import { hostEnv, RIG_SECRET } from './rig-host-env'
 import { proxiedDatabaseUrl, startOwnDaemonProxy } from './rig-proxies'
 
 export type { RigDaemon } from './rig-daemon'
+export type { HostKnobs, HostProcess, PanelBeats, ReadEvent } from './rig-types'
 
 const hostEntry = join(import.meta.dir, 'host-process.ts')
 
 export { RIG_SECRET }
-
-export type HostProcess = {
-  label: string
-  dbProxy?: FaultProxy
-  daemonProxy?: FaultProxy
-  kill(signal: 'SIGKILL' | 'SIGTERM'): void
-  pause(): void
-  resume(): void
-  exited: Promise<number>
-  logs(): string[]
-}
-
-export type ReadEvent = { seq: number; type: string; event: unknown }
-
-export type PanelBeats = { stop(): Promise<void> }
-
-export type HostKnobs = {
-  appendRetryMs?: number
-  drainCapMs?: number
-  pingMs?: number
-  poolMax?: number
-  noRing?: boolean
-  queryTimeoutMs?: number
-  toolOutputFile?: string
-  sweepMs?: number
-  fault?: EHostFault
-  plugins?: boolean
-  modelRequestsFile?: string
-  contextMirrorDir?: string
-  notifyLog?: boolean
-  podResizeLog?: boolean
-}
 
 /**
  * A host holds a session only while it has work, so it can claim, finish and release a session

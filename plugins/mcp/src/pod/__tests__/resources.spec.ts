@@ -68,6 +68,15 @@ describe('the recorded mcp-config snapshot', () => {
     expect(snapshot.servers[0]?.configHash).toHaveLength(8)
   })
 
+  it('keeps the same hash when only the access token changed', async () => {
+    const daemon = fakeDaemon()
+    const transport = { kind: 'http' as const, url: 'https://mcp.test/mcp' }
+    const first = await loadConfig({ daemon, rows: rowsOf({ transport }, 'token-1') })
+    const second = await loadConfig({ daemon, rows: rowsOf({ transport }, 'token-2') })
+
+    expect(second.snapshot).toEqual(first.snapshot)
+  })
+
   it('names the file, its origin and its transport for every configured server', async () => {
     const daemon = fakeDaemon()
     daemon.files.set(

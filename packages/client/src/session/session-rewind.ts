@@ -2,7 +2,7 @@ import {
   agentLabel,
   attachmentsOf,
   EAttachmentStore,
-  oneLine,
+  shellName,
   type Attachment,
   type SaidImage,
   type SaidUpload,
@@ -58,9 +58,6 @@ export const rewoundMessageOf = (args: {
   }
 }
 
-const shellLabelOf = (event: { command: string; description?: string | undefined }): string =>
-  event.description?.trim() || oneLine(event.command)
-
 export const rewindKillsOf = (args: {
   events: readonly RecordEvent[]
   toSeq: number
@@ -85,7 +82,7 @@ export const rewindKillsOf = (args: {
         break
       case 'background-shell-started': {
         const key = `shell:${event.shellId}`
-        seeds.set(key, { kind: 'shell', id: event.shellId, label: shellLabelOf(event) })
+        seeds.set(key, { kind: 'shell', id: event.shellId, label: shellName(event) })
         running.add(key)
         break
       }

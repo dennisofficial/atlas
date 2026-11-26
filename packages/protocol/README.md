@@ -38,10 +38,10 @@ share. Every frame and every call is a `zod` schema here, and the daemon engine 
   status is an `ECallStatus`. `ECallFailure`: the failure code. `CallFailureError`: the thrown error.
 - `daemonEventSchema`, `DaemonEvent`: an event that arrives during a call, such as shell output.
 
-The ops are `exec`, `exec.background`, `stat`, `readFile`, `readBytes`, `readTextForEdit`, `readLink`,
-`readDirectory`, `writeFile`, `fetchToFile`, `digestFile`, `putFile`, `remove`, `mkdir`, `rename`,
-`glob` and `grep`. They also include the groups `changes.*`, `git.*`, `mcp.*`, `metrics.*`, `oom.*`,
-`previews.*`, `services.*`, `shells.*`, `terminal.*` and `watch.*`.
+The ops are `exec` (`deadlineMs` and `shellId` background it at the deadline), `exec.background`,
+`stat`, `readFile`, `readBytes`, `readTextForEdit`, `readLink`, `readDirectory`, `writeFile`,
+`fetchToFile`, `digestFile`, `putFile`, `remove`, `mkdir`, `rename`, `glob`, `grep` and the groups
+`changes.*`, `git.*`, `mcp.*`, `metrics.*`, `oom.*`, `previews.*`, `services.*`, `shells.*`, `terminal.*`, `watch.*`.
 
 ### Call a pod from the API
 
@@ -58,7 +58,7 @@ The ops are `exec`, `exec.background`, `stat`, `readFile`, `readBytes`, `readTex
 ### Carry a frame over the link
 
 - `hostFrameSchema`, `HostFrame`, `daemonFrameSchema`, `DaemonFrame`: the frame each side sends.
-- `EDaemonErrorKind`, `ERunState`: the error kind and the run state a frame reports.
+- `EDaemonErrorKind`, `ERunState`, `EDaemonCapability`: error kind, run state, hello capabilities.
 - `DAEMON_PORT`, `DAEMON_LINK_PROTOCOL_VERSION`, `DAEMON_LINK_PROTOCOL_MIN_VERSION`: the link
   constants. `DAEMON_LINK_SCHEMA_HASH`, `DAEMON_PROTOCOL_HEADER`, `DAEMON_MIN_PROTOCOL_HEADER`: the
   hash of `hostFrameSchema` and the two headers.

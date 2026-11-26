@@ -83,9 +83,7 @@ describe.skipIf(REDIS_URL === undefined)(
 
       await new Promise((resolve) => setTimeout(resolve, 2_000))
       const duringOutage = await readEvents({ plane: rig.plane, threadId })
-      expect(duringOutage.some((row) => row.type === 'tool-result' && callIdOf(row) === 'c1')).toBe(
-        false,
-      )
+      expect(duringOutage.filter((row) => isInterruptedResult(row, 'c1'))).toHaveLength(1)
       expect(bashAlive(gateFifo)).toBe(true)
 
       daemon.proxy.clear()
@@ -124,6 +122,9 @@ describe.skipIf(REDIS_URL === undefined)(
       const later = await readEvents({ plane: rig.plane, threadId })
       expect(later.length).toBe(settled.length)
       expect(later.filter((row) => isInterruptedResult(row, 'c1'))).toHaveLength(1)
+      expect(
+        later.filter((row) => row.type === 'tool-result' && callIdOf(row) === 'c1'),
+      ).toHaveLength(1)
 
       const runs = readFileSync(runsFile, 'utf8').trim().split('\n')
       expect(runs).toEqual(['run'])

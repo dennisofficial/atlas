@@ -1,14 +1,11 @@
+import {
+  gitBranchSchema,
+  githubRepoSummarySchema,
+  type GithubRepoSummary,
+} from '@dltech/atlas-core'
 import { z } from 'zod'
 
-import { gitBranchSchema, githubRepoSchema } from './project-wire'
-
-export const githubRepoSummarySchema = z.object({
-  fullName: githubRepoSchema,
-  isPrivate: z.boolean(),
-  defaultBranch: gitBranchSchema,
-  pushedAt: z.string().nullable(),
-})
-export type GithubRepoSummary = z.infer<typeof githubRepoSummarySchema>
+export { githubRepoSummarySchema, type GithubRepoSummary }
 
 export const githubRepoListSchema = z.array(githubRepoSummarySchema)
 

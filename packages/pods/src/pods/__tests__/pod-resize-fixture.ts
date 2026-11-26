@@ -8,6 +8,8 @@ export const sessionOf = (over: Partial<PodResizeSession> = {}): PodResizeSessio
   podDesiredMemoryGb: 16,
   podDesiredDiskGb: null,
   archivedAt: null,
+  sandboxStatus: null,
+  podParkedAt: null,
   ...over,
 })
 
@@ -20,6 +22,7 @@ export const depsOf = (over: Partial<PodResizeDeps> = {}) => {
     diskGb?: number | undefined
   }[] = []
   const wakes: { sessionId: string; epoch: number }[] = []
+  const parks: { sandboxSessionId: string }[] = []
   const applied: { sessionId: string; vcpus: number; memoryGb: number; generation: number }[] = []
   const failures: { sessionId: string; generation: number; error: string }[] = []
   const waits: { sessionId: string; generation: number; since: string }[] = []
@@ -47,6 +50,9 @@ export const depsOf = (over: Partial<PodResizeDeps> = {}) => {
     },
     wake: async (args) => {
       wakes.push(args)
+    },
+    park: async (args) => {
+      parks.push(args)
     },
     lease: async (args) => ({
       live: heldIds.has(args.sessionId),
@@ -87,6 +93,7 @@ export const depsOf = (over: Partial<PodResizeDeps> = {}) => {
     deps,
     resizes,
     wakes,
+    parks,
     applied,
     failures,
     waits,

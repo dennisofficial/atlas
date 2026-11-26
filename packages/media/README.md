@@ -10,6 +10,8 @@ for specs.
   `head`, `read` and `delete`.
 - `VercelMediaStore`: the Vercel Blob implementation.
 - `listBlobsOlderThan`: the pathnames under a prefix that were uploaded before a cutoff.
+- `validateMediaBytes`: the check that an upload is a supported image, matches its hash and fits an
+  inline model call.
 - `FakeMediaStore`: an in-memory store for a spec.
 
 ## Does not own
@@ -21,10 +23,10 @@ for specs.
 
 ## Entry points
 
-| Import                        | Use it for                                                                |
-| ----------------------------- | ------------------------------------------------------------------------- |
-| `@dltech/atlas-media`         | `MediaStore`, `ReadDelegation`, `VercelMediaStore`, `listBlobsOlderThan`. |
-| `@dltech/atlas-media/testing` | `FakeMediaStore` for a spec.                                              |
+| Import                        | Use it for                                                                                      |
+| ----------------------------- | ----------------------------------------------------------------------------------------------- |
+| `@dltech/atlas-media`         | `MediaStore`, `ReadDelegation`, `VercelMediaStore`, `listBlobsOlderThan`, `validateMediaBytes`. |
+| `@dltech/atlas-media/testing` | `FakeMediaStore` for a spec.                                                                    |
 
 ## Capabilities
 
@@ -48,6 +50,14 @@ for specs.
 - `read({ pathname })`: returns the bytes, or `null`.
 - `delete({ pathnames })`: deletes the blobs. An empty list does nothing.
 
+### Validate an upload
+
+- `validateMediaBytes({ hash, bytes })`: returns a `MediaValidation`. It checks the hash, the image
+  type, the decode, the size and the inline delivery. A refusal carries a `reason`.
+- `MediaValidation`: `{ ok: true; media: MediaRef }` or `{ ok: false; reason: string }`.
+- `sha256Hex(bytes)`: the SHA-256 digest of the bytes as lowercase hex, the hash that the client
+  sends.
+
 ### Sweep old blobs
 
 - `listBlobsOlderThan({ token, prefix, before })`: returns the pathnames under `prefix` whose
@@ -69,7 +79,7 @@ The API builds the real store in a provider, and a spec swaps in the fake.
 import { FakeMediaStore } from '@dltech/atlas-media/testing'
 
 const store = new FakeMediaStore()
-store.put({ pathname: 'media/usr-1/abc', bytes: new Uint8Array([1, 2, 3]) })
+await store.put({ pathname: 'media/usr-1/abc', bytes: new Uint8Array([1, 2, 3]) })
 ```
 
 ## Rules

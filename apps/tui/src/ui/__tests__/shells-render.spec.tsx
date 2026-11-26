@@ -112,6 +112,14 @@ describe('what the sidebar says about background shells', () => {
     expect(has(rows, 'bun test --watch')).toBe(true)
   })
 
+  it('folds a multi-line command when the description is only whitespace', async () => {
+    const rows = await sidebarRows([
+      shell({ shellId: 'bash_1', command: 'bun test\n\t --watch', description: ' \n ' }),
+    ])
+
+    expect(has(rows, 'bun test --watch')).toBe(true)
+  })
+
   it('lists only what is running, pointing at /shells for what finished', async () => {
     const rows = await sidebarRows([shell({ shellId: 'bash_1' })], {
       hidden: 1,

@@ -44,8 +44,9 @@ Subscribe a thread to a GitHub pull request or workflow run, so the events reach
   target's current phase from a GitHub response, so a subscription made on an already finished
   target gets its final notice at once. `repoFullNameOf(repo)` drops the `github.com/` prefix.
 - `pullRequestSnapshotOf(input)` and `runSnapshotOf(jobs)`: the facts a subscribe result shows
-  about an open target, and the notice that comes next. `reviewDecisionOf(reviews)` reads the
-  latest review of each reviewer.
+  about an open target, and the notice that comes next. `missingRequired` names the required checks
+  that have not reported yet, so the snapshot counts them as running. `reviewDecisionOf(reviews)`
+  reads the latest review of each reviewer.
 
 ### Draw a pull request
 

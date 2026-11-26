@@ -180,7 +180,11 @@ const foldedViewOf = (cache: RecordCache) => {
   const events = cache.eventsAfter(0).map((event) => cache.resolvedEvent(event))
   const ofType = <T extends RecordEvent['type']>(type: T) =>
     events.filter((event): event is Extract<RecordEvent, { type: T }> => event.type === type)
-  const facts = ofType('fact-recorded').map((event) => ({ key: event.key, value: event.value }))
+  const facts = ofType('fact-recorded').map((event) => ({
+    key: event.key,
+    kind: event.kind,
+    value: event.value,
+  }))
   const retries = ofType('retry-scheduled').map(({ key, notBefore, attempt, reason }) => ({
     key,
     notBefore,

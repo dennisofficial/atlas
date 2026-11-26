@@ -1,7 +1,7 @@
 'use client'
 
 import { AlertDialog } from '#components/alert-dialog'
-import { MoonIcon } from 'lucide-react'
+import { MoonIcon, TriangleAlertIcon } from 'lucide-react'
 
 import { PodDiskSelect } from './internal/pod-disk-control'
 import { EPodAction, PodActionConfirm } from './internal/pod-action-confirm'
@@ -44,6 +44,7 @@ export interface PodSectionProps {
   diskLimitGb?: number | undefined
   starting?: boolean | undefined
   stopping?: boolean | undefined
+  powerError?: string | undefined
   message?: string | undefined
   confirmAction?: EPodAction | undefined
   defaultActiveIndex?: number | undefined
@@ -186,6 +187,12 @@ export function PodSection(props: PodSectionProps) {
         onStart={props.onStart}
         onStop={props.onStop}
       />
+      {props.powerError === undefined ? null : (
+        <p className="flex items-start gap-1 text-xs text-destructive">
+          <TriangleAlertIcon aria-hidden className="mt-0.5 size-3 shrink-0" />
+          <span className="min-w-0 flex-1">Could not stop the pod. {props.powerError}</span>
+        </p>
+      )}
       {props.message === undefined ? null : (
         <p className="text-xs text-muted-foreground">{props.message}</p>
       )}

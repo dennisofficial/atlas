@@ -8,7 +8,7 @@ import { groupConfigClientOf } from './cloud-config-group'
 import { personalConfigClientOf } from './cloud-config-personal'
 import { projectConfigClientOf } from './cloud-config-project'
 import { databaseUrlWithTls } from './database-url'
-import { readAgentHostEnv } from './env'
+import type { AgentHostEnv } from './env'
 
 const QUERY_TIMEOUT_MS = 10_000
 
@@ -49,9 +49,11 @@ export type CloudConfigClient = {
   removeSetting(key: string): Promise<boolean>
   listSecrets(): Promise<readonly SecretEntry[]>
   setSecret(args: SecretWrite): Promise<void>
+  moveSecret(args: { name: string; grant: string }): Promise<boolean>
   removeSecret(name: string): Promise<boolean>
   listFileMounts(): Promise<readonly FileMountView[]>
   setFileMount(args: FileMountWrite): Promise<void>
+  moveFileMount(args: { path: string; grant: string }): Promise<boolean>
   removeFileMount(path: string): Promise<boolean>
   listGrants(): Promise<readonly GrantView[]>
   readGrant(name: string): Promise<GrantView | null>
@@ -77,12 +79,13 @@ export type CloudConfigStore = {
 
 export { DEFAULT_FILE_MODE } from './cloud-config-seal'
 
-export const cloudConfigStore = (): CloudConfigStore => {
+export const cloudConfigStore = (
+  env: Pick<AgentHostEnv, 'databaseUrl' | 'secretsEncryptionKey'>,
+): CloudConfigStore => {
   let db: Db | undefined
   let cipher: SecretCipher | undefined
   const opened = (): { db: Db; cipher: SecretCipher } => {
     if (db === undefined || cipher === undefined) {
-      const env = readAgentHostEnv()
       db = createDb(
         createPool(databaseUrlWithTls(env.databaseUrl), { queryTimeoutMs: QUERY_TIMEOUT_MS }),
       )

@@ -7,6 +7,7 @@ export type McpSignInSurface = 'web' | 'desktop' | 'ios'
 export type McpSignInScreen =
   | { kind: 'settings'; scope: 'user' }
   | { kind: 'settings'; scope: 'project'; id: string }
+  | { kind: 'settings'; scope: 'group'; id: string }
 
 export type McpSignInArgs = {
   serverId: string

@@ -9,7 +9,6 @@ import {
 } from '@dltech/atlas-core'
 import {
   runInCallScope,
-  scopeKeyOf,
   type BootNotice,
   type CapturedBase,
   type PrepareResult,
@@ -94,7 +93,16 @@ const startSetupInBackground = (args: {
 }
 
 const scopeFor = (args: { sandboxName: string; phase: string }): string =>
-  scopeKeyOf({ runId: 'setup', callId: `${args.sandboxName}:${args.phase}` })
+  `setup:${args.sandboxName}:${args.phase}`
+
+const ackPhases = async (args: {
+  calls: Pick<RemoteCalls, 'ackScope'>
+  scopeKeys: readonly string[]
+}): Promise<void> => {
+  for (const scopeKey of args.scopeKeys) {
+    await args.calls.ackScope({ scopeKey }).catch(() => undefined)
+  }
+}
 
 export const ensureWorkspace = async (args: {
   calls: Pick<RemoteCalls, 'ackScope'>
@@ -133,6 +141,7 @@ export const ensureWorkspace = async (args: {
   )
   const setupScope = phases[3] ?? 'setup:setup'
   let setupInBackground = false
+  let prepared = false
   let captured: readonly CapturedBase[] = []
   try {
     const state = await runInCallScope({
@@ -241,10 +250,12 @@ export const ensureWorkspace = async (args: {
         ackScope: () => args.calls.ackScope({ scopeKey: setupScope }),
       })
     }
-    return {
+    const result: PrepareResult = {
       ...resultOf({ warnings, notices }),
       ...(captured.length === 0 ? {} : { bases: captured }),
     }
+    prepared = result.ok
+    return result
   } catch (error) {
     fail({ deps, message: 'workspace setup failed', detail: String(error) })
     deps.log?.error({
@@ -254,9 +265,11 @@ export const ensureWorkspace = async (args: {
     })
     return { ok: false, reason: warnings.join('\n') }
   } finally {
-    for (const scopeKey of phases) {
-      if (setupInBackground && scopeKey === setupScope) continue
-      await args.calls.ackScope({ scopeKey }).catch(() => undefined)
-    }
+    const scopesCleared = ackPhases({
+      calls: args.calls,
+      scopeKeys: phases.filter((scopeKey) => !(setupInBackground && scopeKey === setupScope)),
+    })
+    const retryReusesScopes = !prepared
+    if (retryReusesScopes) await scopesCleared
   }
 }

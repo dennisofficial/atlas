@@ -22,7 +22,7 @@ import {
 } from '../mcp-oauth'
 import { sameServerUrl } from '../mcp-oauth/seal'
 import { databaseUrlWithTls } from './database-url'
-import { readAgentHostEnv } from './env'
+import type { AgentHostEnv } from './env'
 import { SecretCipher } from '@dltech/atlas-pods/config/secret-cipher'
 
 const QUERY_TIMEOUT_MS = 10_000
@@ -33,7 +33,12 @@ const grantSchema = z.object({
   tokens: z.object({ accessToken: z.string(), expiresAt: z.string().optional() }),
 })
 
-type Owner = { userId: string; projectId: string | null; surface: McpReturnSurface }
+type Owner = {
+  userId: string
+  projectId: string | null
+  groupId: string | null
+  surface: McpReturnSurface
+}
 
 type ServerRow = {
   name: string
@@ -73,15 +78,22 @@ export const mcpControlOf = (args: {
 }): McpControlPort => {
   const owners = new Map<string, Promise<Owner | null>>()
 
+  const groupIdOf = async (projectId: string | null): Promise<string | null> => {
+    if (projectId === null) return null
+    const project = await args.db.orm.public.Project.first({ id: projectId })
+    return project?.groupId ?? null
+  }
+
   const ownerFor = async (sessionId: string): Promise<Owner | null> => {
     const cached = owners.get(sessionId)
     if (cached !== undefined) return await cached
-    const read = args.db.orm.public.Session.first({ id: sessionId }).then((session) =>
+    const read = args.db.orm.public.Session.first({ id: sessionId }).then(async (session) =>
       session === null || session === undefined
         ? null
         : {
             userId: session.userId,
             projectId: session.projectId,
+            groupId: await groupIdOf(session.projectId),
             surface: surfaceOf(session.lastSurface),
           },
     )
@@ -103,10 +115,17 @@ export const mcpControlOf = (args: {
       .where({ userId: args2.owner.userId, source: args2.source, name: args2.name })
       .all()
     if (args2.owner.projectId === null) return user
-    const project = await servers
-      .where({ projectId: args2.owner.projectId, source: args2.source, name: args2.name })
-      .all()
-    return [...user, ...project]
+    const [group, project] = await Promise.all([
+      args2.owner.groupId === null
+        ? Promise.resolve([])
+        : servers
+            .where({ groupId: args2.owner.groupId, source: args2.source, name: args2.name })
+            .all(),
+      servers
+        .where({ projectId: args2.owner.projectId, source: args2.source, name: args2.name })
+        .all(),
+    ])
+    return [...user, ...group, ...project]
   }
 
   const tokenOf = async (args2: {
@@ -128,6 +147,7 @@ export const mcpControlOf = (args: {
     const refreshed = await args.gateway.refresh({
       userId: args2.owner.userId,
       ...(args2.owner.projectId === null ? {} : { projectId: args2.owner.projectId }),
+      ...(args2.owner.groupId === null ? {} : { groupId: args2.owner.groupId }),
       source: args2.source,
       name: args2.name,
       url: args2.url,
@@ -156,6 +176,7 @@ export const mcpControlOf = (args: {
       const begun = await args.gateway.begin({
         userId: owner.userId,
         ...(owner.projectId === null ? {} : { projectId: owner.projectId }),
+        ...(owner.groupId === null ? {} : { groupId: owner.groupId }),
         source: request.source,
         name: request.name,
         url: request.url,
@@ -204,21 +225,25 @@ export const mcpControlOf = (args: {
   return { of: controlOf }
 }
 
-export const mcpControlPort = (macLink: MacLink): McpControlPort => {
+export const mcpControlPort = (args: {
+  env: Pick<AgentHostEnv, 'databaseUrl' | 'secretsEncryptionKey' | 'publicUrl'>
+  macLink: MacLink
+}): McpControlPort => {
   let port: McpControlPort | undefined
   return {
     of: (sessionId) => {
       if (port === undefined) {
-        const env = readAgentHostEnv()
         const db = createDb(
-          createPool(databaseUrlWithTls(env.databaseUrl), { queryTimeoutMs: QUERY_TIMEOUT_MS }),
+          createPool(databaseUrlWithTls(args.env.databaseUrl), {
+            queryTimeoutMs: QUERY_TIMEOUT_MS,
+          }),
         )
-        const cipher = new SecretCipher(env.secretsEncryptionKey)
+        const cipher = new SecretCipher(args.env.secretsEncryptionKey)
         port = mcpControlOf({
           db,
           cipher,
-          gateway: mcpOauthGatewayOf({ db, cipher, publicUrl: env.publicUrl }),
-          macLink,
+          gateway: mcpOauthGatewayOf({ db, cipher, publicUrl: args.env.publicUrl }),
+          macLink: args.macLink,
         })
       }
       return port.of(sessionId)

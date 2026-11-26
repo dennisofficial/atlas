@@ -22,7 +22,7 @@ import { takeModelStepWithRetry } from './retrying-step'
 import { stepRetryDeps } from './step-retry-deps'
 import { stepStreamerFor } from './streamed-chunks'
 import type { TurnSpendTally } from '../ledger/record-turn-spend'
-import { recordAbandonedStep, watchTurnStep } from './turn-step-helpers'
+import { recordAbandonedStep, recordHandoffAborted, watchTurnStep } from './turn-step-helpers'
 import { draftsFor, OPERATOR_STOP_REASON } from './step-drafts'
 import { prepareStepAssembly, stepPrepareDepsOf, preparedFailureMessage } from './step-prepare'
 import { idleOrSwallowed } from './swallowed-outcome'
@@ -234,6 +234,10 @@ export async function runTrackedTurn(
       })
 
     let stepped = await stepOnce()
+    if (stepped.ok && stepped.handoffAborted === true) {
+      await recordHandoffAborted({ deps, threadId, runId, result: stepped.result })
+      return { status: ETurnStatus.HandoffPaused, runId }
+    }
     const denied = await waitingIfBlocked({ deps, stepped, threadId, runId })
     if (denied !== undefined) return denied
     position.modelSteps += 1
@@ -246,6 +250,10 @@ export async function runTrackedTurn(
       position.silentRetries += 1
       spend.countStep(stepped.result.usage)
       stepped = await stepOnce()
+      if (stepped.ok && stepped.handoffAborted === true) {
+        await recordHandoffAborted({ deps, threadId, runId, result: stepped.result })
+        return { status: ETurnStatus.HandoffPaused, runId }
+      }
       const deniedRetry = await waitingIfBlocked({ deps, stepped, threadId, runId })
       if (deniedRetry !== undefined) return deniedRetry
     }

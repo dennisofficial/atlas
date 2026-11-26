@@ -40,6 +40,8 @@ const sessionRow = () => ({
   podAppliedGeneration: null,
   podResizeError: null,
   podWaitingSince: null,
+  podParkedAt: null,
+  podParkError: null,
 })
 
 describe('the session tables in public', () => {

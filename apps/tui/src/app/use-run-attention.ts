@@ -53,17 +53,17 @@ export function useRunAttention(args: {
   api: SessionApi
   sessionId: string
   events: readonly Event[]
-  rawEvents: readonly RecordEvent[]
+  foldable: readonly RecordEvent[]
   live: readonly InFlightStep[]
   working: boolean
   connected: boolean
   onProblem: (reason: string) => void
 }): RunAttentionControl {
-  const { api, sessionId, events, rawEvents, live, working, connected } = args
+  const { api, sessionId, events, foldable, live, working, connected } = args
   const problem = useRef(args.onProblem)
   problem.current = args.onProblem
 
-  const resumable = useMemo(() => resumableOf(resumePointOf({ events: rawEvents })), [rawEvents])
+  const resumable = useMemo(() => resumableOf(resumePointOf({ events: foldable })), [foldable])
 
   const attention = useMemo(() => {
     const found = runAttentionOf({

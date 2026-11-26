@@ -21,6 +21,11 @@ export const execOpSchema = z
     cwd: z.string().min(1).optional(),
     env: envSchema.optional(),
     timeoutMs: z.number().int().min(1).optional(),
+    deadlineMs: z.number().int().min(1).optional(),
+    shellId: z
+      .string()
+      .regex(/^[A-Za-z0-9_.:-]+$/)
+      .optional(),
   })
   .strict()
 

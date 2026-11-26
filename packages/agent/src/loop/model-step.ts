@@ -10,7 +10,7 @@ import type { ModelAdmissionBlockedError } from '../model/admission-blocked'
 import { ModelStreamError } from '../model/errors'
 
 export type SteppedTurn =
-  | { ok: true; result: ModelStepResult }
+  | { ok: true; result: ModelStepResult; handoffAborted?: true }
   | { ok: false; message: string; cause: unknown; blocked?: ModelAdmissionBlockedError }
 
 export async function takeModelStep(args: {

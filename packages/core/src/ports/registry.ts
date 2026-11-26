@@ -7,7 +7,6 @@ import type { CredentialPort } from './credential.port'
 import type { DecisionPort } from './decision.port'
 import type { EventLogPort } from './event-log.port'
 import type { ExecutionLocationSinkPort } from './execution-location-sink.port'
-import type { FileCapabilitiesPort } from './file-capabilities.port'
 import type { FileSystemPort } from './filesystem.port'
 import type { IdPort } from './id.port'
 import type { JudgePort } from './judge.port'
@@ -55,9 +54,6 @@ export interface PortRegistryEntries {
   readonly ProcessPort: PortRegistryEntry<ProcessPort> & { readonly transport: 'none' }
   readonly FileSystemPort: PortRegistryEntry<FileSystemPort> & { readonly transport: 'none' }
   readonly AgentFileSystemPort: PortRegistryEntry<AgentFileSystemPort> & {
-    readonly transport: 'none'
-  }
-  readonly FileCapabilitiesPort: PortRegistryEntry<FileCapabilitiesPort> & {
     readonly transport: 'none'
   }
   readonly WorkspacePort: PortRegistryEntry<WorkspacePort> & { readonly transport: 'none' }

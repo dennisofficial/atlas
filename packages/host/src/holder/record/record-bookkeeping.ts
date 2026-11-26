@@ -7,7 +7,7 @@ import {
 
 export type DispatchedCall = { bootId?: string | undefined }
 
-export type RecordedFact = { key: string; value: unknown }
+export type RecordedFact = { key: string; kind: string; value: unknown }
 
 export type FactLookup = { found: true; value: unknown } | { found: false }
 
@@ -30,7 +30,7 @@ export class RecordBookkeeping {
         this.dispatched.set(event.callId, { bootId: event.bootId })
         return
       case 'fact-recorded':
-        this.recordFact({ key: event.key, value: event.value })
+        this.recordFact({ key: event.key, kind: event.kind, value: event.value })
         return
       case 'retry-scheduled':
         this.recordRetry({

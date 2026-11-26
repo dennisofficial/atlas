@@ -72,7 +72,10 @@ describe('ScopedToolDispatcher across a daemon restart (F17)', () => {
     calls.open({ epoch: 1 })
     await calls.ready()
 
-    const scoped = new ScopedToolDispatcher(new ExecDispatcher(new DaemonProcessPort({ calls })))
+    const scoped = new ScopedToolDispatcher({
+      inner: new ExecDispatcher(new DaemonProcessPort({ calls })),
+      daemonTools: new Set(['bash']),
+    })
     const dispatched = scoped.dispatch(dispatchArgs(call()))
     for (let i = 0; i < 100 && daemon.runCount() === 0; i += 1) {
       await new Promise((resolve) => setTimeout(resolve, 10))

@@ -48,6 +48,7 @@ const readWithinWindow = async (args: {
   onOutput?: ((chunk: ToolOutputChunk) => void) | undefined
 }): Promise<{ read: ShellOutput; deadlineFired: boolean }> => {
   const terminate = terminatorFor(args.shell)
+  const daemonOwnsDeadline = args.shell.foregroundDeadlineOwned === true
   let deadlineFired = false
 
   const handOver = async (): Promise<void> => {
@@ -60,10 +61,12 @@ const readWithinWindow = async (args: {
     if (!adopted) terminate()
   }
 
-  const deadline = setTimeout(() => {
-    deadlineFired = true
-    void handOver()
-  }, args.timeoutMs)
+  const deadline = daemonOwnsDeadline
+    ? undefined
+    : setTimeout(() => {
+        deadlineFired = true
+        void handOver()
+      }, args.timeoutMs)
   args.signal.addEventListener('abort', terminate, { once: true })
   try {
     const read = await readShell({
@@ -73,7 +76,7 @@ const readWithinWindow = async (args: {
     })
     return { read, deadlineFired }
   } finally {
-    clearTimeout(deadline)
+    if (deadline !== undefined) clearTimeout(deadline)
     args.signal.removeEventListener('abort', terminate)
   }
 }
@@ -102,16 +105,17 @@ export async function runForeground(args: {
       durationMs: performance.now() - startedAt,
     })
 
+  const shellId = newShellId()
   const started = startShell({
     command: args.command,
     cwd: args.cwd,
     processes: args.processes,
     env: () => args.env,
     threadId: args.threadId,
+    foreground: { timeoutMs: args.timeoutMs, shellId },
   })
   if (!started.ok) return { ...started, spanDetail: detailOf({ outcome: EBashExecOutcome.Exit }) }
 
-  const shellId = newShellId()
   let waited: { read: ShellOutput; deadlineFired: boolean }
   try {
     waited = await readWithinWindow({

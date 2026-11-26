@@ -59,7 +59,7 @@ export type CloudConfigAccess = {
 
 const description = [
   'Manage Atlas Cloud configuration. scope is project (the project this session runs in), group (the group that project belongs to) or personal (every project). A project value with the same name or path wins over a group one, which wins over a personal one. kind is setting, secret, file or grant. action is list, read, set or remove.',
-  'Every secret and file belongs to a grant. Create the grant first with kind grant and give it an instruction that says what the access is for. A new secret or file must name its grant. A secret or file set again without a grant keeps its grant.',
+  'Every secret and file belongs to a grant. Create the grant first with kind grant and give it an instruction that says what the access is for. A new secret or file must name its grant. A secret or file set again without a grant keeps its grant. set with a grant and no value moves an existing secret or file to that grant.',
   'A setting is an Atlas setting key; environment variables are secrets, not settings. A secret is an environment variable exported to the agent shells, named like FOO_BAR. list shows each name with its grant. Values are write-only: read is refused, set replaces.',
   'A file is mounted at path. A project path is relative to the repository. A personal path starts with ~/ or @/. set writes contents (text up to 64 KiB) with mode, an octal string like "0600" (the default) or "644".',
   'A grant is a name, an instruction and its members. read shows one grant with its members. remove deletes the grant with its secrets and files.',
@@ -144,6 +144,12 @@ const secrets = async (args: { client: CloudConfigClient; input: Input }): Promi
       ? done({ text: `Removed secret ${name}.` })
       : fail(`there is no secret "${name}"`)
   }
+  if (input.value === undefined && input.grant !== undefined) {
+    const moved = await client.moveSecret({ name, grant: input.grant })
+    return moved
+      ? done({ text: `Moved secret ${name} to grant ${input.grant}.` })
+      : fail(`there is no secret "${name}"`)
+  }
   const value = need({ value: input.value, field: 'value' })
   if (isFailure(value)) return value
   await client.setSecret({ name, value, grant: input.grant })
@@ -173,6 +179,12 @@ const files = async (args: { client: CloudConfigClient; input: Input }): Promise
   if (client.scope === EAccessScope.Personal) {
     const problem = personalFileMountPathProblem(path)
     if (problem !== null) return fail(problem)
+  }
+  if (input.contents === undefined && input.grant !== undefined) {
+    const moved = await client.moveFileMount({ path, grant: input.grant })
+    return moved
+      ? done({ text: `Moved file mount ${path} to grant ${input.grant}.` })
+      : fail(`there is no file mount "${path}"`)
   }
   const contents = need({ value: input.contents, field: 'contents' })
   if (isFailure(contents)) return contents

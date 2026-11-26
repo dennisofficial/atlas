@@ -1,7 +1,7 @@
 import { useTestDatabase } from '@dltech/atlas-db/testing'
 import { afterEach, describe, expect, it } from 'bun:test'
 
-import { seedOwner, sealed } from '../../config/__tests__/config-reader.fixture'
+import { seedGroup, seedOwner, sealed } from '../../config/__tests__/config-reader.fixture'
 import { settingsVersionsOf } from '../../control/settings-versions'
 import { mcpOauthGatewayOf } from '../gateway'
 import {
@@ -33,8 +33,13 @@ const ARGS = {
 const seedGrant = async (args: {
   db: ReturnType<typeof testDb>['db']
   grant: Record<string, unknown>
+  scope?: { userId: string } | { groupId: string } | { projectId: string }
 }): Promise<void> => {
-  await seedCloudServer({ db: args.db, name: 'posthog', scope: { projectId: 'proj-1' } })
+  await seedCloudServer({
+    db: args.db,
+    name: 'posthog',
+    scope: args.scope ?? { projectId: 'proj-1' },
+  })
   await args.db.orm.public.McpServer.where({ id: 'srv-posthog' }).updateAndCount({
     oauthStatus: 'active',
     oauthServerUrl: SERVER_URL,
@@ -181,5 +186,29 @@ describe('refresh', () => {
 
     expect(grant.ok).toBe(false)
     expect(await settingsVersionsOf({ db, threadId: 't-1' })).toEqual(before)
+  })
+
+  it('refreshes a group grant found by its group alone', async () => {
+    const { db } = testDb()
+    await seedOwner(db)
+    await seedGroup(db)
+    await seedGrant({ db, grant: expiredGrant(), scope: { groupId: 'grp-1' } })
+    stubFetch((call) =>
+      call.url === TOKEN_ENDPOINT
+        ? json({ access_token: 'at-new', refresh_token: 'rt-new', expires_in: 3600 })
+        : new Response('not found', { status: 404 }),
+    )
+
+    const grant = await gatewayOver(db).refresh({
+      userId: 'user-1',
+      groupId: 'grp-1',
+      source: 'cloud',
+      name: 'posthog',
+      url: SERVER_URL,
+    })
+
+    expect(grant).toEqual({ ok: true, accessToken: 'at-new', expiresAt: expect.any(String) })
+    const row = await db.orm.public.McpServer.first({ id: 'srv-posthog' })
+    expect(row?.groupId).toBe('grp-1')
   })
 })

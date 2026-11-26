@@ -104,4 +104,26 @@ describe('seedSubscriptionTargets', () => {
     expect(repeated?.id).toBe(seeded.id)
     expect(await rowVersionOf(seeded.id)).toBe(version)
   })
+
+  it('updates only the target whose liveUntil moved', async () => {
+    const liveUntil = hourFromNow()
+    await seedSubscription({ prNumber: 43, liveUntil })
+    const moved = await seedSubscription({ prNumber: 44, liveUntil, threadId: 'thread_b' })
+    await seedSubscriptionTargets({ transport: polling, now: new Date() })
+    const versionOf = async (prNumber: number): Promise<string> => {
+      const [row] = await db.orm.public.GithubTrackingTarget.where({ prNumber }).all()
+      if (row === undefined) throw new Error(`no target for ${prNumber}`)
+      return rowVersionOf(row.id)
+    }
+    const stillVersion = await versionOf(43)
+    const movedVersion = await versionOf(44)
+
+    await db.orm.public.GithubSubscription.where({ id: moved.id }).update({
+      liveUntil: hourFromNow(2),
+    })
+    await seedSubscriptionTargets({ transport: polling, now: new Date() })
+
+    expect(await versionOf(43)).toBe(stillVersion)
+    expect(await versionOf(44)).not.toBe(movedVersion)
+  })
 })

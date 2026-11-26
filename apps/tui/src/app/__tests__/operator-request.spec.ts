@@ -58,6 +58,21 @@ describe('pendingOperatorRequestOf', () => {
     expect(pendingOperatorRequestOf({ events })).toEqual({ callId: 'call-1', prompt: 'first' })
   })
 
+  test('a parked call that sits before the visible tail still answers', () => {
+    const retained = mintEvents({
+      bodies: [
+        ...(parked() as never[]),
+        ...Array.from({ length: 3 }, () => ({ type: 'user-said', text: 'chatter' })),
+      ] as never,
+    })
+
+    expect(pendingOperatorRequestOf({ events: retained.slice(1) })).toBeNull()
+    expect(pendingOperatorRequestOf({ events: retained })).toEqual({
+      callId: 'call-1',
+      prompt: 'paste the token',
+    })
+  })
+
   test('a parked tool that is not the operator is ignored', () => {
     const events = mintEvents({
       bodies: [

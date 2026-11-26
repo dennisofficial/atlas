@@ -1,6 +1,6 @@
 export const DRAIN_IN_FLIGHT_CAP_MS = 240_000
 
-export const DRAIN_DETACH_CAP_MS = 10_000
+export const DRAIN_STREAM_ABORT_CAP_MS = 10_000
 
 export const LEASE_HAND_BACK_MARGIN_MS = 20_000
 

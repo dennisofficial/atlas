@@ -11,6 +11,7 @@ import { GestureHandlerRootView } from 'react-native-gesture-handler'
 
 import { AnalyticsIdentity } from '../analytics/analytics-identity'
 import { AnalyticsProvider } from '../analytics/analytics-provider'
+import { PushRegistrationCapture } from '../analytics/push-registration-capture'
 import { AuthProvider, useAuth } from '../auth/auth-provider'
 import { EAuthState } from '../auth/auth-reducer'
 import { CrashScreen } from '../errors/crash-screen'
@@ -119,6 +120,7 @@ const RootLayout = () => {
         <ThemeProvider value={navigationThemeOf({ theme, dark })}>
           <AuthProvider>
             <AnalyticsIdentity />
+            <PushRegistrationCapture />
             <SettingsProvider>
               <RootStack fontsReady={fontsLoaded || fontError !== null} />
               <StatusBar style={dark ? 'light' : 'dark'} />

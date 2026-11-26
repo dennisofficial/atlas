@@ -1,5 +1,6 @@
 export enum EMemoryScope {
   Global = 'global',
+  Group = 'group',
   Project = 'project',
 }
 

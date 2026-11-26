@@ -63,6 +63,8 @@ they read. `apps/api` and `apps/trigger` both use it. It has no framework import
 - `runPodSleep`, `runPodResize`, `runPodDiskGrow`, `growPodDisk` are plain
   functions over injected deps: no database, clock or network of their own.
 - `readPodBusy` and `readPodRebootFacts` read a session's busy state from a `ControlPlane`.
+- `readPodStopBusy` reads what holds a stop: the setup script and an agent turn. The stop waits for
+  them and then sleeps the pod.
 - `readPodResizeBusy` reads what holds a resize: the setup script, shells, services and a
   foreground bash command. Agent turns, other tool calls and sub-agents never hold one.
   `podBusyFactsOfState({ state, now })` reads the same facts from a folded session view.

@@ -25,6 +25,7 @@ export type DaemonEngineArgs = {
   token: string
   store: CallStore
   groups: readonly DaemonGroupFactory[]
+  capabilities?: readonly string[] | undefined
   health(): Omit<HealthFrame, 'kind' | 'bootId' | 'version'>
   onFault(args: { key?: string | undefined; error: unknown }): void
 }

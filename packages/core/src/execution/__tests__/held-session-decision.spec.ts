@@ -8,6 +8,7 @@ const base: HeldSnapshot = {
   turn: 'idle',
   stopPending: false,
   messagePending: false,
+  parked: false,
   resumable: false,
   idleDue: false,
   workspace: EWorkspaceState.Prepared,
@@ -176,6 +177,46 @@ const cases: { name: string; snapshot: HeldSnapshot; action: EHeldAction }[] = [
     name: 'a stop on an unprepared session is consumed first',
     snapshot: { ...base, workspace: EWorkspaceState.Unprepared, stopPending: true },
     action: EHeldAction.ConsumeStop,
+  },
+  {
+    name: 'a parked idle session releases',
+    snapshot: { ...base, parked: true },
+    action: EHeldAction.Release,
+  },
+  {
+    name: 'a parked session ignores the idle deadline',
+    snapshot: { ...base, parked: true, idleDue: true },
+    action: EHeldAction.Release,
+  },
+  {
+    name: 'a parked session releases before it prepares its workspace',
+    snapshot: { ...base, parked: true, workspace: EWorkspaceState.Unprepared },
+    action: EHeldAction.Release,
+  },
+  {
+    name: 'a parked session releases out of a failed workspace',
+    snapshot: { ...base, parked: true, workspace: EWorkspaceState.Failed },
+    action: EHeldAction.Release,
+  },
+  {
+    name: 'a parked session waits for its running turn',
+    snapshot: { ...base, parked: true, turn: 'running' },
+    action: EHeldAction.Wait,
+  },
+  {
+    name: 'a pending message starts a turn on a parked session',
+    snapshot: { ...base, parked: true, messagePending: true },
+    action: EHeldAction.StartTurn,
+  },
+  {
+    name: 'a stop on a parked session is consumed first',
+    snapshot: { ...base, parked: true, stopPending: true },
+    action: EHeldAction.ConsumeStop,
+  },
+  {
+    name: 'a parked session does not release while draining',
+    snapshot: { ...base, parked: true, draining: true },
+    action: EHeldAction.Wait,
   },
   {
     name: 'an unprepared session does not prepare while draining',

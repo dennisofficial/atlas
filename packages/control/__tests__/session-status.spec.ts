@@ -4,6 +4,7 @@ import {
   chainEvents,
   EAttachmentStore,
   EInputConsumed,
+  EPodPowerPhase,
   ESessionStatus,
   ETurnCause,
   toRunId,
@@ -74,6 +75,7 @@ describe('readSessionStatus', () => {
         lease: { epoch: 0, holderHostId: null, live: false },
         pod: {
           phase: 'steady',
+          power: { phase: EPodPowerPhase.Asleep },
           sizing: {
             cap: 8,
             offered: [

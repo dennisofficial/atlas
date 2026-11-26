@@ -59,7 +59,7 @@ const ctxOf = (sessions: PodSessions): PluginPodContext => ({
     subscriptions: EMPTY_SUBSCRIPTIONS,
     gateway: { apiKey: async () => undefined, imageModel: async () => undefined },
     memory: {
-      list: async () => ({ project: null, memories: [] }),
+      list: async () => ({ project: null, group: null, memories: [] }),
       read: async () => null,
       write: async () => {
         throw new Error('this rig writes no memory')

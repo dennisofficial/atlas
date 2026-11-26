@@ -4,6 +4,7 @@ const opening: readonly string[] = [
   'You keep a memory across sessions: named entries stored in Atlas Cloud, reached only through the memory tools.',
   '',
   '- `global` — every project; only what stays true when the repository changes.',
+  "- `group` — every project in the operator's project group; only what holds across all of them.",
   '- `project` — this GitHub repository; every clone and sandbox of it shares one memory.',
   '',
   "The Atlas harness lists every memory's name and description below, at the start of the session. You read a memory's body when its description points to one as relevant.",

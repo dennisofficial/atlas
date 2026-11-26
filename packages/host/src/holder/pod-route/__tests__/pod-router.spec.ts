@@ -40,6 +40,19 @@ describe('PodRouter.reach', () => {
     expect(await pending).toEqual({ kind: EPodReach.Unreachable })
   })
 
+  it('reports a parked session asleep instead of waking it', async () => {
+    const plane = fakePlaneOf({
+      holderHostId: null,
+      wantsHolder: true,
+      parkedAt: '2026-11-25T10:00:00.000Z',
+    })
+    const { router } = makeRouter({ plane, hostId: 1, holderWaitMs: 1_000 })
+
+    expect(await router.reach({ sessionId: SESSION })).toEqual({ kind: EPodReach.Unreachable })
+    expect(plane.calls.wakes).toEqual([])
+    expect(plane.calls.revokes).toEqual([])
+  })
+
   it('wakes a wanted session and reports the host that made it ready', async () => {
     const plane = fakePlaneOf({ holderHostId: null, wantsHolder: true })
     const bus = new FakePodCallBus()

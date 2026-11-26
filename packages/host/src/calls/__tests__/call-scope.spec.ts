@@ -3,11 +3,17 @@ import { describe, expect, it } from 'bun:test'
 import { ToolDispatcher, type DispatchArgs, type DispatchableCall } from '@dltech/atlas-agent'
 import type { EventDraft, CallId, RunId, ThreadId } from '@dltech/atlas-core'
 
-import { ScopedToolDispatcher, nextKey, runInCallScope, scopeKeyOf } from '../call-scope'
+import {
+  ScopedToolDispatcher,
+  nextKey,
+  runInCallScope,
+  scopeDetachOnHandoff,
+  scopeKeyOf,
+} from '../call-scope'
 
-const call = (args: { runId: string; callId: string }): DispatchableCall => ({
+const call = (args: { runId: string; callId: string; name?: string }): DispatchableCall => ({
   callId: args.callId as CallId,
-  name: 'bash',
+  name: args.name ?? 'bash',
   input: {},
   runId: args.runId as RunId,
   threadId: 'thread-1' as ThreadId,
@@ -22,17 +28,20 @@ const dispatchArgs = (c: DispatchableCall): DispatchArgs => ({
 
 class RecordingDispatcher extends ToolDispatcher {
   keys: string[] = []
+  detachesOnHandoff: boolean[] = []
+
   async dispatch(_args: DispatchArgs): Promise<readonly EventDraft[]> {
     this.keys.push(nextKey(), nextKey())
+    this.detachesOnHandoff.push(scopeDetachOnHandoff())
     return []
   }
 }
 
 describe('scopeKeyOf', () => {
-  it('joins run and call ids, hashing a call id that fails the key schema', () => {
-    expect(scopeKeyOf({ runId: 'run-1', callId: 'call_2' })).toBe('run-1:call_2')
+  it('is the call id alone, so the log key and the wire key are one string', () => {
+    expect(scopeKeyOf({ runId: 'run-1', callId: 'call_2' })).toBe('call_2')
     const hashed = scopeKeyOf({ runId: 'run-1', callId: 'call with spaces' })
-    expect(hashed).toMatch(/^run-1:h[0-9a-f]{16}$/)
+    expect(hashed).toMatch(/^h[0-9a-f]{16}$/)
   })
 })
 
@@ -49,23 +58,49 @@ describe('nextKey', () => {
   })
 })
 
+describe('scopeDetachOnHandoff', () => {
+  it('detaches a setup or phase scope by default and honours an opt-out', () => {
+    expect(scopeDetachOnHandoff()).toBe(false)
+    runInCallScope({
+      scopeKey: 'run-1:setup',
+      body: () => expect(scopeDetachOnHandoff()).toBe(true),
+    })
+    runInCallScope({
+      scopeKey: 'host-uuid',
+      detachOnHandoff: false,
+      body: () => expect(scopeDetachOnHandoff()).toBe(false),
+    })
+  })
+
+  it('detaches every call of a built-in daemon tool dispatch', async () => {
+    const inner = new RecordingDispatcher()
+    const scoped = new ScopedToolDispatcher({ inner, daemonTools: new Set(['bash']) })
+    await scoped.dispatch(dispatchArgs(call({ runId: 'run-1', callId: 'call-1' })))
+    expect(inner.detachesOnHandoff).toEqual([true])
+  })
+
+  it('leaves a dispatch of any other tool attached', async () => {
+    const inner = new RecordingDispatcher()
+    const scoped = new ScopedToolDispatcher({ inner, daemonTools: new Set(['bash']) })
+    await scoped.dispatch(
+      dispatchArgs(call({ runId: 'run-1', callId: 'call-1', name: 'worktree_list' })),
+    )
+    expect(inner.detachesOnHandoff).toEqual([false])
+  })
+})
+
 describe('ScopedToolDispatcher', () => {
   it('replays the same key sequence for two dispatches of one call', async () => {
     const inner = new RecordingDispatcher()
-    const scoped = new ScopedToolDispatcher(inner)
+    const scoped = new ScopedToolDispatcher({ inner, daemonTools: new Set(['bash']) })
     await scoped.dispatch(dispatchArgs(call({ runId: 'run-1', callId: 'call-1' })))
     await scoped.dispatch(dispatchArgs(call({ runId: 'run-1', callId: 'call-1' })))
-    expect(inner.keys).toEqual([
-      'run-1:call-1.0',
-      'run-1:call-1.1',
-      'run-1:call-1.0',
-      'run-1:call-1.1',
-    ])
+    expect(inner.keys).toEqual(['call-1.0', 'call-1.1', 'call-1.0', 'call-1.1'])
   })
 
   it('never shares a key between two concurrent calls', async () => {
     const inner = new RecordingDispatcher()
-    const scoped = new ScopedToolDispatcher(inner)
+    const scoped = new ScopedToolDispatcher({ inner, daemonTools: new Set(['bash']) })
     await Promise.all([
       scoped.dispatch(dispatchArgs(call({ runId: 'run-1', callId: 'call-a' }))),
       scoped.dispatch(dispatchArgs(call({ runId: 'run-1', callId: 'call-b' }))),

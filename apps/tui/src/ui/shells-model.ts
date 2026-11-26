@@ -123,18 +123,6 @@ export function shellSidebarReadout(args: { shell: ShellSnapshot; now: number })
 
 export const shellCommandLabel = (command: string): string => oneLine(command)
 
-/**
- * What a human scanning the panel reads. The description is the name the model gave the job and the
- * bash tool requires one, so the fallback is only for a shell replayed from before it did.
- */
-export function shellNameLabel(shell: {
-  command: string
-  description?: string | undefined
-}): string {
-  const named = shell.description?.trim() ?? ''
-  return named === '' ? shellCommandLabel(shell.command) : named
-}
-
 function wrapped(args: { line: string; cells: number }): string[] {
   if (args.cells <= 0) return ['']
   if (args.line.length <= args.cells) return [args.line]

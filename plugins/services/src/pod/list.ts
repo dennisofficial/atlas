@@ -3,6 +3,7 @@ import type { PluginPodContext } from '@dltech/atlas-plugin-sdk'
 
 import { serviceLabelOf, servicesOfEvents } from '../core'
 import { listServices } from './daemon'
+import { EServiceFailure, failureOutcome, serviceFailed } from './failure'
 import { readDeclared } from './declared-file'
 import { renderListLine } from './render'
 import type { ServiceInput } from './schema'
@@ -16,7 +17,11 @@ export const listServiceRows = async (args: {
 }): Promise<ToolOutcome> => {
   const { ctx, input } = args
   const listed = await listServices({ ctx, signal: args.signal })
-  if (!listed.ok) return { ok: false, reason: listed.reason }
+  if (!listed.ok) {
+    return failureOutcome(
+      serviceFailed({ reason: listed.reason, failure: EServiceFailure.DaemonRejected }),
+    )
+  }
   const roster = servicesOfEvents(ctx.events())
   const roots = new Set(roster.flatMap((row) => (row.root === undefined ? [] : [row.root])))
   roots.add(args.projectDirectory)

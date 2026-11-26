@@ -44,9 +44,9 @@ export {
   DEFAULT_SANDBOX_COMMANDS,
 } from './calls/ports/process'
 export {
-  DRAIN_DETACH_CAP_MS,
   DRAIN_HANDOFF_BUDGET_MS,
   DRAIN_IN_FLIGHT_CAP_MS,
+  DRAIN_STREAM_ABORT_CAP_MS,
   LEASE_HAND_BACK_MARGIN_MS,
 } from './holder/drain-cap'
 export { PodCalls, type PodCallOutcome } from './holder/pod-calls'

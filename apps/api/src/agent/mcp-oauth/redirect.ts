@@ -18,6 +18,7 @@ const segment = (value: string): string => encodeURIComponent(value)
 export const returnPathOf = (screen: McpReturnScreen): string => {
   if (screen.kind === 'session') return `/sessions/${segment(screen.id)}`
   if (screen.scope === 'project') return `/projects/${segment(screen.id)}/settings/mcp`
+  if (screen.scope === 'group') return `/groups/${segment(screen.id)}/settings/mcp`
   return USER_SETTINGS_PATH
 }
 

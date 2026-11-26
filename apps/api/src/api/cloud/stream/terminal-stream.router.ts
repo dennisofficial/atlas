@@ -9,7 +9,7 @@ import {
 } from 'nestjs-trpc'
 import {
   terminalStreamAttachInputSchema,
-  terminalStreamFrameSchema,
+  terminalStreamOutputSchema,
   type TerminalStreamAttachInput,
   type TerminalStreamFrame,
 } from '@dltech/atlas-protocol'
@@ -23,7 +23,7 @@ export class TerminalStreamRouter {
 
   @Subscription({
     input: terminalStreamAttachInputSchema,
-    output: terminalStreamFrameSchema,
+    output: terminalStreamOutputSchema,
   })
   attach(
     @Input() input: TerminalStreamAttachInput,

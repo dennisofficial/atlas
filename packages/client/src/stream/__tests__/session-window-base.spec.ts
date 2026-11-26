@@ -2,7 +2,7 @@ import { describe, expect, it } from 'bun:test'
 import {
   chainEvents,
   foldableOf,
-  isDurable,
+  isRetained,
   toRunId,
   toThreadId,
   type RecordEvent,
@@ -109,9 +109,7 @@ describe('the window foldable list', () => {
     expect(foldableOf({ visible: based.events, durable: based.durable })).toEqual([
       ...based.foldable,
     ])
-    expect(based.durable.map((event: RecordEvent) => event.seq)).toEqual(
-      all.filter((event) => isDurable(event.type)).map((event) => event.seq),
-    )
+    expect(based.durable.every((event: RecordEvent) => isRetained(event.type))).toBe(true)
     expect(replay.durable.map((event) => event.seq)).toEqual(
       based.durable.map((event) => event.seq),
     )

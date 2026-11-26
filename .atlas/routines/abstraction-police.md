@@ -2,16 +2,16 @@
 
 ## Backlog (ranked)
 
-1. `packages/plugin-sdk` type-depends upward on `agent` (`slots.ts:1`, `compose-pod.ts:1`), `client/transcript` (`slots.ts:2`), `control` (`slots.ts:17`). Move the shapes down or make slots generic.
-2. `packages/github` imports v1 `@dltech/atlas-wire` (`ERepoTracking`, `GithubPrStreamFrame`, device-code types) in 7 files. Move the vocabulary to core.
-3. `packages/client/src/channel/*` (~15 files) and `transcript/events-from-wire.ts` import `@dltech/atlas-wire/web`. Retarget onto `protocol` or split out a v1-compat module. Large.
-4. `apps/tui` imports `@dltech/atlas-wire` in 12 production files. `wire` survived the v1 deletion, so this is a live retarget onto `protocol`. Low value.
-5. `packages/api-router/src/generated/server.ts:16` pulls ~200 wire schemas.
-6. Test-only deep relative imports across package roots: `apps/api` specs → `packages/api-router/src/generated/server`, `apps/tui/scripts`, `apps/mac/scripts/pack-host.ts:4`. Add `exports` subpaths.
-7. `packages/host/__tests__/remote-calls-real.spec.ts:7` imports app `@dltech/atlas-daemon/testing`.
+1. `packages/plugin-sdk` type-depends upward on `agent` (`slots.ts:1`, `compose-pod.ts:1`), `client/transcript` (`slots.ts:2`), `control` (`slots.ts:18`). Move the shapes down or make slots generic.
+2. `packages/client/src/channel/*` (~15 files) and `transcript/events-from-wire.ts` import `@dltech/atlas-wire/web`. Retarget onto `protocol` or split out a v1-compat module. Large.
+3. `apps/tui` imports `@dltech/atlas-wire` in 12 production files. `wire` survived the v1 deletion, so this is a live retarget onto `protocol`. Low value.
+4. `packages/api-router/src/generated/server.ts:16` pulls ~200 wire schemas.
+5. Test-only deep relative imports across package roots: `apps/api` specs → `packages/api-router/src/generated/server`, `apps/tui/scripts`, `apps/mac/scripts/pack-host.ts:4`. Add `exports` subpaths.
+6. `packages/host/__tests__/remote-calls-real.spec.ts:7` imports app `@dltech/atlas-daemon/testing`.
 
 ## Ruled out
 
+- `packages/github` → wire: gone since 2026-11-26; github depends on core only for its vocabulary.
 - `apps/api/src/_module/trpc` importing `api/platform`: gone; `architecture.spec.ts` passes on main (2026-11-25).
 - `packages/core` purity, `packages/ui` Atlas imports, plugin→plugin imports, clients importing `apps/api`: all clean (2026-11-19 sweep).
 - `apps/tui` importing `core`/`client`/`observability`/`syntax`/`models`: v2 §7 lets apps compose tier packages.
@@ -22,9 +22,14 @@
 
 ## Log
 
+### 2026-11-26
+
+- Fixed: `packages/github` (v2 control plane) imported repo, device sign-in and PR stream vocabulary from v1 `@dltech/atlas-wire` in 9 files. Moved `GITHUB_REPO_PATTERN`/`GIT_BRANCH_PATTERN`, repo/branch schemas, `ERepoTracking`, repo summary, `ERepoTreeEntryKind` + repo tree, device codes + poll result, PR state/event/stream frame to `packages/core/src/github/{repo-vocabulary,device-connect,pr-stream}.ts`; wire re-exports them; github dropped its wire dependency.
+- Pinned in `core/src/github/__tests__/vocabulary.spec.ts` (written against wire on main first, then moved) plus a wire/web identity check in `project-wire.spec.ts`. Mutations: non-int prNumber, tracking value, unvalidated default branch, optional missing scopes (each fails 1 core spec); wire keeps its own pattern copy (fails 1 wire spec).
+
 ### 2026-11-25
 
-- Fixed: `packages/client/src/session/session-rewind.ts` typed restored composer images as v1 `SaidImageWire` from `@dltech/atlas-wire/web`. It now uses core `SaidImage`, which has the same shape. Client still depends on wire for `channel/*` (backlog 4).
+- Fixed: `packages/client/src/session/session-rewind.ts` typed restored composer images as v1 `SaidImageWire` from `@dltech/atlas-wire/web`. It now uses core `SaidImage`, which has the same shape. Client still depends on wire for `channel/*` (backlog 2).
 - Pinned in `session-rewind.spec.ts`: an inline upload preview restores as an image, and an image with no size has no size keys. Mutations: always emit `width` (fails 1), drop the inline upload preview (fails 1).
 
 ### 2026-11-24

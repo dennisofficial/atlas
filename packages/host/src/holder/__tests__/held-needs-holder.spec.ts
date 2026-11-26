@@ -13,6 +13,8 @@ import {
   EInputConsumed,
   EShellStatus,
   ESetupPhase,
+  EWorkspaceStep,
+  EWorkspaceStepState,
   initialLoopState,
   toRunId,
   toThreadId,
@@ -80,17 +82,21 @@ const preparedRecord = (events: readonly RecordEvent[]): SessionRecord =>
     }),
   }) as unknown as SessionRecord
 
+const PARK_AT = '2026-11-25T10:00:00.000Z'
+
 const needsHolder = (params: {
   entries: InboxEntry[]
   knowsPing: boolean
   events?: readonly RecordEvent[]
   childEvents?: readonly RecordEvent[]
+  parked?: boolean | undefined
 }): Promise<boolean> => {
   const deps = {
     sessionId: 'session-1',
     plane: {
       readInbox: async () => params.entries,
       readEvents: async () => ({ events: [...(params.childEvents ?? [])], next: undefined }),
+      readSession: async () => ({ podParkedAt: params.parked === true ? PARK_AT : null }),
       endTerminals: async () => 0,
     } as unknown as ControlPlane,
     commands: composeCommands([ping]),
@@ -104,6 +110,29 @@ const needsHolder = (params: {
     turnRunning: false,
   })
 }
+
+const setupStarted = (): RecordEventBody => ({
+  type: 'workspace-step',
+  step: EWorkspaceStep.Setup,
+  state: EWorkspaceStepState.Started,
+})
+
+describe('drainNeedsHolder on a parked session', () => {
+  it('keeps the holder for a setup script still in flight', async () => {
+    const events = eventsOf([setupStarted()])
+    expect(await needsHolder({ entries: [], knowsPing: true, events })).toBe(true)
+  })
+
+  it('hands the holder back while a setup script is in flight on a parked pod', async () => {
+    const events = eventsOf([setupStarted()])
+    expect(await needsHolder({ entries: [], knowsPing: true, events, parked: true })).toBe(false)
+  })
+
+  it('asks for a holder again for a message that reached a parked session', async () => {
+    const entries = [entry({ inboxId: 6, kind: 'message' })]
+    expect(await needsHolder({ entries, knowsPing: true, parked: true })).toBe(true)
+  })
+})
 
 describe('drainNeedsHolder with commands', () => {
   it('does not want a holder for an inbox of only an unresolvable command', async () => {
@@ -309,6 +338,7 @@ const needsHolderOverEndedChild = (params: {
       readInbox: async (read: { forThread: string | null }) =>
         read.forThread === null ? [] : [...params.rows],
       readEvents: async () => ({ events: [...params.childEvents], next: undefined }),
+      readSession: async () => ({ podParkedAt: null }),
       endTerminals: async () => 0,
     } as unknown as ControlPlane,
     commands: composeCommands([ping]),

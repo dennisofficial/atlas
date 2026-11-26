@@ -65,6 +65,18 @@ describe('beginMcpSignIn', () => {
     expect(calls[0]?.body).toContain('proj_1')
   })
 
+  it('names a group screen', async () => {
+    answer = dataAnswer({ outcome: 'redirect', authorizationUrl: 'https://a.test' })
+
+    await beginMcpSignIn({
+      ...args,
+      screen: { kind: 'settings', scope: 'group', id: 'grp_1' },
+    })
+
+    expect(calls[0]?.body).toContain('"scope":"group"')
+    expect(calls[0]?.body).toContain('grp_1')
+  })
+
   it('reports the reason the api refused', async () => {
     answer = dataAnswer({ outcome: 'unsupported', reason: 'unsupported' })
 

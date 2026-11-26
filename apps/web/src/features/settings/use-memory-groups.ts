@@ -23,6 +23,7 @@ export type MemoryGroups = {
 const keyOf = (args: { group: MemoryScopeGroup; name: string }): MemoryKey => ({
   scope: args.group.scope,
   project: args.group.project,
+  groupId: args.group.groupId,
   name: args.name,
 })
 

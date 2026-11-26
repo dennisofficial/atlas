@@ -9,7 +9,11 @@ import { FakeBus, FakeClock } from './rig-fakes'
 const SESSION = 'ses_panel'
 const TTL_MS = 60_000
 
-type PlaneState = { holderHostId: number | null; wantsHolder: boolean }
+type PlaneState = {
+  holderHostId: number | null
+  wantsHolder: boolean
+  parkedAt?: string | null | undefined
+}
 
 type PlaneCalls = {
   reads: number
@@ -36,6 +40,9 @@ const makeRig = (initial: PlaneState) => {
         lease: leaseOf({ sessionId: params.sessionId, state }),
         live: state.holderHostId !== null,
       }
+    },
+    async readSession(): Promise<{ podParkedAt: string | null }> {
+      return { podParkedAt: state.parkedAt ?? null }
     },
     async wake(): Promise<void> {
       calls.wakes += 1
@@ -113,6 +120,21 @@ describe('HolderDemand answering an open panel', () => {
     await rig.beat()
 
     expect(rig.calls).toEqual({ reads: 0, wakes: 0, revokes: [] })
+  })
+
+  it('leaves a parked session asleep on a panel hold', async () => {
+    const rig = makeRig({
+      holderHostId: null,
+      wantsHolder: false,
+      parkedAt: '2026-11-25T10:00:00.000Z',
+    })
+
+    await rig.beat()
+    await rig.beat()
+
+    expect(rig.calls.wakes).toBe(0)
+    expect(rig.calls.revokes).toEqual([])
+    expect(rig.state.wantsHolder).toBe(false)
   })
 
   it('stops answering beats after stop', async () => {

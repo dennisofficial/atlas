@@ -1,7 +1,6 @@
 import { db, type Row } from '@dltech/atlas-db'
 import type { GithubLogger } from './github-log'
-import { ETargetOutcome, ETrackingTransport } from '@dltech/atlas-core'
-import { ERepoTracking } from '@dltech/atlas-wire'
+import { ERepoTracking, ETargetOutcome, ETrackingTransport } from '@dltech/atlas-core'
 import { normalizedRepo, repoPattern } from './github-linked-prs'
 import type { GithubHookLifecycleService } from './github-hook-lifecycle.service'
 import type { TransportSelector } from './github-transport-selector'

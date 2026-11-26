@@ -45,6 +45,32 @@ describe('group resources router', () => {
     await app.close()
   })
 
+  it('saves and reads the group instructions, and a stranger gets 404', async () => {
+    const empty = await api.query({ procedure: 'instructions', input: { groupId } }).expect(200)
+    expect(dataOf(empty.body)).toEqual({ content: '', updatedAt: null })
+
+    await api
+      .call({
+        procedure: 'saveInstructions',
+        input: { groupId, content: 'the group ships on Fridays' },
+      })
+      .expect(200)
+    const saved = await api.query({ procedure: 'instructions', input: { groupId } }).expect(200)
+    expect(dataOf(saved.body)).toMatchObject({ content: 'the group ships on Fridays' })
+
+    await api.query({ procedure: 'instructions', input: { groupId: 'grp_missing' } }).expect(404)
+    await api
+      .query({ procedure: 'instructions', input: { groupId }, token: 'session-b' })
+      .expect(404)
+    await api
+      .call({
+        procedure: 'saveInstructions',
+        input: { groupId, content: 'hijacked' },
+        token: 'session-b',
+      })
+      .expect(404)
+  })
+
   it('sets, reveals and removes a group secret in its grant', async () => {
     await api
       .call({ procedure: 'setSecret', input: { groupId, name: 'GROUP_TOKEN', value: 'first' } })

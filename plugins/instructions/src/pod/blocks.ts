@@ -5,6 +5,9 @@ import { INSTRUCTION_FILE } from './sources'
 export const PERSONAL_HEADER =
   "The operator's personal instructions from Atlas Cloud. They apply to every project:"
 
+export const GROUP_HEADER =
+  "The operator's project group instructions from Atlas Cloud. They apply to every project in the group:"
+
 export const projectHeader = (path: string): string =>
   `Contents of ${path} (project instructions, checked into the codebase):`
 

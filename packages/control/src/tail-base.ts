@@ -1,6 +1,7 @@
 import {
   COMMAND_LOG_TYPES,
-  DURABLE_TYPES,
+  RETAINED_TYPES,
+  retainedOf,
   type PluginViewFold,
   type SessionViewState,
   type RecordEvent,
@@ -10,6 +11,7 @@ import type { z } from 'zod'
 
 import type { ControlTx } from './port'
 import { currentViewIn } from './session-view-read'
+import { supersedingEventsIn } from './superseding-events'
 import { decodeStoredEvent, decodeVisibility } from './stored-event'
 
 export const TAIL_BASE_ATTEMPTS = 3
@@ -46,6 +48,18 @@ const typedEventsIn = async (args: {
     if (last === undefined || rows.length < TAIL_BASE_PAGE) return events
     afterSeq = last.seq
   }
+}
+
+const retainedBeforeIn = async (args: {
+  tx: ControlTx
+  threadId: string
+  throughSeq: number
+  tailFrom: number
+  eventSchema?: z.ZodType<RecordEvent> | undefined
+}): Promise<RecordEvent[]> => {
+  const candidates = await typedEventsIn({ ...args, onlyTypes: RETAINED_TYPES })
+  const superseding = await supersedingEventsIn({ ...args, candidates })
+  return retainedOf({ events: [...candidates, ...superseding], before: args.tailFrom })
 }
 
 const cursorBeforeIn = async (args: {
@@ -90,13 +104,7 @@ export const readTailBaseIn = async (args: {
     cursor,
     view,
     visibility: decodeVisibility(row.visibility),
-    durable: await typedEventsIn({
-      tx,
-      threadId,
-      throughSeq,
-      onlyTypes: DURABLE_TYPES,
-      eventSchema: args.eventSchema,
-    }),
+    durable: await retainedBeforeIn({ ...args, throughSeq }),
     commandLog: await typedEventsIn({
       tx,
       threadId,

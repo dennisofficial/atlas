@@ -1,3 +1,4 @@
+import { shellName } from '@dltech/atlas-core'
 import React from 'react'
 
 import { type Hint } from '../hint-layout'
@@ -7,7 +8,6 @@ import {
   isShellRunning,
   outputRows,
   shellCommandLabel,
-  shellNameLabel,
   shellReadout,
   type ShellSnapshot,
 } from '../shells-model'
@@ -80,7 +80,7 @@ function ShellHeading(props: {
     { text: ' ' },
     { text: shell.shellId, fg: theme.bright },
     { text: '  ' },
-    { text: shellNameLabel(shell), fg: theme.hover },
+    { text: shellName(shell), fg: theme.hover },
     { text: '  ' },
     { text: state, fg: shell.awaitingInput ? theme.warn : theme.meta },
     ...(named(shell)

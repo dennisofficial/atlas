@@ -1,3 +1,5 @@
+import { EMcpToken, type McpToken } from '@dltech/atlas-plugin-sdk'
+
 import type { McpHttpTransport } from '../core'
 import {
   asRecord,
@@ -12,6 +14,8 @@ import {
 } from './types'
 
 export const HTTP_TIMEOUT_MS = 30_000
+
+export type McpTokenSource = () => Promise<McpToken>
 
 const INITIALIZATION = {
   protocolVersion: '2025-06-18',
@@ -38,12 +42,14 @@ const eventDataOf = (text: string): unknown => {
 export class HttpClient implements McpTransportClient {
   private sessionId: string | undefined
   private nextId = 1
+  private held: { token: string | undefined } | undefined
+  private refreshing: Promise<string | undefined> | undefined
 
   constructor(
     private readonly args: {
       serverId: string
       transport: McpHttpTransport
-      accessToken?: string | undefined
+      token: McpTokenSource
       timeoutMs?: number
     },
   ) {}
@@ -72,14 +78,48 @@ export class HttpClient implements McpTransportClient {
     if (this.sessionId === undefined) return
     await fetch(this.args.transport.url, {
       method: 'DELETE',
-      headers: this.headers(),
+      headers: this.headers(this.held?.token),
       signal: AbortSignal.timeout(this.args.timeoutMs ?? HTTP_TIMEOUT_MS),
     }).catch(() => undefined)
     this.sessionId = undefined
   }
 
-  private headers(): Record<string, string> {
-    const token = this.args.accessToken
+  private async tokenOf(): Promise<string | undefined> {
+    const held = this.held
+    if (held !== undefined) return held.token
+    return await this.sourceToken()
+  }
+
+  private async sourceToken(): Promise<string | undefined> {
+    return this.takeOf(await this.args.token())
+  }
+
+  private refreshOf(args: { stale: string | undefined }): Promise<string | undefined> {
+    const running = this.refreshing
+    if (running !== undefined) return running
+    const held = this.held
+    if (held !== undefined && held.token !== args.stale) return Promise.resolve(held.token)
+    const started = this.sourceToken()
+    this.refreshing = started
+    return started.finally(() => {
+      this.refreshing = undefined
+    })
+  }
+
+  private takeOf(token: McpToken): string | undefined {
+    if (token.kind === EMcpToken.Unavailable) throw this.unauthorizedOf()
+    const taken = { token: token.kind === EMcpToken.Granted ? token.accessToken : undefined }
+    this.held = taken
+    return taken.token
+  }
+
+  private unauthorizedOf(): McpUnauthorizedError {
+    return new McpUnauthorizedError(
+      `the '${this.args.serverId}' MCP server needs a sign-in; call operator_mcp_sign_in to start one`,
+    )
+  }
+
+  private headers(token: string | undefined): Record<string, string> {
     return {
       ...(this.args.transport.headers ?? {}),
       ...(token === undefined ? {} : { authorization: `Bearer ${token}` }),
@@ -109,16 +149,24 @@ export class HttpClient implements McpTransportClient {
   }
 
   private async post(payload: unknown): Promise<unknown> {
-    const response = await fetch(this.args.transport.url, {
+    const token = await this.tokenOf()
+    const response = await this.send({ payload, token })
+    if (response.status !== 401) return await this.readOf(response)
+    const retried = await this.send({ payload, token: await this.refreshOf({ stale: token }) })
+    if (retried.status === 401) throw this.unauthorizedOf()
+    return await this.readOf(retried)
+  }
+
+  private async send(args: { payload: unknown; token: string | undefined }): Promise<Response> {
+    return await fetch(this.args.transport.url, {
       method: 'POST',
-      headers: this.headers(),
-      body: JSON.stringify(payload),
+      headers: this.headers(args.token),
+      body: JSON.stringify(args.payload),
       signal: AbortSignal.timeout(this.args.timeoutMs ?? HTTP_TIMEOUT_MS),
     })
-    if (response.status === 401)
-      throw new McpUnauthorizedError(
-        `the '${this.args.serverId}' MCP server needs a sign-in; call operator_mcp_sign_in to start one`,
-      )
+  }
+
+  private async readOf(response: Response): Promise<unknown> {
     if (!response.ok)
       throw new McpTransportError(
         `the '${this.args.serverId}' MCP server answered ${response.status}`,

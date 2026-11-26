@@ -4,7 +4,7 @@ import { createDb, createPool, type Db } from '@dltech/atlas-db'
 
 import type { ScopedFileMount } from '../runtime/project-files'
 import { databaseUrlWithTls } from './database-url'
-import { readAgentHostEnv } from './env'
+import type { AgentHostEnv } from './env'
 
 const QUERY_TIMEOUT_MS = 10_000
 
@@ -70,11 +70,12 @@ export const readProjectFiles = async (args: {
   })
 }
 
-export const projectFilesSourceOf = (): ProjectFilesSource => {
+export const projectFilesSourceOf = (
+  env: Pick<AgentHostEnv, 'databaseUrl' | 'secretsEncryptionKey'>,
+): ProjectFilesSource => {
   let opened: { db: Db; cipher: SecretCipher } | undefined
   const connection = (): { db: Db; cipher: SecretCipher } => {
     if (opened !== undefined) return opened
-    const env = readAgentHostEnv()
     opened = {
       db: createDb(
         createPool(databaseUrlWithTls(env.databaseUrl), { queryTimeoutMs: QUERY_TIMEOUT_MS }),

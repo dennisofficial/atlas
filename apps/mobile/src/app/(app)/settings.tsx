@@ -12,6 +12,7 @@ import { space } from '@dltech/atlas-ui/tokens'
 import { Alert, Platform, ScrollView, StyleSheet } from 'react-native'
 
 import { useAuth } from '../../auth/auth-provider'
+import { pushRegistrationLabelOf } from '../../push/push-registration'
 import { ModelDefaultsSection } from '../../settings/model-defaults-section'
 import { Row, Section } from '../../settings/settings-parts'
 import {
@@ -34,7 +35,7 @@ const confirmSignOut = (signOut: () => void) => {
 
 export default function SettingsScreen() {
   const theme = useTheme()
-  const { user, signOut } = useAuth()
+  const { user, signOut, pushRegistration } = useAuth()
   const permissionStatus = usePermissionStatus()
   const testNotification = useTestNotification()
   const update = useUpdateInfo()
@@ -49,6 +50,7 @@ export default function SettingsScreen() {
       <ModelDefaultsSection />
       <Section title="Notifications">
         <Row label="Permission" value={permissionStatus} />
+        <Row label="This device" value={pushRegistrationLabelOf(pushRegistration)} />
         <CardRow>
           <Text
             size={ETextRole.Sm}

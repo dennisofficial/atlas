@@ -1,4 +1,4 @@
-export type MemoryScope = 'global' | 'project'
+export type MemoryScope = 'global' | 'group' | 'project'
 
 export type MemoryKind = 'user' | 'feedback' | 'project' | 'reference'
 
@@ -7,6 +7,7 @@ export type MemoryAddress = { scope: MemoryScope; name: string }
 export type MemorySummary = {
   scope: MemoryScope
   project: string | null
+  groupId: string | null
   name: string
   description: string
   type: MemoryKind
@@ -16,7 +17,11 @@ export type MemorySummary = {
 
 export type MemoryEntry = MemorySummary & { body: string }
 
-export type MemorySnapshot = { project: string | null; memories: readonly MemorySummary[] }
+export type MemorySnapshot = {
+  project: string | null
+  group: string | null
+  memories: readonly MemorySummary[]
+}
 
 export type PodMemory = {
   list(): Promise<MemorySnapshot>

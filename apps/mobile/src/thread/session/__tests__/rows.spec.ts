@@ -3,9 +3,9 @@ import { describe, expect, it } from 'bun:test'
 import { ESessionConnection, type SessionSnapshot } from '@dltech/atlas-client/stream'
 import { ESessionStatus } from '@dltech/atlas-core'
 
-import { EMessageAuthor, ERowKind } from '../../rows'
+import { EMessageAuthor, ERowKind, type ThreadRow } from '../../rows'
 import { eventSchema } from '../registered-plugins'
-import { viewOf } from '../rows'
+import { modelOf, viewOf } from '../rows'
 
 const NOW = Date.parse('2026-11-08T20:00:10.000Z')
 
@@ -60,6 +60,18 @@ const requestAnswered = {
   output: { outcome: 'delivered', path: '/x', bytes: 4 },
 }
 
+const viewAt = (args: {
+  snapshot: SessionSnapshot
+  now?: number
+  previous?: readonly ThreadRow[]
+}) =>
+  viewOf({
+    model: modelOf({ snapshot: args.snapshot }),
+    snapshot: args.snapshot,
+    now: args.now ?? NOW,
+    previous: args.previous,
+  })
+
 describe('viewOf', () => {
   it('keeps the session busy but opens no turn while a command such as summarise runs', () => {
     const snapshot: SessionSnapshot = {
@@ -71,7 +83,7 @@ describe('viewOf', () => {
         lease: { epoch: 1, holderHostId: 1, live: true },
       },
     }
-    const view = viewOf({ snapshot, now: NOW })
+    const view = viewAt({ snapshot })
     expect({ working: view.working, turnRunning: view.turnRunning }).toEqual({
       working: true,
       turnRunning: false,
@@ -79,7 +91,7 @@ describe('viewOf', () => {
   })
 
   it('turns a page into message rows in order', () => {
-    const rows = viewOf({ snapshot: snapshotOf([said, answered]), now: NOW }).rows
+    const rows = viewAt({ snapshot: snapshotOf([said, answered]) }).rows
     expect(rows.map((row) => row.kind)).toEqual([ERowKind.Message, ERowKind.Message])
     expect(rows.map((row) => (row.kind === ERowKind.Message ? row.author : null))).toEqual([
       EMessageAuthor.You,
@@ -89,20 +101,17 @@ describe('viewOf', () => {
 
   it('renders the rest of a page whose plugin body carries no row', () => {
     const ready = { ...envelope(2), type: 'service-ready', serviceId: 'svc-1' }
-    const rows = viewOf({ snapshot: snapshotOf([said, ready]), now: NOW }).rows
+    const rows = viewAt({ snapshot: snapshotOf([said, ready]) }).rows
     expect(rows).toHaveLength(1)
     expect(rows[0]?.kind).toBe(ERowKind.Message)
   })
 
   it('draws no transcript row for a request that is still parked', () => {
-    expect(viewOf({ snapshot: snapshotOf([parked]), now: NOW }).rows).toEqual([])
+    expect(viewAt({ snapshot: snapshotOf([parked]) }).rows).toEqual([])
   })
 
   it('draws the operator answer as a notice row once the call settles', () => {
-    const rows = viewOf({
-      snapshot: snapshotOf([parked, requestAnswered]),
-      now: NOW,
-    }).rows
+    const rows = viewAt({ snapshot: snapshotOf([parked, requestAnswered]) }).rows
 
     expect(rows).toHaveLength(1)
     expect(rows[0]).toMatchObject({
@@ -113,6 +122,38 @@ describe('viewOf', () => {
   })
 
   it('stays empty for an empty snapshot', () => {
-    expect(viewOf({ snapshot: snapshotOf([]), now: NOW }).rows).toEqual([])
+    expect(viewAt({ snapshot: snapshotOf([]) }).rows).toEqual([])
+  })
+})
+
+describe('viewOf across a clock tick', () => {
+  it('keeps every row when only the clock moved', () => {
+    const snapshot = snapshotOf([said, answered])
+    const model = modelOf({ snapshot })
+    const first = viewOf({ model, snapshot, now: NOW })
+
+    const ticked = viewOf({ model, snapshot, now: NOW + 1_000, previous: first.rows })
+
+    expect(ticked.rows).toBe(first.rows)
+  })
+
+  it('holds the identity of a row that a new event left untouched', () => {
+    const first = viewAt({ snapshot: snapshotOf([said]) })
+    const grown = snapshotOf([said, answered])
+
+    const next = viewAt({ snapshot: grown, now: NOW + 1_000, previous: first.rows })
+
+    expect(next.rows).toHaveLength(2)
+    expect(next.rows[0]).toBe(first.rows[0])
+    expect(next.rows[1]).not.toBe(first.rows[0])
+  })
+
+  it('takes the new row when its text moved', () => {
+    const first = viewAt({ snapshot: snapshotOf([said]) })
+    const corrected = snapshotOf([{ ...said, text: 'hello again' }])
+
+    const next = viewAt({ snapshot: corrected, now: NOW + 1_000, previous: first.rows })
+
+    expect(next.rows[0]).not.toBe(first.rows[0])
   })
 })

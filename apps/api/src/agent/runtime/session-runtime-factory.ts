@@ -244,7 +244,10 @@ export const createSessionRuntimeFactory = (
       ...(args.pingMs === undefined ? {} : { pingMs: args.pingMs }),
     })
 
-    const processes = new DaemonProcessPort({ calls })
+    const processes = new DaemonProcessPort({
+      calls,
+      capabilities: () => calls.daemonCapabilities(),
+    })
     const files = new DaemonFileSystemPort({ calls })
     const agentFiles = new DaemonAgentFileSystemPort({ calls })
     const shellEnv = new ShellEnvCell({

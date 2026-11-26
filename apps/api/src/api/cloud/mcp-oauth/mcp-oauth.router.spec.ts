@@ -36,6 +36,7 @@ const grantedServer = (cipher: SecretCipherService): ServerGrantRow => ({
   id: 'server-a',
   userId: 'user-a',
   projectId: null,
+  groupId: null,
   name: 'posthog',
   source: EMcpServerSource.Cloud,
   sealedSpec: cipher.encrypt(

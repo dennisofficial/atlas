@@ -101,7 +101,7 @@ describe('SessionHolder turn', () => {
     }
     expect(rig.daemon.runCount()).toBe(1)
     const acked = rig.runtimes.flatMap((runtime) => runtime.ackedScopes)
-    expect(acked.some((key) => key.endsWith(':call-1'))).toBe(true)
+    expect(acked.includes('call-1')).toBe(true)
   })
 
   it('every event is appended individually and the chain verifies', async () => {

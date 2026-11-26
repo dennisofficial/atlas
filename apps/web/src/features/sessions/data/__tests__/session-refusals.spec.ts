@@ -66,6 +66,14 @@ describe('sessionRefusalsOf', () => {
     ])
   })
 
+  it('keeps a refusal the visible tail no longer holds', () => {
+    const retained = eventsOf([refused(1, 'paste the token')])
+    const tail = retained.slice(1)
+
+    expect(sessionRefusalsOf(tail)).toEqual([])
+    expect(sessionRefusalsOf(retained)).toEqual([{ inboxId: 1, reason: 'paste the token' }])
+  })
+
   it('ignores events that are not refusals', () => {
     const events = eventsOf([
       { type: 'user-said', text: 'a' },

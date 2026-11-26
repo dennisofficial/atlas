@@ -1,24 +1,49 @@
+import { BookOpenTextIcon, type LucideIcon } from 'lucide-react'
+
 import {
   EProjectSettingsSection,
   PROJECT_NAV,
-  type ProjectNavItem,
 } from '@/features/project-settings/project-settings-nav'
 
-export const GROUP_SECTIONS = [
+export enum EGroupSettingsSection {
+  Instructions = 'instructions',
+}
+
+const GROUP_NAV_SECTIONS = [
   EProjectSettingsSection.Overview,
+  EGroupSettingsSection.Instructions,
   EProjectSettingsSection.Sandbox,
   EProjectSettingsSection.Access,
   EProjectSettingsSection.Skills,
   EProjectSettingsSection.Mcp,
 ] as const
 
-export type GroupSection = (typeof GROUP_SECTIONS)[number]
+export type GroupSection = (typeof GROUP_NAV_SECTIONS)[number]
 
-export type GroupNavItem = ProjectNavItem & { section: GroupSection }
+export type GroupNavItem = {
+  section: GroupSection
+  label: string
+  icon: LucideIcon
+}
 
-export const GROUP_NAV: readonly GroupNavItem[] = PROJECT_NAV.filter((item): item is GroupNavItem =>
-  GROUP_SECTIONS.some((section) => section === item.section),
-)
+const NAV_BY_SECTION = new Map(PROJECT_NAV.map((item) => [item.section, item]))
+
+const INSTRUCTIONS_NAV: GroupNavItem = {
+  section: EGroupSettingsSection.Instructions,
+  label: 'Instructions',
+  icon: BookOpenTextIcon,
+}
+
+const navOf = (section: GroupSection): GroupNavItem => {
+  if (section === EGroupSettingsSection.Instructions) return INSTRUCTIONS_NAV
+  const item = NAV_BY_SECTION.get(section)
+  if (item === undefined) throw new Error(`no project nav item for ${section}`)
+  return { section, label: item.label, icon: item.icon }
+}
+
+export const GROUP_NAV: readonly GroupNavItem[] = GROUP_NAV_SECTIONS.map(navOf)
+
+export const GROUP_SECTIONS: readonly GroupSection[] = GROUP_NAV_SECTIONS
 
 const GROUP_SETTINGS_PATH = /^\/groups\/[^/]+\/settings\/([^/]+)/
 

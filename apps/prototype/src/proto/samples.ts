@@ -69,6 +69,9 @@ export const PROTO_SAMPLES: Record<string, ProtoSample[]> = {
     { label: 'Comp AI', path: '/groups/comp-ai/settings/skills/code-review' },
   ],
   '/groups/[groupId]/settings/mcp': [{ label: 'Comp AI', path: '/groups/comp-ai/settings/mcp' }],
+  '/groups/[groupId]/settings/instructions': [
+    { label: 'Comp AI', path: '/groups/comp-ai/settings/instructions' },
+  ],
   '/settings/skills/[skillId]': [
     { label: 'code-review', path: '/settings/skills/code-review' },
     { label: 'commit', path: '/settings/skills/commit' },

@@ -26,6 +26,7 @@ import { worktreesOf } from './checkouts'
 import { deferredListingHook } from './deferred-listing'
 import { withDiscoveryTools } from './discovery'
 import type { HeldSessionDeps } from './held-session-deps'
+import { recordStep, recordedStepsOf } from './record/call-steps'
 import { fireLive } from './ports'
 import { MirrorPlanHook } from './plan-mirror'
 import { pluginCallOf } from './plugin-call'
@@ -38,6 +39,7 @@ import { heldMessagesOf } from './pod-messages'
 import { modelFellBackDraft } from './crew/model-fell-back'
 import type { RoleModelChoice, SessionRuntime } from './ports'
 import type { SessionRecord } from './record/record-adapter'
+import type { InFlightSteps } from '../calls/step-detach'
 
 export class ComposedPodRegistry extends ToolRegistry {
   private readonly taken: ReadonlySet<string>
@@ -149,6 +151,7 @@ export const pluginPodContextOf = (args: {
   signal: AbortSignal
   crew: PodCrew
   selfAgentId?: string | undefined
+  steps?: InFlightSteps | undefined
   notify?: ((event: EventBody, options: { key: string }) => Promise<void>) | undefined
 }): PluginPodContext => {
   const { deps, runtime, record, threadId } = args
@@ -196,6 +199,13 @@ export const pluginPodContextOf = (args: {
       invoke: (call) => runtime.remoteCalls.invoke(call),
       ...(runtime.env === undefined ? {} : { env: runtime.env }),
       ...(runtime.workspaceGate === undefined ? {} : { gate: runtime.workspaceGate }),
+      steps: {
+        recorded: (scopeKey) => recordedStepsOf({ record, scopeKey }),
+        record: (step) => recordStep({ record, threadId, runId: deps.ids.nextRunId(), step }),
+      },
+      bootId: () => runtime.remoteCalls.bootId(),
+      ack: (key) => runtime.remoteCalls.ack({ key }),
+      ...(args.steps === undefined ? {} : { onStep: (event) => args.steps?.apply(event) }),
     }),
     live: (frame) => fireLive({ bus: deps.bus, key: deps.sessionId, frame }),
     onDaemonEvent: (listener) => {
@@ -329,6 +339,7 @@ export const pluginPodOf = (args: {
   threadId: ThreadId
   signal: AbortSignal
   crew: PodCrew
+  steps?: InFlightSteps | undefined
 }): PluginPod => {
   const { plugins } = args.runtime
   if (plugins === undefined) {

@@ -1,6 +1,5 @@
 import {
   EHeldAction,
-  EToolEffect,
   modelFacingDeclarationsOf,
   type InboxEntry,
   type ThreadId,
@@ -9,8 +8,10 @@ import { LoopTurnRunner, settleCrashedCalls } from '@dltech/atlas-agent'
 import { logFieldsOf } from '@dltech/atlas-observability'
 import { composePodCommands } from '@dltech/atlas-plugin-sdk'
 
-import { ScopedToolDispatcher } from '../calls/call-scope'
+import { dispatchableScopeKey, ScopedToolDispatcher } from '../calls/call-scope'
+import { InFlightSteps } from '../calls/step-detach'
 import { BranchObserver } from './branch-observer'
+import { crashSettleOf } from './crash-settle'
 import { oomObserverOf, type OomObserver } from './oom-observer'
 import { podSampleObserverOf, type PodSampleObserver } from './pod-sample-observer'
 import { hookedToolsOf } from './hooked-tools'
@@ -75,7 +76,7 @@ export const settleCrashedOf = async (args: {
     record,
     ids: deps.ids,
     threadId,
-    effectOf: (name) => (runtime.daemonTools.has(name) ? EToolEffect.Read : runtime.effectOf(name)),
+    settleOf: (call) => crashSettleOf({ runtime, record, call }),
   })
 }
 
@@ -148,6 +149,7 @@ export const createLoopRunner = (args: {
   childrenRunning(): number
 }): { runner: LoopTurnRunner; intake: InboxIntake } => {
   const { deps, runtime, record, threadId } = args
+  const steps = new InFlightSteps()
   const operator =
     deps.operator === undefined
       ? undefined
@@ -167,6 +169,7 @@ export const createLoopRunner = (args: {
     threadId,
     signal: args.signal,
     crew: args.crew,
+    steps,
   })
   const podCommands = composePodCommands({ factories: deps.podCommands ?? [], ctx: pod.ctx })
   const intake = new InboxIntake({
@@ -200,19 +203,22 @@ export const createLoopRunner = (args: {
     ...(runtime.uploads === undefined ? {} : { uploads: runtime.uploads }),
     ...(runtime.mediaUrls === undefined ? {} : { mediaUrls: runtime.mediaUrls }),
     tools: () => modelFacingDeclarationsOf(pod.tools.declarations()),
-    dispatch: new ScopedToolDispatcher(
-      hookedToolsOf({
+    dispatch: new ScopedToolDispatcher({
+      inner: hookedToolsOf({
         registry: pod.tools,
         hooks: pod.hooks,
         trace: runtime.trace,
       }),
-    ),
+      daemonTools: runtime.daemonTools,
+    }),
     intake,
     output: args.turns.liveOutput({
       headSeq: () => record.eventCache().currentHead().seq,
       epoch: args.epoch,
     }),
-    detachTool: (tool) => args.isDraining() && runtime.daemonTools.has(tool),
+    detachTool: (call) =>
+      args.isDraining() &&
+      (runtime.daemonTools.has(call.name) || steps.detached(dispatchableScopeKey(call))),
     launchDirectory: runtime.launchDirectory,
     normalizeFailure: runtime.normalizeFailure,
     retry: retryDepsFromTimers(deps.timers),

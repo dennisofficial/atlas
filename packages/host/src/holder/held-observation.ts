@@ -22,7 +22,10 @@ const createChangesSnapshotter = (args: {
   const { deps } = args
   const content = deps.changes?.content
   if (content === undefined) return undefined
-  const processes = new DaemonProcessPort({ calls: args.runtime.remoteCalls })
+  const processes = new DaemonProcessPort({
+    calls: args.runtime.remoteCalls,
+    capabilities: () => args.runtime.remoteCalls.daemonCapabilities(),
+  })
   return new ChangesSnapshotter({
     sessionId: deps.sessionId,
     plane: deps.plane,

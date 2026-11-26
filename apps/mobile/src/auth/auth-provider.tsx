@@ -1,11 +1,12 @@
 import { createApiClient, type ApiClient } from '@dltech/atlas-api-router'
-import { createContext, useContext, useEffect, useMemo, useReducer, useRef, useState } from 'react'
+import { createContext, useContext, useEffect, useMemo, useReducer, useState } from 'react'
 import type { ReactNode } from 'react'
 import { AppState } from 'react-native'
 
 import { apiOrigin, webOrigin } from '../config'
 import { createPushApi } from '../push/push-api'
-import { registerPushDevice } from '../push/register-push'
+import { pushDeviceIdOf, type TPushRegistration } from '../push/push-registration'
+import { usePushRegistration } from '../push/use-push-registration'
 import { EAppleSignInResult, isAppleSignInAvailable, signInWithApple } from './apple-sign-in'
 import {
   authReducer,
@@ -20,7 +21,6 @@ import { fetchSession, revokeSession, signInWithPassword } from './session'
 import { EHandoffResult, runHandoffSignIn } from './sign-in-flow'
 import { createPendingRevokeStorage, createTokenStore } from './token-store'
 import { clearSettingsCache } from '../settings/settings-storage'
-import { installClientId } from '../storage/install-client-id'
 import { selectedSessionStore } from '../sessions/selected-session'
 import { clearSessionLog } from '../thread/session/session-cache'
 import { XhrEventSource } from '../thread/session/xhr-event-source'
@@ -31,6 +31,7 @@ export interface IAuthContextValue extends IAuthSnapshot {
   signInWithApple: () => Promise<void>
   signInWithEmail: (credentials: { email: string; password: string }) => Promise<void>
   appleSignInAvailable: boolean
+  pushRegistration: TPushRegistration
   signOut: () => Promise<void>
 }
 
@@ -62,7 +63,6 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   const store = useMemo(() => createTokenStore(), [])
   const [snapshot, dispatch] = useReducer(authReducer, initialAuthSnapshot)
   const [appleSignInAvailable, setAppleSignInAvailable] = useState(false)
-  const pushDeviceRef = useRef<string | undefined>(undefined)
   const pendingRevokes = useMemo(() => createPendingRevokeStorage(), [])
 
   useEffect(() => {
@@ -115,26 +115,9 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     [snapshot.token],
   )
 
-  useEffect(() => {
-    if (snapshot.state !== EAuthState.SignedIn || api === undefined) return
-    let cancelled = false
-    const register = async () => {
-      const clientId = await installClientId()
-      const result = await registerPushDevice({
-        pushApi: createPushApi({ client: api }),
-        clientId,
-      })
-      if (result.status === 'registered') {
-        pushDeviceRef.current = result.deviceId
-      } else if (!cancelled) {
-        console.warn(`[push] registration skipped: ${result.reason}`)
-      }
-    }
-    void register()
-    return () => {
-      cancelled = true
-    }
-  }, [snapshot.state, api])
+  const pushRegistration = usePushRegistration({
+    api: snapshot.state === EAuthState.SignedIn ? api : undefined,
+  })
 
   const signIn = async () => {
     if (snapshot.state !== EAuthState.SignedOut && snapshot.state !== EAuthState.Failed) return
@@ -204,8 +187,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
 
   const signOut = async () => {
     const bearer = snapshot.token
-    const pushDeviceId = pushDeviceRef.current
-    pushDeviceRef.current = undefined
+    const pushDeviceId = pushDeviceIdOf(pushRegistration)
     dispatch({ type: EAuthEvent.SignOut })
     await store.clear()
     selectedSessionStore().select(null)
@@ -227,6 +209,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     signInWithApple: handleAppleSignIn,
     signInWithEmail: handleEmailSignIn,
     appleSignInAvailable,
+    pushRegistration,
     signOut,
   }
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>

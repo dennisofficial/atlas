@@ -95,6 +95,19 @@ describe('McpOauthService.begin', () => {
     expect(result.outcome).toBe(EMcpOauthBeginOutcome.Redirect)
   })
 
+  it('reaches a group server through the group owner', async () => {
+    const env = build()
+    const server = await addCloudServer(env, { groupId: 'grp-1', groupOwner: 'user-a' })
+    const result = await beginFor(env, server)
+    expect(result.outcome).toBe(EMcpOauthBeginOutcome.Redirect)
+  })
+
+  it('is not found for a group server of another user', async () => {
+    const env = build()
+    const server = await addCloudServer(env, { groupId: 'grp-1', groupOwner: 'user-b' })
+    await expect(beginFor(env, server)).rejects.toThrow('mcp server not found')
+  })
+
   it('rejects a discovered endpoint that points at a private host', async () => {
     const env = build()
     env.fetcher.on(`${AUTH}/.well-known/oauth-authorization-server`, () =>

@@ -1,10 +1,11 @@
 import type { CallOp, CallResult } from '@dltech/atlas-protocol'
 
-import type { Answers } from './answers'
+import { attachRecordedCall, decideCall } from './call-decide'
 import { abandonCall, attachCallSignal } from './call-signal'
-import { actionForAnswer, callLostAcrossBoot, needsRun } from './errors'
+import { scopeDetachOnHandoff } from './call-scope'
+import { callLostAcrossBoot, type DaemonAnswer } from './errors'
 import type { ReadyReply } from './ready-gate'
-import { interruptedResult, type Pending, type Waiter } from './remote-calls-frames'
+import { cancelledResult, type Pending, type Waiter } from './remote-calls-frames'
 import { resizeInterruptedResult } from './restart-interrupt'
 
 export type OpenCallArgs = {
@@ -14,18 +15,27 @@ export type OpenCallArgs = {
   onOutput?: ((bytes: Uint8Array) => void) | undefined
   dispatchedBootId?: string | undefined
   attachOnly?: boolean | undefined
+  detachOnHandoff?: boolean | undefined
+  replayed?: boolean | undefined
 }
+
+export type AnswerAsker = { ask(key: string): Promise<DaemonAnswer> }
 
 export type CallLane = {
   readonly pending: Map<string, Pending>
-  readonly answers: Answers
+  readonly answers: AnswerAsker
   detached(): boolean
   gone(): boolean
   linkReady(): boolean
   bootId(): string | undefined
   ready(signal?: AbortSignal | undefined): Promise<ReadyReply | undefined>
-  arrived(frame: { bootId: string; version: string }): void
+  arrived(frame: {
+    bootId: string
+    version: string
+    capabilities?: readonly string[] | undefined
+  }): void
   flushAcks(): number
+  flushCancels(bootId: string): void
   logged(fields: { restart: boolean; flushedAcks: number; pending: number }): void
   helloReady(hello: { bootId: string; restart: boolean }): void
   listed(): Pending[]
@@ -36,7 +46,7 @@ export type CallLane = {
   schedulePing(): void
 }
 
-export const openCall = async (args: {
+export const openCall = (args: {
   lane: CallLane
   request: OpenCallArgs
   dispatchedBootId: string | undefined
@@ -62,8 +72,13 @@ export const openCall = async (args: {
     delivered: 0,
     sent: false,
     armed: false,
+    ready: false,
     done: false,
     awaitingAnswer: false,
+    waiting: false,
+    detachOnHandoff: request.detachOnHandoff ?? scopeDetachOnHandoff(),
+    ...(request.attachOnly === true ? { attachOnly: true } : {}),
+    ...(request.replayed === true ? { replayed: true } : {}),
   }
   if (!lane.detached()) call.waiters.push(waiter)
   lane.pending.set(request.key, call)
@@ -72,58 +87,69 @@ export const openCall = async (args: {
       call,
       signal: request.signal,
       isDetached: () => lane.detached(),
-      isLinkReady: () => lane.linkReady(),
       sendCancel: () => lane.sendCancel(call),
-      settleInterrupted: () => lane.settle(call, interruptedResult(call.op.op)),
+      settleStopped: () => lane.settle(call, cancelledResult(call)),
     })
   }
+  void driveCall({ lane, call, request, dispatchedBootId: args.dispatchedBootId }).catch(
+    () => undefined,
+  )
+  return outcome
+}
+
+const driveCall = async (args: {
+  lane: CallLane
+  call: Pending
+  request: OpenCallArgs
+  dispatchedBootId: string | undefined
+}): Promise<void> => {
+  const { lane, call, request } = args
   try {
     await lane.ready(call.controller.signal)
   } catch (error) {
     abandonCall({ call, pending: lane.pending, error: error as Error })
-    throw error
+    return
   }
-  if (call.done) return outcome
+  if (call.done) return
+  call.ready = true
+  call.dispatchBootId = args.dispatchedBootId
   if (request.attachOnly === true) {
-    const answer = await lane.answers.ask(call.key)
-    if (call.done || lane.gone()) return outcome
-    if (answer !== 'running' && answer !== 'done') {
-      lane.settle(call, interruptedResult(call.op.op))
-      return outcome
-    }
+    await attachRecordedCall({ lane, call })
+    return
   }
   if (
-    callLostAcrossBoot({
-      op: call.op.op,
+    needsDecision({
+      lane,
+      call,
       dispatchedBootId: args.dispatchedBootId,
-      currentBootId: lane.bootId(),
+      replayed: request.replayed,
     })
   ) {
-    const answer = await lane.answers.ask(call.key)
-    if (call.done || lane.gone()) return outcome
-    const action = actionForAnswer({
-      op: call.op.op,
-      dispatchedBootId: args.dispatchedBootId,
-      currentBootId: lane.bootId(),
-      answer,
-    })
-    if (!needsRun(action)) {
-      lane.settle(call, interruptedResult(call.op.op))
-      return outcome
-    }
-    if (action.type === 'rerun') call.delivered = 0
+    await decideCall({ lane, call, dispatchedBootId: args.dispatchedBootId })
+    return
   }
   const resize = lane.resizeReason()
   if (
-    request.attachOnly !== true &&
     resize !== undefined &&
     args.dispatchedBootId !== undefined &&
     args.dispatchedBootId === lane.bootId()
   ) {
     lane.settle(call, resizeInterruptedResult({ op: call.op.op, reason: resize }))
-    return outcome
+    return
   }
   call.armed = true
   if (lane.linkReady()) lane.sendRun(call)
-  return outcome
 }
+
+const needsDecision = (args: {
+  lane: CallLane
+  call: Pending
+  dispatchedBootId: string | undefined
+  replayed: boolean | undefined
+}): boolean =>
+  args.replayed === true ||
+  callLostAcrossBoot({
+    op: args.call.op.op,
+    dispatchedBootId: args.dispatchedBootId,
+    currentBootId: args.lane.bootId(),
+  })

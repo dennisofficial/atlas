@@ -1,6 +1,7 @@
 import type { INestApplication } from '@nestjs/common'
 import { projectProviders } from '../projects/projects.router.fixture'
 import { buildSessionTrpcApp, dataOf, trpcMutation, trpcQuery } from '../session-trpc-test-app'
+import { GroupInstructionsService } from './group-instructions.service'
 import { GroupResourcesRouter } from './group-resources.router'
 import { GroupResourcesService } from './group-resources.service'
 import { GroupSettingsService } from './group-settings.service'
@@ -15,6 +16,7 @@ export const buildGroupResourcesApp = (): Promise<INestApplication> =>
       GroupResourcesRouter,
       GroupResourcesService,
       GroupSettingsService,
+      GroupInstructionsService,
       ProjectGroupsRouter,
     ],
   })

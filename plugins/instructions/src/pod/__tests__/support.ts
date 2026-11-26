@@ -84,7 +84,7 @@ export const fakeDaemon = (nodes: Record<string, FakeNode>) => {
         throw new Error('this rig exposes no port')
       },
       memory: {
-        list: async () => ({ project: null, memories: [] }),
+        list: async () => ({ project: null, group: null, memories: [] }),
         read: async () => null,
         write: async () => {
           throw new Error('this rig writes no memory')
@@ -204,8 +204,12 @@ export const touch = async (args: {
 export const nestedKeysOf = (drafts: readonly EventDraft[]): readonly string[] =>
   drafts.flatMap((draft) => (draft.type === 'context-loaded' ? [draft.key] : []))
 
-export const personal = (text: string | null): InstructionsPodOptions => ({
+export const personal = (
+  text: string | null,
+  group: string | null = null,
+): InstructionsPodOptions => ({
   personal: async () => text,
+  group: async () => group,
 })
 
 export const file = (text: string, size?: number): FakeNode => ({ kind: 'file', text, size })

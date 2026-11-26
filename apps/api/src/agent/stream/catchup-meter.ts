@@ -26,6 +26,7 @@ export class CatchupMeter {
   private bytes = 0
   private behindEvents: number | undefined
   private drainWaits = 0
+  private tailMissed = false
   private emitted = false
 
   constructor(private readonly args: CatchupMeterArgs) {
@@ -38,6 +39,10 @@ export class CatchupMeter {
 
   markTail(): void {
     this.start = ECatchupStart.Tail
+  }
+
+  markTailMissed(): void {
+    this.tailMissed = true
   }
 
   noteBehind(args: { headSeq: number; cursor: number }): void {
@@ -84,6 +89,7 @@ export class CatchupMeter {
         reached_live: reachedLive,
         behind_events: this.behindEvents ?? 0,
         drain_waits: this.drainWaits,
+        tail_missed: this.tailMissed,
       },
     })
   }

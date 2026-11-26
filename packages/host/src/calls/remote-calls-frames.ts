@@ -19,8 +19,14 @@ export type Pending = {
   delivered: number
   sent: boolean
   armed: boolean
+  ready: boolean
   done: boolean
   awaitingAnswer: boolean
+  waiting: boolean
+  attachOnly?: boolean | undefined
+  replayed?: boolean | undefined
+  dispatchBootId?: string | undefined
+  detachOnHandoff?: boolean | undefined
   detach?: (() => void) | undefined
 }
 
@@ -47,25 +53,31 @@ export const failedResult = (args: {
   error: { code: args.code, message: args.message },
 })
 
-export const handedOffResult = (call: Pending): CallResult => {
-  if (call.op.op !== 'exec') {
-    return failedResult({
-      op: call.op.op,
-      code: ECallFailure.Internal,
-      message: interruptedMessage(call.op.op),
-    })
-  }
-  return {
-    status: ECallStatus.Ok,
-    op: 'exec',
-    value: {
-      exitCode: null,
-      signal: 'SIGTERM',
-      outcome: EExecOutcome.TimedOut,
-      outputBytes: call.delivered,
-    },
-  }
+const handoffSettled = new WeakSet<object>()
+
+export const handedOffResult = (call: { op: CallOp; delivered: number }): CallResult => {
+  const result: CallResult =
+    call.op.op !== 'exec'
+      ? failedResult({
+          op: call.op.op,
+          code: ECallFailure.Internal,
+          message: interruptedMessage(call.op.op),
+        })
+      : {
+          status: ECallStatus.Ok,
+          op: 'exec',
+          value: {
+            exitCode: null,
+            signal: 'SIGTERM',
+            outcome: EExecOutcome.TimedOut,
+            outputBytes: call.delivered,
+          },
+        }
+  handoffSettled.add(result)
+  return result
 }
+
+export const wasHandedOff = (result: CallResult): boolean => handoffSettled.has(result)
 
 export const cancelledResult = (call: Pending): CallResult => {
   if (call.op.op !== 'exec') {
@@ -91,7 +103,11 @@ export type FrameSink = {
   settleError(call: Pending, error: Error): void
   sendRun(call: Pending): void
   failAll(error: Error): void
-  handleHelloReply(frame: { bootId: string; version: string }): void
+  handleHelloReply(frame: {
+    bootId: string
+    version: string
+    capabilities?: readonly string[] | undefined
+  }): void
   answered(key: string, state: DaemonAnswer): void
   emitEvent(frame: Extract<DaemonFrame, { kind: 'event' }>): void
 }

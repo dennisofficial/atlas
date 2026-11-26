@@ -2,12 +2,13 @@ import type { Attachment } from '@dltech/atlas-core'
 import { ETextRole, ETextTone, Text, useTheme, withAlpha } from '@dltech/atlas-ui-native'
 import { radius, space } from '@dltech/atlas-ui/tokens'
 import { Image } from 'expo-image'
-import { FileText, X } from 'lucide-react-native'
+import { FileText } from 'lucide-react-native'
 import { useState } from 'react'
-import { Modal, Pressable, StyleSheet, View } from 'react-native'
+import { Pressable, StyleSheet, View } from 'react-native'
 
 import { type AttachmentView, viewsOf } from '../attachment-views'
 import { describeBytes } from '../composer/attachment-plan'
+import { PhotoViewer } from './photo-viewer'
 import { useAttachmentSources } from './use-attachment-sources'
 
 const THUMB = 104
@@ -82,33 +83,7 @@ export const MessageAttachments = ({
           ))}
         </View>
       )}
-      <Modal
-        visible={opened !== null}
-        transparent
-        animationType="fade"
-        onRequestClose={() => setOpened(null)}
-      >
-        <View style={styles.viewer}>
-          <Pressable
-            accessibilityRole="button"
-            accessibilityLabel="Close the photo"
-            style={StyleSheet.absoluteFill}
-            onPress={() => setOpened(null)}
-          />
-          {opened?.uri === undefined ? null : (
-            <Image source={{ uri: opened.uri }} contentFit="contain" style={styles.full} />
-          )}
-          <Pressable
-            accessibilityRole="button"
-            accessibilityLabel="Close the photo"
-            hitSlop={12}
-            onPress={() => setOpened(null)}
-            style={styles.close}
-          >
-            <X size={22} color="#ffffff" />
-          </Pressable>
-        </View>
-      </Modal>
+      <PhotoViewer uri={opened?.uri} onClose={() => setOpened(null)} />
     </View>
   )
 }
@@ -143,20 +118,5 @@ const styles = StyleSheet.create({
   fileText: {
     flexShrink: 1,
     gap: space(0.5),
-  },
-  viewer: {
-    alignItems: 'center',
-    backgroundColor: withAlpha({ color: '#000000', alpha: 0.92 }),
-    flex: 1,
-    justifyContent: 'center',
-  },
-  full: {
-    height: '100%',
-    width: '100%',
-  },
-  close: {
-    position: 'absolute',
-    right: space(4),
-    top: space(12),
   },
 })

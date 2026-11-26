@@ -1,4 +1,4 @@
-import { EGithubPrStreamFrame, type GithubPrStreamFrame } from '@dltech/atlas-wire'
+import { EGithubPrStreamFrame, type GithubPrStreamFrame } from '@dltech/atlas-core'
 import { describe, expect, it, vi } from 'bun:test'
 import { type PrFrameSink, prStreamFrames } from './github-pr-stream.frames'
 

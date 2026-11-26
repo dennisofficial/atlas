@@ -6,11 +6,9 @@ only what it can rebuild or drop.
 
 ## Owns
 
-- The claim loop: `SessionHolder` claims a session, holds it, and settles the lease.
-- Remote calls to the daemon: the link, the handshake, the replay and the fencing.
+- The claim loop: `SessionHolder` claims a session, holds it, and settles the lease; and the remote calls to the daemon: the link, the handshake, the replay and the fencing.
 - The daemon-backed ports: filesystem, agent filesystem and process.
-- The record adapter and its cache, and the once-ledger of a session.
-- The live step buffer, which flushes a streamed answer to the clients.
+- The record adapter, its cache, the once-ledger, and the live step buffer that flushes a streamed answer to the clients.
 - The change snapshotter, and the inbox intake of a held session.
 - The context mirror, which keeps a held session's context folder in the content store and index.
 - Seeding a session's context folder from the files a spawner attached, before its first turn.
@@ -60,24 +58,28 @@ only what it can rebuild or drop.
 
 ### Call the daemon
 
-- `RemoteCalls`: the client of the daemon link. `open`, `ready`, `invoke`, `ack`, `ackScope`,
-  `handoff`, `bootId` and `close(RemoteCloseReason)`. It reports each `EventFrame` to its listeners.
-- `WorkspaceGate`, `POD_WAIT_INTERRUPTED`, `WorkspaceGateOutcome`: hold a tool call until the
-  workspace prepare settles, and fail the call when the wait is interrupted.
-- `webSocketConnector({url})`, `DaemonConnector`, `DaemonSocket`: connect to the daemon.
-- `newKey()`, `systemTimers`, `CallTimers`: a call key and the timers the link uses.
-- `ScopedToolDispatcher`, `runInCallScope`, `scopeKeyOf`, `markDispatched`, `nextKey`: bind a call
-  to one scope so a retry does not run it twice.
+- `RemoteCalls`: the client of the daemon link. `open`, `ready`, `daemonCapabilities`, `invoke`, `ack`, `ackScope`, `handoff`, `bootId`, `close`.
+- `WorkspaceGate`, `POD_WAIT_INTERRUPTED`, `WorkspaceGateOutcome`, `webSocketConnector({url})`,
+  `DaemonConnector`, `DaemonSocket`: hold a tool call until the workspace prepare settles, and connect.
+- `newKey()`, `systemTimers`, `CallTimers`, `ScopedToolDispatcher`, `runInCallScope`, `scopeKeyOf`,
+  `dispatchableScopeKey`, `markDispatched`, `nextKey`: bind a call to one scope. `scopeKeyOf` is the
+  call id, so a step key `<callId>.<n>` is both the recorded fact and the wire key.
+- The dispatcher reuses a recorded step whose op and digest match, and asks the daemon before it
+  replays it. A diverged step takes a slot above the maximum. The digest leaves out `env`,
+  `tunnelToken` and the fields the daemon mints.
+- A call that a restart left open holds while its steps answer for themselves, and is interrupted only on a proven pod boot change.
 
 ### Reach the sandbox through a port
 
 - `DaemonFileSystemPort`, `DaemonAgentFileSystemPort`, `DaemonProcessPort`: the daemon-backed ports.
+  A `foreground` window is the daemon's deadline when it declares `EDaemonCapability.ExecDeadline`.
 - `DEFAULT_SANDBOX_COMMANDS`: the command names the sandbox resolves.
 
 ### Keep the record
 
 - `SessionRecord`: the `AgentRecordPort` and `ModelContextPort` over the control plane.
-- `RecordCache`: keeps the events of a thread in memory while the holder holds the session.
+- `RecordCache`: keeps the events of a thread in memory and resumes them on the next take-over
+  from a detached copy; a record its own history edits left unlike a full fill is not offered.
 - `RecordOnceLedger`: the `OnceLedger` backed by the record cache.
 - `PictureStore`, `storePictures`: move a tool result's pictures into the media store at append,
   so the event holds a `MediaPart`; one the store does not take becomes `[picture not kept: …]`.
@@ -92,8 +94,7 @@ only what it can rebuild or drop.
   session changed. The checkout id is `sha256(sessionId, repo, realpath(worktreePath))`, so it is
   session-scoped: one worktree path keeps two rows for two sessions.
 - `TerminalDemand`, `PanelDemand`, `PANEL_HOLD_TTL_MS`: keep a pod awake for a terminal or panel.
-  `HostBus.panelHoldMs` reads the hold that another host published, so a claim keeps a panel that
-  was already beating before this host heard a beat.
+  `HostBus.panelHoldMs` reads another host's hold, so a claim keeps a panel already beating.
 
 ### Route a pod call to its holder
 
@@ -104,8 +105,8 @@ only what it can rebuild or drop.
 
 ### Drain and fail
 
-- `DRAIN_IN_FLIGHT_CAP_MS`, `DRAIN_DETACH_CAP_MS`, `LEASE_HAND_BACK_MARGIN_MS`,
-  `DRAIN_HANDOFF_BUDGET_MS`: the drain budget.
+- `DRAIN_IN_FLIGHT_CAP_MS`, `DRAIN_STREAM_ABORT_CAP_MS`, `LEASE_HAND_BACK_MARGIN_MS`,
+  `DRAIN_HANDOFF_BUDGET_MS`: the drain budget; it writes nothing about an open tool call.
 - `SandboxUnavailableError`, `SANDBOX_UNREACHABLE_GUIDANCE`, `ReadyTimeoutError`, `FencedError`,
   `OpMismatchError`, `ProtocolViolationError`: the failures of a lost, fenced or broken sandbox.
 - `isReadOnlyOp(op)`: whether an op reads only, so a retry is safe.

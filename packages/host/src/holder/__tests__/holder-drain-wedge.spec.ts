@@ -5,7 +5,7 @@ import { InMemoryControlStore } from '@dltech/atlas-control/testing'
 import { FakeTool, ScriptedModel } from '@dltech/atlas-agent/testing'
 import type { ToolOutcome } from '@dltech/atlas-core'
 
-import { DRAIN_DETACH_CAP_MS, DRAIN_IN_FLIGHT_CAP_MS } from '../drain-cap'
+import { DRAIN_IN_FLIGHT_CAP_MS, DRAIN_STREAM_ABORT_CAP_MS } from '../drain-cap'
 import { FakeClock, flushUntil, makeRig, seedSession, SESSION } from './holder-rig'
 
 class StallingPlane extends ControlPlane {
@@ -43,7 +43,7 @@ class GatedTool extends FakeTool {
 }
 
 describe('SessionHolder drain while a record append never settles', () => {
-  it('finishes within its cap and hands the session back for another host', async () => {
+  it('hands the session back for another host while an append never settles', async () => {
     const clock = new FakeClock()
     const store = new InMemoryControlStore({ clock: () => new Date(clock.now()).toISOString() })
     const plane = new StallingPlane({ store })
@@ -70,14 +70,14 @@ describe('SessionHolder drain while a record append never settles', () => {
     await a.flush()
     clock.advance(DRAIN_IN_FLIGHT_CAP_MS)
     await a.flush()
-    clock.advance(DRAIN_DETACH_CAP_MS)
+    clock.advance(DRAIN_STREAM_ABORT_CAP_MS)
 
     expect(await flushUntil({ check: () => drained })).toBe(true)
     const { lease } = await a.plane.currentLease({ sessionId: SESSION })
     expect(lease).toMatchObject({ holderHostId: null, wantsHolder: true })
   }, 15_000)
 
-  it('finishes when the detach append at the cap fails', async () => {
+  it('hands the session back when the record refuses every append', async () => {
     const clock = new FakeClock()
     const store = new InMemoryControlStore({ clock: () => new Date(clock.now()).toISOString() })
     const plane = new StallingPlane({ store })
@@ -101,14 +101,14 @@ describe('SessionHolder drain while a record append never settles', () => {
     plane.refusing = true
     clock.advance(DRAIN_IN_FLIGHT_CAP_MS)
     await a.flush()
-    clock.advance(DRAIN_DETACH_CAP_MS)
+    clock.advance(DRAIN_STREAM_ABORT_CAP_MS)
 
     expect(await flushUntil({ check: () => drained })).toBe(true)
     const { lease } = await a.plane.currentLease({ sessionId: SESSION })
     expect(lease.holderHostId).toBeNull()
   }, 15_000)
 
-  it('waits the drain cap it was given, not the default one', async () => {
+  it('uses the drain cap it was given, not the default one', async () => {
     const clock = new FakeClock()
     const store = new InMemoryControlStore({ clock: () => new Date(clock.now()).toISOString() })
     const plane = new StallingPlane({ store })
@@ -142,7 +142,7 @@ describe('SessionHolder drain while a record append never settles', () => {
     await a.flush()
     clock.advance(1_000)
     await a.flush()
-    clock.advance(DRAIN_DETACH_CAP_MS)
+    clock.advance(DRAIN_STREAM_ABORT_CAP_MS)
 
     expect(await flushUntil({ check: () => drained })).toBe(true)
     const { lease } = await a.plane.currentLease({ sessionId: SESSION })

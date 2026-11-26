@@ -117,7 +117,6 @@ describe('podChipStatusOf', () => {
 
   it('stops a pod agent37 stopped', () => {
     for (const status of [
-      ESandboxStatus.Stopping,
       ESandboxStatus.Stopped,
       ESandboxStatus.Deleting,
       ESandboxStatus.Deleted,
@@ -130,6 +129,16 @@ describe('podChipStatusOf', () => {
         })?.state,
       ).toBe(EPodState.Stopped)
     }
+  })
+
+  it('names a pod agent37 is still stopping', () => {
+    expect(
+      podChipStatusOf({
+        pod: { desiredVcpus: 4, actualVcpus: 4, phase: 'steady' },
+        live: true,
+        sandbox: { status: ESandboxStatus.Stopping, at: '2026-11-21T09:30:00.000Z' },
+      }),
+    ).toEqual({ state: EPodState.Stopped, label: 'Stopping', vcpus: 4, phase: 'steady' })
   })
 
   it('stops a failed pod and carries the reason it declared', () => {

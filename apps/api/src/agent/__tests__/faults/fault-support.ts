@@ -5,8 +5,12 @@ import { join } from 'node:path'
 import { expect } from 'bun:test'
 
 import type { ControlPlane } from '@dltech/atlas-control'
-import { scopeKeyOf } from '@dltech/atlas-host'
+import { RemoteCalls, scopeKeyOf, systemTimers, webSocketConnector } from '@dltech/atlas-host'
+import { sandboxNameOf } from '@dltech/atlas-pods/sandbox/vercel-names'
+import { daemonToken } from '@dltech/atlas-protocol/engine'
+import type { CallOp, CallResult } from '@dltech/atlas-protocol'
 
+import { RIG_SECRET } from '../../testing/rig-host-env'
 import type { FaultRig, ReadEvent } from '../../testing/fault-rig'
 
 export const makeFifo = (args: { path: string }): void => {
@@ -138,4 +142,46 @@ export const expectEpochsOrdered = (args: {
     const previous = epochs[index - 1]
     if (previous !== undefined) expect(epoch).toBeGreaterThanOrEqual(previous)
   }
+}
+
+export const daemonCall = async (args: {
+  url: string
+  sessionId: string
+  epoch: number
+  key: string
+  op: CallOp
+}): Promise<CallResult> => {
+  const calls = new RemoteCalls({
+    sessionId: args.sessionId,
+    token: daemonToken({ secret: RIG_SECRET, sandboxName: sandboxNameOf(args.sessionId) }),
+    connector: () => Promise.resolve(webSocketConnector({ url: args.url })),
+    timers: systemTimers,
+    onFenced: () => {},
+  })
+  calls.open({ epoch: args.epoch })
+  try {
+    await calls.ready()
+    return await calls.invoke({ key: args.key, op: args.op })
+  } finally {
+    calls.close()
+  }
+}
+
+let probeCount = 0
+
+export const podCall = async (args: {
+  rig: FaultRig
+  url: string
+  sessionId: string
+  op: CallOp
+}): Promise<CallResult> => {
+  probeCount += 1
+  const held = await args.rig.plane.currentLease({ sessionId: args.sessionId })
+  return daemonCall({
+    url: args.url,
+    sessionId: args.sessionId,
+    epoch: held.lease.epoch,
+    key: `${args.sessionId}.probe-${probeCount}`,
+    op: args.op,
+  })
 }

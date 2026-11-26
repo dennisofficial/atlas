@@ -13,6 +13,7 @@ Connects a session to the MCP servers that the operator and the repository confi
 - The events `mcp-server-changed`, `mcp-server-removed`, `mcp-sign-in-started` and `mcp-sign-in-resolved`.
 - The MCP instructions in the context slot `McpInstructions`.
 - A handoff that is invisible: a token the API could not fetch keeps the last recorded row and tools, marked `retry: true`, instead of showing `needs-auth`.
+- A live `http` connection that answers 401: the client asks `PodMcpControl` for a current token once, retries the request once, and reports a sign-in only when that second attempt also fails.
 
 ## Does not own
 
@@ -109,7 +110,7 @@ definePlugin({
 
 - A server name holds only letters, digits, underscores and hyphens, because the model reads it verbatim in a tool name.
 - A server that is not disabled needs a `transport`.
-- The sources rank in this order, from lowest to highest: cloud user, cloud project, `.atlas/mcp.json`, `.mcp.json`. A later source wins a name.
+- The sources rank in this order, from lowest to highest: cloud user, cloud group, cloud project, `.atlas/mcp.json`, `.mcp.json`. A later source wins a name.
 - A `.mcp.json` entry never beats a native definition of the same name. The merge shadows it.
 - Import `@dltech/atlas-plugin-mcp/pod` in the pod only. It starts processes and opens sockets.
 

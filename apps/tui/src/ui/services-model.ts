@@ -3,7 +3,7 @@ import {
   EKilledBy,
   EServiceStatus,
   mayStillBeAlive,
-  oneLine,
+  shellName,
   type DeclaredServicesView,
   type DeclaredServiceView,
 } from '@dltech/atlas-core'
@@ -76,7 +76,7 @@ export function buildServiceRows(args: {
   )
   const rest = args.services
     .filter((one) => one.name === undefined || !names.has(one.name))
-    .map((one): ServiceRow => ({ key: one.serviceId, name: serviceNameLabel(one), snapshot: one }))
+    .map((one): ServiceRow => ({ key: one.serviceId, name: shellName(one), snapshot: one }))
 
   return [...first, ...rest]
 }
@@ -168,11 +168,6 @@ export const isServiceAlive = (service: {
   status: EServiceStatus
   exitCode?: number | undefined
 }): boolean => mayStillBeAlive(service)
-
-export function serviceNameLabel(service: { command: string; description: string }): string {
-  const named = service.description.trim()
-  return named === '' ? oneLine(service.command) : named
-}
 
 export function serviceStateLabel(service: ServiceRowView): string {
   if (service.status === EServiceStatus.Running) return 'running'

@@ -7,12 +7,11 @@ assembly, settings, ports, and the record folds. It imports `zod` and nothing el
 
 - The ids and the event envelope, and the schema that decodes an event.
 - The rules that assemble a model request, and the trace of that assembly.
-- The settings definitions, the layers, and their resolution.
-- The port contracts and the port registry.
-- The record folds: log, inbox, lease, durability, summary target, views and session status.
+- The settings definitions, the layers, their resolution, the port contracts and the port registry.
+- The record folds: log, inbox, lease, durability, retention, summary target, views and session status.
 - The tool contract, the prompt fragment, the hook order, and the policy decisions.
 - The context envelope, the compaction plan, the plan of a thread, the commands, the skills and the memory.
-- The folds of the workspace, the pod, the services, the shells, the pull request, the diff and the review.
+- The folds of the workspace, the pod, the services, the shells, the pull request, the GitHub repo, sign-in and stream schemas, the diff and the review.
 - The notices, the subscriptions, the notify moment, the provider account and the usage window.
 
 ## Does not own
@@ -43,7 +42,9 @@ assembly, settings, ports, and the record folds. It imports `zod` and nothing el
 - `eventsOfType({events, type})`: the events of one type, narrowed.
 - `openParkedCallsOf(events)`: the calls that still wait for a result.
 - `latestResourceOf({events, resource})`: the newest value of a loaded resource.
+- `recoverCall({facts, answer, bootId})`, `RecoverAction`, `planStep({scopeKey, recorded, consumed, op, digest, nextSlot})`, `StepFact`, `StepPlan`: what a new holder does with a call the log left open — ack, record the result, attach, run, rerun, interrupt, or wait — and how a tool call's daemon steps are named `<callId>.<n>`, reused only when op and digest match.
 - `isDurable(type)`: whether a replay keeps that row. `summaryTargetOf({events, throughSeq})`: the range a summary can cover. `unfinishedCommandIdsOf(events)`, `COMMAND_OUTCOMES`: the consumed commands that still owe an outcome, which a new holder replays; a pane command owes one `command-applied`. `uploadPlacementsOf(facts)`, `placementFactOf({fileId, placement})`, `UPLOAD_PLACEMENT_KIND`: where a file a message carried sits in the sandbox, read from the log as a `fact-recorded` fact keyed `upload:<fileId>` and written back as one. `FactRecord`, `FactDraft`: that fact.
+- `ERetention`, `EVENT_RETENTION`, `retentionOf(type)`, `isRetained(type)`, `RETAINED_TYPES`, `retainedOf({events, before})`, `SUPERSEDED_BY`: the rows that a tail keeps below a sequence number — all, the latest of a thread, an open group's rows, or none — plus the rows that a kept failure supersedes and those of a resumable turn.
 
 ### Assemble the model request
 
@@ -97,9 +98,7 @@ assembly, settings, ports, and the record folds. It imports `zod` and nothing el
 - `Lease`, `startVerdict({...})`, `claimGrant({...})`, `revoke({...})`: the lease rules.
 - `consume({entry, seq})`, `InboxEntry`, `InboxRefusal`: the inbox rules. A consumed entry is refused.
 - `decideHeldAction({...})`, `HeldOutcome`, `EExecutionLocation`: the host's next action. `resumePointOf({events})`, `EResumePoint`: how a stopped turn resumes, or the reason it cannot; `resumeMarkedDraft({...})` stamps the resume.
-- `endingHeld({input, crew})`: whether a clean sub-agent ending waits for a sibling spawned in the same
-  assistant step. `crew` holds `CrewRoomMember` values: `agentId`, `agentType`, `group` and `running`.
-  `heldDraftOf({...})` stamps `held: true` on that ending, and `unheldDraftOf(draft)` strips it.
+- `endingHeld({input, crew})`: whether a clean sub-agent ending waits for a sibling spawned in the same assistant step. `crew` holds `CrewRoomMember` values: `agentId`, `agentType`, `group` and `running`. `heldDraftOf({...})` stamps `held: true` on that ending, and `unheldDraftOf(draft)` strips it.
 - `agent-spawned` carries the optional `group` that names its spawn step. A held `agent-ended` row carries `held: true`, and `isTurnTaking` is false for it. `isTeammateType(type)` names a teammate. `supersededEndingIds(events)` names the session-end stops that a later ending of the same agent replaces before the model's next step; the model fold and the transcript drop them.
 - `routineFailureNotificationOf({routineId, routineName, reason, enabled, quiet, now})`: the push for a scheduled run that did not start, or `null` when settings keep it silent. Its `routineId` is the tap target.
 - `credentialRepairOf({mainThreadId, events})`, `repairActionsOf({...})`, `ERepairAction`: the credential repair a session shows.
@@ -115,6 +114,7 @@ assembly, settings, ports, and the record folds. It imports `zod` and nothing el
 - `EAgentStatus`, `EShellStatus`, `EServiceStatus`, `ESessionStatus`, `ETurnOutcome`: the states that the folds report. `sessionActivityOf(state)` and `ESessionActivity` say what a session status means (setup, a turn, a command such as summarise, a wait, or settled), and `isSettledStatus(state)` reads it.
 - `foldPlan`, `planView`, `PLAN_TOOL_NAME`, `planReminder`: the plan a thread keeps.
 - `COMMAND_CATALOGUE`, `commandLineOf`, `ECommandKind`: a slash command and its arguments.
+- `shellName(shell)`, `quotedShellName(shell)`, `shellLabel(shell)`: the name that a shell or a service shows, from its description or else its command. `fallbackShellName(command)`: the first 80 characters of the command. `withFallbackShellName(schema)`: a schema that fills a missing description from the command.
 
 ### Name a file a spawn attaches
 

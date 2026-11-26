@@ -7,7 +7,8 @@ import {
 } from '@dltech/atlas-core'
 import type { PodCrew } from '@dltech/atlas-plugin-sdk'
 
-import { ScopedToolDispatcher } from '../../calls/call-scope'
+import { dispatchableScopeKey, ScopedToolDispatcher } from '../../calls/call-scope'
+import { InFlightSteps } from '../../calls/step-detach'
 import type { HeldSessionDeps } from '../held-session-deps'
 import {
   pluginHooksOf,
@@ -43,6 +44,7 @@ export const childRunnerOf = (args: {
   onFallback?: ((refs: { from: ModelRef; to: ModelRef }) => void | Promise<void>) | undefined
 }): LoopTurnRunner => {
   const { deps, runtime, record } = args
+  const steps = new InFlightSteps()
   const ctx = pluginPodContextOf({
     deps,
     runtime,
@@ -51,6 +53,7 @@ export const childRunnerOf = (args: {
     signal: args.signal,
     crew: args.crew,
     selfAgentId: args.agentId,
+    steps,
     notify: (event, options) => args.notify(event, options),
   })
   const registry = new DeniedToolRegistry(
@@ -83,13 +86,14 @@ export const childRunnerOf = (args: {
     assembly: runtime.assembly,
     hooks,
     tools: () => modelFacingDeclarationsOf(registry.declarations()),
-    dispatch: new ScopedToolDispatcher(
-      hookedToolsOf({
+    dispatch: new ScopedToolDispatcher({
+      inner: hookedToolsOf({
         registry,
         hooks,
         trace: runtime.trace,
       }),
-    ),
+      daemonTools: runtime.daemonTools,
+    }),
     intake: args.intake,
     output: liveOutputOf({
       bus: deps.bus,
@@ -98,7 +102,9 @@ export const childRunnerOf = (args: {
       headSeq: () => record.eventCache().currentHead().seq,
       epoch: args.epoch,
     }),
-    detachTool: (tool) => args.isDraining() && runtime.daemonTools.has(tool),
+    detachTool: (call) =>
+      args.isDraining() &&
+      (runtime.daemonTools.has(call.name) || steps.detached(dispatchableScopeKey(call))),
     launchDirectory: runtime.launchDirectory,
     normalizeFailure: runtime.normalizeFailure,
     retry: retryDepsFromTimers(deps.timers),

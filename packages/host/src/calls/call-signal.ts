@@ -1,18 +1,20 @@
 import type { Pending } from './remote-calls-frames'
 
+const mayExistInPod = (call: Pending): boolean =>
+  call.sent || call.replayed === true || call.attachOnly === true
+
 export const attachCallSignal = (args: {
   call: Pending
   signal: AbortSignal
   isDetached(): boolean
-  isLinkReady(): boolean
   sendCancel(): void
-  settleInterrupted(): void
+  settleStopped(): void
 }): void => {
   const onAbort = (): void => {
     if (args.isDetached()) return
     args.call.controller.abort()
-    if (args.call.sent) args.sendCancel()
-    else if (!args.isLinkReady()) args.settleInterrupted()
+    if (mayExistInPod(args.call)) args.sendCancel()
+    args.settleStopped()
   }
   args.signal.addEventListener('abort', onAbort, { once: true })
   args.call.detach = () => args.signal.removeEventListener('abort', onAbort)

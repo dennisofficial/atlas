@@ -1,4 +1,4 @@
-import { ERepoTracking } from '@dltech/atlas-wire'
+import { ERepoTracking } from '@dltech/atlas-core'
 import type { RepoTracking } from './github-repo-coverage'
 
 export class TransportSelector {
