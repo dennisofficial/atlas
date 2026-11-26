@@ -37,6 +37,7 @@ import { heldMessagesOf } from './pod-messages'
 import type { RoleModelChoice, SessionRuntime } from './ports'
 import type { SessionRecord } from './record/record-adapter'
 import { recordStep, recordedStepsOf } from './record/call-steps'
+import { holdsLatestFact } from './record/latest-fact'
 import { hostStepOf } from './record/host-step'
 import type { InFlightSteps } from '../calls/step-detach'
 
@@ -124,10 +125,7 @@ export const pluginPodContextOf = (args: {
       input: request.input,
     })
   const append = async (drafts: readonly PodDraft[]): Promise<void> => {
-    const bookkeeping = record.eventCache().bookkeeping()
-    const fresh = drafts.filter(
-      (draft) => draft.type !== 'fact-recorded' || !bookkeeping.fact(draft.key).found,
-    )
+    const fresh = drafts.filter((draft) => !holdsLatestFact({ record, draft }))
     if (fresh.length === 0) return
     await record.append({ threadId, runId: deps.ids.nextRunId(), drafts: fresh })
   }
