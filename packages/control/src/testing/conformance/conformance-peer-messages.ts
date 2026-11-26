@@ -8,6 +8,7 @@ import {
 } from '@dltech/atlas-core'
 
 import { ControlPlane } from '../../control-plane'
+import { spawnBriefClientIdOf } from '../../peer-sessions'
 import type { ConformanceParams } from './conformance'
 import { createSessionParams, PROJECT, SESSION, THREAD, T0 } from './support'
 
@@ -56,6 +57,7 @@ export function describeControlPlanePeerMessages(params: ConformanceParams): voi
       expect(JSON.parse(inbox[0]?.payload ?? '{}')).toEqual({
         text: 'Take the parser.\n\nAttached to $ATLAS_CONTEXT_DIR: plan.md, sections/03-auth.md',
         via: EMessageOrigin.PeerAgent,
+        clientId: spawnBriefClientIdOf('peer-1'),
         files: [
           { path: 'plan.md', text: 'the plan' },
           { path: 'sections/03-auth.md', text: 'the auth section' },
