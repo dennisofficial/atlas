@@ -13,6 +13,7 @@ import {
   resolveBody,
   stepVisibility,
   toLoopEvent,
+  verifySuffix,
   type Event,
   type LogHead,
   type LoopState,
@@ -25,9 +26,11 @@ import type { ControlPlane } from '@dltech/atlas-control'
 import type { LogPort } from '@dltech/atlas-observability'
 
 import { RecordBookkeeping } from './record-bookkeeping'
+import type { RecordResumeCache } from './record-resume'
 import { firstIndexAfter, itemAtSeq } from './seq-index'
 
 const BLOB_FETCH_CONCURRENCY = 8
+const READ_PAGE = 1000
 
 export const HOLDER_STATE_TYPES: readonly RecordEventType[] = [
   ...RECORD_ONLY_TYPES,
@@ -65,38 +68,79 @@ export class RecordCache {
     plane: ControlPlane
     threadId: ThreadId
     log?: LogPort | undefined
+    resume?: RecordResumeCache | undefined
   }): Promise<RecordCache> {
-    const cache = new RecordCache(args)
-    await cache.fill()
-    if (cache.fetchedBlobBytes > 0) {
+    const held = args.resume?.take(args.threadId)
+    const heldBytes = held?.fetchedBlobBytes ?? 0
+    const cache = held !== undefined && (await held.resume()) ? held : new RecordCache(args)
+    if (cache !== held) await cache.fill()
+    args.resume?.keep(cache)
+    const fetched = cache.fetchedBlobBytes - (cache === held ? heldBytes : 0)
+    if (fetched > 0) {
       args.log?.info({
         source: 'holder.record',
         message: 'resolved blob values into the record cache',
-        data: { blobs: cache.blobValues.size, bytes: cache.fetchedBlobBytes },
+        data: { blobs: cache.blobValues.size, bytes: fetched },
       })
     }
     return cache
   }
 
   private async fill(): Promise<void> {
-    const events: RecordEvent[] = []
     const head = await this.args.plane.head({ threadId: this.args.threadId })
-    let afterSeq = 0
+    const events = await this.readPages({
+      afterSeq: 0,
+      visible: true,
+      hiddenTypes: HOLDER_STATE_TYPES,
+    })
+    this.rebuild(events)
+    if (head.seq >= this.head.seq) this.head = head
+  }
+
+  private async readPages(args: {
+    afterSeq: number
+    visible: boolean
+    hiddenTypes?: readonly RecordEventType[] | undefined
+  }): Promise<RecordEvent[]> {
+    const events: RecordEvent[] = []
+    let afterSeq = args.afterSeq
     for (;;) {
       const page = await this.args.plane.readEvents({
         threadId: this.args.threadId,
         afterSeq,
-        limit: 1000,
-        visible: true,
-        hiddenTypes: HOLDER_STATE_TYPES,
+        limit: READ_PAGE,
+        visible: args.visible,
+        ...(args.hiddenTypes === undefined ? {} : { hiddenTypes: args.hiddenTypes }),
       })
       events.push(...page.events)
       await this.resolveBlobsOf(page.events)
-      if (page.next === undefined) break
+      if (page.next === undefined) return events
       afterSeq = page.next
     }
-    this.rebuild(events)
-    if (head.seq >= this.head.seq) this.head = head
+  }
+
+  private async resume(): Promise<boolean> {
+    if (!this.chainIntact()) return false
+    const head = await this.args.plane.head({ threadId: this.args.threadId })
+    if (head.seq < this.head.seq) return false
+    if (head.seq === this.head.seq) return head.hash === this.head.hash
+    const events = await this.readPages({ afterSeq: this.head.seq, visible: false })
+    const verified = verifySuffix({ trusted: this.head, events })
+    if (!verified.ok || verified.head.seq < head.seq) return false
+    if (!events.every((event) => this.resumable(event))) return false
+    this.extend({ events, head: verified.head })
+    return true
+  }
+
+  private chainIntact(): boolean {
+    const last = this.events[this.events.length - 1]
+    if (last === undefined) return false
+    return last.seq === this.head.seq && chainHash(last) === this.head.hash
+  }
+
+  private resumable(event: RecordEvent): boolean {
+    if (editsHistory(event)) return false
+    return isVisible(this.visibility, event) || HOLDER_STATE_TYPES.includes(event.type)
   }
 
   private rebuild(events: RecordEvent[]): void {
@@ -192,7 +236,7 @@ export class RecordCache {
     resolved?: ReadonlyMap<string, unknown> | undefined
   }): void {
     for (const [hash, value] of args.resolved ?? []) this.blobValues.set(hash, value)
-    for (const event of args.events) {
+    for (const event of this.afterCached(args.events)) {
       if (revealsHidden({ state: this.visibility, event })) this.revealed = true
       this.visibility = stepVisibility(this.visibility, event)
       this.events.push(event)
@@ -200,8 +244,16 @@ export class RecordCache {
       if (editsHistory(event)) this.dropHiddenLoopEvents()
       if (isVisible(this.visibility, event)) this.addLoopEvent(event)
     }
-    this.head = args.head
+    if (args.head.seq >= this.head.seq) this.head = args.head
     this.visibleCache = undefined
+  }
+
+  private afterCached(events: readonly RecordEvent[]): readonly RecordEvent[] {
+    const last = this.events[this.events.length - 1]
+    const lastSeq = last?.seq ?? 0
+    const first = events[0]
+    if (first === undefined || first.seq > lastSeq) return events
+    return events.filter((event) => event.seq > lastSeq)
   }
 
   private addLoopEvent(event: RecordEvent): void {

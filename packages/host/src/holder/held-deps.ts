@@ -1,11 +1,13 @@
 import { startVerdict, type Lease } from '@dltech/atlas-core'
 
 import type { HeldSessionDeps } from './held-session'
+import type { RecordResumeCache } from './record/record-resume'
 import { SESSION_HOLDER_DEFAULTS as DEFAULTS, type SessionHolderArgs } from './session-holder-args'
 
 export type HeldDepsArgs = {
   args: SessionHolderArgs
   onRuntimeReady: (sessionId: string) => void
+  recordResume: RecordResumeCache
   lease: Lease
   podSessionId: string
 }
@@ -40,6 +42,7 @@ export const heldSessionDepsOf = (args: HeldDepsArgs): HeldSessionDeps => {
     contextMirror: holder.contextMirror,
     notify: holder.notify,
     turnEnded: holder.turnEnded,
+    recordResume: args.recordResume,
     parkArchived: holder.parkArchived,
     onRuntimeReady: () => args.onRuntimeReady(args.lease.sessionId),
     ...(holder.operator === undefined

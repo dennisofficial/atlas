@@ -14,6 +14,7 @@ import { HolderPresence } from './holder-presence'
 import { auditOwnLeases } from './own-lease-audit'
 import { runHeld } from './run-held'
 import { LeaseSettler } from './settle'
+import { RecordResumeCache } from './record/record-resume'
 import { SESSION_HOLDER_DEFAULTS as DEFAULTS, type SessionHolderArgs } from './session-holder-args'
 
 export class SessionHolder {
@@ -24,6 +25,7 @@ export class SessionHolder {
   private readonly args: SessionHolderArgs
 
   private readonly held = new Map<string, HeldSession>()
+  private readonly records = new RecordResumeCache()
   private readonly demand: HolderDemand
   private readonly pods: HolderPods
   private readonly retryAt = new Map<string, string | null>()
@@ -254,6 +256,7 @@ export class SessionHolder {
     return heldSessionDepsOf({
       args: this.args,
       onRuntimeReady: (sessionId) => this.pods.ready(sessionId),
+      recordResume: this.records,
       ...args,
     })
   }

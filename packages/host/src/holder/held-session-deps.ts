@@ -10,6 +10,7 @@ import type { ParkArchivedPod } from './park-archived'
 import type { PodControlClient } from './pod-control'
 import type { TurnEndedHook } from './turn-ended-hook'
 import type { HostBus, HostTimers, PodPeers, SessionRuntimeFactory } from './ports'
+import type { RecordResumeCache } from './record/record-resume'
 
 export type StartVerdict = { permanent: boolean; giveUp: boolean }
 
@@ -40,6 +41,7 @@ export type HeldSessionDeps = {
   notify?: NotifyDispatch | undefined
   parkArchived?: ParkArchivedPod | undefined
   turnEnded?: TurnEndedHook | undefined
+  recordResume?: RecordResumeCache | undefined
   onRuntimeReady?: (() => void) | undefined
   log?: LogPort | undefined
 }

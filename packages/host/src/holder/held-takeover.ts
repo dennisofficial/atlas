@@ -137,6 +137,7 @@ export class TakeOver {
         RecordCache.load({
           plane: deps.plane,
           threadId: args.threadId,
+          resume: deps.recordResume,
           ...(deps.log === undefined ? {} : { log: deps.log }),
         }),
       ).then((result) => {
