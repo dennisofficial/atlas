@@ -58,7 +58,7 @@ only what it can rebuild or drop.
 
 ### Call the daemon
 
-- `RemoteCalls`: the client of the daemon link. `open`, `ready`, `invoke`, `ack`, `ackScope`, `cancelOwed`, `handoff`, `bootId`, `close`.
+- `RemoteCalls`: the client of the daemon link. `open`, `ready`, `invoke`, `ack`, `ackScope`, `handoff`, `bootId`, `close`.
 - `WorkspaceGate`, `POD_WAIT_INTERRUPTED`, `WorkspaceGateOutcome`, `webSocketConnector({url})`,
   `DaemonConnector`, `DaemonSocket`: hold a tool call until the workspace prepare settles, and connect.
 - `newKey()`, `systemTimers`, `CallTimers`, `ScopedToolDispatcher`, `runInCallScope`, `scopeKeyOf`,

@@ -1,48 +1,11 @@
 import { describe, expect, it } from 'bun:test'
 
-import {
-  EDaemonAnswer,
-  toCallId,
-  toEventId,
-  toRunId,
-  toThreadId,
-  type EventBody,
-  type Stamped,
-} from '@dltech/atlas-core'
+import { EDaemonAnswer } from '@dltech/atlas-core'
 import { ECallFailure, ECallStatus, EExecOutcome, type CallResult } from '@dltech/atlas-protocol'
 
-import { cancelDebtsOf } from '../cancel-debts'
-import { openCallsOn, startFakePod, until, type FakePod } from './fake-pod'
+import { startFakePod, until } from './fake-pod'
 
 const KEY = 'call-1.0'
-const CALL = toCallId('call-1')
-
-const eventOf = <TBody extends EventBody>(body: TBody): Stamped<TBody> =>
-  ({
-    ...body,
-    id: toEventId('event-1'),
-    seq: 1,
-    threadId: toThreadId('thread-1'),
-    runId: toRunId('run-1'),
-    depth: 0,
-    at: '2026-01-01T00:00:00.000Z',
-  }) as Stamped<TBody>
-
-const stoppedDebtsOf = (pod: FakePod): ReturnType<typeof cancelDebtsOf> =>
-  cancelDebtsOf({
-    events: [
-      eventOf({ type: 'tool-dispatched', callId: CALL, name: 'bash', bootId: pod.daemon.bootId }),
-      eventOf({
-        type: 'tool-result',
-        callId: CALL,
-        name: 'bash',
-        interrupted: true,
-        error: { message: 'cancelled' },
-      }),
-    ],
-    stepsOf: () => [],
-    daemonTools: new Set(['bash']),
-  })
 
 type Settled = { settled: boolean; result: CallResult | undefined }
 
@@ -219,34 +182,5 @@ describe('an operator stop settles the call where it stands', () => {
     expect(failureOf(state.result)?.code).toBe(ECallFailure.Cancelled)
     expect(failureOf(state.result)?.message).not.toContain('restart')
     pod.calls.close()
-  })
-
-  it('cancels the pod work a replaced holder committed as stopped', async () => {
-    const pod = await startFakePod()
-    const controller = new AbortController()
-    const stopped = settledFlag(
-      pod.calls.invoke({
-        key: KEY,
-        op: { op: 'exec', argv: ['true'] },
-        signal: controller.signal,
-      }),
-    )
-    await until(() => pod.daemon.runs.length === 1)
-
-    pod.drop()
-    await until(() => pod.daemon.waiting)
-    controller.abort()
-    await until(() => stopped.settled)
-    pod.calls.close()
-    expect(pod.daemon.running.has(KEY)).toBe(true)
-
-    const debts = stoppedDebtsOf(pod)
-    expect(debts).toEqual([{ key: KEY, bootId: pod.daemon.bootId }])
-
-    const next = await openCallsOn(pod, { epoch: 2 })
-    next.cancelOwed(debts)
-    await until(() => pod.daemon.cancels.includes(KEY))
-    expect(pod.daemon.running.has(KEY)).toBe(false)
-    next.close()
   })
 })

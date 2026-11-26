@@ -1,9 +1,7 @@
 import type { DaemonLink } from './link'
 
-import type { CancelDebt } from './cancel-debts'
-
 export class CancelObligations {
-  private readonly owed = new Map<string, string | undefined>()
+  private readonly owed = new Map<string, string>()
 
   constructor(
     private readonly args: {
@@ -22,15 +20,10 @@ export class CancelObligations {
     if (bootId !== undefined) this.owed.set(key, bootId)
   }
 
-  owe(debt: CancelDebt): void {
-    this.owed.set(debt.key, debt.bootId)
-  }
-
   flush(bootId: string): void {
     for (const [key, owedBootId] of [...this.owed]) {
-      if (owedBootId !== undefined && owedBootId !== bootId) continue
       this.owed.delete(key)
-      this.send(key)
+      if (owedBootId === bootId) this.send(key)
     }
   }
 

@@ -90,27 +90,20 @@ export const fakePod = (args: { bootId?: string | undefined } = {}) => {
   }
 }
 
-export type FakePod = ReturnType<typeof fakePod>
-
-export const openCallsOn = async (pod: FakePod, args: { epoch: number }): Promise<RemoteCalls> => {
+export const startFakePod = async (args: { bootId?: string | undefined } = {}) => {
+  const fake = fakePod(args)
   const calls = new RemoteCalls({
     sessionId: 'session-1',
     token: 'token',
-    connector: pod.connector,
+    connector: fake.connector,
     timers: { ...systemTimers, random: () => 0 },
     pingMs: 600_000,
     handshakeMs: 5_000,
     onFenced: () => {},
   })
-  calls.open({ epoch: args.epoch })
-  await until(() => pod.daemon.waiting)
-  await pod.open()
-  await until(() => calls.bootId() === pod.daemon.bootId)
-  return calls
-}
-
-export const startFakePod = async (args: { bootId?: string | undefined } = {}) => {
-  const fake = fakePod(args)
-  const calls = await openCallsOn(fake, { epoch: 1 })
+  calls.open({ epoch: 1 })
+  await until(() => fake.daemon.waiting)
+  await fake.open()
+  await until(() => calls.bootId() === fake.daemon.bootId)
   return { ...fake, calls }
 }

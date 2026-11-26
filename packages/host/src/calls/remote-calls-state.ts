@@ -4,7 +4,6 @@ import type { CallResult } from '@dltech/atlas-protocol'
 import { Answers } from './answers'
 import { callLaneOf } from './call-lane'
 import { openCall, type CallLane, type OpenCallArgs } from './call-open'
-import type { CancelDebt } from './cancel-debts'
 import { CancelObligations } from './cancel-obligations'
 import { scopeDispatchedBootId } from './call-scope'
 import { FencedError, ProtocolViolationError } from './errors'
@@ -205,13 +204,6 @@ export class RemoteCallsState {
 
   ackScope(args: { scopeKey: string; count?: number | undefined }): Promise<void> {
     return this.acks.scope(args)
-  }
-
-  cancelOwed(debts: readonly CancelDebt[]): void {
-    if (this.closed || this.fenced || debts.length === 0) return
-    for (const debt of debts) this.cancels.owe(debt)
-    const bootId = this.linkBootId
-    if (this.link.ready && bootId !== undefined) this.cancels.flush(bootId)
   }
 
   interruptForRestart(args: { reason: string }): void {
