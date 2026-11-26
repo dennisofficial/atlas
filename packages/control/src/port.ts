@@ -283,6 +283,10 @@ export type AppendCommit = {
   change: SessionChange
 }
 
+export type EffectReceiptKey = { threadId: string; stepKey: string }
+
+export type EffectReceiptClaim = { kind: 'claimed' } | { kind: 'replayed'; result: JsonValue }
+
 export class SeqConflictError extends Error {
   constructor() {
     super('thread sequence conflict')
@@ -507,6 +511,8 @@ export interface ControlTx {
   insertRoutine(row: RoutineRow): Promise<void>
   updateRoutine(row: RoutineRow): Promise<void>
   deleteRoutine(routineId: string): Promise<void>
+  claimEffectReceipt(params: EffectReceiptKey): Promise<EffectReceiptClaim>
+  completeEffectReceipt(params: EffectReceiptKey & { result: JsonValue }): Promise<void>
 }
 
 export abstract class ControlStorePort {

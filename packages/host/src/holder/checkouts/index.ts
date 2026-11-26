@@ -57,16 +57,40 @@ export class HostWorktrees implements PodWorktrees {
   }
 
   async create(args: { cwd: string; name: string }): Promise<WorktreeEntryInfo> {
-    const { repository } = await this.list({ cwd: args.cwd })
+    const { repository, worktrees } = await this.list({ cwd: args.cwd })
     const home = join(repository, WORKTREE_HOME)
+    const path = join(home, args.name)
+    const existing = worktrees.find((worktree) => worktree.path === path)
+    if (existing !== undefined) {
+      return await this.existingOf({
+        repository,
+        path,
+        name: args.name,
+        branch: existing.branch ?? undefined,
+      })
+    }
     await this.args.files.mkdir({ path: home })
     await this.args.files.writeFile({ path: join(home, '.gitignore'), content: '*\n' })
     const fetched = await this.git(repository, ['fetch', ORIGIN])
     const base = await this.baseOf(repository)
-    const path = join(home, args.name)
     const added = await this.git(repository, ['worktree', 'add', path, '-b', args.name, base.ref])
     if (!added.ok) throw new Error(complaintOf(added))
     return { path, branch: args.name, base: base.ref, staleBase: base.fromOrigin && !fetched.ok }
+  }
+
+  private async existingOf(args: {
+    repository: string
+    path: string
+    name: string
+    branch: string | undefined
+  }): Promise<WorktreeEntryInfo> {
+    if (args.branch !== args.name) {
+      throw new Error(
+        `a worktree already exists at ${args.path} on ${args.branch ?? 'a detached head'}, not ${args.name}`,
+      )
+    }
+    const base = await this.baseOf(args.repository)
+    return { path: args.path, branch: args.name, base: base.ref }
   }
 
   async inspect(args: { cwd: string; base?: string | undefined }): Promise<WorktreeState> {
@@ -96,20 +120,43 @@ export class HostWorktrees implements PodWorktrees {
     force: boolean
   }): Promise<WorktreeRemoval> {
     const checkedOut = await this.branchOf(args.path)
-    if (args.branch !== undefined && args.branch !== checkedOut) {
+    if (args.branch !== undefined && checkedOut !== undefined && args.branch !== checkedOut) {
       throw new Error(
-        `the worktree at ${args.path} is on ${checkedOut ?? 'an unknown branch'}, not ${args.branch}; nothing was removed`,
+        `the worktree at ${args.path} is on ${checkedOut}, not ${args.branch}; nothing was removed`,
       )
     }
     const argv = args.force
       ? ['worktree', 'remove', '--force', args.path]
       : ['worktree', 'remove', args.path]
     const removed = await this.git(args.cwd, argv)
-    if (!removed.ok) throw new Error(complaintOf(removed))
     const branch = args.branch ?? checkedOut
+    if (!removed.ok) {
+      if (await this.stillWorktree({ cwd: args.cwd, path: args.path })) {
+        throw new Error(complaintOf(removed))
+      }
+      return await this.branchSettledOf({ cwd: args.cwd, branch })
+    }
     if (branch === undefined) return { branch: undefined, branchDeleted: undefined }
     const deleted = await this.git(args.cwd, ['branch', '-D', branch])
     return { branch, branchDeleted: deleted.ok }
+  }
+
+  private async stillWorktree(args: { cwd: string; path: string }): Promise<boolean> {
+    const run = await this.git(args.cwd, ['worktree', 'list', '--porcelain'])
+    if (!run.ok) return true
+    return parseWorktrees({ output: run.stdout }).some((worktree) => worktree.path === args.path)
+  }
+
+  private async branchSettledOf(args: {
+    cwd: string
+    branch: string | undefined
+  }): Promise<WorktreeRemoval> {
+    if (args.branch === undefined) return { branch: undefined, branchDeleted: undefined }
+    if (!(await this.resolves(args.cwd, `refs/heads/${args.branch}`))) {
+      return { branch: args.branch, branchDeleted: true }
+    }
+    const deleted = await this.git(args.cwd, ['branch', '-D', args.branch])
+    return { branch: args.branch, branchDeleted: deleted.ok }
   }
 
   private async branchOf(cwd: string): Promise<string | undefined> {

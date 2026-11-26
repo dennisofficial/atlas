@@ -1,5 +1,18 @@
-import { retryOnConnectionLoss, type Db, type Tx } from '@dltech/atlas-db'
-import { GENESIS_HASH, type InboxEntry, type Lease, type ThreadId } from '@dltech/atlas-core'
+import {
+  claimEffectReceiptIn,
+  completeEffectReceiptIn,
+  retryOnConnectionLoss,
+  type Db,
+  type Tx,
+} from '@dltech/atlas-db'
+import {
+  GENESIS_HASH,
+  jsonValueSchema,
+  type InboxEntry,
+  type JsonValue,
+  type Lease,
+  type ThreadId,
+} from '@dltech/atlas-core'
 import type { SessionChange } from '@dltech/atlas-protocol'
 
 import {
@@ -15,6 +28,8 @@ import {
   type ChangedFileWrite,
   type ClaimedBatch,
   type ControlTx,
+  type EffectReceiptClaim,
+  type EffectReceiptKey,
   type InsertRoutineRunParams,
   type ListDueRoutinesParams,
   type ListRoutineRunsParams,
@@ -717,6 +732,16 @@ export class PostgresTx implements ControlTx {
 
   async deleteRoutine(routineId: string): Promise<void> {
     await deleteRoutineIn({ tx: this.tx, routineId })
+  }
+
+  async claimEffectReceipt(params: EffectReceiptKey): Promise<EffectReceiptClaim> {
+    const claim = await claimEffectReceiptIn({ tx: this.tx, ...params })
+    if (claim.kind === 'claimed') return { kind: 'claimed' }
+    return { kind: 'replayed', result: jsonValueSchema.parse(claim.result) }
+  }
+
+  async completeEffectReceipt(params: EffectReceiptKey & { result: JsonValue }): Promise<void> {
+    await completeEffectReceiptIn({ tx: this.tx, ...params })
   }
 }
 

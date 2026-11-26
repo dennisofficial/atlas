@@ -137,6 +137,7 @@ export const pluginPodContextOf = (args: {
     control: podControlOf({
       client: deps.control,
       threadId,
+      step,
       ...(deps.mcp === undefined ? {} : { mcp: deps.mcp(deps.sessionId) }),
     }),
     crew: args.crew,

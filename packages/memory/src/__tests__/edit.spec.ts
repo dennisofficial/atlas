@@ -37,6 +37,36 @@ describe('memory edits', () => {
     )
   })
 
+  it('a replayed edit returns the first summary instead of a stale revision', async () => {
+    await put(globalNote({ name: 'deflate', body: 'alpha beta gamma' }))
+    const step = { threadId: 'thr-1', stepKey: 'call-1.1' }
+
+    const first = await edit({
+      userId: USER_A,
+      scope: EMemoryScope.Global,
+      name: 'deflate',
+      old: 'beta',
+      replacement: 'BETA',
+      revision: 1,
+      step,
+    })
+    const second = await edit({
+      userId: USER_A,
+      scope: EMemoryScope.Global,
+      name: 'deflate',
+      old: 'beta',
+      replacement: 'BETA',
+      revision: 1,
+      step,
+    })
+
+    expect(second).toEqual(first)
+    expect(second.revision).toBe(2)
+    expect((await get({ userId: USER_A, scope: EMemoryScope.Global, name: 'deflate' })).body).toBe(
+      'alpha BETA gamma',
+    )
+  })
+
   it('edit with a stale revision names the current revision', async () => {
     await put(globalNote({ name: 'deflate' }))
     await put(globalNote({ name: 'deflate', body: 'second' }))

@@ -1,4 +1,4 @@
-import type { InboxEntry, Lease, ThreadId } from '@dltech/atlas-core'
+import type { InboxEntry, JsonValue, Lease, ThreadId } from '@dltech/atlas-core'
 import type { SessionChange } from '@dltech/atlas-protocol'
 
 import type { ContextFileRow, ContextFileWrite } from '../../context-files'
@@ -15,6 +15,8 @@ import {
   type ChangedFileWrite,
   type ClaimedBatch,
   type ControlTx,
+  type EffectReceiptClaim,
+  type EffectReceiptKey,
   type SubscriptionDraft,
   type SubscriptionKey,
   type SubscriptionLease,
@@ -56,6 +58,7 @@ import {
   readRoutineIn,
   updateRoutineIn,
 } from './memory-routines'
+import { claimEffectReceiptIn, completeEffectReceiptIn } from './memory-receipts'
 import { subscriptionLeaseKey, trackingTargetKey } from './memory-state'
 import {
   deleteSubscriptionRowIfEndedBeforeIn,
@@ -613,5 +616,13 @@ export class MemoryTx extends MemoryTxViews implements ControlTx {
 
   async deleteRoutine(routineId: string): Promise<void> {
     await deleteRoutineIn({ state: this.state, routineId })
+  }
+
+  async claimEffectReceipt(params: EffectReceiptKey): Promise<EffectReceiptClaim> {
+    return claimEffectReceiptIn({ state: this.state, ...params })
+  }
+
+  async completeEffectReceipt(params: EffectReceiptKey & { result: JsonValue }): Promise<void> {
+    completeEffectReceiptIn({ state: this.state, ...params })
   }
 }

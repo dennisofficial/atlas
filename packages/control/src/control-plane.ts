@@ -21,6 +21,7 @@ import type { SessionSubscription } from '@dltech/atlas-protocol'
 import type { z } from 'zod'
 import type { AppendHook } from './append-hooks'
 import { appendIn } from './append-ops'
+import { onceInReceipt } from './effect-receipts'
 import type { ViewChangeHook } from './view-hooks'
 import { readBlobIn } from './blob-ops'
 import { UnknownThreadError } from './errors'
@@ -39,6 +40,7 @@ import {
   type ChangeBlobWrite,
   type ChangedFileWrite,
   type ControlTx,
+  type EffectReceiptKey,
   type ThreadRow,
   type WorktreeChangesRead,
   type WorktreeChangesSummary,
@@ -69,6 +71,16 @@ import {
 import { readEventsIn, type ReadEventsPage } from './read-events'
 import { readTailBaseIn, TAIL_BASE_ATTEMPTS, type TailBase } from './tail-base'
 import { runRoutineIn, type RunRoutineParams, type RunRoutineResult } from './routine-ops'
+import {
+  removalReceiptOf,
+  replayedMaybeRoutineOf,
+  replayedRemovalOf,
+  replayedRoutineOf,
+  replayedSessionOf,
+  storedMaybeRoutineOf,
+  storedRoutineOf,
+  storedSessionOf,
+} from './routine-receipts'
 import {
   createRoutineIn,
   deleteRoutineIn,
@@ -173,20 +185,29 @@ export class ControlPlane {
     sandboxInstanceId?: string | null | undefined
     routineId?: string | undefined
     message: { kind: string; payload: string }
-  }): Promise<{ inboxId: number } & SessionModelRow> {
-    const { message, ...session } = params
-    return this.store.transact(async (tx) => {
-      const at = await this.nowIn(tx)
-      const model = await createSessionIn({ tx, ...session, at })
-      const { inboxId } = await postIn({
+    receipt?: EffectReceiptKey | undefined
+  }): Promise<{ sessionId: string; inboxId: number } & SessionModelRow> {
+    const { message, receipt, ...session } = params
+    return this.store.transact(async (tx) =>
+      onceInReceipt({
         tx,
-        sessionId: params.sessionId,
-        kind: message.kind,
-        payload: message.payload,
-        at,
-      })
-      return { inboxId, ...model }
-    })
+        receipt,
+        decode: replayedSessionOf,
+        encode: storedSessionOf,
+        run: async () => {
+          const at = await this.nowIn(tx)
+          const model = await createSessionIn({ tx, ...session, at })
+          const { inboxId } = await postIn({
+            tx,
+            sessionId: params.sessionId,
+            kind: message.kind,
+            payload: message.payload,
+            at,
+          })
+          return { sessionId: params.sessionId, inboxId, ...model }
+        },
+      }),
+    )
   }
 
   async setSessionModel(params: {
@@ -916,8 +937,16 @@ export class ControlPlane {
     )
   }
 
-  async createRoutine(row: RoutineRow): Promise<RoutineRow> {
-    return this.store.transact((tx) => createRoutineIn({ tx, row }))
+  async createRoutine(row: RoutineRow, receipt?: EffectReceiptKey): Promise<RoutineRow> {
+    return this.store.transact(async (tx) =>
+      onceInReceipt({
+        tx,
+        receipt,
+        decode: replayedRoutineOf,
+        encode: storedRoutineOf,
+        run: async () => await createRoutineIn({ tx, row }),
+      }),
+    )
   }
 
   async updateRoutine(params: {
@@ -926,12 +955,36 @@ export class ControlPlane {
     patch: RoutinePatch
     nextRunAt?: string | undefined
     at: string
+    receipt?: EffectReceiptKey | undefined
   }): Promise<RoutineRow | undefined> {
-    return this.store.transact((tx) => updateRoutineIn({ tx, ...params }))
+    const { receipt, ...write } = params
+    return this.store.transact(async (tx) =>
+      onceInReceipt({
+        tx,
+        receipt,
+        decode: replayedMaybeRoutineOf,
+        encode: storedMaybeRoutineOf,
+        run: async () => await updateRoutineIn({ tx, ...write }),
+      }),
+    )
   }
 
-  async deleteRoutine(params: { routineId: string; userId: string }): Promise<boolean> {
-    return this.store.transact((tx) => deleteRoutineIn({ tx, ...params }))
+  async deleteRoutine(params: {
+    routineId: string
+    userId: string
+    projectId?: string | undefined
+    receipt?: EffectReceiptKey | undefined
+  }): Promise<boolean> {
+    const { receipt, ...write } = params
+    return this.store.transact(async (tx) =>
+      onceInReceipt({
+        tx,
+        receipt,
+        decode: replayedRemovalOf,
+        encode: removalReceiptOf,
+        run: async () => await deleteRoutineIn({ tx, ...write }),
+      }),
+    )
   }
 
   async listRoutines(params: ListRoutinesParams): Promise<RoutineRow[]> {
