@@ -67,7 +67,7 @@ describe('per-server mcp oauth over real PostgreSQL', () => {
     await seedUser({ db: database().db, id: ownerId })
     await seedProject({ id: projectA, ownerUserId: ownerId })
     await seedProject({ id: projectB, ownerUserId: ownerId })
-    const { store, oauth, servers } = services()
+    const { store, oauth } = services()
 
     const putSpec = {
       transport: { kind: EMcpTransportKind.Http, url: SERVER_URL },
@@ -113,7 +113,6 @@ describe('per-server mcp oauth over real PostgreSQL', () => {
       url: SERVER_URL,
     })
     expect(outsideProject).toMatchObject({ ok: false, signIn: true })
-    expect(servers).toBeDefined()
   })
 
   it('concurrent first sightings of a repo server land on one row', async () => {

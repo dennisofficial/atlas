@@ -3,11 +3,28 @@ import { testRender } from '@opentui/react/test-utils'
 import { afterAll, describe, expect, test } from 'bun:test'
 import React from 'react'
 
+import { subscribeTicker } from '../../hooks/use-shimmer-clock'
+import { SHIMMER_TICK_MS } from '../../shimmer-frames'
+import { ShimmerLine } from '../shimmer-line'
 import { WorkingLine, EWorkingVerb } from '../working-line'
 
 const QUIET_MS = 400
 
 const sleep = (ms: number): Promise<void> => new Promise((resolve) => setTimeout(resolve, ms))
+
+const shimmerTicksPass = (count: number): Promise<void> =>
+  new Promise((resolve) => {
+    let seen = 0
+    const stop = subscribeTicker({
+      intervalMs: SHIMMER_TICK_MS,
+      onTick: () => {
+        seen += 1
+        if (seen < count) return
+        stop()
+        resolve()
+      },
+    })
+  })
 
 type Setup = Awaited<ReturnType<typeof testRender>>
 
@@ -55,29 +72,55 @@ describe('a shimmer line left running', () => {
   })
 
   test('stops drawing once the line is gone', async () => {
-    const setup = await testRender(
-      <WorkingLine elapsedMs={1000} outputTokens={100} interrupting={false} />,
-      { width: 100, height: 10 },
-    )
+    let paints = 0
+    let hide: () => void = () => undefined
+    const Toggled = (): React.ReactNode => {
+      const [shown, setShown] = React.useState(true)
+      hide = () => setShown(false)
+      if (!shown) return null
+      return (
+        <ShimmerLine
+          label={() => {
+            paints += 1
+            return 'Thinking'
+          }}
+        />
+      )
+    }
+    const setup = await testRender(<Toggled />, { width: 100, height: 10 })
     mounted.push(setup)
     globalThis.IS_REACT_ACT_ENVIRONMENT = false
     await setup.flush()
-    await sleep(QUIET_MS)
+    await shimmerTicksPass(2)
+    expect(paints).toBeGreaterThan(1)
 
-    const framesBefore = setup.renderer.getStats().frameCount
-    await sleep(QUIET_MS)
-    expect(setup.renderer.getStats().frameCount).toBeGreaterThan(framesBefore)
+    hide()
+    await setup.flush()
+    const paintsWhenGone = paints
+    await shimmerTicksPass(3)
+
+    expect(setup.captureCharFrame()).not.toContain('Thinking')
+    expect(paints).toBe(paintsWhenGone)
   })
 
-  test('survives the renderer being torn down with a tick still owed', async () => {
+  test('paints nothing into a torn-down renderer with a tick still owed', async () => {
+    let paints = 0
     const setup = await testRender(
-      <WorkingLine elapsedMs={1000} outputTokens={100} interrupting={false} />,
+      <ShimmerLine
+        label={() => {
+          paints += 1
+          return 'Thinking'
+        }}
+      />,
       { width: 100, height: 10 },
     )
     await setup.flush()
 
     setup.renderer.destroy()
-    await sleep(QUIET_MS)
+    const paintsAtTeardown = paints
+    await shimmerTicksPass(3)
+
+    expect(paints).toBe(paintsAtTeardown)
   })
 
   test('shows the retry countdown in the error colour', async () => {
