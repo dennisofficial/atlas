@@ -1,6 +1,6 @@
 import { githubLogOf } from './github-log'
 import { db } from '@dltech/atlas-db'
-import { ERepoTracking } from '@dltech/atlas-wire'
+import { ERepoTracking } from '@dltech/atlas-core'
 import { seedSubscription as seedSubscriptionRow } from './testing/github-seed'
 import type { GithubHookLifecycleService } from './github-hook-lifecycle.service'
 import { refreshGithubQueue, type QueueDeps } from './github-refresh-queue'

@@ -63,3 +63,25 @@ describe('project wire', () => {
     expect(MAX_PROJECT_NAME_LENGTH).toBe(100)
   })
 })
+
+describe('github vocabulary re-exports', () => {
+  it('re-exports the core github vocabulary unchanged', async () => {
+    const core = await import('@dltech/atlas-core')
+    const wire = await import('../index')
+    const web = await import('../web/index')
+    for (const name of [
+      'GITHUB_REPO_PATTERN',
+      'ERepoTracking',
+      'ERepoTreeEntryKind',
+      'githubRepoSummarySchema',
+      'projectRepoTreeSchema',
+      'EGithubPollStatus',
+      'githubPollResultSchema',
+      'githubPrStateSchema',
+      'githubPrStreamFrameSchema',
+    ] as const) {
+      expect(wire[name]).toBe(core[name])
+      expect(web[name]).toBe(core[name])
+    }
+  })
+})

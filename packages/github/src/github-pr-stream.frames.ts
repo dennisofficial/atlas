@@ -1,4 +1,4 @@
-import type { GithubPrStreamFrame } from '@dltech/atlas-wire'
+import type { GithubPrStreamFrame } from '@dltech/atlas-core'
 
 export type PrFrameSink<Frame = GithubPrStreamFrame> = {
   push: (frame: Frame) => void
