@@ -1,4 +1,4 @@
-import { mkdtempSync, rmSync, writeFileSync } from 'node:fs'
+import { mkdtempSync, rmSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 
@@ -41,7 +41,15 @@ describe.skipIf(REDIS_URL === undefined)(
             .map((row) => ({ seq: row.seq, type: row.type, event: row }))
             .filter((row) => row.type === 'tool-result' && callIdOf(row) === CALL_ID)
         }
-        const command = `echo run >> ${ctx.path('runs')}; while [ ! -f ${ctx.path('gate')} ]; do sleep 0.05; done`
+        const gate = ctx.gate('gate')
+        const runs = ctx.path('runs')
+        const command = [
+          'n=0',
+          `if [ -s ${runs} ]; then n=$(wc -l < ${runs}); fi`,
+          `echo run >> ${runs}`,
+          `if [ "$n" -ge 1 ]; then cat ${gate}; fi`,
+          'exit 0',
+        ].join('; ')
         const hostA = await rig.spawnHost({
           label: 'host-a',
           daemonUrl: daemon.url,
@@ -56,8 +64,8 @@ describe.skipIf(REDIS_URL === undefined)(
         })
         await rig.claim({ sessionId, label: 'host-a', timeoutMs: 30_000 })
         await waitUntil({
-          what: 'the first op to finish and the second to block',
-          check: async () => ctx.runCount('runs') === 1,
+          what: 'the second op to start, after the first one finished',
+          check: async () => ctx.runCount('runs') === 2,
         })
         hostA.kill('SIGKILL')
         await hostA.exited
@@ -71,7 +79,7 @@ describe.skipIf(REDIS_URL === undefined)(
         })
         await rig.claim({ sessionId, label: 'host-b', timeoutMs: 30_000 })
         try {
-          writeFileSync(ctx.path('gate'), '')
+          await ctx.release('gate')
           await waitUntil({
             what: 'the call to report its result',
             check: async () => (await resultsOf()).length === 1,

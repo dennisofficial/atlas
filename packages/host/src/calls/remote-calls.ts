@@ -4,6 +4,7 @@ import { logFieldsOf, type LogPort } from '@dltech/atlas-observability'
 import type { CallOp, CallResult, DaemonFrame } from '@dltech/atlas-protocol'
 import { EPodResizeProbe, type PodResizeOpen } from '@dltech/atlas-core'
 
+import type { CancelDebt } from './cancel-debts'
 import { RemoteCallsState } from './remote-calls-state'
 import { ResizeGate } from './resize-gate'
 import type { DaemonConnector } from './socket'
@@ -207,6 +208,10 @@ export class RemoteCalls {
 
   ackScope(args: { scopeKey: string; count?: number | undefined }): Promise<void> {
     return this.state.ackScope(args)
+  }
+
+  cancelOwed(debts: readonly CancelDebt[]): void {
+    this.state.cancelOwed(debts)
   }
 }
 

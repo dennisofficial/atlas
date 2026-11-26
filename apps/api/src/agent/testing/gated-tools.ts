@@ -34,11 +34,6 @@ export const waitForGate = async (path: string): Promise<void> => {
   }
 }
 
-/**
- * Holds a plugin tool between its dispatch and its first pod operation (`before`), or between the
- * pod work and the tool result (`after`), until the scenario opens the gate file. A host that
- * never opens it is killed in exactly that window.
- */
 class GatedTool extends ToolDefinition {
   constructor(private readonly args: { inner: ToolDefinition; gate: ToolGate }) {
     super()

@@ -1,24 +1,26 @@
-import { EDaemonAnswer } from '@dltech/atlas-core'
 import type { LogPort } from '@dltech/atlas-observability'
-import { ECallFailure } from '@dltech/atlas-protocol'
-import type { CallResult, DaemonFrame } from '@dltech/atlas-protocol'
+import type { CallResult } from '@dltech/atlas-protocol'
 
 import { Answers } from './answers'
+import { callLaneOf } from './call-lane'
 import { openCall, type CallLane, type OpenCallArgs } from './call-open'
+import type { CancelDebt } from './cancel-debts'
 import { CancelObligations } from './cancel-obligations'
 import { scopeDispatchedBootId } from './call-scope'
-import { FencedError, ProtocolViolationError, type DaemonAnswer } from './errors'
+import { FencedError, ProtocolViolationError } from './errors'
 import { handleHello } from './hello-reply'
 import { DaemonLink } from './link'
 import { READY_TIMEOUT_MS, withReadyDeadline } from './ready-deadline'
 import { ReadyGate, type ReadyReply } from './ready-gate'
 import {
-  failedResult,
   handedOffResult,
   handleDaemonFrame,
   rejectPending,
+  type FrameSink,
   type Pending,
 } from './remote-calls-frames'
+import { settleCall, settleFailed } from './remote-calls-settle'
+import { frameSinkOf } from './remote-calls-sink'
 import type { RemoteCallsArgs } from './remote-calls'
 import { interruptPendingForResize } from './restart-interrupt'
 import { ScopeAcks } from './scope-acks'
@@ -83,7 +85,7 @@ export class RemoteCallsState {
       gone: () => this.fenced || this.closed,
       readyWithin: (signal) => this.readyWithin(signal),
     })
-    this.lane = {
+    this.lane = callLaneOf({
       pending: this.pending,
       answers: this.answers,
       detached: () => this.detached,
@@ -103,7 +105,7 @@ export class RemoteCallsState {
         this.log?.info({
           source: 'calls.link',
           message: 'daemon link back up',
-          data: { sessionId: args.sessionId, ...fields },
+          data: { sessionId: this.args.sessionId, ...fields },
         }),
       helloReady: (hello) => this.onReady?.(hello),
       listed: () => [...this.pending.values()],
@@ -112,7 +114,7 @@ export class RemoteCallsState {
       resizeReason: () => this.args.resizeReason(),
       settle: (call, result) => this.settle(call, result),
       schedulePing: () => this.link.schedulePing(),
-    }
+    })
   }
 
   open(args: { epoch: number }): void {
@@ -205,6 +207,13 @@ export class RemoteCallsState {
     return this.acks.scope(args)
   }
 
+  cancelOwed(debts: readonly CancelDebt[]): void {
+    if (this.closed || this.fenced || debts.length === 0) return
+    for (const debt of debts) this.cancels.owe(debt)
+    const bootId = this.linkBootId
+    if (this.link.ready && bootId !== undefined) this.cancels.flush(bootId)
+  }
+
   interruptForRestart(args: { reason: string }): void {
     interruptPendingForResize({
       pending: this.pending,
@@ -228,21 +237,11 @@ export class RemoteCallsState {
   }
 
   private settle(call: Pending, result: CallResult): void {
-    if (call.done) return
-    call.done = true
-    this.pending.delete(call.key)
-    call.detach?.()
-    for (const waiter of call.waiters) {
-      waiter.settle(result)
-    }
+    settleCall({ pending: this.pending, call, result })
   }
 
   private settleError(call: Pending, error: Error): void {
-    if (!call.ready) return
-    this.settle(
-      call,
-      failedResult({ op: call.op.op, code: ECallFailure.Internal, message: error.message }),
-    )
+    settleFailed({ pending: this.pending, call, error })
   }
 
   private sendRun(call: Pending): void {
@@ -282,23 +281,20 @@ export class RemoteCallsState {
     this.log?.error({ source: 'remote-calls', message: error.message })
   }
 
-  private sink() {
-    return {
+  private sink(): FrameSink {
+    return frameSinkOf({
       pending: this.pending,
-      settleAck: (args: { key: string; found: boolean }) => this.acks.settle(args),
       link: this.link,
-      settle: (call: Pending, result: CallResult) => this.settle(call, result),
-      settleError: (call: Pending, error: Error) => this.settleError(call, error),
-      sendRun: (call: Pending) => this.sendRun(call),
-      failAll: (error: Error) => this.failAll(error),
-      handleHelloReply: (frame: {
-        bootId: string
-        version: string
-        capabilities?: readonly string[] | undefined
-      }) => handleHello(this.lane, frame),
-      answered: (key: string, state: DaemonAnswer | EDaemonAnswer) =>
-        this.answers.settle({ key, state }),
-      emitEvent: (frame: Extract<DaemonFrame, { kind: 'event' }>) => this.args.onEvent?.(frame),
-    }
+      settleAck: (args) => this.acks.settle(args),
+      settle: (call, result) => this.settle(call, result),
+      settleError: (call, error) => this.settleError(call, error),
+      sendRun: (call) => this.sendRun(call),
+      failAll: (error) => this.failAll(error),
+      handleHelloReply: (frame) => handleHello(this.lane, frame),
+      answered: (key, state) => this.answers.settle({ key, state }),
+      emitEvent: (frame) => {
+        this.args.onEvent?.(frame)
+      },
+    })
   }
 }
