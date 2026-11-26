@@ -22,7 +22,7 @@ import {
 } from '../mcp-oauth'
 import { sameServerUrl } from '../mcp-oauth/seal'
 import { databaseUrlWithTls } from './database-url'
-import { readAgentHostEnv } from './env'
+import type { AgentHostEnv } from './env'
 import { SecretCipher } from '@dltech/atlas-pods/config/secret-cipher'
 
 const QUERY_TIMEOUT_MS = 10_000
@@ -225,21 +225,25 @@ export const mcpControlOf = (args: {
   return { of: controlOf }
 }
 
-export const mcpControlPort = (macLink: MacLink): McpControlPort => {
+export const mcpControlPort = (args: {
+  env: Pick<AgentHostEnv, 'databaseUrl' | 'secretsEncryptionKey' | 'publicUrl'>
+  macLink: MacLink
+}): McpControlPort => {
   let port: McpControlPort | undefined
   return {
     of: (sessionId) => {
       if (port === undefined) {
-        const env = readAgentHostEnv()
         const db = createDb(
-          createPool(databaseUrlWithTls(env.databaseUrl), { queryTimeoutMs: QUERY_TIMEOUT_MS }),
+          createPool(databaseUrlWithTls(args.env.databaseUrl), {
+            queryTimeoutMs: QUERY_TIMEOUT_MS,
+          }),
         )
-        const cipher = new SecretCipher(env.secretsEncryptionKey)
+        const cipher = new SecretCipher(args.env.secretsEncryptionKey)
         port = mcpControlOf({
           db,
           cipher,
-          gateway: mcpOauthGatewayOf({ db, cipher, publicUrl: env.publicUrl }),
-          macLink,
+          gateway: mcpOauthGatewayOf({ db, cipher, publicUrl: args.env.publicUrl }),
+          macLink: args.macLink,
         })
       }
       return port.of(sessionId)
