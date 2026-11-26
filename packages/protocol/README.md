@@ -38,6 +38,11 @@ share. Every frame and every call is a `zod` schema here, and the daemon engine 
   status is an `ECallStatus`. `ECallFailure`: the failure code. `CallFailureError`: the thrown error.
 - `daemonEventSchema`, `DaemonEvent`: an event that arrives during a call, such as shell output.
 
+- `exec` takes an optional `deadlineMs` and `shellId`: the daemon adopts the running command as that
+  background shell when the deadline it counts from the spawn arrives, and answers
+  `EExecOutcome.Backgrounded`. A host sends them only to a daemon that declares
+  `EDaemonCapability.ExecDeadline` in its hello reply, and keeps its own timer otherwise.
+
 The ops are `exec`, `exec.background`, `stat`, `readFile`, `readBytes`, `readTextForEdit`, `readLink`,
 `readDirectory`, `writeFile`, `fetchToFile`, `digestFile`, `putFile`, `remove`, `mkdir`, `rename`,
 `glob` and `grep`. They also include the groups `changes.*`, `git.*`, `mcp.*`, `metrics.*`, `oom.*`,
@@ -59,6 +64,8 @@ The ops are `exec`, `exec.background`, `stat`, `readFile`, `readBytes`, `readTex
 
 - `hostFrameSchema`, `HostFrame`, `daemonFrameSchema`, `DaemonFrame`: the frame each side sends.
 - `EDaemonErrorKind`, `ERunState`: the error kind and the run state a frame reports.
+- `EDaemonCapability`, and `capabilities` on the hello reply: what the daemon can do beyond the
+  frames alone. An older daemon declares none, and a host falls back to the behaviour it had.
 - `DAEMON_PORT`, `DAEMON_LINK_PROTOCOL_VERSION`, `DAEMON_LINK_PROTOCOL_MIN_VERSION`: the link
   constants. `DAEMON_LINK_SCHEMA_HASH`, `DAEMON_PROTOCOL_HEADER`, `DAEMON_MIN_PROTOCOL_HEADER`: the
   hash of `hostFrameSchema` and the two headers.

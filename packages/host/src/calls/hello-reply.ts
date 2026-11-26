@@ -2,7 +2,10 @@ import { actionForAnswer, needsRun } from './errors'
 import type { CallLane } from './call-open'
 import { interruptedResult, type Pending } from './remote-calls-frames'
 
-export const handleHello = (lane: CallLane, frame: { bootId: string; version: string }): void => {
+export const handleHello = (
+  lane: CallLane,
+  frame: { bootId: string; version: string; capabilities?: readonly string[] | undefined },
+): void => {
   const previousBootId = lane.bootId()
   const restart = previousBootId !== undefined && previousBootId !== frame.bootId
   lane.arrived(frame)

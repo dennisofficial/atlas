@@ -24,7 +24,11 @@ export type CallLane = {
   linkReady(): boolean
   bootId(): string | undefined
   ready(signal?: AbortSignal | undefined): Promise<ReadyReply | undefined>
-  arrived(frame: { bootId: string; version: string }): void
+  arrived(frame: {
+    bootId: string
+    version: string
+    capabilities?: readonly string[] | undefined
+  }): void
   flushAcks(): number
   logged(fields: { restart: boolean; flushedAcks: number; pending: number }): void
   helloReady(hello: { bootId: string; restart: boolean }): void

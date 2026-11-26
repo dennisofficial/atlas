@@ -37,6 +37,7 @@ export class RemoteCallsState {
 
   private epoch = 0
   private linkBootId: string | undefined
+  private capabilities: readonly string[] = []
   private fencedAt: number | undefined
   private closed = false
   private detached = false
@@ -85,6 +86,7 @@ export class RemoteCallsState {
       ready: (signal) => this.readyWithin(signal),
       arrived: (frame) => {
         this.linkBootId = frame.bootId
+        this.capabilities = frame.capabilities ?? []
         this.link.markReady()
         this.gate.resolve(frame)
       },
@@ -147,6 +149,10 @@ export class RemoteCallsState {
 
   bootId(): string | undefined {
     return this.linkBootId
+  }
+
+  daemonCapabilities(): readonly string[] {
+    return this.capabilities
   }
 
   linked(): boolean {
@@ -280,8 +286,11 @@ export class RemoteCallsState {
       settleError: (call: Pending, error: Error) => this.settleError(call, error),
       sendRun: (call: Pending) => this.sendRun(call),
       failAll: (error: Error) => this.failAll(error),
-      handleHelloReply: (frame: { bootId: string; version: string }) =>
-        handleHello(this.lane, frame),
+      handleHelloReply: (frame: {
+        bootId: string
+        version: string
+        capabilities?: readonly string[] | undefined
+      }) => handleHello(this.lane, frame),
       answered: (key: string, state: DaemonAnswer | EDaemonAnswer) =>
         this.answers.settle({ key, state }),
       emitEvent: (frame: Extract<DaemonFrame, { kind: 'event' }>) => this.args.onEvent?.(frame),

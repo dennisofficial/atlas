@@ -189,7 +189,10 @@ export const worktreesOf = (args: {
   gate?: WorkspaceGate | undefined
 }): PodWorktrees =>
   new HostWorktrees({
-    processes: new DaemonProcessPort({ calls: args.calls }),
+    processes: new DaemonProcessPort({
+      calls: args.calls,
+      capabilities: () => args.calls.daemonCapabilities(),
+    }),
     files: new DaemonFileSystemPort({ calls: args.calls }),
     ...(args.gate === undefined ? {} : { gate: args.gate }),
   })

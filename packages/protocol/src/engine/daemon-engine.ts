@@ -17,6 +17,7 @@ import {
 } from './connection'
 import type { DaemonGroup } from './group'
 import { CallLedger, type LedgerOutcome } from './ledger'
+import { helloReplyOf } from './hello-reply'
 import { ExecutingCalls } from './live-call'
 import { unreadableRunOf } from './unreadable-run'
 
@@ -221,10 +222,7 @@ export class DaemonEngine {
     }
     peer.epoch = frame.epoch
     this.current = peer
-    this.send({
-      peer,
-      frame: { kind: 'hello-reply', bootId: this.args.bootId, version: this.args.version },
-    })
+    this.send({ peer, frame: helloReplyOf(this.args) })
     this.send({
       peer,
       frame: {

@@ -118,6 +118,10 @@ export class RemoteCalls {
     return this.state.ready()
   }
 
+  daemonCapabilities(): readonly string[] {
+    return this.state.daemonCapabilities()
+  }
+
   bootId(): string | undefined {
     return this.state.bootId()
   }

@@ -8,6 +8,7 @@ import {
   DAEMON_PORT,
   DAEMON_PORT_ENV,
   DAEMON_RESTART_HINT_ENV,
+  EDaemonCapability,
 } from '@dltech/atlas-protocol'
 import { DaemonEngine } from '@dltech/atlas-protocol/engine'
 
@@ -65,6 +66,7 @@ const engine = new DaemonEngine({
   token,
   store: new DiskCallStore(home),
   groups: daemonGroups({ env: childEnv, home }),
+  capabilities: [EDaemonCapability.ExecDeadline],
   health: () => {
     const memory = workMemory(env)
     return { protection, ...(memory === undefined ? {} : { memory }) }
