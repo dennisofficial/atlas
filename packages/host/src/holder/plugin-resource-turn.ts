@@ -5,16 +5,11 @@ import type { ECloudSetting, PluginPodContext, PodResource } from '@dltech/atlas
 import type { Adoption } from './plugin-resource-refresh'
 import { cloudStringOf, versionsKnownOf, versionsOf } from './plugin-resource-probes'
 import { ELoadReason } from './plugin-resource-reason'
+import type { ResourceWait } from './plugin-resource-waits'
 
 type Ctx = PluginPodContext
 
 type Versions = Readonly<Record<ECloudSetting, string>>
-
-export type ResourceWait = <T>(args: {
-  waitFor: EResourceWait
-  resource?: string | undefined
-  work: () => Promise<T>
-}) => Promise<T>
 
 const recordedOf = (args: {
   events: readonly RecordEvent[]
@@ -140,15 +135,16 @@ export class ResourceTurn {
       void this.reloadWhenSettled({ resource, versions: args.versions })
     }
     const awaited = changed.filter((resource) => resource.background !== true)
-    if (awaited.length === 0) return
     for (const resource of awaited) {
-      const waiting = this.args.waitOn({
+      if (!this.args.podReady()) {
+        void this.reloadWhenSettled({ resource, versions: args.versions })
+        continue
+      }
+      await this.args.waitOn({
         waitFor: EResourceWait.ChangedResource,
         resource: resource.name,
         work: () => this.reloadWhenSettled({ resource, versions: args.versions }),
       })
-      if (this.args.podReady()) await waiting
-      else void waiting
     }
   }
 
@@ -160,13 +156,7 @@ export class ResourceTurn {
     if (planned !== undefined) await planned.catch(() => undefined)
     if (args.resource.background === true) {
       const background = this.args.backgroundLoadOf(args.resource.name)
-      if (background !== undefined) {
-        await this.args.waitOn({
-          waitFor: EResourceWait.BackgroundLoad,
-          resource: args.resource.name,
-          work: () => background.catch(() => undefined),
-        })
-      }
+      if (background !== undefined) await background.catch(() => undefined)
     } else {
       const refreshed = this.args.refreshLoadOf(args.resource.name)
       if (refreshed !== undefined) await refreshed.catch(() => undefined)
