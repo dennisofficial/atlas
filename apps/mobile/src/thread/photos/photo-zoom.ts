@@ -14,6 +14,9 @@ const clamp = (args: { value: number; max: number }): number =>
 
 export const isZoomed = (zoomScale: number): boolean => zoomScale > ZOOMED_SCALE
 
+export const isDoubleTap = (args: { previousAt: number | undefined; at: number }): boolean =>
+  args.previousAt !== undefined && args.at - args.previousAt <= DOUBLE_TAP_MAX_DELAY_MS
+
 export const zoomRectOf = (args: { point: Point; viewport: Size; zoomScale: number }): Rect => {
   if (isZoomed(args.zoomScale)) return { x: 0, y: 0, ...args.viewport }
   const width = args.viewport.width / DOUBLE_TAP_SCALE
@@ -28,3 +31,16 @@ export const zoomRectOf = (args: { point: Point; viewport: Size; zoomScale: numb
 
 export const shouldDismiss = (args: { pullY: number; zoomScale: number }): boolean =>
   !isZoomed(args.zoomScale) && args.pullY <= -DISMISS_PULL
+
+export const zoomedInBy = (args: { previousScale: number; nextScale: number }): boolean =>
+  !isZoomed(args.previousScale) && isZoomed(args.nextScale)
+
+export enum EPhotoChromeEvent {
+  Tap = 'tap',
+  ZoomedIn = 'zoomed-in',
+}
+
+export const chromeVisibleAfter = (args: {
+  visible: boolean
+  event: EPhotoChromeEvent
+}): boolean => (args.event === EPhotoChromeEvent.Tap ? !args.visible : false)

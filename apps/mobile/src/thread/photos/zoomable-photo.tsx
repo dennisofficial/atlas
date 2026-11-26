@@ -1,5 +1,5 @@
 import { Image } from 'expo-image'
-import { useRef, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { GestureDetector, useTapGesture } from 'react-native-gesture-handler'
 import {
   type LayoutChangeEvent,
@@ -14,9 +14,11 @@ import {
 
 import {
   DOUBLE_TAP_MAX_DELAY_MS,
+  isDoubleTap,
   MAX_ZOOM_SCALE,
   type Size,
   shouldDismiss,
+  zoomedInBy,
   zoomRectOf,
 } from './photo-zoom'
 
@@ -24,10 +26,14 @@ export const ZoomablePhoto = ({
   uri,
   name,
   onDismiss,
+  onTap,
+  onZoomIn,
 }: {
   uri: string
   name: string
   onDismiss: () => void
+  onTap: () => void
+  onZoomIn: () => void
 }) => {
   const scrollRef = useRef<ScrollViewInstance>(null)
   const zoomScale = useRef(1)
@@ -39,7 +45,10 @@ export const ZoomablePhoto = ({
   }
 
   const handleScroll = (event: NativeSyntheticEvent<NativeScrollEvent>) => {
-    zoomScale.current = event.nativeEvent.zoomScale ?? 1
+    const nextScale = event.nativeEvent.zoomScale ?? 1
+    const previousScale = zoomScale.current
+    zoomScale.current = nextScale
+    if (zoomedInBy({ previousScale, nextScale })) onZoomIn()
   }
 
   const handleScrollEndDrag = (event: NativeSyntheticEvent<NativeScrollEvent>) => {
@@ -55,11 +64,35 @@ export const ZoomablePhoto = ({
     })
   }
 
-  const doubleTap = useTapGesture({
-    numberOfTaps: 2,
-    maxDelay: DOUBLE_TAP_MAX_DELAY_MS,
+  const lastTapAt = useRef<number | undefined>(undefined)
+  const pendingTap = useRef<ReturnType<typeof setTimeout> | undefined>(undefined)
+
+  const cancelPendingTap = () => {
+    if (pendingTap.current !== undefined) clearTimeout(pendingTap.current)
+    pendingTap.current = undefined
+  }
+
+  useEffect(() => cancelPendingTap, [])
+
+  const handleTap = (point: { x: number; y: number }) => {
+    const at = Date.now()
+    if (isDoubleTap({ previousAt: lastTapAt.current, at })) {
+      lastTapAt.current = undefined
+      cancelPendingTap()
+      handleDoubleTap(point)
+      return
+    }
+    lastTapAt.current = at
+    cancelPendingTap()
+    pendingTap.current = setTimeout(() => {
+      pendingTap.current = undefined
+      onTap()
+    }, DOUBLE_TAP_MAX_DELAY_MS)
+  }
+
+  const taps = useTapGesture({
     runOnJS: true,
-    onActivate: (event) => handleDoubleTap({ x: event.x, y: event.y }),
+    onActivate: (event) => handleTap({ x: event.x, y: event.y }),
   })
 
   return (
@@ -81,12 +114,12 @@ export const ZoomablePhoto = ({
       onScrollEndDrag={handleScrollEndDrag}
     >
       {viewport === undefined ? null : (
-        <GestureDetector gesture={doubleTap}>
+        <GestureDetector gesture={taps}>
           <View
             accessible
             accessibilityRole="image"
             accessibilityLabel={name}
-            accessibilityHint="Pinch or double-tap to zoom. Swipe down to close."
+            accessibilityHint="Tap to show or hide the controls. Pinch or double-tap to zoom. Swipe down to close."
             style={viewport}
           >
             <Image source={{ uri }} contentFit="contain" style={styles.fill} />

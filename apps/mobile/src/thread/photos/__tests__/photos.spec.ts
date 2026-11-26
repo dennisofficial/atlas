@@ -7,7 +7,17 @@ import {
   putPhoto,
   shareFileNameOf,
 } from '../photo-store'
-import { DISMISS_PULL, DOUBLE_TAP_SCALE, shouldDismiss, zoomRectOf } from '../photo-zoom'
+import {
+  chromeVisibleAfter,
+  DISMISS_PULL,
+  DOUBLE_TAP_MAX_DELAY_MS,
+  DOUBLE_TAP_SCALE,
+  EPhotoChromeEvent,
+  isDoubleTap,
+  shouldDismiss,
+  zoomedInBy,
+  zoomRectOf,
+} from '../photo-zoom'
 
 const viewport = { width: 400, height: 800 }
 
@@ -63,5 +73,37 @@ describe('photo store', () => {
   it('decodes the bytes of a base64 data uri', () => {
     expect(dataUriBytesOf('data:image/png;base64,AQID')).toEqual(new Uint8Array([1, 2, 3]))
     expect(dataUriBytesOf('https://x/a.png')).toBeUndefined()
+  })
+})
+
+describe('zoomedInBy', () => {
+  it('fires once, when the photo first leaves its fit size', () => {
+    expect(zoomedInBy({ previousScale: 1, nextScale: 1.5 })).toBe(true)
+    expect(zoomedInBy({ previousScale: 1.5, nextScale: 2 })).toBe(false)
+    expect(zoomedInBy({ previousScale: 2, nextScale: 1 })).toBe(false)
+    expect(zoomedInBy({ previousScale: 1, nextScale: 1.005 })).toBe(false)
+  })
+})
+
+describe('chromeVisibleAfter', () => {
+  it('toggles the controls on a tap', () => {
+    expect(chromeVisibleAfter({ visible: true, event: EPhotoChromeEvent.Tap })).toBe(false)
+    expect(chromeVisibleAfter({ visible: false, event: EPhotoChromeEvent.Tap })).toBe(true)
+  })
+
+  it('hides the controls when the photo zooms in', () => {
+    expect(chromeVisibleAfter({ visible: true, event: EPhotoChromeEvent.ZoomedIn })).toBe(false)
+    expect(chromeVisibleAfter({ visible: false, event: EPhotoChromeEvent.ZoomedIn })).toBe(false)
+  })
+})
+
+describe('isDoubleTap', () => {
+  it('counts a second tap inside the window', () => {
+    expect(isDoubleTap({ previousAt: 1_000, at: 1_000 + DOUBLE_TAP_MAX_DELAY_MS })).toBe(true)
+  })
+
+  it('does not count a first tap or a slow second tap', () => {
+    expect(isDoubleTap({ previousAt: undefined, at: 1_000 })).toBe(false)
+    expect(isDoubleTap({ previousAt: 1_000, at: 1_001 + DOUBLE_TAP_MAX_DELAY_MS })).toBe(false)
   })
 })

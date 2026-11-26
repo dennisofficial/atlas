@@ -58,6 +58,7 @@ const PhotoTitle = ({ photo }: { photo: Photo }) => {
 
 export const photoHeaderOptionsOf = ({
   photo,
+  visible,
   posture,
   windowWidth,
   tint,
@@ -65,6 +66,7 @@ export const photoHeaderOptionsOf = ({
   onShare,
 }: {
   photo: Photo | undefined
+  visible: boolean
   posture: TPosture
   windowWidth: number
   tint: string
@@ -78,6 +80,16 @@ export const photoHeaderOptionsOf = ({
     headerTintColor: tint,
     scrollEdgeEffects: HIDDEN_EDGES,
   }
+  if (!visible)
+    return {
+      ...base,
+      title: '',
+      headerTitle: '',
+      headerLeft: () => null,
+      headerRight: () => null,
+      unstable_headerLeftItems: () => [],
+      unstable_headerRightItems: () => [],
+    }
   if (Platform.OS !== 'ios')
     return {
       ...base,
