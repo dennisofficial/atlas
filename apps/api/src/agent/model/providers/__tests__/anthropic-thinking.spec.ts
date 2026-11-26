@@ -15,7 +15,7 @@ describe('anthropicThinkingOptionsOf', () => {
   })
 
   it('gives budget cards a thinking budget and no display', () => {
-    expect(anthropicThinkingOptionsOf('claude-sonnet-4-5')).toEqual({
+    expect(anthropicThinkingOptionsOf('claude-haiku-4-5')).toEqual({
       anthropic: { thinking: { type: 'enabled', budgetTokens: 2048 } },
     })
   })
