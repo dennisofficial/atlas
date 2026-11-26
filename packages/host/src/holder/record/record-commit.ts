@@ -65,19 +65,28 @@ export const prepareDraft = async (
   if (draft.detached === true) return draft
   const recorded = args.cache.bookkeeping().findDispatched(draft.callId)
   if (recorded !== undefined) {
-    if (recorded.bootId !== undefined && recorded.bootId !== null) {
-      markDispatched({ bootId: recorded.bootId })
-    }
+    markDispatched({ bootId: recorded.bootId ?? undefined, replayed: true })
     return undefined
   }
-  if (!args.daemonTools.has(draft.name)) return draft
-  await args.remoteCalls.ready()
-  const bootId = args.remoteCalls.bootId()
+  const bootId = await dispatchBootOf({ args, draft })
+  markDispatched({ bootId, replayed: false })
+  return bootId === undefined ? draft : { ...draft, bootId: draft.bootId ?? bootId }
+}
+
+const dispatchBootOf = async (args: {
+  args: { daemonTools: ReadonlySet<string>; remoteCalls: RemoteCalls }
+  draft: Extract<AppendBody, { type: 'tool-dispatched' }>
+}): Promise<string | undefined> => {
+  if (args.draft.bootId !== undefined) return args.draft.bootId
+  const known = args.args.remoteCalls.bootId()
+  if (known !== undefined) return known
+  if (!args.args.daemonTools.has(args.draft.name)) return undefined
+  await args.args.remoteCalls.ready()
+  const bootId = args.args.remoteCalls.bootId()
   if (bootId === undefined) {
     throw new RecordCorruptionError('the daemon link had no bootId after ready() resolved')
   }
-  markDispatched({ bootId })
-  return { ...draft, bootId }
+  return bootId
 }
 
 export const resyncHead = async (
