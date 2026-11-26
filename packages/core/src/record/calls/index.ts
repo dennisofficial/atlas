@@ -13,6 +13,7 @@ export {
   recoverCall,
   type CallRecordFacts,
   type RecoverAction,
+  type RecoverAnswer,
   type RecoverVariant,
 } from './recover'
 export {
