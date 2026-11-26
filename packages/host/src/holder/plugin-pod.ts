@@ -26,6 +26,7 @@ import { worktreesOf } from './checkouts'
 import { deferredListingHook } from './deferred-listing'
 import { withDiscoveryTools } from './discovery'
 import type { HeldSessionDeps } from './held-session-deps'
+import { recordStep, recordedStepsOf } from './record/call-steps'
 import { fireLive } from './ports'
 import { MirrorPlanHook } from './plan-mirror'
 import { pluginCallOf } from './plugin-call'
@@ -196,6 +197,12 @@ export const pluginPodContextOf = (args: {
       invoke: (call) => runtime.remoteCalls.invoke(call),
       ...(runtime.env === undefined ? {} : { env: runtime.env }),
       ...(runtime.workspaceGate === undefined ? {} : { gate: runtime.workspaceGate }),
+      steps: {
+        recorded: (scopeKey) => recordedStepsOf({ record, scopeKey }),
+        record: (step) => recordStep({ record, threadId, runId: deps.ids.nextRunId(), step }),
+      },
+      bootId: () => runtime.remoteCalls.bootId(),
+      ack: (key) => runtime.remoteCalls.ack({ key }),
     }),
     live: (frame) => fireLive({ bus: deps.bus, key: deps.sessionId, frame }),
     onDaemonEvent: (listener) => {

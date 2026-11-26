@@ -55,6 +55,6 @@ describe('SessionHolder daemon ack probe on claim (F9)', () => {
     expect(done).toBe(true)
     expect(a.daemon.runCount()).toBe(1)
     const acked = b.runtimes.flatMap((runtime) => runtime.ackedScopes)
-    expect(acked.some((key) => key.endsWith(':call-1'))).toBe(true)
+    expect(acked.includes('call-1')).toBe(true)
   }, 15_000)
 })

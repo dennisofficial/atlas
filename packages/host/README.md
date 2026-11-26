@@ -6,11 +6,9 @@ only what it can rebuild or drop.
 
 ## Owns
 
-- The claim loop: `SessionHolder` claims a session, holds it, and settles the lease.
-- Remote calls to the daemon: the link, the handshake, the replay and the fencing.
+- The claim loop: `SessionHolder` claims a session, holds it, and settles the lease; and the remote calls to the daemon: the link, the handshake, the replay and the fencing.
 - The daemon-backed ports: filesystem, agent filesystem and process.
-- The record adapter and its cache, and the once-ledger of a session.
-- The live step buffer, which flushes a streamed answer to the clients.
+- The record adapter, its cache, the once-ledger, and the live step buffer that flushes a streamed answer to the clients.
 - The change snapshotter, and the inbox intake of a held session.
 - The context mirror, which keeps a held session's context folder in the content store and index.
 - Seeding a session's context folder from the files a spawner attached, before its first turn.
@@ -60,14 +58,16 @@ only what it can rebuild or drop.
 
 ### Call the daemon
 
-- `RemoteCalls`: the client of the daemon link. `open`, `ready`, `invoke`, `ack`, `ackScope`,
-  `handoff`, `bootId`, `daemonCapabilities`, `close`. It reports each `EventFrame` to its listeners.
-- `WorkspaceGate`, `POD_WAIT_INTERRUPTED`, `WorkspaceGateOutcome`: hold a tool call until the
-  workspace prepare settles, and fail the call when the wait is interrupted.
-- `webSocketConnector({url})`, `DaemonConnector`, `DaemonSocket`: connect to the daemon.
-- `newKey()`, `systemTimers`, `CallTimers`: a call key and the timers the link uses.
-- `ScopedToolDispatcher`, `runInCallScope`, `scopeKeyOf`, `markDispatched`, `nextKey`: bind a call
-  to one scope so a retry does not run it twice.
+- `RemoteCalls`: the client of the daemon link. `open`, `ready`, `invoke`, `ack`, `ackScope`, `handoff`, `bootId`, `close`.
+- `WorkspaceGate`, `POD_WAIT_INTERRUPTED`, `WorkspaceGateOutcome`, `webSocketConnector({url})`,
+  `DaemonConnector`, `DaemonSocket`: hold a tool call until the workspace prepare settles, and connect.
+- `newKey()`, `systemTimers`, `CallTimers`, `ScopedToolDispatcher`, `runInCallScope`, `scopeKeyOf`,
+  `markDispatched`, `nextKey`, `readKey`: bind a call to one scope. `scopeKeyOf` is the call id, so a
+  step key `<callId>.<n>` is both the recorded fact and the wire key.
+- `planStep`, `stepDigestOf`: give a plugin tool's steps that key, reuse a recorded one whose op and
+  env-free digest match, take a slot above the maximum for a diverged one, ask before a replay
+  (`replayed`), and wait for the next hello when the daemon cannot answer.
+- `crashSettleOf`, `ECrashedCall`: a call a restart left open holds while its steps answer for themselves, and is interrupted only on a proven pod boot change.
 
 ### Reach the sandbox through a port
 

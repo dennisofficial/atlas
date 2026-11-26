@@ -162,6 +162,6 @@ describe('SessionRecord daemon acks', () => {
     })
 
     expect(calls.length).toBe(1)
-    expect(acked).toEqual(['run-1:call-1', 'run-1:call-2'])
+    expect(acked).toEqual(['call-1', 'call-2'])
   })
 })

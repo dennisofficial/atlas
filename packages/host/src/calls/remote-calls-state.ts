@@ -5,6 +5,7 @@ import type { CallResult, DaemonFrame } from '@dltech/atlas-protocol'
 
 import { Answers } from './answers'
 import { openCall, type CallLane, type OpenCallArgs } from './call-open'
+import { CancelObligations } from './cancel-obligations'
 import { scopeDispatchedBootId } from './call-scope'
 import { FencedError, ProtocolViolationError, type DaemonAnswer } from './errors'
 import { handleHello } from './hello-reply'
@@ -28,6 +29,7 @@ type StateArgs = RemoteCallsArgs & { releaseResize(): void; resizeReason(): stri
 
 export class RemoteCallsState {
   private readonly pending = new Map<string, Pending>()
+  private readonly cancels: CancelObligations
   private readonly acks: ScopeAcks
   private readonly answers: Answers
   private readonly link: DaemonLink
@@ -65,6 +67,11 @@ export class RemoteCallsState {
         onFatal: (error) => this.failAll(error),
       },
     })
+    this.cancels = new CancelObligations({
+      link: this.link,
+      epoch: () => this.epoch,
+      bootId: () => this.linkBootId,
+    })
     this.answers = new Answers({ link: this.link, epoch: () => this.epoch })
     this.onReady = args.onReady
     this.acks = new ScopeAcks({
@@ -91,6 +98,7 @@ export class RemoteCallsState {
         this.gate.resolve(frame)
       },
       flushAcks: () => this.acks.flush(),
+      flushCancels: (bootId) => this.cancels.flush(bootId),
       logged: (fields) =>
         this.log?.info({
           source: 'calls.link',
@@ -99,10 +107,7 @@ export class RemoteCallsState {
         }),
       helloReady: (hello) => this.onReady?.(hello),
       listed: () => [...this.pending.values()],
-      sendCancel: (call) => {
-        if (!this.link.ready) return
-        this.link.send({ kind: 'cancel', key: call.key, epoch: this.epoch })
-      },
+      sendCancel: (call) => this.cancels.cancel(call.key),
       sendRun: (call) => this.sendRun(call),
       resizeReason: () => this.args.resizeReason(),
       settle: (call, result) => this.settle(call, result),
@@ -177,6 +182,7 @@ export class RemoteCallsState {
     this.answers.refuseAll()
     const error = new FencedError(`session ${this.args.sessionId} closed its daemon link`)
     rejectPending({ pending: this.pending, error })
+    this.cancels.clear()
     this.acks.releaseAll()
     this.gate.rejectSoon(error)
   }
@@ -203,9 +209,7 @@ export class RemoteCallsState {
     interruptPendingForResize({
       pending: this.pending,
       reason: args.reason,
-      cancel: (call) => {
-        if (this.link.ready) this.link.send({ kind: 'cancel', key: call.key, epoch: this.epoch })
-      },
+      cancel: (call) => this.cancels.cancel(call.key),
       settle: (call, result) => this.settle(call, result),
     })
   }

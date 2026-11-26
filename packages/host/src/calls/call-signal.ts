@@ -11,8 +11,16 @@ export const attachCallSignal = (args: {
   const onAbort = (): void => {
     if (args.isDetached()) return
     args.call.controller.abort()
-    if (args.call.sent) args.sendCancel()
-    else if (!args.isLinkReady()) args.settleInterrupted()
+    if (args.call.sent) {
+      args.sendCancel()
+      return
+    }
+    if (args.call.awaitingAnswer || args.call.waiting) {
+      args.sendCancel()
+      args.settleInterrupted()
+      return
+    }
+    if (!args.isLinkReady()) args.settleInterrupted()
   }
   args.signal.addEventListener('abort', onAbort, { once: true })
   args.call.detach = () => args.signal.removeEventListener('abort', onAbort)

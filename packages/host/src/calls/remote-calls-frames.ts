@@ -21,6 +21,9 @@ export type Pending = {
   armed: boolean
   done: boolean
   awaitingAnswer: boolean
+  waiting: boolean
+  attachOnly?: boolean | undefined
+  dispatchBootId?: string | undefined
   detachOnHandoff?: boolean | undefined
   detach?: (() => void) | undefined
 }

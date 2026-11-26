@@ -3,7 +3,7 @@ import { createHash, randomUUID } from 'node:crypto'
 import { AsyncLocalStorage } from 'node:async_hooks'
 
 import { ToolDispatcher, type DispatchArgs, type DispatchableCall } from '@dltech/atlas-agent'
-import { CallInterruptedError, type EventDraft } from '@dltech/atlas-core'
+import { CallInterruptedError, type EventDraft, type StepFact } from '@dltech/atlas-core'
 import { callKeySchema } from '@dltech/atlas-protocol'
 
 import { interruptedMessage } from './errors'
@@ -11,6 +11,8 @@ import { interruptedMessage } from './errors'
 type CallScope = {
   scopeKey: string
   next: number
+  consumed: Set<string>
+  recorded?: readonly StepFact[] | undefined
   detachOnHandoff: boolean
   dispatchedBootId?: string | undefined
   attachOnly?: boolean | undefined
@@ -19,10 +21,29 @@ type CallScope = {
 const storage = new AsyncLocalStorage<CallScope>()
 
 export const scopeKeyOf = (args: { runId: string; callId: string }): string => {
-  const plain = `${args.runId}:${args.callId}`
-  if (callKeySchema.safeParse(plain).success) return plain
-  const digest = createHash('sha256').update(args.callId).digest('hex').slice(0, 16)
-  return `${args.runId}:h${digest}`
+  if (callKeySchema.safeParse(args.callId).success) return args.callId
+  return `h${createHash('sha256').update(args.callId).digest('hex').slice(0, 16)}`
+}
+
+export const scopeKey = (): string | undefined => storage.getStore()?.scopeKey
+
+export const scopeNextSlot = (): number => storage.getStore()?.next ?? 0
+
+export const scopeConsumedKeys = (): ReadonlySet<string> | undefined => storage.getStore()?.consumed
+
+export const scopeRecordedSteps = (): readonly StepFact[] | undefined =>
+  storage.getStore()?.recorded
+
+export const rememberRecordedSteps = (facts: readonly StepFact[]): void => {
+  const scope = storage.getStore()
+  if (scope !== undefined) scope.recorded = [...facts]
+}
+
+export const claimStepSlot = (args: { key: string; index: number }): void => {
+  const scope = storage.getStore()
+  if (scope === undefined) return
+  scope.consumed.add(args.key)
+  scope.next = Math.max(scope.next, args.index + 1)
 }
 
 export const markDispatched = (args: { bootId: string }): void => {
@@ -42,6 +63,7 @@ export const runInCallScope = <T>(args: {
     {
       scopeKey: args.scopeKey,
       next: 0,
+      consumed: new Set(),
       detachOnHandoff: args.detachOnHandoff ?? true,
       ...(args.attachOnly === undefined ? {} : { attachOnly: args.attachOnly }),
     },
@@ -60,6 +82,12 @@ export const nextKey = (): string => {
   return key
 }
 
+export const readKey = (): string => {
+  const scope = storage.getStore()
+  const suffix = randomUUID().slice(0, 8)
+  return scope === undefined ? `host-read-${randomUUID()}` : `${scope.scopeKey}.read.${suffix}`
+}
+
 export class ScopedToolDispatcher extends ToolDispatcher {
   constructor(private readonly args: { inner: ToolDispatcher; daemonTools: ReadonlySet<string> }) {
     super()
@@ -69,6 +97,7 @@ export class ScopedToolDispatcher extends ToolDispatcher {
     const scope: CallScope = {
       scopeKey: scopeKeyOf({ runId: args.call.runId, callId: args.call.callId }),
       next: 0,
+      consumed: new Set(),
       detachOnHandoff: this.args.daemonTools.has(args.call.name),
     }
     return storage.run(scope, async () => {

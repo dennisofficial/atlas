@@ -38,10 +38,10 @@ class RecordingDispatcher extends ToolDispatcher {
 }
 
 describe('scopeKeyOf', () => {
-  it('joins run and call ids, hashing a call id that fails the key schema', () => {
-    expect(scopeKeyOf({ runId: 'run-1', callId: 'call_2' })).toBe('run-1:call_2')
+  it('is the call id alone, so the log key and the wire key are one string', () => {
+    expect(scopeKeyOf({ runId: 'run-1', callId: 'call_2' })).toBe('call_2')
     const hashed = scopeKeyOf({ runId: 'run-1', callId: 'call with spaces' })
-    expect(hashed).toMatch(/^run-1:h[0-9a-f]{16}$/)
+    expect(hashed).toMatch(/^h[0-9a-f]{16}$/)
   })
 })
 
@@ -95,12 +95,7 @@ describe('ScopedToolDispatcher', () => {
     const scoped = new ScopedToolDispatcher({ inner, daemonTools: new Set(['bash']) })
     await scoped.dispatch(dispatchArgs(call({ runId: 'run-1', callId: 'call-1' })))
     await scoped.dispatch(dispatchArgs(call({ runId: 'run-1', callId: 'call-1' })))
-    expect(inner.keys).toEqual([
-      'run-1:call-1.0',
-      'run-1:call-1.1',
-      'run-1:call-1.0',
-      'run-1:call-1.1',
-    ])
+    expect(inner.keys).toEqual(['call-1.0', 'call-1.1', 'call-1.0', 'call-1.1'])
   })
 
   it('never shares a key between two concurrent calls', async () => {
