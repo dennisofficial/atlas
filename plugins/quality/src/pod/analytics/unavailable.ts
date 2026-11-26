@@ -5,6 +5,7 @@ export const QUALITY_REVIEW_UNAVAILABLE = 'quality review unavailable'
 export enum EQualityUnavailableReason {
   ClassifierOff = 'classifier_off',
   SettingOff = 'setting_off',
+  BashWrite = 'bash_write',
 }
 
 const reported = new Set<string>()
