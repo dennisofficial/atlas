@@ -531,10 +531,14 @@ Otherwise the next rule comes from this list.
 | S2      | #2970        | One `$ai_generation` per classifier call, with code for every user unless the secret filter matches                                                 |
 | S3, S3b | #2969, #2976 | `quality nudge reaction`; `review_id` = sha256(call id), first 32 hex, durable                                                                      |
 | S4      | #2980        | `eval:jev-real`; PostHog score definition, dataset and review queue; routine check 2 labels every other day                                         |
+| S5      | no code      | Dashboard 2407147 in five groups: funnel, latency and cost, scores, usefulness, accuracy (§12.6)                                                    |
 
 Live checks passed for S1a, S2, S3 and S3b on 2026-11-25. The routine's check 1 owes the 24 h
 numbers for S1b (oversized skips, expected near 0) and S1c (`review_deadline` per hour, which rose
-to 1–8 per hour on 2026-11-25 18:00–22:00 UTC).
+to 1–8 per hour on 2026-11-25 18:00–22:00 UTC). First numbers from the S5 dashboard, 2026-11-26 00:00
+UTC: 0 oversized skips in 197 reviews since the S1b deploy (21:00 UTC), against 63 in 1,320 reviews
+at 18:00–22:00. 0 deadlines in 32 reviews in the 45 minutes after the S1c deploy, against 14 in
+4 hours (3.5 per hour) at 18:00–22:00. Check 1 still owes the full 24 h.
 
 ### 12.2 Read before you start
 
@@ -563,10 +567,7 @@ carry a weight of 1 / inclusion probability (§6.3).
 
 ### 12.4 The next slices
 
-- **S5 (dashboard)** — needs no labels; start it first. The insights of §5.4, plus
-  `scope_build_ms` p95 per hour and `review_deadline` per hour, and nudge reactions counted once per
-  finding episode. Insights 6 and 8 are SQL over `system.trace_review_scores` joined to
-  `$ai_generation` on `$ai_trace_id`.
+- **S5 (dashboard)** — done 2026-11-26, no code change. See §12.6.
 - **S6 (SRP v2)** — §11.1. Split the real set into development and holdout by `path` family before
   any tuning. Compare with SRP v1 on both.
 - **S7 (verifier)** — §11.3, after S6 passes.
@@ -575,8 +576,38 @@ carry a weight of 1 / inclusion probability (§6.3).
 ### 12.5 Known limits
 
 - `thread_kind` is absent on events from a caller that cannot name the thread kind (#2972).
+- `quality review unavailable` has no `bash_write` reason yet (§5.3); only `classifier_off` and
+  `setting_off` are sent, and production had none of either by 2026-11-26.
 - The first labels: 5 trace reviews from a dry run on 2026-11-25 saw Jev's answer. Routine step 2.0
   re-labels them blind once.
 - A turn can still run the previous deploy's code for about 2 minutes after Render reports the new
   deploy live (seen in the S3b live check). Check `atlas_version` on the events before you read a
   live check.
+
+### 12.6 The S5 dashboard
+
+"Jev quality" (https://us.posthog.com/project/411591/dashboard/2407147). Usefulness and accuracy are
+separate groups. Every tile is a typed trends query, except the four that need SQL.
+
+| Group            | Tile (short id)                                                       | Source                                                                        |
+| ---------------- | --------------------------------------------------------------------- | ----------------------------------------------------------------------------- |
+| Funnel, coverage | Funnel per day: writes to nudges (`PcwZKoVQ`), §5.4 #1                | `quality review completed`, `quality scope assessed`                          |
+|                  | Reviews per day by status (`m6RqaH3U`)                                | `quality review completed`                                                    |
+|                  | Skipped reviews by reason (`1VbnnbRJ`), by extension (`jqTreVak`), #2 | `skip_reason`, `extensions`                                                   |
+|                  | Unavailable reviews by reason (`I7znKMS1`), #9                        | `quality review unavailable`                                                  |
+| Latency, cost    | Oversized skips and review deadlines per hour (`Y6tf3fnR`)            | `skip_reasons`, `status`                                                      |
+|                  | Scope build and classifier p50 / p95 per hour (`gJ1KBS7K`)            | `scope_build_ms`, `classifier_ms`                                             |
+|                  | Classifier call latency and cost per day (`2XgJCw17`), #7             | `$ai_generation`                                                              |
+|                  | Deadline rate (`7qGFpwQE`)                                            | `status`                                                                      |
+| Scores, nudges   | Concern histogram per policy, per week (`DuvIgKcg`, SQL), #3          | `concern_score`                                                               |
+|                  | Nudges per 100 scored scopes, no `probe/` (`g27dNKaF`, SQL), #4       | `verdict`; `path` from `$ai_generation`                                       |
+|                  | Scope verdicts per day, not clean (`3Q5S5IQl`)                        | `verdict`                                                                     |
+| Usefulness       | Nudge reactions, once per finding episode (`spcvRkAG`), #5            | `quality nudge reaction`: uniq(`finding_id`, `episode`)                       |
+|                  | Finding lifecycle per week (`t3BAlJH6`)                               | nudged scopes, `quality finding resolved`, `quality finding closed`           |
+| Accuracy         | Precision, Wilson lower bound, weighted recall (`X7k9Ut8U`, SQL), #6  | `system.trace_review_scores` on `$ai_trace_id` = `review_id`; dataset weights |
+|                  | Label agreement rate per run (`My9c17PY`, SQL), #8                    | `system.trace_review_scores`: share not `unsure`                              |
+
+The accuracy tile leaves out `unsure` labels and traces whose call was on a `probe/` path, and weights
+recall by 1 / `inclusion_probability` from `jev-<policy>-real`. The old tiles that read
+`quality example flagged`, `quality finding ignored` and `policies[].outcome` were removed or
+rewritten.
