@@ -97,7 +97,7 @@ export const photoHeaderOptionsOf = ({
       leading: [closeItemOf(onClose)],
       title: <PhotoTitle name={name} />,
       glassTitle: true,
-      titleButtons: 2,
+      titleButtons: 3,
       windowWidth,
       posture,
     }),
