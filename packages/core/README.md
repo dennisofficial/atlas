@@ -41,7 +41,7 @@ assembly, settings, ports, and the record folds. It imports `zod` and nothing el
 ### Read the log
 
 - `eventsOfType({events, type})`: the events of one type, narrowed. `openParkedCallsOf(events)`: the calls that still wait for a result.
-- `recoverCall({facts, answer, bootId})`, `RecoverAction`, `RecoverAnswer`: what a new holder does with a call the log holds open — `ack`, `run`, `rerun`, `interrupted` only on a proven boot change, and `wait` when the answer is `unavailable` or no dispatch boot was recorded.
+- `recoverCall({facts, answer, bootId})`, `RecoverAction`, `RecoverAnswer`: what a new holder does with a call the log holds open — `ack`, `run`, `rerun`, `interrupted` only on a proven boot change, and `wait` when the answer is `unavailable` on the call's own boot or no dispatch boot was recorded.
 - `latestResourceOf({events, resource})`: the newest value of a loaded resource.
 - `isDurable(type)`: whether a replay keeps that row. `summaryTargetOf({events, throughSeq})`: the range a summary can cover. `unfinishedCommandIdsOf(events)`, `COMMAND_OUTCOMES`: the consumed commands that still owe an outcome, which a new holder replays; a pane command owes one `command-applied`. `uploadPlacementsOf(facts)`, `placementFactOf({fileId, placement})`, `UPLOAD_PLACEMENT_KIND`: where a file a message carried sits in the sandbox, read from the log as a `fact-recorded` fact keyed `upload:<fileId>` and written back as one. `FactRecord`, `FactDraft`: that fact.
 

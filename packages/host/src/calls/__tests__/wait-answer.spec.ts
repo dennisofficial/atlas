@@ -80,23 +80,24 @@ const laneOf = (args: {
 }
 
 describe('an answer the daemon could not give is a wait', () => {
-  it('holds a call across a pod restart, then settles it with the real result', async () => {
+  it('holds a replay the daemon could not answer, then runs it when the pod answers done', async () => {
     const { lane, sends, settles, pending } = laneOf({
       bootId: 'boot-a',
       answers: ['unavailable', EDaemonAnswer.Done],
     })
-    const started = openCall({ lane, request: { key: KEY, op: EXEC }, dispatchedBootId: 'boot-a' })
+    const started = openCall({
+      lane,
+      request: { key: KEY, op: EXEC },
+      dispatchedBootId: undefined,
+      replayed: true,
+    })
     await tick()
-    expect(sends).toEqual([KEY])
-
-    handleHello(lane, { bootId: 'boot-b', version: 'test' })
-    await tick()
-    expect(settles).toEqual([])
+    expect(sends).toEqual([])
     expect(pending.get(KEY)?.waiting).toBe(true)
 
-    handleHello(lane, { bootId: 'boot-b', version: 'test' })
+    handleHello(lane, { bootId: 'boot-a', version: 'test' })
     await tick()
-    expect(sends).toEqual([KEY, KEY])
+    expect(sends).toEqual([KEY])
     expect(settles).toEqual([])
 
     const call = pending.get(KEY)
@@ -199,34 +200,6 @@ describe('an answer the daemon could not give is a wait', () => {
     expect(pending.size).toBe(0)
   })
 
-  it('ends a call that was sent, then held, when the operator stops the turn', async () => {
-    const { lane, link, cancels, sends, settles, pending } = laneOf({
-      bootId: 'boot-a',
-      answers: ['unavailable'],
-    })
-    const stop = new AbortController()
-    const started = openCall({
-      lane,
-      request: { key: KEY, op: EXEC, signal: stop.signal },
-      dispatchedBootId: 'boot-a',
-    })
-    await tick()
-    expect(sends).toEqual([KEY])
-
-    link.up = false
-    handleHello(lane, { bootId: 'boot-b', version: 'test' })
-    await tick()
-    expect(pending.get(KEY)?.waiting).toBe(true)
-    expect(pending.get(KEY)?.sent).toBe(true)
-
-    stop.abort()
-    const result = await started
-    expect(result.status).toBe(ECallStatus.Failed)
-    expect(settles).toHaveLength(1)
-    expect(pending.size).toBe(0)
-    expect(cancels).toEqual([KEY])
-  })
-
   it('ends a call the operator stopped while it awaited the answer', async () => {
     const answer = deferred()
     const { lane, settles, pending } = laneOf({ bootId: 'boot-a', answers: [answer.promise] })
@@ -251,6 +224,21 @@ describe('an answer the daemon could not give is a wait', () => {
 })
 
 describe('a proven restart still ends the call', () => {
+  it('decides a sent call the log recorded no dispatch boot for', async () => {
+    const { lane, sends, settles } = laneOf({
+      bootId: 'boot-a',
+      answers: [EDaemonAnswer.NeverSeen],
+    })
+    void openCall({ lane, request: { key: KEY, op: EXEC }, dispatchedBootId: undefined })
+    await tick()
+    expect(sends).toEqual([KEY])
+
+    handleHello(lane, { bootId: 'boot-b', version: 'test' })
+    await tick()
+    expect(settles).toHaveLength(1)
+    expect(settles[0]?.status).toBe(ECallStatus.Failed)
+  })
+
   it('interrupts an effectful replay the new boot never saw, and never sends it', async () => {
     const { lane, sends, settles } = laneOf({
       bootId: 'boot-b',

@@ -54,17 +54,22 @@ describe('the recovery table in the design, per call', () => {
     ).toBe('rerun')
   })
 
-  it('an unavailable answer waits: nothing is proven, so nothing is written', () => {
-    for (const bootId of [BOOT, 'boot-b']) {
-      expect(actionOf({ answer: 'unavailable', bootId })).toBe('wait')
-      expect(actionOf({ facts: { readOnly: true }, answer: 'unavailable', bootId })).toBe('wait')
-      expect(
-        actionOf({
-          facts: { resultRecorded: false, dispatchedBootId: undefined },
-          answer: 'unavailable',
-        }),
-      ).toBe('wait')
-    }
+  it('an unavailable answer on the dispatch boot waits: nothing is proven, so nothing is written', () => {
+    expect(actionOf({ answer: 'unavailable' })).toBe('wait')
+    expect(actionOf({ facts: { readOnly: true }, answer: 'unavailable' })).toBe('wait')
+    expect(
+      actionOf({
+        facts: { resultRecorded: false, dispatchedBootId: undefined },
+        answer: 'unavailable',
+      }),
+    ).toBe('wait')
+  })
+
+  it('an unavailable answer on a new boot settles the call across the restart', () => {
+    expect(actionOf({ answer: 'unavailable', bootId: 'boot-b' })).toBe('interrupted')
+    expect(actionOf({ facts: { readOnly: true }, answer: 'unavailable', bootId: 'boot-b' })).toBe(
+      'rerun',
+    )
   })
 
   it('a call with no dispatch boot waits, even when the daemon never saw it', () => {

@@ -80,6 +80,9 @@ export const fakePod = (args: { bootId?: string | undefined } = {}) => {
       daemon.online = false
       handlers?.onClose(1006, 'the pod link fell over')
     },
+    answerNow: (args: { key: string; state: EDaemonAnswer }): void => {
+      deliver({ kind: 'answered', key: args.key, state: args.state })
+    },
     finish: (settled: { key: string; result: CallResult }): void => {
       daemon.running.delete(settled.key)
       deliver({ kind: 'result', key: settled.key, result: settled.result })

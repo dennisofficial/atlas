@@ -10,7 +10,7 @@ export const handleHello = (lane: CallLane, frame: { bootId: string; version: st
   if (previousBootId !== undefined) {
     lane.logged({ restart, flushedAcks, pending: lane.listed().length })
   }
-  if (restart) recoverAcrossRestart(lane)
+  if (restart) recoverAcrossRestart({ lane, previousBootId })
   lane.helloReady({ bootId: frame.bootId, restart })
   for (const call of lane.listed()) {
     if (call.done || call.awaitingAnswer) continue
@@ -25,9 +25,9 @@ export const handleHello = (lane: CallLane, frame: { bootId: string; version: st
   lane.schedulePing()
 }
 
-const recoverAcrossRestart = (lane: CallLane): void => {
-  for (const call of lane.listed()) {
+const recoverAcrossRestart = (args: { lane: CallLane; previousBootId: string }): void => {
+  for (const call of args.lane.listed()) {
     if (call.done || !call.sent) continue
-    void decideCall({ lane, call })
+    void decideCall({ lane: args.lane, call, dispatchedBootId: args.previousBootId })
   }
 }

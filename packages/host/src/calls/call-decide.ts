@@ -2,7 +2,11 @@ import type { CallLane } from './call-open'
 import { actionForAnswer, needsRun } from './errors'
 import { interruptedResult, type Pending } from './remote-calls-frames'
 
-export const decideCall = async (args: { lane: CallLane; call: Pending }): Promise<void> => {
+export const decideCall = async (args: {
+  lane: CallLane
+  call: Pending
+  dispatchedBootId?: string | undefined
+}): Promise<void> => {
   const { lane, call } = args
   if (call.done || call.awaitingAnswer) return
   call.awaitingAnswer = true
@@ -12,7 +16,7 @@ export const decideCall = async (args: { lane: CallLane; call: Pending }): Promi
   if (settleAborted({ lane, call })) return
   const action = actionForAnswer({
     op: call.op.op,
-    dispatchedBootId: call.dispatchBootId,
+    dispatchedBootId: args.dispatchedBootId ?? call.dispatchBootId,
     currentBootId: lane.bootId(),
     answer,
   })

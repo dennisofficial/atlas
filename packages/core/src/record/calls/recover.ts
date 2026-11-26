@@ -35,12 +35,12 @@ export function recoverCall(args: {
   if (facts.resultRecorded) {
     return variant?.recordedRecords === true ? { type: 'record-result' } : { type: 'ack' }
   }
-  if (answer === 'unavailable') return { type: 'wait' }
   if (answer === EDaemonAnswer.Done) {
     return variant?.doneRuns === true ? { type: 'run' } : { type: 'record-result' }
   }
   if (answer === EDaemonAnswer.Running) return { type: 'attach' }
   if (!facts.dispatched || facts.dispatchedBootId === undefined) return { type: 'wait' }
+  if (answer === 'unavailable' && facts.dispatchedBootId === bootId) return { type: 'wait' }
   if (facts.dispatchedBootId === bootId) return { type: 'run' }
   if (facts.readOnly || variant?.rerunAcrossBoot === true) return { type: 'rerun' }
   return { type: 'interrupted' }
