@@ -223,6 +223,7 @@ export class SessionRecord implements AgentRecordPort, ModelContextPort {
     const resolved = new Map<string, unknown>()
     const ackDaemons: DaemonAck[] = []
     for (const raw of args.drafts) {
+      if (raw.type === 'fact-recorded' && this.cache.bookkeeping().fact(raw.key).found) continue
       const draft = await prepareDraft(
         {
           cache: this.cache,

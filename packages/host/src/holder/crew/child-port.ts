@@ -3,8 +3,12 @@ import type { PodCrew, SubagentSaid, SubagentSnapshot } from '@dltech/atlas-plug
 const refusal = (message: string): Error => new Error(message)
 
 export const childPortOf = (args: {
-  say(said: { agentId: string; text: string }): Promise<SubagentSaid | undefined>
-  report(report: { text: string }): Promise<SubagentSnapshot>
+  say(said: {
+    agentId: string
+    text: string
+    clientId?: string | undefined
+  }): Promise<SubagentSaid | undefined>
+  report(report: { text: string; clientId?: string | undefined }): Promise<SubagentSnapshot>
 }): PodCrew => ({
   spawn: async () => {
     throw refusal('a sub-agent cannot spawn sub-agents')
@@ -17,5 +21,5 @@ export const childPortOf = (args: {
     throw refusal('a sub-agent cannot resume other agents')
   },
   list: () => [],
-  report: async ({ text }) => args.report({ text }),
+  report: async (report) => args.report(report),
 })

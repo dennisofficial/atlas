@@ -5,10 +5,26 @@ import type { ControlPlane } from '@dltech/atlas-control'
 import type { PodCrew, SubagentSaid } from '@dltech/atlas-plugin-sdk'
 
 import { FIND_IDS, podMessagesOf } from '../pod-messages'
+import type { PodStepRunner } from '../plugin-context'
 
 const SESSION = 'session-1'
 
-type PeerCall = { fromSessionId: string; toSessionId: string; text: string }
+type PeerCall = {
+  fromSessionId: string
+  toSessionId: string
+  text: string
+  clientId?: string | undefined
+}
+
+const steppedOf = (): PodStepRunner => {
+  let next = 0
+  return {
+    run: async ({ run }) => {
+      next += 1
+      return await run(`step-${next}`)
+    },
+  }
+}
 
 const planeOf = (args: {
   peerRefused?: string | undefined
@@ -61,7 +77,7 @@ const crewOf = (args: {
 })
 
 const sentOf = (args: { said?: SubagentSaid | undefined; peerRefused?: string | undefined }) => {
-  const said: { agentId: string; text: string }[] = []
+  const said: { agentId: string; text: string; clientId?: string | undefined }[] = []
   const reported: string[] = []
   const peer: PeerCall[] = []
   return {
@@ -72,6 +88,7 @@ const sentOf = (args: { said?: SubagentSaid | undefined; peerRefused?: string | 
       sessionId: SESSION,
       crew: crewOf({ said: args.said, calls: said, reported }),
       plane: planeOf({ peerRefused: args.peerRefused, calls: peer }),
+      step: steppedOf(),
     }),
   }
 }
@@ -82,7 +99,7 @@ describe('send_message routing', () => {
     const sent = await rig.messages.send({ to: 'a1', text: 'more' })
 
     expect(sent).toEqual({ delivered: true, to: 'a1', name: 'trace the port', queued: false })
-    expect(rig.said).toEqual([{ agentId: 'a1', text: 'more' }])
+    expect(rig.said).toEqual([{ agentId: 'a1', text: 'more', clientId: 'step-1' }])
     expect(rig.peer).toEqual([])
   })
 
@@ -91,7 +108,9 @@ describe('send_message routing', () => {
     const sent = await rig.messages.send({ to: 'session-2', text: 'hello' })
 
     expect(sent).toEqual({ delivered: true, to: 'session-2', name: 'Lexer rewrite', queued: false })
-    expect(rig.peer).toEqual([{ fromSessionId: SESSION, toSessionId: 'session-2', text: 'hello' }])
+    expect(rig.peer).toEqual([
+      { fromSessionId: SESSION, toSessionId: 'session-2', text: 'hello', clientId: 'step-1' },
+    ])
   })
 
   it('refuses an id that is neither a sub-agent nor a session, keeping the reason and naming how to find ids', async () => {
@@ -132,7 +151,7 @@ describe('send_message routing', () => {
   })
 
   it('turns a session with no spawner into a refusal', async () => {
-    const said: { agentId: string; text: string }[] = []
+    const said: { agentId: string; text: string; clientId?: string | undefined }[] = []
     const messages = podMessagesOf({
       sessionId: SESSION,
       crew: crewOf({ calls: said, reported: [] }),
@@ -140,6 +159,7 @@ describe('send_message routing', () => {
         reportRefused: 'this session was not created by another session, so it has no spawner',
         calls: [],
       }),
+      step: steppedOf(),
     })
     expect(await messages.send({ to: 'parent', text: 'hello' })).toEqual({
       refused: `this session was not created by another session, so it has no spawner. ${FIND_IDS}`,
@@ -149,7 +169,7 @@ describe('send_message routing', () => {
 
 describe('send_message from a sub-agent', () => {
   const childOf = (args: { said?: SubagentSaid | undefined }) => {
-    const said: { agentId: string; text: string }[] = []
+    const said: { agentId: string; text: string; clientId?: string | undefined }[] = []
     const reported: string[] = []
     const peer: PeerCall[] = []
     return {
@@ -161,6 +181,7 @@ describe('send_message from a sub-agent', () => {
         selfAgentId: 'a1',
         crew: crewOf({ said: args.said, calls: said, reported }),
         plane: planeOf({ calls: peer }),
+        step: steppedOf(),
       }),
     }
   }
@@ -184,7 +205,7 @@ describe('send_message from a sub-agent', () => {
       name: 'trace the port',
       queued: true,
     })
-    expect(rig.said).toEqual([{ agentId: 'a2', text: 'take the parser' }])
+    expect(rig.said).toEqual([{ agentId: 'a2', text: 'take the parser', clientId: 'step-1' }])
   })
 
   it('refuses its own sub-agent id', async () => {

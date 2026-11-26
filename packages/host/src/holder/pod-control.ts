@@ -20,6 +20,7 @@ import type {
   PodSubscriptionLease,
   PodSubscriptions,
 } from '@dltech/atlas-plugin-sdk'
+import type { PodStepRunner } from './plugin-context'
 import type {
   Routine,
   RoutineRemoveOutput,
@@ -140,6 +141,7 @@ const subscriptionsOf = (args: {
 export const podControlOf = (args: {
   client: PodControlClient | undefined
   threadId: ThreadId
+  step: PodStepRunner
   mcp?: PodMcpControl | undefined
 }): PodControl => ({
   exposePort: async ({ port }) => {
@@ -181,10 +183,15 @@ export const podControlOf = (args: {
       if (args.client === undefined) throw unreachable()
       return await args.client.memory.write({ threadId: args.threadId, ...write })
     },
-    edit: async (edit) => {
-      if (args.client === undefined) throw unreachable()
-      return await args.client.memory.edit({ threadId: args.threadId, ...edit })
-    },
+    edit: async (edit) =>
+      await args.step.run({
+        op: 'host.memory.edit',
+        input: edit,
+        run: async () => {
+          if (args.client === undefined) throw unreachable()
+          return await args.client.memory.edit({ threadId: args.threadId, ...edit })
+        },
+      }),
     delete: async (address) => {
       if (args.client === undefined) throw unreachable()
       return await args.client.memory.remove({ threadId: args.threadId, ...address })

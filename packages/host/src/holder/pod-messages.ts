@@ -8,13 +8,16 @@ import {
   type PodMessages,
 } from '@dltech/atlas-plugin-sdk'
 
+import type { PodStepRunner } from './plugin-context'
+
 export const FIND_IDS = 'Find ids with agent_list, list_sessions or list_teammates.'
 
 export type PodMessagesSource = {
   sessionId: string
   selfAgentId?: string | undefined
-  crew: PodCrew
+  crew: Pick<PodCrew, 'say' | 'report'>
   plane: Pick<ControlPlane, 'messagePeer' | 'reportToSpawner'>
+  step: PodStepRunner
 }
 
 const refusing = (refused: string): MessageSent => ({
@@ -24,13 +27,18 @@ const refusing = (refused: string): MessageSent => ({
 const parentOf = async (params: {
   source: PodMessagesSource
   text: string
+  clientId: string
 }): Promise<MessageSent> => {
-  const { source, text } = params
+  const { source, text, clientId } = params
   if (source.selfAgentId !== undefined) {
-    await source.crew.report({ text })
+    await source.crew.report({ text, clientId })
     return { delivered: true, to: PARENT_ADDRESS, queued: false }
   }
-  const sent = await source.plane.reportToSpawner({ sessionId: source.sessionId, text })
+  const sent = await source.plane.reportToSpawner({
+    sessionId: source.sessionId,
+    text,
+    clientId,
+  })
   return 'refused' in sent
     ? refusing(sent.refused)
     : { delivered: true, to: PARENT_ADDRESS, queued: false }
@@ -40,9 +48,10 @@ const peerOf = async (params: {
   source: PodMessagesSource
   to: string
   text: string
+  clientId: string
 }): Promise<MessageSent> => {
-  const { source, to, text } = params
-  const said = await source.crew.say({ agentId: to, text })
+  const { source, to, text, clientId } = params
+  const said = await source.crew.say({ agentId: to, text, clientId })
   if (said !== undefined) {
     const name = agentDisplayName({
       agentType: said.snapshot.agentType,
@@ -54,6 +63,7 @@ const peerOf = async (params: {
     fromSessionId: source.sessionId,
     toSessionId: to,
     text,
+    clientId,
   })
   if ('refused' in sent) return refusing(sent.refused)
   return {
@@ -64,23 +74,38 @@ const peerOf = async (params: {
   }
 }
 
+const sendOf = async (params: {
+  source: PodMessagesSource
+  to: string
+  text: string
+  clientId: string
+}): Promise<MessageSent> => {
+  const { source, to } = params
+  if (to === PARENT_ADDRESS) return await parentOf(params)
+  if (to === source.sessionId) return { refused: `that is this session. ${FIND_IDS}` }
+  if (to === source.selfAgentId) return { refused: `that is this sub-agent. ${FIND_IDS}` }
+  return await peerOf(params)
+}
+
 export const podMessagesOf = (source: PodMessagesSource): PodMessages => ({
-  send: async ({ to, text }) => {
-    if (to === PARENT_ADDRESS) return await parentOf({ source, text })
-    if (to === source.sessionId) return { refused: `that is this session. ${FIND_IDS}` }
-    if (to === source.selfAgentId) return { refused: `that is this sub-agent. ${FIND_IDS}` }
-    return await peerOf({ source, to, text })
-  },
+  send: async (input) =>
+    await source.step.run({
+      op: 'host.messages.send',
+      input,
+      run: async (key) => await sendOf({ source, ...input, clientId: key }),
+    }),
 })
 
 export const heldMessagesOf = (args: {
   deps: Pick<HeldSessionDeps, 'sessionId' | 'plane'>
   crew: PodCrew
+  step: PodStepRunner
   selfAgentId?: string | undefined
 }): PodMessages =>
   podMessagesOf({
     sessionId: args.deps.sessionId,
     plane: args.deps.plane,
     crew: args.crew,
+    step: args.step,
     ...(args.selfAgentId === undefined ? {} : { selfAgentId: args.selfAgentId }),
   })

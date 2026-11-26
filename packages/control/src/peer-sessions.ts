@@ -22,6 +22,33 @@ const archivedRefusalOf = (session: ControlSessionRow): string | undefined =>
     ? undefined
     : `session ${session.sessionId} is archived, so it cannot act on a message. The operator can unarchive it.`
 
+const postSpawnBrief = async (params: {
+  tx: ControlTx
+  spawner: ControlSessionRow
+  sessionId: string
+  brief?: string | undefined
+  files: readonly SpawnFile[]
+  clientId?: string | undefined
+  at: string
+}): Promise<{ inboxId: number | null } | PeerRefusal> => {
+  const text = spawnBriefOf({ brief: params.brief, files: params.files })
+  if (text === '') return { inboxId: null }
+  const posted = await postIn({
+    tx: params.tx,
+    sessionId: params.sessionId,
+    kind: INBOX_KIND_MESSAGE,
+    payload: JSON.stringify({
+      text,
+      via: EMessageOrigin.PeerAgent,
+      ...(params.clientId === undefined ? {} : { clientId: params.clientId }),
+      ...(params.files.length === 0 ? {} : { files: params.files }),
+    }),
+    at: params.at,
+    senderSessionId: params.spawner.sessionId,
+  })
+  return { inboxId: posted.inboxId }
+}
+
 export const spawnPeerIn = async (params: {
   tx: ControlTx
   spawner: ControlSessionRow
@@ -32,12 +59,20 @@ export const spawnPeerIn = async (params: {
   brief?: string | undefined
   nested?: boolean | undefined
   files?: readonly SpawnFile[] | undefined
+  clientId?: string | undefined
   at: string
 }): Promise<{ inboxId: number | null } | PeerRefusal> => {
   const { tx, spawner } = params
   const files = params.files ?? []
   const refusal = spawnFilesRefusalOf(files)
   if (refusal !== null) return { refused: refusal }
+  const existing = await tx.lockSession(params.sessionId)
+  if (existing !== undefined && existing.spawnedBySessionId === spawner.sessionId) {
+    return await postSpawnBrief({ ...params, files })
+  }
+  if (existing !== undefined) {
+    return { refused: `the session ${params.sessionId} already exists` }
+  }
   await createSessionIn({
     tx,
     sessionId: params.sessionId,
@@ -50,27 +85,14 @@ export const spawnPeerIn = async (params: {
     nested: params.nested,
     at: params.at,
   })
-  const text = spawnBriefOf({ brief: params.brief, files })
-  if (text === '') return { inboxId: null }
-  const posted = await postIn({
-    tx,
-    sessionId: params.sessionId,
-    kind: INBOX_KIND_MESSAGE,
-    payload: JSON.stringify({
-      text,
-      via: EMessageOrigin.PeerAgent,
-      ...(files.length === 0 ? {} : { files }),
-    }),
-    at: params.at,
-    senderSessionId: spawner.sessionId,
-  })
-  return { inboxId: posted.inboxId }
+  return await postSpawnBrief({ ...params, files })
 }
 
 export const reportToSpawnerIn = async (params: {
   tx: ControlTx
   session: ControlSessionRow
   text: string
+  clientId?: string | undefined
   at: string
 }): Promise<{ inboxId: number } | PeerRefusal> => {
   const spawnerId = params.session.spawnedBySessionId
@@ -100,6 +122,7 @@ export const reportToSpawnerIn = async (params: {
         prose: params.text,
         senderSessionId: params.session.sessionId,
       },
+      ...(params.clientId === undefined ? {} : { clientId: params.clientId }),
     }),
     at: params.at,
     senderSessionId: params.session.sessionId,
@@ -111,6 +134,7 @@ export const messagePeerIn = async (params: {
   from: ControlSessionRow
   toSessionId: string
   text: string
+  clientId?: string | undefined
   at: string
 }): Promise<{ inboxId: number; title: string | null } | PeerRefusal> => {
   const { tx, from } = params
@@ -126,7 +150,11 @@ export const messagePeerIn = async (params: {
     tx,
     sessionId: to.sessionId,
     kind: INBOX_KIND_MESSAGE,
-    payload: JSON.stringify({ text: params.text, via: EMessageOrigin.PeerAgent }),
+    payload: JSON.stringify({
+      text: params.text,
+      via: EMessageOrigin.PeerAgent,
+      ...(params.clientId === undefined ? {} : { clientId: params.clientId }),
+    }),
     at: params.at,
     senderSessionId: from.sessionId,
   })

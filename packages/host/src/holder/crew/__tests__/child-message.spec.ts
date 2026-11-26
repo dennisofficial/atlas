@@ -7,6 +7,7 @@ import type { PodCrew } from '@dltech/atlas-plugin-sdk'
 import { inboxInputOf } from '../child-message'
 import { messagePayloadOf } from '../child-reports'
 import { podMessagesOf } from '../../pod-messages'
+import type { PodStepRunner } from '../../plugin-context'
 
 const FROM = {
   agentId: toThreadId('a1'),
@@ -45,7 +46,7 @@ describe('a message from one sub-agent to a sibling', () => {
   })
 
   it('carries a reply to that address back to the sending sub-agent, not to the main thread', async () => {
-    const said: { agentId: string; text: string }[] = []
+    const said: { agentId: string; text: string; clientId?: string | undefined }[] = []
     const reported: string[] = []
     const plane: Pick<ControlPlane, 'messagePeer' | 'reportToSpawner'> = {
       messagePeer: async () => ({ inboxId: 1, title: null }),
@@ -84,12 +85,19 @@ describe('a message from one sub-agent to a sibling', () => {
         throw new Error('a sibling reply is not a report')
       },
     }
-    const messages = podMessagesOf({ sessionId: 'session-1', selfAgentId: 'a2', crew, plane })
+    const step: PodStepRunner = { run: async ({ run }) => await run('step-1') }
+    const messages = podMessagesOf({
+      sessionId: 'session-1',
+      selfAgentId: 'a2',
+      crew,
+      plane,
+      step,
+    })
 
     const sent = await messages.send({ to: 'a1', text: 'understood' })
 
     expect(sent).toEqual({ delivered: true, to: 'a1', name: 'take the parser', queued: false })
-    expect(said).toEqual([{ agentId: 'a1', text: 'understood' }])
+    expect(said).toEqual([{ agentId: 'a1', text: 'understood', clientId: 'step-1' }])
     expect(reported).toEqual([])
   })
 

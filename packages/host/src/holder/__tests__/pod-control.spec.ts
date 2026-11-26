@@ -16,7 +16,18 @@ import {
 } from '@dltech/atlas-plugin-sdk'
 import { z } from 'zod'
 import { podControlOf, type PodControlClient } from '../pod-control'
+import type { PodStepRunner } from '../plugin-context'
 import { makeRig, seedSession, THREAD, THREAD_ID } from './holder-rig'
+
+const steppedOf = (): PodStepRunner => {
+  let next = 0
+  return {
+    run: async ({ run }) => {
+      next += 1
+      return await run(`step-${next}`)
+    },
+  }
+}
 
 const portArgs = z.strictObject({ port: z.number().int().min(1).max(65_535) })
 
@@ -137,14 +148,14 @@ const recordingClient = (): PodControlClient & { calls: { threadId: string; port
 describe('podControlOf', () => {
   it('calls the client for the holder thread, not a thread of the caller naming', async () => {
     const client = recordingClient()
-    const control = podControlOf({ client, threadId: THREAD_ID })
+    const control = podControlOf({ step: steppedOf(), client, threadId: THREAD_ID })
     const reply = await control.exposePort({ port: 4317 })
     expect(reply).toEqual({ url: 'https://4317-abc.byatlas.dev', tunnelToken: 'tunnel-token' })
     expect(client.calls).toEqual([{ threadId: THREAD, port: 4317 }])
   })
 
   it('rejects with the documented message when the session has no client', async () => {
-    const control = podControlOf({ client: undefined, threadId: THREAD_ID })
+    const control = podControlOf({ step: steppedOf(), client: undefined, threadId: THREAD_ID })
     await expect(control.exposePort({ port: 4317 })).rejects.toThrow(
       'this session cannot reach the control plane',
     )
@@ -152,6 +163,7 @@ describe('podControlOf', () => {
 
   it('wraps a client rejection with the port', async () => {
     const control = podControlOf({
+      step: steppedOf(),
       client: {
         memory: memoryStub,
         routines: routinesStub,
@@ -258,7 +270,7 @@ describe('podControlOf subscriptions', () => {
         },
       },
     }
-    const control = podControlOf({ client, threadId: THREAD_ID })
+    const control = podControlOf({ step: steppedOf(), client, threadId: THREAD_ID })
     await expect(control.subscriptions.list()).resolves.toHaveLength(1)
     const subscribed = await control.subscriptions.subscribe({
       provider: 'github.pull-request',
@@ -279,7 +291,7 @@ describe('podControlOf subscriptions', () => {
   })
 
   it('rejects with the documented message when the session has no client', async () => {
-    const control = podControlOf({ client: undefined, threadId: THREAD_ID })
+    const control = podControlOf({ step: steppedOf(), client: undefined, threadId: THREAD_ID })
     await expect(control.subscriptions.list()).rejects.toThrow(
       'this session cannot reach the control plane',
     )
@@ -296,7 +308,7 @@ describe('podControlOf wiring', () => {
       gateway: { apiKey: async () => undefined, imageModel: async () => undefined },
       exposePort: vi.fn(async () => ({ url: 'u', tunnelToken: 't' })),
     }
-    const control = podControlOf({ client, threadId: toThreadId('thr_holder') })
+    const control = podControlOf({ step: steppedOf(), client, threadId: toThreadId('thr_holder') })
     await control.exposePort({ port: 1 })
     expect(client.exposePort).toHaveBeenCalledWith({ threadId: 'thr_holder', port: 1 })
   })

@@ -5,6 +5,17 @@ import { ControlPlane } from '@dltech/atlas-control'
 import { InMemoryControlStore } from '@dltech/atlas-control/testing'
 
 import { podSessionsOf } from '../plugin-sessions'
+import type { PodStepRunner } from '../plugin-context'
+
+const steppedOf = (): PodStepRunner => {
+  let next = 0
+  return {
+    run: async ({ run }) => {
+      next += 1
+      return await run(`step-${next}`)
+    },
+  }
+}
 
 const T0 = '2026-11-09T10:00:00.000Z'
 const SPAWNER = {
@@ -41,6 +52,7 @@ const rig = async () => {
   return {
     plane,
     sessions: podSessionsOf({
+      step: steppedOf(),
       plane,
       sessionId: SPAWNER.sessionId,
       model: () => TEAMMATE_MODEL,
@@ -72,6 +84,24 @@ describe('podSessionsOf', () => {
     })
   })
 
+  it('replays a spawn under the same step key into the session it already made', async () => {
+    const { plane, sessions } = await rig()
+    const fixed: PodStepRunner = { run: async ({ run }) => await run('call-1.0') }
+    const replayable = () =>
+      podSessionsOf({
+        step: fixed,
+        plane,
+        sessionId: SPAWNER.sessionId,
+        model: () => TEAMMATE_MODEL,
+      })
+    const first = await replayable().spawn({ title: 'the peer', brief: 'read the port' })
+    const second = await replayable().spawn({ title: 'the peer', brief: 'read the port' })
+    expect(second).toEqual(first)
+    const roster = (await sessions.list()).filter((row) => row.spawnedBy === SPAWNER.sessionId)
+    expect(roster.map((row) => row.sessionId)).toEqual([first.sessionId])
+    expect(await inboxOf(plane, first.sessionId)).toHaveLength(1)
+  })
+
   it('creates a teammate on the model the pod resolved for the teammate type', async () => {
     const { plane, sessions } = await rig()
     const spawned = await sessions.spawn({ nested: true })
@@ -85,6 +115,7 @@ describe('podSessionsOf', () => {
     const { plane } = await rig()
     let model = TEAMMATE_MODEL
     const sessions = podSessionsOf({
+      step: steppedOf(),
       plane,
       sessionId: SPAWNER.sessionId,
       model: () => model,
@@ -156,6 +187,7 @@ describe('podSessionsOf', () => {
     const { plane, sessions } = await rig()
     const child = await sessions.spawn({})
     const nested = await podSessionsOf({
+      step: steppedOf(),
       plane,
       sessionId: child.sessionId,
       model: () => TEAMMATE_MODEL,
@@ -197,6 +229,7 @@ describe('podSessionsOf', () => {
     const { plane, sessions } = await rig()
     const peer = await sessions.spawn({})
     const roster = await podSessionsOf({
+      step: steppedOf(),
       plane,
       sessionId: peer.sessionId,
       model: () => TEAMMATE_MODEL,

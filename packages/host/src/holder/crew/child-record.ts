@@ -88,7 +88,7 @@ export const adoptRecordOf = async (spec: RecordArgs): Promise<AdoptRecordResult
     record: opened,
     ids: spec.args.deps.ids,
     threadId: spec.agentId,
-    settleOf: (call) => crashSettleOf({ runtime: spec.args.runtime, record: opened, call }),
+    settleOf: () => crashSettleOf(),
   })
   return { ok: true, record: opened }
 }

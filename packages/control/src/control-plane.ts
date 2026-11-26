@@ -291,6 +291,7 @@ export class ControlPlane {
     brief?: string | undefined
     nested?: boolean | undefined
     files?: readonly SpawnFile[] | undefined
+    clientId?: string | undefined
   }): Promise<{ inboxId: number | null } | { refused: string }> {
     return this.store.transact(async (tx) => {
       const spawner = await tx.readSession({
@@ -312,6 +313,7 @@ export class ControlPlane {
     fromSessionId: string
     toSessionId: string
     text: string
+    clientId?: string | undefined
   }): Promise<{ inboxId: number; title: string | null } | { refused: string }> {
     return this.store.transact(async (tx) => {
       const from = await tx.readSession({ sessionId: params.fromSessionId })
@@ -323,6 +325,7 @@ export class ControlPlane {
   async reportToSpawner(params: {
     sessionId: string
     text: string
+    clientId?: string | undefined
   }): Promise<{ inboxId: number } | { refused: string }> {
     return this.store.transact(async (tx) => {
       const session = await tx.readSession({ sessionId: params.sessionId })
@@ -487,6 +490,12 @@ export class ControlPlane {
         hostId: params.hostId,
         limit: clampLimit(params.limit),
       }),
+    )
+  }
+
+  async threadExists(params: { threadId: string }): Promise<boolean> {
+    return await this.store.transact(
+      async (tx) => (await tx.readThread(params.threadId)) !== undefined,
     )
   }
 

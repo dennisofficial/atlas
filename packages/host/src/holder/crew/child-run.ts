@@ -98,14 +98,16 @@ export class ChildRun {
     })
   }
 
-  static async open(args: ChildRunArgs): Promise<ChildRun> {
+  static async open(args: ChildRunArgs & { agentId?: ThreadId | undefined }): Promise<ChildRun> {
     const run = new ChildRun(
       args,
-      args.deps.ids.nextThreadId(),
+      args.agentId ?? args.deps.ids.nextThreadId(),
       childChoiceOf({ runtime: args.runtime, agentType: args.agentType }),
       new Date(args.deps.timers.now()).toISOString(),
     )
-    await args.deps.plane.createThread({ threadId: run.agentId, sessionId: args.deps.sessionId })
+    if (!(await args.deps.plane.threadExists({ threadId: run.agentId }))) {
+      await args.deps.plane.createThread({ threadId: run.agentId, sessionId: args.deps.sessionId })
+    }
     run.record = await childRecordOf({
       args,
       agentId: run.agentId,
@@ -381,8 +383,11 @@ export class ChildRun {
     await this.posts(() => this.transcript.ended({ draft }))
   }
 
-  private async report(args: { text: string }): Promise<SubagentSnapshot> {
-    await this.posts(() => this.transcript.reported({ text: args.text }))
+  private async report(args: {
+    text: string
+    clientId?: string | undefined
+  }): Promise<SubagentSnapshot> {
+    await this.posts(() => this.transcript.reported(args))
     return this.snapshot()
   }
 }

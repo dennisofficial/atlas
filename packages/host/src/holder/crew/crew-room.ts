@@ -6,6 +6,7 @@ import {
   lostAgentEnding,
   type AgentLost,
   type CrewRoomMember,
+  toThreadId,
   type EventDraft,
   type ThreadId,
 } from '@dltech/atlas-core'
@@ -30,6 +31,8 @@ export type CrewRoomArgs = Omit<
 
 class UnknownChild extends Error {}
 
+const spawnBriefKeyOf = (agentId: ThreadId): string => `spawn-brief:${agentId}`
+
 export class CrewRoom {
   private readonly runs = new Map<ThreadId, ChildRun>()
   private posts: Promise<void> = Promise.resolve()
@@ -42,18 +45,26 @@ export class CrewRoom {
     prompt: string
     group?: string | undefined
     worktree?: WorktreeEntryInfo | undefined
+    agentId?: string | undefined
   }): Promise<SubagentSnapshot> {
+    const agentId = args.agentId === undefined ? undefined : toThreadId(args.agentId)
+    const known = agentId === undefined ? undefined : await this.runOrUndefined(agentId)
+    if (known !== undefined) {
+      await known.say({ text: args.prompt, clientId: spawnBriefKeyOf(known.agentId) })
+      return known.snapshot()
+    }
     const run = await ChildRun.open({
       ...this.childArgs(),
       agentType: args.agentType,
       intent: args.intent,
       groupHold: (draft) => this.holdOf(draft),
       postHold: (post) => this.postInOrder(post),
+      ...(agentId === undefined ? {} : { agentId }),
       ...(args.group === undefined ? {} : { group: args.group }),
       ...(args.worktree === undefined ? {} : { worktree: args.worktree }),
     })
     this.runs.set(run.agentId, run)
-    await run.say({ text: args.prompt })
+    await run.say({ text: args.prompt, clientId: spawnBriefKeyOf(run.agentId) })
     return run.snapshot()
   }
 

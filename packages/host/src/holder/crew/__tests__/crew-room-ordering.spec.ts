@@ -35,6 +35,7 @@ const A = toThreadId('thread-order-a')
 const B = toThreadId('thread-order-b')
 const GROUP = 'call-1'
 const AT = '2026-01-01T00:00:00.000Z'
+const RE_PLAY = toThreadId('thread-replay')
 const FINISHED_A: readonly RecordEventBody[] = [
   { type: 'user-said', text: 'child-a first pass' },
   { type: 'assistant-said', parts: [{ type: 'text', text: 'child-a done' }] },
@@ -295,6 +296,25 @@ describe('two endings posted at once', () => {
       timeoutMs: 2000,
     })
     expect((await endingsOf(plane)).map((ending) => ending.agentId)).toEqual([A, B])
+    await room.stopAll()
+  })
+})
+
+describe('a spawn replayed under the agent id its step key derives', () => {
+  it('returns the sub-agent it already started instead of a second one', async () => {
+    const model = childModelsOf([{ needle: 'child-a', gate: Promise.resolve() }])
+    const { room } = await rigOf({ model, logs: [RESUMABLE_A, RESUMABLE_A] })
+    const spawned = {
+      agentId: RE_PLAY,
+      agentType: 'explore',
+      intent: 'replay',
+      prompt: 'child-a do it',
+    }
+    const first = await room.spawn(spawned)
+    const second = await room.spawn(spawned)
+    expect(first.agentId).toBe(RE_PLAY)
+    expect(second.agentId).toBe(first.agentId)
+    expect(room.list()).toHaveLength(1)
     await room.stopAll()
   })
 })

@@ -165,3 +165,45 @@ describe('SessionRecord daemon acks', () => {
     expect(acked).toEqual(['call-1', 'call-2'])
   })
 })
+
+describe('a fact the log already holds', () => {
+  it('drops a repeated fact-recorded draft and keeps the first value', async () => {
+    const { plane, epoch } = await countedPlane()
+    const record = await openRecord({ plane, epoch })
+
+    await record.append({
+      threadId: THREAD,
+      runId: toRunId('run-1'),
+      drafts: [
+        {
+          type: 'fact-recorded',
+          key: 'effect-result:a.0',
+          kind: 'effect-result',
+          value: { id: 1 },
+        },
+      ],
+    })
+    await record.append({
+      threadId: THREAD,
+      runId: toRunId('run-2'),
+      drafts: [
+        {
+          type: 'fact-recorded',
+          key: 'effect-result:a.0',
+          kind: 'effect-result',
+          value: { id: 2 },
+        },
+        {
+          type: 'fact-recorded',
+          key: 'effect-result:a.1',
+          kind: 'effect-result',
+          value: { id: 3 },
+        },
+      ],
+    })
+
+    const facts = record.eventCache().bookkeeping().factsWithPrefix('effect-result:')
+    expect(facts.map((fact) => fact.key)).toEqual(['effect-result:a.0', 'effect-result:a.1'])
+    expect(facts[0]?.value).toEqual({ id: 1 })
+  })
+})

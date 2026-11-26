@@ -5,6 +5,17 @@ import { ControlPlane } from '@dltech/atlas-control'
 import { InMemoryControlStore } from '@dltech/atlas-control/testing'
 
 import { podSessionsOf } from '../plugin-sessions'
+import type { PodStepRunner } from '../plugin-context'
+
+const steppedOf = (): PodStepRunner => {
+  let next = 0
+  return {
+    run: async ({ run }) => {
+      next += 1
+      return await run(`step-${next}`)
+    },
+  }
+}
 
 const T0 = '2026-11-23T10:00:00.000Z'
 const SPAWNER = { sessionId: 's1', mainThreadId: 't1', userId: 'u1', projectId: 'p1' }
@@ -40,6 +51,7 @@ const rig = async () => {
   await plane.createSession(SPAWNER)
   const parked: string[] = []
   const sessions = podSessionsOf({
+    step: steppedOf(),
     plane,
     sessionId: SPAWNER.sessionId,
     model: () => MODEL,

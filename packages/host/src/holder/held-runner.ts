@@ -76,7 +76,7 @@ export const settleCrashedOf = async (args: {
     record,
     ids: deps.ids,
     threadId,
-    settleOf: (call) => crashSettleOf({ runtime, record, call }),
+    settleOf: () => crashSettleOf(),
   })
 }
 
