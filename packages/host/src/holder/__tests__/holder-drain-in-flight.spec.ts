@@ -2,7 +2,6 @@ import { describe, expect, it } from 'bun:test'
 
 import {
   EFinishReason,
-  EToolEffect,
   ModelPort,
   toCallId,
   type Assembled,
@@ -39,14 +38,6 @@ class GatedTool extends FakeTool {
     })
     return { ok: true, output: 'done', modelText: 'done' }
   }
-}
-
-class EffectfulGatedTool extends GatedTool {
-  readonly effect = EToolEffect.Write
-}
-
-class EffectfulTool extends FakeTool {
-  readonly effect = EToolEffect.Write
 }
 
 class CallThenGateModel extends ModelPort {
@@ -155,7 +146,7 @@ describe('SessionHolder drain with work in flight', () => {
 
   it('leaves the open call to the next host, which settles it exactly once', async () => {
     const model = new ScriptedModel([...script(), { text: 'done' }])
-    const tool = new EffectfulGatedTool()
+    const tool = new GatedTool()
     const a = await makeRig({ model: () => model, hostTools: [tool] })
     await started(a, 'go')
     expect(await flushUntil({ check: () => tool.started })).toBe(true)
@@ -163,7 +154,7 @@ describe('SessionHolder drain with work in flight', () => {
     await a.holder.drain()
     await a.flush()
 
-    const bTool = new EffectfulTool('slow', 'done')
+    const bTool = new FakeTool('slow', 'done')
     const b = await makeRig({
       plane: a.plane,
       store: a.store,
