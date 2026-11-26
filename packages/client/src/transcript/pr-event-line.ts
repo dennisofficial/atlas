@@ -96,6 +96,11 @@ const mergeQueueLine = (event: PrEvent): string => {
   return `${prefix(event)}: merge queue membership changed`
 }
 
+const autoMergeOffLine = (event: PrEvent): string => {
+  const reason = event.reason === undefined ? '' : `, ${event.reason}`
+  return `${prefix(event)}: auto-merge turned off${reason}`
+}
+
 const prefix = (event: PrEvent): string => `PR #${event.prNumber}`
 
 export const prEventLine = (event: PrEvent): string => {
@@ -105,10 +110,12 @@ export const prEventLine = (event: PrEvent): string => {
   if (event.kind === EPrEventKind.Verdict) return verdictLine(event)
   if (event.kind === EPrEventKind.Mergeability) return mergeabilityLine(event)
   if (event.kind === EPrEventKind.MergeQueue) return mergeQueueLine(event)
+  if (event.kind === EPrEventKind.AutoMergeOff) return autoMergeOffLine(event)
   return stateLine(event)
 }
 
 export const prEventFailed = (event: PrEvent): boolean =>
   (event.kind === EPrEventKind.Verdict && event.verdict === EPrVerdict.Failed) ||
   (event.kind === EPrEventKind.Review && event.reviewState === EPrReviewState.ChangesRequested) ||
-  (event.kind === EPrEventKind.Mergeability && event.mergeable === false)
+  (event.kind === EPrEventKind.Mergeability && event.mergeable === false) ||
+  event.kind === EPrEventKind.AutoMergeOff

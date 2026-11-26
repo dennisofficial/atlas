@@ -19,6 +19,7 @@ const PR_EVENT_GROUPS: Readonly<Record<EPrEventKind, string>> = {
   [EPrEventKind.Verdict]: 'ci',
   [EPrEventKind.Mergeability]: 'mergeability',
   [EPrEventKind.MergeQueue]: 'mergeability',
+  [EPrEventKind.AutoMergeOff]: 'mergeability',
   [EPrEventKind.State]: 'state',
 }
 
