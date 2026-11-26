@@ -29,6 +29,7 @@ import { sessionStream } from './session-stream'
 import { handledQuickStopsOf, rememberHandledQuickStops } from './handled-quick-stops'
 import { clientIdOfSend, settlementOf, type StagedSend } from './staged-send'
 import { useSession } from './use-session'
+import { useSessionNameOf } from './use-session-name-of'
 import { useSessionRows } from './use-session-rows'
 import { useThreadView } from './use-thread-view'
 import { useSessionCommands, type SessionCommands } from './use-session-commands'
@@ -81,10 +82,7 @@ export function useSessionScreen(args: {
     () => sessionRows?.find((row) => row.sessionId === sessionId),
     [sessionRows, sessionId],
   )
-  const sessionNameOf = useMemo<SessionNameOf>(
-    () => (sender) => sessionRows?.find((row) => row.sessionId === sender)?.title ?? undefined,
-    [sessionRows],
-  )
+  const sessionNameOf = useSessionNameOf(sessionRows)
   const [notice, setNotice] = useState<string | undefined>(undefined)
   const reportHidden = useCallback((name: string) => setNotice(clientOnlyReason(name)), [setNotice])
   const commands = useSessionCommands({

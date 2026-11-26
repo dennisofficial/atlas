@@ -12,7 +12,7 @@ import {
 import { space } from '@dltech/atlas-ui/tokens'
 import { router, Stack, useFocusEffect, useLocalSearchParams } from 'expo-router'
 import { PanelLeft } from 'lucide-react-native'
-import { useCallback } from 'react'
+import { useCallback, useMemo } from 'react'
 import { Platform, StyleSheet, useWindowDimensions, View } from 'react-native'
 import { EffortSelect, FastToggle } from '../../../composer/model-controls'
 import { ModelSheet } from '../../../composer/model-picker'
@@ -47,6 +47,10 @@ export default function SessionScreen() {
   const attachments = useAttachments()
   const model = session.commands.model
   const { open: drawerOpen, setOpen } = useSessionsDrawer()
+  const transcriptRows = useMemo(
+    () => [...session.rows, ...session.stagedRows],
+    [session.rows, session.stagedRows],
+  )
 
   useFocusEffect(
     useCallback(() => {
@@ -129,7 +133,7 @@ export default function SessionScreen() {
         {session.loaded ? (
           <>
             <Transcript
-              rows={[...session.rows, ...session.stagedRows]}
+              rows={transcriptRows}
               working={session.turnRunning}
               now={session.now}
               boot={session.boot}
