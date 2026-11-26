@@ -3,16 +3,7 @@ import * as Device from 'expo-device'
 import * as Notifications from 'expo-notifications'
 import { Platform } from 'react-native'
 
-export enum EPushSkipReason {
-  NotNative = 'not-native',
-  NotDevice = 'not-device',
-  NoProjectId = 'no-project-id',
-  PermissionDenied = 'permission-denied',
-}
-
-export type TPushTokenResult =
-  | { status: 'ok'; token: string }
-  | { status: 'skipped'; reason: EPushSkipReason }
+import { EPushSkipReason, type TPushTokenResult } from './push-registration'
 
 export const resolveProjectId = (): string | undefined =>
   Constants.expoConfig?.extra?.eas?.projectId ?? Constants.easConfig?.projectId ?? undefined
