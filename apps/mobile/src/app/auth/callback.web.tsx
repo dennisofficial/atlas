@@ -1,11 +1,11 @@
 import * as WebBrowser from 'expo-web-browser'
 import { useEffect, useRef, useState } from 'react'
-import { ActivityIndicator, StyleSheet, Text, View } from 'react-native'
+import { StyleSheet, Text, View } from 'react-native'
 
 import { apiOrigin } from '../../config'
 import { ECallbackResult, parseAuthCallback } from '../../auth/pending-auth'
 import { pendingAuthStorage } from '../../auth/token-store.web'
-import { useTheme } from '@dltech/atlas-ui-native'
+import { useTheme, Spinner } from '@dltech/atlas-ui-native'
 import { createApiClient } from '@dltech/atlas-api-router'
 
 enum ECallbackStatus {
@@ -104,7 +104,7 @@ export default function AuthCallbackScreen() {
         <Text style={{ color: theme.destructive }}>{message}</Text>
       ) : (
         <>
-          <ActivityIndicator color={theme.primary} />
+          <Spinner color={theme.primary} size={20} />
           <Text style={{ color: theme.mutedForeground }}>
             {status === ECallbackStatus.Closing
               ? 'You can close this window.'

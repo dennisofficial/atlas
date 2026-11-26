@@ -1,7 +1,8 @@
 import { space } from '@dltech/atlas-ui/tokens'
 import { CircleCheck } from 'lucide-react-native'
-import { ActivityIndicator, StyleSheet, View } from 'react-native'
+import { StyleSheet, View } from 'react-native'
 
+import { Spinner } from './spinner'
 import { Text } from './text'
 import { ETextRole, ETextTone, RELAXED_LEADING } from './text-style'
 import { ETraceStatus, Step, Trace, TraceLine } from './trace'
@@ -15,7 +16,7 @@ export const Reasoning = ({ text, live = false }: { text: string; live?: boolean
     return (
       <Trace>
         <TraceLine
-          icon={<ActivityIndicator size="small" color={theme.mutedForeground} />}
+          icon={<Spinner color={theme.mutedForeground} />}
           title="Thinking"
           status={ETraceStatus.Running}
         />

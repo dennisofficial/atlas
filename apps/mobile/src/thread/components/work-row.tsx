@@ -1,7 +1,7 @@
 import { EEntryKind } from '@dltech/atlas-client/transcript'
 import { space } from '@dltech/atlas-ui/tokens'
-import { Reasoning, Step, Trace, useTheme } from '@dltech/atlas-ui-native'
-import { ActivityIndicator, StyleSheet, View } from 'react-native'
+import { Reasoning, Step, Trace, useTheme, Spinner } from '@dltech/atlas-ui-native'
+import { StyleSheet, View } from 'react-native'
 
 import type { WorkItem, WorkRow } from '../rows'
 import { ToolRowView } from './tool-row'
@@ -43,9 +43,7 @@ export const WorkRowView = ({
   return (
     <Trace>
       <Step
-        icon={
-          row.running ? <ActivityIndicator size="small" color={theme.mutedForeground} /> : undefined
-        }
+        icon={row.running ? <Spinner color={theme.mutedForeground} /> : undefined}
         title={labelOf(row)}
         description={stepsLabelOf(row.stepCount)}
         autoOpen={row.running}

@@ -1,8 +1,8 @@
-import { ETextRole, ETextTone, Text, useTheme } from '@dltech/atlas-ui-native'
+import { ETextRole, ETextTone, Text, useTheme, Spinner } from '@dltech/atlas-ui-native'
 import { space } from '@dltech/atlas-ui/tokens'
 import { router } from 'expo-router'
 import { useMemo, useState } from 'react'
-import { ActivityIndicator, RefreshControl, SectionList, StyleSheet, View } from 'react-native'
+import { RefreshControl, SectionList, StyleSheet, View } from 'react-native'
 
 import { usePosture } from '../layout/use-posture'
 import { DoneToggle } from './done-toggle'
@@ -28,7 +28,7 @@ const ListStatusView = ({ status, onRetry }: { status: EListStatus; onRetry: () 
   if (status === EListStatus.Loading) {
     return (
       <View style={styles.status}>
-        <ActivityIndicator color={theme.primary} />
+        <Spinner color={theme.primary} size={20} />
       </View>
     )
   }

@@ -8,18 +8,13 @@ import {
   useIsDark,
   useTheme,
   withAlpha,
+  Spinner,
 } from '@dltech/atlas-ui-native'
 import { radius, space } from '@dltech/atlas-ui/tokens'
 import { router } from 'expo-router'
 import { Maximize2 } from 'lucide-react-native'
 import { useCallback, useReducer, useState } from 'react'
-import {
-  ActivityIndicator,
-  type LayoutChangeEvent,
-  Pressable,
-  StyleSheet,
-  View,
-} from 'react-native'
+import { type LayoutChangeEvent, Pressable, StyleSheet, View } from 'react-native'
 
 import {
   cacheDiagramHeight,
@@ -139,7 +134,7 @@ const DiagramCardView = ({ source, closed }: IDiagramCardProps) => {
         ) : null}
         {state.size === undefined ? (
           <View pointerEvents="none" style={styles.loading}>
-            <ActivityIndicator color={theme.mutedForeground} />
+            <Spinner color={theme.mutedForeground} size={20} />
           </View>
         ) : null}
         {clamped ? (

@@ -16,6 +16,7 @@ import {
   Text,
   Trace,
   useTheme,
+  Spinner,
 } from '@dltech/atlas-ui-native'
 import {
   Bot,
@@ -28,7 +29,7 @@ import {
   Terminal,
   Wrench,
 } from 'lucide-react-native'
-import { ActivityIndicator, ScrollView, StyleSheet } from 'react-native'
+import { ScrollView, StyleSheet } from 'react-native'
 
 import { McpServerMark } from './mcp-server-mark'
 import { AgentOpenLink } from './agent-open-link'
@@ -90,7 +91,7 @@ export const ToolRowView = ({
   const handleOpenAgent =
     agentId === undefined || onOpenAgent === undefined ? undefined : () => onOpenAgent(agentId)
   const icon = isOpen(call) ? (
-    <ActivityIndicator size="small" color={theme.mutedForeground} />
+    <Spinner color={theme.mutedForeground} />
   ) : mcp !== undefined ? (
     <McpServerMark server={mcp.server} />
   ) : (
