@@ -76,37 +76,41 @@ A `PodSlot` declares:
 `ctx` is a `PluginPodContext`. It gives `sessionId`, `workspaceDirectory`, `env()`, `append(drafts)`,
 `notify(event, {key})`, `events()`, `call(op)`, `live(frame)`, `onDaemonEvent(listener)`, `log`, and
 the capabilities `control`, `crew`, `messages`, `classifier`, `analytics`, `sessions`, `worktrees`,
-`resources`. `ctx.analytics.capture({event, properties, links})` sends one product event for the
-session's user. The host adds `session_id` and `thread_id`, or with `links: EAnalyticsLinks.Hashed`
-the hashes `session_hash` and `thread_hash`.
+`resources`. `ctx.analytics.capture({event, properties, links})` sends one product event with
+`session_id` and `thread_id` added, or with `links: EAnalyticsLinks.Hashed` the hashed pair.
 `ctx.crew` is a `PodCrew`: `spawn` with a `group` wakes the parent once, after every member ends,
 `report({text})` answers the parent, and `say`, `stop`, `list` and `resume` act on one sub-agent.
 `ctx.control` is a `PodControl`: `exposePort({port})`, `settingsVersions()`, `memory`,
 `gateway` (`apiKey()`, `imageModel()`), `mcp`, `routines`, `subscriptions`.
 
+A handoff may run a tool body again, so a port that changes something names it first.
+`crew.spawn`, `sessions.spawn`, `messages.send`, `routines.*` and `memory.edit` key it by the step
+key; `sessions.archive`, memory writes and deletes, `exposePort`, `subscriptions`, worktrees by
+path, `notify` by its key and a `fact-recorded` draft are keyed by address or name. `mcp`,
+`analytics`, `placeContextFiles`, `prepare` and any other draft run again on every replay.
+
 ### The control and client slots
 
 `ControlSlot` holds `hooks` and `commands` (a map of control command handlers). An append hook runs
-inside the append transaction. It receives a stamped `RecordEvent` and returns `Promise<void>`, so it
-adds a transactional side effect. It cannot rewrite the event. `ClientSlot` holds `hooks` with a
-`name` and an `appliesTo(event)` predicate, and optional `entryFolds`.
+inside the append transaction with a stamped `RecordEvent`, adds a transactional side effect, and
+cannot rewrite the event. `ClientSlot` holds `hooks` with a `name` and an `appliesTo(event)`
+predicate, and optional `entryFolds`.
 
 ### Load a resource
 
 A `PodResource<T>` needs a `name`, a `schema` and a `load({ctx, directory, signal})`. Five members are
-optional: `watch(directory)` gives the roots and basenames to watch, `announce(value, ctx)` returns
+optional: `watch(directory)` names the roots and basenames to watch, `announce(value, ctx)` returns
 the events to append, `stale(value)` says if the value is out of date, `background` starts the load
-without blocking the step, and `cloud` names the settings it follows. To follow a cloud setting, set
+without blocking the step, and `cloud` names the settings it follows. Follow a cloud setting with
 `cloud: [ECloudSetting.McpServers]`, `ECloudSetting.Skills` or `ECloudSetting.PersonalInstructions`,
-and compare `ctx.control.settingsVersions()` with `UNVERSIONED_SETTINGS`. Read the value with
-`readResource({ctx, resource})`, and reload it with `ctx.resources.reload(name)`.
+comparing `ctx.control.settingsVersions()` with `UNVERSIONED_SETTINGS`. Read the value with
+`readResource({ctx, resource})` and reload it with `ctx.resources.reload(name)`.
 
 ## Capabilities
 
 - `definePlugin({name, ...slots})`, `Plugin`, `PluginSlots`: validate the slots and freeze them.
 - `composePlugins(plugins)`: the `ComposedPlugins`. Two plugins may not register the same tool,
-  prompt fragment, resource or command name. Collect `entryFolds` yourself, as
-  `apps/web/src/features/sessions/registered-plugins.ts` does.
+  prompt fragment, resource or command name. Collect `entryFolds` yourself, as the web registry does.
 - `composePod(pods)`, `composePodCommands({factories, ctx})`: the merged pod slot and pod commands.
 - `eventSchemaOf(plugins)`, `eventTypesOf(plugins)`: the decoder and the type list for a session.
 - `crossLatch({ctx, name, level, mayFire})`: fire a level-triggered latch once, and record it.
