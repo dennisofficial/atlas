@@ -133,14 +133,18 @@ function AgentPanelBody({
   const { sessionId, status } = useSessionPaneValue()
   const panel = useThreadPanel()
   const { snapshot, loadOlder } = useAgentStream({ sessionId, agentId })
-  const transcript = sessionTranscriptOf({ events: snapshot.events, overlay: snapshot.overlay })
+  const transcript = sessionTranscriptOf({
+    events: snapshot.events,
+    foldable: snapshot.foldable,
+    overlay: snapshot.overlay,
+  })
   const { items: transcriptItems, repairDiagram } = useDiagramRepairedTranscript({
     sessionId,
     items: transcript.items,
   })
   const state = agentPanelStateOf(snapshot)
   const resume = useMemo(() => {
-    if (!resumableOf(resumePointOf({ events: snapshot.events }))) return null
+    if (!resumableOf(resumePointOf({ events: snapshot.foldable }))) return null
     return {
       pending: resumePendingOf(status?.commands),
       onResume: () => {
@@ -149,7 +153,7 @@ function AgentPanelBody({
         })
       },
     }
-  }, [snapshot.events, status?.commands, sessionId, agentId])
+  }, [snapshot.foldable, status?.commands, sessionId, agentId])
   const nestedPanel = useMemo<ThreadPanelValue>(
     () => ({
       ...panel,

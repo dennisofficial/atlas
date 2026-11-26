@@ -1,10 +1,12 @@
+import { memo } from 'react'
+
 import { ERowKind, type SessionNameOf, type ThreadRow } from '../rows'
 import type { AgentLinks } from '../session/agent-links'
 import { MessageRowView } from './message-row'
 import { NoticeRowView } from './notice-row'
 import { WorkRowView } from './work-row'
 
-export const ThreadRowView = ({
+const ThreadRowContent = ({
   row,
   threadId,
   sessionId,
@@ -41,3 +43,5 @@ export const ThreadRowView = ({
     ) : null}
   </>
 )
+
+export const ThreadRowView = memo(ThreadRowContent)

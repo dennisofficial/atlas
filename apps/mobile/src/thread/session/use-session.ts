@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef, useState, useSyncExternalStore } from 'react'
+import { useCallback, useLayoutEffect, useRef, useState, useSyncExternalStore } from 'react'
 
 import type { ApiClient } from '@dltech/atlas-api-router'
 import {
@@ -41,7 +41,7 @@ export function useSession(args: {
 
   const { sessionId, threadId, api } = args
 
-  useEffect(() => {
+  useLayoutEffect(() => {
     if (api === undefined) return undefined
     const log = threadId === undefined ? sessionLog() : memorySessionLog()
     const session = sessionStream(api).follow({ sessionId, threadId, log })

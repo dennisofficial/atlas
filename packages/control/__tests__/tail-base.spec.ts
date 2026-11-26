@@ -4,11 +4,13 @@ import {
   chainEvents,
   chainHash,
   ECompactionAnchor,
+  ERunFailureKind,
   ETurnCause,
   GENESIS_HASH,
   initialSessionViewState,
   isCommandLogEvent,
-  isDurable,
+  isRetained,
+  retainedOf,
   isSurviving,
   isVisible,
   toRunId,
@@ -44,7 +46,9 @@ const bodiesOf = (): RecordEventBody[] => [
   ...Array.from({ length: 28 }, (_, n) => said(`n${n}`)),
 ]
 
-const worldOf = async (): Promise<{ plane: ControlPlane; events: RecordEvent[] }> => {
+const worldOf = async (
+  bodies: RecordEventBody[] = bodiesOf(),
+): Promise<{ plane: ControlPlane; events: RecordEvent[] }> => {
   const store = new InMemoryControlStore({ clock: () => AT })
   const plane = new ControlPlane({ store, clock: () => AT })
   await plane.createSession({
@@ -54,7 +58,6 @@ const worldOf = async (): Promise<{ plane: ControlPlane; events: RecordEvent[] }
     mainThreadId: THREAD,
   })
   const lease = await plane.grant({ sessionId: SESSION, hostId: 1 })
-  const bodies = bodiesOf()
   const events: RecordEvent[] = []
   let head: LogHead = { seq: 0, hash: GENESIS_HASH }
   for (let start = 0; start < bodies.length; start += 10) {
@@ -104,9 +107,12 @@ describe('readTailBase', () => {
     expect(base?.view.checkouts).toEqual(folded.checkouts)
     expect(base?.view.failure).toEqual(folded.failure)
     expect(base?.durable.map((event) => event.seq)).toEqual(
-      seqsBefore({ events, matches: (event) => isDurable(event.type) }),
+      retainedOf({
+        events: events.filter((event) => isRetained(event.type) && event.seq < 41),
+        before: 41,
+      }).map((event) => event.seq),
     )
-    expect(base?.durable.map((event) => event.seq)).toEqual([1])
+    expect(base?.durable.map((event) => event.seq)).toEqual([1, 31])
     expect(base?.commandLog.map((event) => event.seq)).toEqual(
       seqsBefore({ events, matches: isCommandLogEvent }),
     )
@@ -115,6 +121,29 @@ describe('readTailBase', () => {
     expect(isVisible(visibility, events[4] as RecordEvent)).toBe(false)
     expect(isSurviving(visibility, events[24] as RecordEvent)).toBe(false)
     expect(isVisible(visibility, events[50] as RecordEvent)).toBe(true)
+  })
+
+  test('drops a run failure a later message superseded before the tail', async () => {
+    const runFailed: RecordEventBody = {
+      type: 'run-failed',
+      failure: { kind: ERunFailureKind.Auth, message: 'signed out' },
+    }
+    const { plane } = await worldOf([
+      { type: 'turn-started', turnId: 'turn-1', cause: ETurnCause.Input },
+      runFailed,
+      ...Array.from({ length: 36 }, (_, n) => said(`m${n}`)),
+      runFailed,
+      { type: 'input-refused', inboxId: 1, reason: 'no' },
+      ...Array.from({ length: 20 }, (_, n) => said(`n${n}`)),
+    ])
+
+    const base = await plane.readTailBase({
+      sessionId: SESSION,
+      threadId: THREAD,
+      tailFrom: TAIL_FROM,
+    })
+
+    expect(base?.durable.map((event) => event.seq)).toEqual([1, 39, 40])
   })
 
   test('refuses a base at the start of the log', async () => {

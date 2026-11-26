@@ -4,7 +4,7 @@ import {
   initialSessionViewState,
   SESSION_VIEW_VERSION,
   isCommandLogEvent,
-  isDurable,
+  retainedOf,
   visibleWithin,
   needsRebuild,
   rebuildEditSensitive,
@@ -73,7 +73,10 @@ export const restoredWindowOf = async (args: {
   const folded = gap.reduce((state, event) => stepSessionViewWith({ state, views, event }), base)
   const tail = await log.readTail({ sessionId, count: renderLimit }).catch(() => [])
   const events = visibleWithin({ state: visibility, events: tail }).slice(-renderLimit)
-  const durable = [...(saved.durable ?? []), ...gap.filter((event) => isDurable(event.type))]
+  const durable = retainedOf({
+    events: [...(saved.durable ?? []), ...gap, ...tail],
+    before: events[0]?.seq ?? Number.POSITIVE_INFINITY,
+  })
   const foldable = foldableOf({ visible: events, durable })
   const view =
     gap.some(needsRebuild) && events.length > 0

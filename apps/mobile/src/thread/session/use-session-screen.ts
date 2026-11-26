@@ -19,13 +19,14 @@ import type { SessionNameOf, ThreadRow } from '../rows'
 import { agentLinksOf, type AgentLinks } from './agent-links'
 import type { ContextMeter } from '../composer/context-reading'
 import { queuedDockOf, type QueuedDockState } from './queued-dock'
-import { stagedRowsOf, viewOf, type ThreadView } from './rows'
+import { stagedRowsOf, type ThreadView } from './rows'
 import { sessionHeaderOf, type SessionHeader } from './session-header'
 import { sessionStream } from './session-stream'
 import { handledQuickStopsOf, rememberHandledQuickStops } from './handled-quick-stops'
 import { clientIdOfSend, settlementOf, type StagedSend } from './staged-send'
 import { useSession } from './use-session'
 import { useSessionRows } from './use-session-rows'
+import { useThreadView } from './use-thread-view'
 import { useSessionCommands, type SessionCommands } from './use-session-commands'
 import { useOperatorRequest, type OperatorRequestControl } from './use-operator-request'
 import { useQueuedWithdraw } from './use-queued-withdraw'
@@ -87,9 +88,9 @@ export function useSessionScreen(args: {
     events: snapshot.foldable,
     reportHidden,
   })
-  const operator = useOperatorRequest({ api, sessionId, events: snapshot.events })
+  const operator = useOperatorRequest({ api, sessionId, events: snapshot.foldable })
   const [now, setNow] = useState(() => Date.now())
-  const view = useMemo(() => viewOf({ snapshot, now }), [snapshot, now])
+  const view = useThreadView({ snapshot, now })
   const blocking = useMemo(() => blockingCommandOf(snapshot.status), [snapshot.status])
   const [staged, setStaged] = useState<readonly StagedSend[]>([])
   const agentLinks = useMemo(() => agentLinksOf({ events: snapshot.events }), [snapshot.events])

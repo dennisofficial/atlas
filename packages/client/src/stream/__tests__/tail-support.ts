@@ -2,7 +2,8 @@ import {
   chainHash,
   ETurnCause,
   isCommandLogEvent,
-  isDurable,
+  isRetained,
+  retainedOf,
   type RecordEventBody,
   type RecordEvent,
 } from '@dltech/atlas-core'
@@ -50,9 +51,10 @@ export const tailBaseMessageOf = (args: {
   cursor: { seq: args.tailFrom - 1, hash: chainHash(args.all[args.tailFrom - 2] as RecordEvent) },
   visibility: plain(args.full.visibility),
   view: plain(args.full.view),
-  durable: args.all
-    .filter((event) => event.seq < args.tailFrom && isDurable(event.type))
-    .map(plain),
+  durable: retainedOf({
+    events: args.all.filter((event) => event.seq < args.tailFrom && isRetained(event.type)),
+    before: args.tailFrom,
+  }).map(plain),
   commandLog: args.all
     .filter((event) => event.seq < args.tailFrom && isCommandLogEvent(event))
     .map(plain),

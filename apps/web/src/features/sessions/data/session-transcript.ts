@@ -15,7 +15,7 @@ import {
 import { sessionEntryFolds, sessionEventTypes } from '../registered-plugins'
 
 export const sessionTranscriptOf = (
-  snapshot: Pick<SessionSnapshot, 'events' | 'overlay'> & {
+  snapshot: Pick<SessionSnapshot, 'events' | 'foldable' | 'overlay'> & {
     reveal?: RevealGate | null
     sessionNameOf?: SessionNameOf | undefined
   },
@@ -27,7 +27,7 @@ export const sessionTranscriptOf = (
     }),
     live: overlayStepOf(snapshot.overlay),
     thinking: EThinkingVisibility.Keep,
-    resume: resumePointOf({ events: snapshot.events }),
+    resume: resumePointOf({ events: snapshot.foldable }),
     ...(snapshot.reveal === undefined ? {} : { reveal: snapshot.reveal }),
     ...(snapshot.sessionNameOf === undefined ? {} : { sessionNameOf: snapshot.sessionNameOf }),
   })

@@ -9,7 +9,7 @@ import type {
 import type { QuickStopState } from '../session/quick-stop-state'
 import type { SessionCursor } from './session-window'
 
-export const SESSION_LOG_STRUCTURE_VERSION = 5
+export const SESSION_LOG_STRUCTURE_VERSION = 6
 
 export type SessionLogSnapshot = {
   version: number

@@ -1,5 +1,6 @@
 import {
   foldableOf,
+  retainedOf,
   SESSION_VIEW_VERSION,
   recordEventSchema,
   type RecordEvent,
@@ -31,7 +32,10 @@ export const windowOfBase = (args: {
   if (!isVisibility(message.visibility)) return undefined
   if (!isView(message.view) || message.view.version !== SESSION_VIEW_VERSION) return undefined
   const eventSchema = args.eventSchema ?? recordEventSchema
-  const durable = readableEventsOf({ raw: message.durable, eventSchema })
+  const durable = retainedOf({
+    events: readableEventsOf({ raw: message.durable, eventSchema }),
+    before: message.cursor.seq + 1,
+  })
   return {
     events: [],
     visibility: message.visibility,

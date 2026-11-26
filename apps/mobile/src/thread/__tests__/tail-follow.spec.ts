@@ -7,6 +7,7 @@ import {
   FOLLOWING_TAIL,
   followsTailAfterUserScroll,
   NEAR_BOTTOM_PX,
+  pinOffsetOf,
   tailFollowAfter,
   type TTailFollow,
 } from '../tail-follow'
@@ -106,5 +107,21 @@ describe('tailFollowAfter', () => {
     expect(
       tailFollowAfter({ state: stopped, signal: EScrollSignal.EndMomentum, metrics: AT_END }),
     ).toEqual(stopped)
+  })
+})
+
+describe('pinning the transcript to its tail', () => {
+  it('scrolls to the exact bottom of the measured content', () => {
+    expect(pinOffsetOf({ offset: 700, contentHeight: 2000, viewportHeight: 800 })).toBe(1200)
+  })
+
+  it('leaves a transcript that already sits at its bottom alone', () => {
+    expect(
+      pinOffsetOf({ offset: 1200.4, contentHeight: 2000, viewportHeight: 800 }),
+    ).toBeUndefined()
+  })
+
+  it('stays at the top while the content is shorter than the viewport', () => {
+    expect(pinOffsetOf({ offset: 0, contentHeight: 500, viewportHeight: 800 })).toBeUndefined()
   })
 })

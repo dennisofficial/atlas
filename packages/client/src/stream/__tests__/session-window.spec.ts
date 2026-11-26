@@ -175,7 +175,7 @@ describe('applyPage', () => {
     expect(window.view.facts.setupRun).toBeNull()
   })
 
-  it('keeps only the last 3,000 visible events', () => {
+  it('keeps only the last 200 visible events', () => {
     const events = mintUserEvents({ count: RENDER_LIMIT + 50 })
     const window = applyPage({ window: EMPTY_WINDOW, page: page(events) })
     expect(window.events).toHaveLength(RENDER_LIMIT)
