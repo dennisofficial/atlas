@@ -1,6 +1,6 @@
-import type { ComponentProps } from 'react'
-import { EffortSelect, FastToggle } from '../../composer/model-controls'
-import { ModelTrigger } from '../../composer/model-trigger'
+import { EffortSelect } from '../../composer/effort-select'
+import { FastToggle } from '../../composer/model-controls'
+import { ModelMenu } from '../../composer/model-menu'
 import type { SessionModelSheet } from './use-session-model-choice'
 
 export const SessionModelControls = ({
@@ -8,7 +8,7 @@ export const SessionModelControls = ({
   onOpenModel,
 }: {
   model: SessionModelSheet
-  onOpenModel: ComponentProps<typeof ModelTrigger>['onPress']
+  onOpenModel: () => void
 }) => {
   const { selection } = model
 
@@ -24,11 +24,13 @@ export const SessionModelControls = ({
 
   return (
     <>
-      <ModelTrigger
+      <ModelMenu
         models={model.models}
         selection={selection}
         pinnedRef={model.pinnedRef}
-        onPress={onOpenModel}
+        pinned={model.pinned}
+        onSelect={model.onSelect}
+        onOpenAll={onOpenModel}
       />
       {selection === null || selection.model.efforts.length === 0 ? null : (
         <EffortSelect selection={selection} onChange={handleEffort} />

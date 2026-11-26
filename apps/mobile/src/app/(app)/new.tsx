@@ -10,7 +10,8 @@ import { z } from 'zod'
 
 import { useAuth } from '../../auth/auth-provider'
 import { createSession } from '../../composer/create-session'
-import { EffortSelect, FastToggle } from '../../composer/model-controls'
+import { EffortSelect } from '../../composer/effort-select'
+import { FastToggle } from '../../composer/model-controls'
 import {
   defaultModelIdOf,
   effortChoicesOf,

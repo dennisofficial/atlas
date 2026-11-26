@@ -3,7 +3,7 @@ import { space } from '@dltech/atlas-ui/tokens'
 import { StyleSheet, Switch, View } from 'react-native'
 import { z } from 'zod'
 
-import { EffortSelect } from '../composer/model-controls'
+import { EffortSelect } from '../composer/effort-select'
 import { type IModelSelection, selectionOf } from '../composer/model-options'
 import { ModelSelect } from '../composer/model-picker'
 import { useModels } from '../composer/use-models'
