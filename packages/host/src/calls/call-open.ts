@@ -2,6 +2,7 @@ import type { CallOp, CallResult } from '@dltech/atlas-protocol'
 
 import type { Answers } from './answers'
 import { abandonCall, attachCallSignal } from './call-signal'
+import { scopeDetachOnHandoff } from './call-scope'
 import { actionForAnswer, callLostAcrossBoot, needsRun } from './errors'
 import type { ReadyReply } from './ready-gate'
 import { interruptedResult, type Pending, type Waiter } from './remote-calls-frames'
@@ -69,7 +70,7 @@ export const openCall = async (args: {
     armed: false,
     done: false,
     awaitingAnswer: false,
-    ...(request.detachOnHandoff === undefined ? {} : { detachOnHandoff: request.detachOnHandoff }),
+    detachOnHandoff: request.detachOnHandoff ?? scopeDetachOnHandoff(),
   }
   if (!lane.detached()) call.waiters.push(waiter)
   lane.pending.set(request.key, call)

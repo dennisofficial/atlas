@@ -5,7 +5,7 @@ import type { CallResult, DaemonFrame } from '@dltech/atlas-protocol'
 
 import { Answers } from './answers'
 import { openCall, type CallLane, type OpenCallArgs } from './call-open'
-import { scopeDetachOnHandoff, scopeDispatchedBootId } from './call-scope'
+import { scopeDispatchedBootId } from './call-scope'
 import { FencedError, ProtocolViolationError, type DaemonAnswer } from './errors'
 import { handleHello } from './hello-reply'
 import { DaemonLink } from './link'
@@ -188,11 +188,7 @@ export class RemoteCallsState {
     if (this.closed) {
       throw new FencedError(`session ${this.args.sessionId} closed its daemon link`)
     }
-    const request: OpenCallArgs = {
-      ...args,
-      detachOnHandoff: args.detachOnHandoff ?? scopeDetachOnHandoff(),
-    }
-    return await openCall({ lane: this.lane, request, dispatchedBootId })
+    return await openCall({ lane: this.lane, request: args, dispatchedBootId })
   }
 
   ack(args: { key: string }): Promise<void> {
