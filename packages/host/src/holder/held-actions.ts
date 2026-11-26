@@ -15,6 +15,8 @@ import { startHeldTurn } from './held-turns'
 import { isResizeEntry } from './held-inbox'
 import { handleResizeEntries, reconcileResizeGate } from './held-resize'
 import { ETakeoverLap, type TakeOverFirstStep } from './held-takeover'
+
+type FirstStepWaiting = Omit<TakeOverFirstStep, 'action'>
 import { consumeStops } from './held-wait'
 import { settleOperatorOnStop } from './operator-stop'
 import { closeOpenTurn } from './orphan-turn'
@@ -83,7 +85,7 @@ export class HeldActions {
     })
     this.shellsOwedSince = snapshot.shellsOwedSince
     const { entries, action, resumable, inboxHead, failure, preparedBefore, queuedAt } = snapshot
-    const { promptWaiting } = snapshot
+    const waiting = { promptWaiting: snapshot.promptWaiting, preparedBefore, queuedAt }
     reconcileResizeGate({ record: this.args.record(), runtime: this.args.runtime() })
     if (
       await handleResizeEntries({
@@ -117,7 +119,7 @@ export class HeldActions {
         return
       }
       case EHeldAction.Prepare: {
-        this.prepare({ threadId: args.threadId, inboxHead, promptWaiting, preparedBefore })
+        this.prepare({ threadId: args.threadId, inboxHead, waiting })
         return
       }
       case EHeldAction.StartTurn: {
@@ -127,10 +129,8 @@ export class HeldActions {
           entries,
           lap: args.lap,
           resumable,
-          preparedBefore,
-          promptWaiting,
+          waiting,
           inboxHead,
-          queuedAt,
         })
         return
       }
@@ -188,24 +188,19 @@ export class HeldActions {
   private prepare(args: {
     threadId: ThreadId
     inboxHead: number
-    promptWaiting: boolean
-    preparedBefore: boolean
+    waiting: FirstStepWaiting
   }): void {
     const runtime = this.args.runtime()
     const record = this.args.record()
     if (runtime === undefined || record === undefined) return
-    this.args.takeOverFirstStep({
-      action: EFirstAction.Prepare,
-      promptWaiting: args.promptWaiting,
-      preparedBefore: args.preparedBefore,
-    })
+    this.args.takeOverFirstStep({ action: EFirstAction.Prepare, ...args.waiting })
     const started = !this.args.prepare.running
     this.args.prepare.start({
       runtime,
       record,
       threadId: args.threadId,
       inboxHead: args.inboxHead,
-      promptWaiting: args.promptWaiting,
+      promptWaiting: args.waiting.promptWaiting,
     })
     if (started && this.args.prepare.running) this.args.request()
   }
@@ -216,10 +211,8 @@ export class HeldActions {
     entries: readonly InboxEntry[]
     lap: Lapped
     resumable: boolean
-    preparedBefore: boolean
-    promptWaiting: boolean
+    waiting: FirstStepWaiting
     inboxHead: number
-    queuedAt: string | undefined
   }): Promise<void> {
     const { deps, ending, turns } = this.args
     if (this.args.draining() || ending.outcome !== undefined) return
@@ -239,13 +232,9 @@ export class HeldActions {
       ending.finish(EHeldOutcome.Idle)
       return
     }
-    this.args.takeOverFirstStep({
-      action: EFirstAction.Turn,
-      promptWaiting: args.promptWaiting,
-      preparedBefore: args.preparedBefore,
-    })
+    this.args.takeOverFirstStep({ action: EFirstAction.Turn, ...args.waiting })
     this.resumeAfterSeq = record.eventCache().currentHead().seq ?? this.resumeAfterSeq
-    if (args.preparedBefore) this.retryWake()
+    if (args.waiting.preparedBefore) this.retryWake()
     startHeldTurn({
       deps,
       turns,
@@ -254,7 +243,7 @@ export class HeldActions {
       runner: args.runner,
       threadId: args.threadId,
       resume: args.resumable,
-      queuedAt: args.queuedAt,
+      queuedAt: args.waiting.queuedAt,
       refreshBranches: () => {
         if (this.args.draining() || ending.outcome !== undefined) return
         this.args.observation()?.refreshBranches()
