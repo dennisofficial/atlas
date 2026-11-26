@@ -3,20 +3,22 @@ import { space } from '@dltech/atlas-ui/tokens'
 import { router, useLocalSearchParams } from 'expo-router'
 import { Share2, X } from 'lucide-react-native'
 import { useCallback } from 'react'
-import { Alert, StyleSheet, View } from 'react-native'
+import { Alert, StyleSheet, useWindowDimensions, View } from 'react-native'
+import { SafeAreaProvider, useSafeAreaInsets } from 'react-native-safe-area-context'
 
-import { contentInsetsOf } from '../../layout/posture'
-import { usePosture, useWindowInsets } from '../../layout/use-posture'
+import { contentInsetsOf, postureOf } from '../../layout/posture'
 import { PhotoActionButton } from '../../thread/photos/photo-action-button'
 import { photoOf } from '../../thread/photos/photo-store'
 import { PhotoTitle } from '../../thread/photos/photo-title'
 import { sharePhoto } from '../../thread/photos/share-photo'
 import { ZoomablePhoto } from '../../thread/photos/zoomable-photo'
 
-export default function PhotoScreen() {
+const PhotoViewer = () => {
   const theme = useTheme()
-  const posture = usePosture()
-  const insets = contentInsetsOf({ insets: useWindowInsets(), posture })
+  const { width, height } = useWindowDimensions()
+  const windowInsets = useSafeAreaInsets()
+  const posture = postureOf({ width, height, insets: windowInsets })
+  const insets = contentInsetsOf({ insets: windowInsets, posture })
   const { id } = useLocalSearchParams<{ id?: string }>()
   const photo = photoOf(id)
 
@@ -73,6 +75,14 @@ export default function PhotoScreen() {
         </View>
       </View>
     </View>
+  )
+}
+
+export default function PhotoScreen() {
+  return (
+    <SafeAreaProvider>
+      <PhotoViewer />
+    </SafeAreaProvider>
   )
 }
 
