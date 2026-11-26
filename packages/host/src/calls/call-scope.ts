@@ -11,7 +11,7 @@ import { interruptedMessage } from './errors'
 type CallScope = {
   scopeKey: string
   next: number
-  dispatchedBootId?: string | undefined
+  dispatch?: { bootId: string | undefined; replayed: boolean } | undefined
   attachOnly?: boolean | undefined
 }
 
@@ -24,12 +24,14 @@ export const scopeKeyOf = (args: { runId: string; callId: string }): string => {
   return `${args.runId}:h${digest}`
 }
 
-export const markDispatched = (args: { bootId: string }): void => {
+export const markDispatched = (args: { bootId: string | undefined; replayed: boolean }): void => {
   const scope = storage.getStore()
-  if (scope !== undefined) scope.dispatchedBootId = args.bootId
+  if (scope !== undefined) scope.dispatch = { bootId: args.bootId, replayed: args.replayed }
 }
 
-export const scopeDispatchedBootId = (): string | undefined => storage.getStore()?.dispatchedBootId
+export const scopeDispatchedBootId = (): string | undefined => storage.getStore()?.dispatch?.bootId
+
+export const scopeReplayed = (): boolean => storage.getStore()?.dispatch?.replayed === true
 
 export const runInCallScope = <T>(args: {
   scopeKey: string

@@ -66,8 +66,9 @@ only what it can rebuild or drop.
   workspace prepare settles, and fail the call when the wait is interrupted.
 - `webSocketConnector({url})`, `DaemonConnector`, `DaemonSocket`: connect to the daemon.
 - `newKey()`, `systemTimers`, `CallTimers`: a call key and the timers the link uses.
-- `ScopedToolDispatcher`, `runInCallScope`, `scopeKeyOf`, `markDispatched`, `nextKey`: bind a call
-  to one scope so a retry does not run it twice.
+- `ScopedToolDispatcher`, `runInCallScope`, `scopeKeyOf`, `markDispatched({bootId, replayed})`,
+  `scopeDispatchedBootId`, `scopeReplayed`, `nextKey`: bind a call to one scope so a retry does not
+  run it twice, and hand a replay the boot its dispatch recorded.
 
 ### Reach the sandbox through a port
 

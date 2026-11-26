@@ -39,7 +39,7 @@ class TakenOverExec extends ToolDispatcher {
   }
 
   async dispatch(args: DispatchArgs): Promise<readonly EventDraft[]> {
-    markDispatched({ bootId: OLD_BOOT })
+    markDispatched({ bootId: OLD_BOOT, replayed: true })
     const handle = this.processes.spawn({ cmd: ['/bin/sh', '-c', 'echo hi'], cwd: '/' })
     const exitCode = await handle.exited
     return [

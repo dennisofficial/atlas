@@ -16,6 +16,7 @@ export {
   scopeAttachOnly,
   scopeDispatchedBootId,
   scopeKeyOf,
+  scopeReplayed,
 } from './calls/call-scope'
 export {
   RemoteCalls,
