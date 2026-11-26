@@ -4,6 +4,7 @@ import { useMemo, type ReactNode } from 'react'
 import { CirclePauseIcon } from 'lucide-react'
 
 import { isWaiting, type BackgroundWork } from '@dltech/atlas-client/crew'
+import { bootViewAt } from '@dltech/atlas-client/session'
 import { SandboxBoot } from '@dltech/atlas-ui/ai/sandbox-boot'
 import { Chat, ChatItem } from '@dltech/atlas-ui/ai/chat'
 import { RunFailedMarker } from '@dltech/atlas-ui/ai/run-failed-marker'
@@ -61,9 +62,12 @@ function TickingSandboxBoot({ view, onRetry }: { view: BootView; onRetry?: () =>
     enabled: startedAtMs !== undefined,
     tickMs: BOOT_TICK_MS,
   })
-  const ticked =
-    startedAtMs === undefined ? view : { ...view, elapsedMs: Math.max(0, now - startedAtMs) }
-  return <SandboxBoot {...sandboxBootPropsOf(ticked)} {...(onRetry ? { onRetry } : {})} />
+  return (
+    <SandboxBoot
+      {...sandboxBootPropsOf(bootViewAt({ view, now }))}
+      {...(onRetry ? { onRetry } : {})}
+    />
+  )
 }
 
 function BootEntryItem({ entry, onRetry }: { entry: BootEntry; onRetry: () => void }) {

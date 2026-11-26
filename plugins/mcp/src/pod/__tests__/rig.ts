@@ -31,9 +31,10 @@ export const rig = (
   append: async () => undefined,
   notify: async () => undefined,
   events: () => [],
-  call: (op) => daemon.call(op),
+  call: (op, options) => daemon.call(op, options),
   live: () => undefined,
   onDaemonEvent: daemon.onDaemonEvent,
+  daemonCapabilities: daemon.capabilities,
   log: () => undefined,
 })
 

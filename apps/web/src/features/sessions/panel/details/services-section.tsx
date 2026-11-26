@@ -1,6 +1,6 @@
 'use client'
 
-import { EServiceStatus } from '@dltech/atlas-core'
+import { EPodPowerPhase, EServiceStatus } from '@dltech/atlas-core'
 import type { ServiceRow } from '@dltech/atlas-plugin-services/core'
 import {
   Sheet,
@@ -31,6 +31,13 @@ const TONE: Record<EServiceStatus, string> = {
 }
 
 const nameOf = (row: ServiceRow): string => (row.name ?? row.command).trim()
+
+const pausedOf = (args: { row: ServiceRow; asleep: boolean }): boolean =>
+  args.asleep && args.row.status === EServiceStatus.Running
+
+function PausedTag() {
+  return <span className="text-[11px] text-muted-foreground">paused</span>
+}
 
 function ServiceVerbs(props: { sessionId: string; service: ServiceRow }) {
   const client = useQueryClient()
@@ -108,7 +115,8 @@ function ServiceLog(props: { sessionId: string; service: ServiceRow }) {
 }
 
 export function SessionServicesSection() {
-  const { sessionId, view, openBrowser } = useSessionPaneValue()
+  const { sessionId, view, status, openBrowser } = useSessionPaneValue()
+  const asleep = status?.pod?.power?.phase === EPodPowerPhase.Asleep
   const [opened, setOpened] = useState<string | undefined>(undefined)
   const selected = view.serviceRows.find((row) => row.serviceId === opened)
   const previewOf = (serviceId: string) =>
@@ -131,10 +139,11 @@ export function SessionServicesSection() {
           render={(row) => {
             const preview = previewOf(row.serviceId)
             const name = nameOf(row)
+            const paused = pausedOf({ row, asleep })
             return (
               <Row
                 key={row.serviceId}
-                leading={<Dot className={TONE[row.status]} />}
+                leading={<Dot className={paused ? 'bg-warning' : TONE[row.status]} />}
                 title={
                   <span className="flex items-baseline gap-1">
                     {name}
@@ -146,21 +155,25 @@ export function SessionServicesSection() {
                   </span>
                 }
                 trailing={
-                  <span className="flex items-center gap-1">
-                    <ServiceVerbs sessionId={sessionId} service={row} />
-                    {preview === undefined ? null : (
-                      <button
-                        type="button"
-                        aria-label={`Open ${preview.label}`}
-                        title={preview.url}
-                        onClick={() => openBrowser(preview.url)}
-                        className="flex items-center gap-0.5 rounded-sm outline-none hover:text-foreground focus-visible:ring-2 focus-visible:ring-ring/50"
-                      >
-                        open
-                        <ArrowUpRightIcon aria-hidden className="size-3" />
-                      </button>
-                    )}
-                  </span>
+                  paused ? (
+                    <PausedTag />
+                  ) : (
+                    <span className="flex items-center gap-1">
+                      <ServiceVerbs sessionId={sessionId} service={row} />
+                      {preview === undefined ? null : (
+                        <button
+                          type="button"
+                          aria-label={`Open ${preview.label}`}
+                          title={preview.url}
+                          onClick={() => openBrowser(preview.url)}
+                          className="flex items-center gap-0.5 rounded-sm outline-none hover:text-foreground focus-visible:ring-2 focus-visible:ring-ring/50"
+                        >
+                          open
+                          <ArrowUpRightIcon aria-hidden className="size-3" />
+                        </button>
+                      )}
+                    </span>
+                  )
                 }
                 label={`Open the ${name} log`}
                 onSelect={() => setOpened(row.serviceId)}
@@ -178,7 +191,13 @@ export function SessionServicesSection() {
                 <SheetDescription className="truncate font-mono">
                   {selected.command}
                 </SheetDescription>
-                <ServiceVerbs sessionId={sessionId} service={selected} />
+                {pausedOf({ row: selected, asleep }) ? (
+                  <p className="text-[11px] text-muted-foreground">
+                    Paused while the pod is asleep. It continues when the pod starts.
+                  </p>
+                ) : (
+                  <ServiceVerbs sessionId={sessionId} service={selected} />
+                )}
               </SheetHeader>
               <ServiceLog sessionId={sessionId} service={selected} />
             </>

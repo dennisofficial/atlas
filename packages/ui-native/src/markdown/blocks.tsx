@@ -60,7 +60,7 @@ const List = ({
         <Text
           size={style.size}
           tone={ETextTone.Muted}
-          leading={RELAXED_LEADING}
+          leading={style.leading ?? RELAXED_LEADING}
           style={styles.marker}
         >
           {item.marker}

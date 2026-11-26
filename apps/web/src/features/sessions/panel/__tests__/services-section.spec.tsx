@@ -8,7 +8,9 @@ import { createTestQueryClient, TestQueryProvider } from '@/lib/__tests__/query-
 import { serviceLogKey } from '../../data/service-log'
 import { SessionServicesSection } from '../details/services-section'
 import { SessionPaneProvider } from '../pane-value'
-import { paneValueFixture, previewFixture, serviceRowFixture } from './fixture'
+import { EPodPowerPhase } from '@dltech/atlas-core'
+
+import { paneValueFixture, previewFixture, serviceRowFixture, statusFixture } from './fixture'
 
 const mounted: Array<() => void> = []
 
@@ -70,6 +72,33 @@ describe('SessionServicesSection', () => {
     expect(html).toContain(':4321')
     expect(html).toContain('aria-label="Open web"')
     expect(html).toContain('aria-label="Open the web log"')
+  })
+
+  it('marks a running service paused and hides its actions while the pod is asleep', () => {
+    const base = valueOf()
+    const html = render({
+      ...base,
+      status: {
+        ...statusFixture,
+        pod: { phase: 'steady', power: { phase: EPodPowerPhase.Asleep } },
+      },
+    })
+    expect(html).toContain('paused')
+    expect(html).toContain('bg-warning')
+    expect(html).not.toContain('data-service-stop')
+    expect(html).not.toContain('aria-label="Open web"')
+  })
+
+  it('keeps a running service live while the pod is stopping', () => {
+    const html = render({
+      ...valueOf(),
+      status: {
+        ...statusFixture,
+        pod: { phase: 'steady', power: { phase: EPodPowerPhase.Stopping } },
+      },
+    })
+    expect(html).not.toContain('paused')
+    expect(html).toContain('data-service-stop')
   })
 
   it('opens a sheet with the service log', async () => {

@@ -37,6 +37,7 @@ export const helloReplyFrameSchema = z.object({
 
 export enum EDaemonCapability {
   ExecDeadline = 'exec.deadline',
+  McpRequest = 'mcp.request',
 }
 
 export const runFrameSchema = z

@@ -7,12 +7,13 @@ import {
   ETextTone,
   Text,
   useTheme,
+  Spinner,
 } from '@dltech/atlas-ui-native'
 import { space } from '@dltech/atlas-ui/tokens'
 import { router, Stack, useFocusEffect, useLocalSearchParams } from 'expo-router'
 import { PanelLeft } from 'lucide-react-native'
 import { useCallback } from 'react'
-import { ActivityIndicator, Platform, StyleSheet, useWindowDimensions, View } from 'react-native'
+import { Platform, StyleSheet, useWindowDimensions, View } from 'react-native'
 import { EffortSelect, FastToggle } from '../../../composer/model-controls'
 import { ModelSheet } from '../../../composer/model-picker'
 import { ModelTrigger } from '../../../composer/model-trigger'
@@ -162,9 +163,7 @@ export default function SessionScreen() {
               ) : null}
               {session.stateLine === null ? null : (
                 <View style={styles.stateRow}>
-                  {session.catchingUp ? (
-                    <ActivityIndicator size="small" color={theme.mutedForeground} />
-                  ) : null}
+                  {session.catchingUp ? <Spinner color={theme.mutedForeground} /> : null}
                   <Text size={ETextRole.Xs} tone={ETextTone.Muted} style={styles.state}>
                     {session.stateLine}
                   </Text>

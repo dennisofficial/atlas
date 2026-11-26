@@ -29,6 +29,12 @@ in the same PR.
   sessions, at the viewports in `docs/mobile/devices.md`: the iPhone 18 Pro Max, and the iPhone Duo
   closed, open portrait and open landscape when the feature has a layout. The PR Testing section
   lists what was checked, with a screenshot of each viewport, and the result.
+- Live check on an Expo iOS simulator (EAS Simulators, `simulator` profile in `apps/mobile/eas.json`)
+  against the same session, opened on web beside it. Compare the two screens: every action and
+  piece of information that web shows and the screen lacks is either built in the PR or added below
+  as an unchecked feature. Then compare how they look: where the iOS screen looks worse than web
+  in person (for example the iOS `ActivityIndicator` against the web spinner), fix it or add it
+  below. The PR has the simulator and web screenshots side by side.
 - One PR with a conventional title (`feat(mobile): …` for something new). CI green, merged.
 
 ## Features
@@ -44,6 +50,9 @@ in the same PR.
     outcome in Settings and PostHog (`push_registration`)
   - [ ] 3. The iPhone registers an Expo device in production and receives a push (read the
     Settings row or the `push_registration` event, fix what it names)
+- [ ] Message actions on chat bubbles, as on web (`transcript-user-turn.tsx`): copy, edit a
+  queued message, rewind, summarise up to here; and the time, which `SentAt` in
+  `message-row.tsx` renders but Dennis does not see on the device (find out why on the simulator)
 - [ ] Session actions: archive, pin, withdraw a queued message
 - [ ] Model and effort per session
 - [ ] Changes: diff list and file diffs (`sessions.changes`, `sessions.changeContent`)

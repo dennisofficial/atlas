@@ -8,12 +8,18 @@ import {
 
 import type { McpCallResult, McpToolInfo } from '../types'
 
+export type FakeRequest =
+  | { kind: 'json-rpc-error'; message: string }
+  | { kind: 'timed-out' }
+  | { kind: 'failure'; message: string }
+
 export type FakeBehaviour = {
   tools?: readonly McpToolInfo[]
   instructions?: string
   answer?: (args: { name: string; arguments?: unknown }) => McpCallResult
   exit?: { exitCode: number | null; signal: string | null }
   stderr?: readonly string[]
+  request?: FakeRequest
 }
 
 type Line = { seq: number; line: string }
@@ -22,9 +28,10 @@ const DEFAULT_EVENT_LINE_BYTES = 1_048_576
 
 export const fakeDaemon = (
   behaviours: Readonly<Record<string, FakeBehaviour>> = {},
-  options: { eventLineBytes?: number } = {},
+  options: { eventLineBytes?: number; capabilities?: readonly string[] } = {},
 ) => {
   const eventLineBytes = options.eventLineBytes ?? DEFAULT_EVENT_LINE_BYTES
+  const capabilities = options.capabilities ?? []
   const lines = new Map<string, Line[]>()
   const ended = new Map<string, { exitCode: number | null; signal: string | null }>()
   const files = new Map<string, string>()
@@ -35,6 +42,13 @@ export const fakeDaemon = (
     env?: Record<string, string>
   }[] = []
   const closed: string[] = []
+  const requests: {
+    serverId: string
+    method: string
+    params: unknown
+    timeoutMs: number
+  }[] = []
+  const signals: (AbortSignal | undefined)[] = []
   const listeners: ((frame: DaemonEventFrame) => void)[] = []
   let reads = 0
 
@@ -85,7 +99,10 @@ export const fakeDaemon = (
     }
   }
 
-  const call = async (op: { op: string } & Record<string, unknown>): Promise<CallResult> => {
+  const call = async (
+    op: { op: string } & Record<string, unknown>,
+    options: { signal?: AbortSignal | undefined } = {},
+  ): Promise<CallResult> => {
     if (op.op === 'mcp.spawn') {
       const serverId = String(op['serverId'])
       spawns.push({
@@ -118,6 +135,63 @@ export const fakeDaemon = (
       const serverId = String(op['serverId'])
       if (behaviours[serverId]?.exit === undefined) answer(serverId, JSON.parse(String(op['line'])))
       return { status: ECallStatus.Ok, op: 'mcp.send', value: null }
+    }
+    if (op.op === 'mcp.request') {
+      const serverId = String(op['serverId'])
+      requests.push({
+        serverId,
+        method: String(op['method']),
+        params: op['params'],
+        timeoutMs: Number(op['timeoutMs']),
+      })
+      signals.push(options.signal)
+      const behaviour = behaviours[serverId] ?? {}
+      if (behaviour.exit !== undefined) {
+        return {
+          status: ECallStatus.Ok,
+          op: 'mcp.request',
+          value: {
+            kind: 'exited',
+            exit: behaviour.exit,
+            stderr: behaviour.stderr ?? [],
+          },
+        }
+      }
+      const request = behaviour.request
+      if (request?.kind === 'timed-out') {
+        return { status: ECallStatus.Ok, op: 'mcp.request', value: { kind: 'timed-out' } }
+      }
+      if (request?.kind === 'failure') {
+        return {
+          status: ECallStatus.Failed,
+          op: 'mcp.request',
+          error: { code: ECallFailure.Internal, message: request.message },
+        }
+      }
+      if (request?.kind === 'json-rpc-error') {
+        return {
+          status: ECallStatus.Ok,
+          op: 'mcp.request',
+          value: {
+            kind: 'response',
+            response: {
+              jsonrpc: '2.0',
+              id: null,
+              error: { code: -32603, message: request.message },
+            },
+          },
+        }
+      }
+      const params = (op['params'] ?? {}) as { name?: string; arguments?: unknown }
+      const result = behaviour.answer?.({
+        name: params.name ?? '',
+        arguments: params.arguments,
+      }) ?? { content: [{ type: 'text', text: 'ok' }] }
+      return {
+        status: ECallStatus.Ok,
+        op: 'mcp.request',
+        value: { kind: 'response', response: { jsonrpc: '2.0', id: null, result } },
+      }
     }
     if (op.op === 'mcp.read') {
       reads += 1
@@ -181,6 +255,9 @@ export const fakeDaemon = (
     kill,
     spawns,
     closed,
+    requests,
+    signals,
+    capabilities: () => capabilities,
     files,
     lines,
     reads: () => reads,

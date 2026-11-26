@@ -1,7 +1,7 @@
 import { EFontWeight, ETextRole } from '@dltech/atlas-ui/tokens'
 import type { LucideIcon } from 'lucide-react-native'
 import type { ReactNode } from 'react'
-import { ActivityIndicator, Pressable, StyleSheet } from 'react-native'
+import { Pressable, StyleSheet } from 'react-native'
 
 import {
   EButtonSize,
@@ -12,6 +12,7 @@ import {
   touchSlopOf,
 } from './button-style'
 import { Icon } from './icon'
+import { Spinner } from './spinner'
 import { Text } from './text'
 import { useIsDark, useTheme } from './use-theme'
 
@@ -68,7 +69,7 @@ export const Button = ({
     >
       {({ pressed }) => {
         const { foreground } = buttonColorsOf({ variant, theme, dark, pressed })
-        if (loading) return <ActivityIndicator size="small" color={foreground} />
+        if (loading) return <Spinner color={foreground} />
         return (
           <>
             {leading}

@@ -7,12 +7,13 @@ import {
   Text,
   useTheme,
   withAlpha,
+  Spinner,
 } from '@dltech/atlas-ui-native'
 import { radius, space } from '@dltech/atlas-ui/tokens'
 import * as Updates from 'expo-updates'
 import { ArrowDownToLine, RefreshCw, X } from 'lucide-react-native'
 import { useCallback, useEffect, useRef, useState } from 'react'
-import { ActivityIndicator, AppState, Platform, Pressable, StyleSheet, View } from 'react-native'
+import { AppState, Platform, Pressable, StyleSheet, View } from 'react-native'
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
 
 import {
@@ -62,7 +63,7 @@ export const UpdateCardView = ({
             ]}
           >
             {model.kind === EUpdateCardKind.Downloading ? (
-              <ActivityIndicator size="small" color={theme.primary} />
+              <Spinner color={theme.primary} />
             ) : (
               <Glyph size={16} color={theme.primary} />
             )}

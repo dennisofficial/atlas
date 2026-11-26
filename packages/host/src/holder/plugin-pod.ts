@@ -199,6 +199,7 @@ export const pluginPodContextOf = (args: {
       args.signal.addEventListener('abort', off, { once: true })
       return off
     },
+    daemonCapabilities: () => runtime.remoteCalls.daemonCapabilities(),
     log: (message) => deps.log?.info({ source: 'holder.plugin', message }),
     resources: podResourcesOf({ runtime, record, threadId, ctx: () => ctx }),
     ...(runtime.env === undefined ? {} : { env: runtime.env }),
