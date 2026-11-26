@@ -8,6 +8,7 @@ import { useTestDatabase } from '@dltech/atlas-db/testing'
 import type { ScriptedModelStep } from '@dltech/atlas-agent/testing'
 
 import { startRig, type FaultRig, type HostKnobs, type HostProcess } from './fault-rig'
+import { handoffFailureOf } from './handoff-failure'
 import { contextFor, freshWorkspaceOf, type HandoffContext } from './handoff-context'
 
 export type { HandoffContext } from './handoff-context'
@@ -157,7 +158,7 @@ export const describeHandoff = (scenario: HandoffScenario): void => {
           await collectOnce(ctx)
         } catch (error: unknown) {
           throw new Error(
-            `${error instanceof Error ? error.message : String(error)}\nhostB logs:\n${hostB.logs().join('\n')}`,
+            `${error instanceof Error ? error.message : String(error)}\n${await handoffFailureOf({ ctx, hosts: [hostA, hostB] })}`,
           )
         }
       })
@@ -203,7 +204,7 @@ export const describeHandoff = (scenario: HandoffScenario): void => {
             expect(await scenario.runs(ctx)).toBe(1)
           } catch (error: unknown) {
             throw new Error(
-              `${error instanceof Error ? error.message : String(error)}\nhostB logs:\n${hostB.logs().join('\n')}`,
+              `${error instanceof Error ? error.message : String(error)}\n${await handoffFailureOf({ ctx, hosts: [hostB] })}`,
             )
           }
         }),

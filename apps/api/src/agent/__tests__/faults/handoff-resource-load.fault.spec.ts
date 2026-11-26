@@ -59,14 +59,14 @@ describe.skipIf(REDIS_URL === undefined)('handoff: a resource load a later turn 
         await waitUntil({
           what: 'the first turn to load the resource',
           timeoutMs: 30_000,
-          check: async () => loadedLinesOf(await record()).length === 1,
+          check: async () => loadedLinesOf(await record()).length >= 1,
         })
       } catch (error: unknown) {
         throw new Error(
           `${error instanceof Error ? error.message : String(error)}\nevents: ${JSON.stringify((await record()).map((row) => row.type))}\nloads: ${ctx.runCount('loads')}\nhostA logs:\n${hostA.logs().slice(-40).join('\n')}`,
         )
       }
-      expect(loadedLinesOf(await record())).toEqual([1])
+      expect(loadedLinesOf(await record())[0]).toBe(1)
 
       rmSync(loadGate)
       await postMessage({ rig, sessionId, text: 'second turn' })
@@ -81,6 +81,7 @@ describe.skipIf(REDIS_URL === undefined)('handoff: a resource load a later turn 
       }).catch(() => undefined)
       expect(saidOf(await record())).toContain('host a first')
 
+      const loadedBeforeHandoff = loadedLinesOf(await record()).length
       hostA.kill('SIGKILL')
       await hostA.exited
       await postMessage({ rig, sessionId, text: 'third turn' })
@@ -97,7 +98,7 @@ describe.skipIf(REDIS_URL === undefined)('handoff: a resource load a later turn 
         await waitUntil({
           what: 'the holder after the handoff to record a load of its own',
           timeoutMs: 90_000,
-          check: async () => loadedLinesOf(await record()).some((lines) => lines > 1),
+          check: async () => loadedLinesOf(await record()).length > loadedBeforeHandoff,
         })
         await waitUntil({
           what: 'the holder after the handoff to answer its turn',

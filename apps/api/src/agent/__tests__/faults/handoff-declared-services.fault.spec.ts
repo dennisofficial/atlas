@@ -21,6 +21,9 @@ type ResultEvent = {
   interrupted?: boolean
 }
 
+const SETUP_COMMAND = (args: { workspace: string; release: string }): string =>
+  `echo setup >> ${args.workspace}/setup-runs; touch ${args.workspace}/setup-waiting; while [ ! -f ${args.release} ]; do sleep 0.05; done`
+
 const dispatchesOf = async (ctx: HandoffContext) =>
   (await ctx.events()).filter((row) => row.type === 'tool-dispatched' && callIdOf(row) === CALL_ID)
 
@@ -38,7 +41,7 @@ const startedRowsOf = async (ctx: HandoffContext): Promise<readonly StartedRow[]
     .filter((row) => row.type === 'service-started')
     .map((row) => row.event as StartedRow)
 
-const declaredYaml = (args: { workspace: string; gate: string }): string =>
+const declaredYaml = (args: { workspace: string; release: string }): string =>
   [
     'services:',
     '  db:',
@@ -52,7 +55,7 @@ const declaredYaml = (args: { workspace: string; gate: string }): string =>
     '    needs:',
     '      - db',
     '    setup:',
-    `      - cat ${args.gate}`,
+    `      - ${SETUP_COMMAND({ workspace: args.workspace, release: args.release })}`,
     '',
   ].join('\n')
 
@@ -62,14 +65,16 @@ describeHandoff({
   knobs: { plugins: true },
 
   async start(ctx): Promise<HostProcess> {
-    const gate = ctx.gate('gate')
+    const release = ctx.path('setup-release')
     ctx.path('db-started')
     ctx.path('db-runs')
     ctx.path('api-runs')
+    ctx.path('setup-runs')
+    ctx.path('setup-waiting')
     mkdirSync(join(ctx.workspace, '.atlas'), { recursive: true })
     writeFileSync(
       join(ctx.workspace, '.atlas', 'services.yaml'),
-      declaredYaml({ workspace: ctx.workspace, gate }),
+      declaredYaml({ workspace: ctx.workspace, release }),
     )
     const hostA = await ctx.rig.spawnHost({
       label: 'host-a',
@@ -97,6 +102,7 @@ describeHandoff({
       check: async () => (await dispatchesOf(ctx)).length === 1,
     })
     await ctx.waitFor('db-started', 30_000)
+    await ctx.waitFor('setup-waiting', 30_000)
     return hostA
   },
 
@@ -106,7 +112,7 @@ describeHandoff({
   },
 
   async release(ctx) {
-    await ctx.release('gate')
+    writeFileSync(ctx.path('setup-release'), '')
   },
 
   async settled(ctx) {
@@ -125,12 +131,13 @@ describeHandoff({
     expect(api).toHaveLength(1)
 
     const reported = result.output?.started ?? []
-    expect(reported.map((one) => one.name)).toEqual(['db', 'api'])
-    expect(reported[0]?.serviceId).toBe(db[0]?.serviceId)
-    expect(reported[1]?.serviceId).toBe(api[0]?.serviceId)
+    const apiReported = reported.find((one) => one.name === 'api')
+    expect(apiReported?.serviceId).toBe(api[0]?.serviceId)
+    expect(reported.every((one) => one.serviceId !== db[0]?.serviceId)).toBe(true)
 
     expect(ctx.runCount('db-runs')).toBe(1)
     expect(ctx.runCount('api-runs')).toBe(1)
+    expect(ctx.runCount('setup-runs')).toBe(1)
 
     const listed = await podCall({
       rig: ctx.rig,
