@@ -21,7 +21,11 @@ export const MCP_NAME_PREFIX = MCP_TOOL_PREFIX
 
 export type McpToolCaller = {
   name: string
-  call(args: { tool: string; input: unknown }): Promise<McpCallResult>
+  call(args: {
+    tool: string
+    input: unknown
+    signal?: AbortSignal | undefined
+  }): Promise<McpCallResult>
 }
 
 const effectOf = (info: McpToolInfo): EToolEffect => {
@@ -68,7 +72,7 @@ export class McpBridgeTool extends ToolDefinition {
 
     let result: McpCallResult
     try {
-      result = await caller.call({ tool: this.tool, input: args.input })
+      result = await caller.call({ tool: this.tool, input: args.input, signal: args.signal })
     } catch (error) {
       if (error instanceof McpUnauthorizedError)
         return {

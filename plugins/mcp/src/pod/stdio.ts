@@ -1,7 +1,8 @@
 import type { PluginPodContext } from '@dltech/atlas-plugin-sdk'
-import { type DaemonEvent, ECallStatus } from '@dltech/atlas-protocol'
+import { type DaemonEvent, ECallStatus, EDaemonCapability } from '@dltech/atlas-protocol'
 
 import type { McpStdioTransport } from '../core'
+import { exitReasonOf, requestCall, type Exit } from './request'
 import {
   asRecord,
   callResultOf,
@@ -26,16 +27,9 @@ const INITIALIZATION = {
 
 type Pending = { resolve(value: unknown): void; reject(reason: Error): void }
 
-type Exit = { exitCode: number | null; signal: string | null }
-
 type ReadLine = { seq: number; line: string }
 
 type ReadResult = { lines: readonly ReadLine[]; stderr: readonly string[]; ended: Exit | null }
-
-const exitReasonOf = (ended: Exit): string =>
-  ended.signal === null
-    ? `the server exited with code ${ended.exitCode ?? 'unknown'}`
-    : `the server was killed by ${ended.signal}`
 
 export class StdioClient implements McpTransportClient {
   private readonly pending = new Map<string, Pending>()
@@ -83,14 +77,15 @@ export class StdioClient implements McpTransportClient {
     return toolsOf(await this.request({ method: 'tools/list' }))
   }
 
-  async callTool(args: { name: string; input: unknown }): Promise<McpCallResult> {
-    return callResultOf(
-      await this.request({
-        method: 'tools/call',
-        params:
-          args.input === null ? { name: args.name } : { name: args.name, arguments: args.input },
-      }),
-    )
+  async callTool(args: {
+    name: string
+    input: unknown
+    signal?: AbortSignal | undefined
+  }): Promise<McpCallResult> {
+    const params =
+      args.input === null ? { name: args.name } : { name: args.name, arguments: args.input }
+    if (this.requestCapable()) return await this.callByRequest({ params, signal: args.signal })
+    return callResultOf(await this.request({ method: 'tools/call', params }))
   }
 
   async close(): Promise<void> {
@@ -154,6 +149,26 @@ export class StdioClient implements McpTransportClient {
     if (result.value.attached) this.afterSeq = result.value.seq
   }
 
+  private requestCapable(): boolean {
+    return this.args.ctx.daemonCapabilities?.().includes(EDaemonCapability.McpRequest) === true
+  }
+
+  private async callByRequest(args: {
+    params: unknown
+    signal: AbortSignal | undefined
+  }): Promise<McpCallResult> {
+    if (this.closed) throw new McpTransportError('the transport is closed')
+    if (this.exitError !== null) throw this.exitError
+    return await requestCall({
+      ctx: this.args.ctx,
+      serverId: this.args.serverId,
+      params: args.params,
+      signal: args.signal,
+      timeoutMs: this.args.timeoutMs ?? REQUEST_TIMEOUT_MS,
+      onExited: (error) => this.markExited(error),
+    })
+  }
+
   private async request(payload: { method: string; params?: unknown }): Promise<unknown> {
     if (this.closed) throw new McpTransportError('the transport is closed')
     if (this.exitError !== null) throw this.exitError
@@ -215,10 +230,15 @@ export class StdioClient implements McpTransportClient {
         this.receive(entry.line)
       }
     }
-    this.exitError = new McpTransportError(exitReasonOf(exit), read?.stderr ?? [])
-    this.rejectAll(this.exitError)
+    this.markExited(new McpTransportError(exitReasonOf(exit), read?.stderr ?? []))
+  }
+
+  private markExited(error: McpTransportError): void {
+    if (this.exitError !== null) return
+    this.exitError = error
+    this.rejectAll(error)
     if (this.closed) return
-    this.args.onExit?.(this.exitError.message)
+    this.args.onExit?.(error.message)
   }
 
   private async read(): Promise<ReadResult | null> {

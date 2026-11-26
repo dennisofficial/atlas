@@ -66,7 +66,7 @@ const engine = new DaemonEngine({
   token,
   store: new DiskCallStore(home),
   groups: daemonGroups({ env: childEnv, home }),
-  capabilities: [EDaemonCapability.ExecDeadline],
+  capabilities: [EDaemonCapability.ExecDeadline, EDaemonCapability.McpRequest],
   health: () => {
     const memory = workMemory(env)
     return { protection, ...(memory === undefined ? {} : { memory }) }

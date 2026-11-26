@@ -74,9 +74,11 @@ A `PodSlot` declares:
 - `onDaemonEvent(frame)` handles a daemon event; `onDaemonReady({ctx, hello})` runs once per boot.
 
 `ctx` is a `PluginPodContext`. It gives `sessionId`, `workspaceDirectory`, `env()`, `append(drafts)`,
-`notify(event, {key})`, `events()`, `call(op)`, `live(frame)`, `onDaemonEvent(listener)`, `log`, and
-the capabilities `control`, `crew`, `messages`, `classifier`, `analytics`, `sessions`, `worktrees`,
-`resources`. `ctx.analytics.capture({event, properties, links})` sends one product event for the
+`notify(event, {key})`, `events()`, `call(op)`, `live(frame)`, `onDaemonEvent(listener)`,
+`daemonCapabilities()`, `log`, and the capabilities `control`, `crew`, `messages`, `classifier`,
+`analytics`, `sessions`, `worktrees`, `resources`. `ctx.daemonCapabilities()` names the op groups the
+daemon of this pod advertises, such as `mcp.request`; read it at call time, because the link says
+hello after the first call. `ctx.analytics.capture({event, properties, links})` sends one product event for the
 session's user. The host adds `session_id` and `thread_id`, or with `links: EAnalyticsLinks.Hashed`
 the hashes `session_hash` and `thread_hash`.
 `ctx.crew` is a `PodCrew`: `spawn` with a `group` wakes the parent once, after every member ends,

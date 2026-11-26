@@ -92,7 +92,11 @@ export const mcpPod = (args: McpPodArgs): PodSlot => {
           call: async (server, call) => {
             const entry = await entryOf({ ctx, name: server, directory: snapshot?.directory })
             const client = await clients.clientFor(async () => entry, ctx)
-            return await client.callTool({ name: call.tool, input: call.input })
+            return await client.callTool({
+              name: call.tool,
+              input: call.input,
+              ...(call.signal === undefined ? {} : { signal: call.signal }),
+            })
           },
         }),
         new McpSignInTool({ ctx, resource: config, signIns }),

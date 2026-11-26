@@ -44,7 +44,9 @@ Connects a session to the MCP servers that the operator and the repository confi
 
 - `McpClients` and `serverIdOf({ sessionId, name })`: the connection pool that keeps one client for
   each server.
-- `StdioClient`, `HttpClient` and `ProxyClient`: the three transports.
+- `StdioClient`, `HttpClient` and `ProxyClient`: the three transports. `StdioClient` sends
+  `tools/call` through the daemon's `mcp.request` op when the daemon advertises it, so the call
+  survives a host handoff; the handshake and `tools/list` stay on `mcp.send`.
 - `McpBridgeTool` and `MCP_NAME_PREFIX`: the model tool for one tool of one server, and the `mcp__` prefix of its name.
 - `McpSignInTool`: the `operator_mcp_sign_in` tool.
 
