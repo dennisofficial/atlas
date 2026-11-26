@@ -4,7 +4,6 @@ import type { Db, Tx } from '@dltech/atlas-db'
 import type { SecretCipher } from '@dltech/atlas-pods/config/secret-cipher'
 import { EAccessScope } from '@dltech/atlas-wire/web'
 
-import { cleanupGroupGrant } from '../../_lib/access-grants/grant-of-one'
 import {
   grantInstructionProblem,
   grantNameProblem,
@@ -113,9 +112,6 @@ export const groupConfigClientOf = (args: {
           return
         }
         await rows.where({ groupId, name }).update({ sealedValue, grantId })
-        if (existing.grantId !== grantId) {
-          await cleanupGroupGrant({ tx, groupId, grantId: existing.grantId })
-        }
       })
     },
     moveSecret: async ({ name, grant }) => {
@@ -133,7 +129,6 @@ export const groupConfigClientOf = (args: {
         })
         if (existing.grantId === grantId) return true
         await rows.where({ groupId, name }).update({ grantId })
-        await cleanupGroupGrant({ tx, groupId, grantId: existing.grantId })
         return true
       })
     },
@@ -145,7 +140,6 @@ export const groupConfigClientOf = (args: {
         const row = await tx.orm.public.GroupSecret.where({ groupId, name }).first()
         if (row === null) return false
         await tx.orm.public.GroupSecret.where({ groupId, name }).deleteAndCount()
-        await cleanupGroupGrant({ tx, groupId, grantId: row.grantId })
         return true
       })
     },
@@ -189,9 +183,6 @@ export const groupConfigClientOf = (args: {
           return
         }
         await rows.where({ groupId, path }).update({ sealedContents, mode, grantId })
-        if (existing.grantId !== grantId) {
-          await cleanupGroupGrant({ tx, groupId, grantId: existing.grantId })
-        }
       })
     },
     removeFileMount: async (path) => {
@@ -200,7 +191,6 @@ export const groupConfigClientOf = (args: {
         const row = await tx.orm.public.GroupFileMount.where({ groupId, path }).first()
         if (row === null) return false
         await tx.orm.public.GroupFileMount.where({ groupId, path }).deleteAndCount()
-        await cleanupGroupGrant({ tx, groupId, grantId: row.grantId })
         return true
       })
     },
@@ -219,7 +209,6 @@ export const groupConfigClientOf = (args: {
         })
         if (existing.grantId === grantId) return true
         await rows.where({ groupId, path }).update({ grantId })
-        await cleanupGroupGrant({ tx, groupId, grantId: existing.grantId })
         return true
       })
     },

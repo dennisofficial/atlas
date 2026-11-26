@@ -7,11 +7,7 @@ import {
 } from '@dltech/atlas-wire'
 import { Injectable, NotFoundException } from '@nestjs/common'
 import { db } from '@dltech/atlas-db'
-import {
-  assertPersonalGrant,
-  cleanupPersonalGrant,
-  withGrantNameConflict,
-} from './access-grant-membership'
+import { assertPersonalGrant, withGrantNameConflict } from './access-grant-membership'
 
 const GRANT_NOT_FOUND = 'access grant not found'
 const MEMBER_NOT_FOUND = 'access grant member not found'
@@ -86,7 +82,6 @@ export class PersonalAccessGrantsService {
           userId: args.userId,
           name: member.name,
         }).update({ grantId })
-        await cleanupPersonalGrant({ tx, userId: args.userId, grantId: secret.grantId })
         return
       }
       const mount = await tx.orm.public.UserFileMount.where({
@@ -99,7 +94,6 @@ export class PersonalAccessGrantsService {
         userId: args.userId,
         path: member.path,
       }).update({ grantId })
-      await cleanupPersonalGrant({ tx, userId: args.userId, grantId: mount.grantId })
     })
   }
 }

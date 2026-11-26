@@ -3,10 +3,7 @@ import type { FileMountSummary } from '@dltech/atlas-wire/web'
 import { Injectable, NotFoundException } from '@nestjs/common'
 import { db } from '@dltech/atlas-db'
 import { SecretCipherService } from '../../../_lib/crypto/secret-cipher.service'
-import {
-  cleanupProjectGrant,
-  resolveProjectGrantId,
-} from '../access-grants/access-grant-membership'
+import { resolveProjectGrantId } from '../access-grants/access-grant-membership'
 import { openSecretValue, sealSecretValue } from '../secrets/sealed-secret'
 import { ProjectsService } from './projects.service'
 
@@ -76,33 +73,14 @@ export class ProjectFileMountsService {
         },
         update: { sealedContents, mode: args.mode, grantId },
       })
-      if (existing !== null && existing.grantId !== grantId) {
-        await cleanupProjectGrant({
-          tx,
-          projectId: args.projectId,
-          grantId: existing.grantId,
-        })
-      }
     })
   }
 
   async remove(args: Scope & { path: string }): Promise<void> {
     await this.projects.read(args)
-    await db.transaction(async (tx) => {
-      const existing = await tx.orm.public.ProjectFileMount.where({
-        projectId: args.projectId,
-        path: args.path,
-      }).first()
-      if (existing === null) return
-      await tx.orm.public.ProjectFileMount.where({
-        projectId: args.projectId,
-        path: args.path,
-      }).deleteAndCount()
-      await cleanupProjectGrant({
-        tx,
-        projectId: args.projectId,
-        grantId: existing.grantId,
-      })
-    })
+    await db.orm.public.ProjectFileMount.where({
+      projectId: args.projectId,
+      path: args.path,
+    }).deleteAndCount()
   }
 }

@@ -8,11 +8,7 @@ import {
 import { Injectable, NotFoundException } from '@nestjs/common'
 import { db } from '@dltech/atlas-db'
 import { ProjectsService } from '../projects/projects.service'
-import {
-  assertProjectGrant,
-  cleanupProjectGrant,
-  withGrantNameConflict,
-} from './access-grant-membership'
+import { assertProjectGrant, withGrantNameConflict } from './access-grant-membership'
 
 const GRANT_NOT_FOUND = 'access grant not found'
 const MEMBER_NOT_FOUND = 'access grant member not found'
@@ -103,7 +99,6 @@ export class ProjectAccessGrantsService {
         await tx.orm.public.ProjectSecret.where({ projectId, name: member.name }).update({
           grantId,
         })
-        await cleanupProjectGrant({ tx, projectId, grantId: secret.grantId })
         return
       }
       const mount = await tx.orm.public.ProjectFileMount.where({
@@ -115,7 +110,6 @@ export class ProjectAccessGrantsService {
       await tx.orm.public.ProjectFileMount.where({ projectId, path: member.path }).update({
         grantId,
       })
-      await cleanupProjectGrant({ tx, projectId, grantId: mount.grantId })
     })
   }
 }

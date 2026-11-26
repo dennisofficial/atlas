@@ -12,6 +12,7 @@ import {
 } from '@/features/settings/parts/access/access-grants-content'
 import { accessMemberApiOf } from '@/features/settings/parts/access/access-members-api'
 import { useAccessGrants } from '@/features/settings/parts/access/use-access-grants'
+import { useGrantMoveTargets } from '@/features/settings/parts/access/use-move-targets'
 import {
   InheritedLayers,
   InheritedRow,
@@ -109,6 +110,7 @@ function AccessScopePage({
   const accessScope = useMemo(() => accessScopeOf(scope), [scope])
   const members = useMemo(() => accessMemberApiOf(accessScope), [accessScope])
   const { query, actions } = useAccessGrants({ scope: accessScope, members })
+  const { groups, projects } = useGrantMoveTargets()
   return (
     <>
       <InheritedGrants scope={scope} />
@@ -117,6 +119,9 @@ function AccessScopePage({
           {(snapshot) => (
             <AccessGrantsContent
               grants={snapshot.grants}
+              scope={accessScope}
+              groups={groups}
+              projects={projects}
               now={snapshot.fetchedAt}
               personal={false}
               entries={entries}

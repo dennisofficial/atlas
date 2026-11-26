@@ -3,10 +3,7 @@ import type { SecretSummary } from '@dltech/atlas-wire/web'
 import { Injectable, NotFoundException } from '@nestjs/common'
 import { db } from '@dltech/atlas-db'
 import { SecretCipherService } from '../../../_lib/crypto/secret-cipher.service'
-import {
-  cleanupPersonalGrant,
-  resolvePersonalGrantId,
-} from '../access-grants/access-grant-membership'
+import { resolvePersonalGrantId } from '../access-grants/access-grant-membership'
 import { assertEnvName, openSecretValue } from './sealed-secret'
 
 @Injectable()
@@ -73,25 +70,11 @@ export class SecretsService {
         },
         update: { sealedValue, grantId },
       })
-      if (existing !== null && existing.grantId !== grantId) {
-        await cleanupPersonalGrant({ tx, userId: args.userId, grantId: existing.grantId })
-      }
     })
   }
 
   async remove(args: { userId: string; name: string }): Promise<void> {
     assertEnvName(args.name)
-    await db.transaction(async (tx) => {
-      const existing = await tx.orm.public.UserSecret.where({
-        userId: args.userId,
-        name: args.name,
-      }).first()
-      if (existing === null) return
-      await tx.orm.public.UserSecret.where({
-        userId: args.userId,
-        name: args.name,
-      }).deleteAndCount()
-      await cleanupPersonalGrant({ tx, userId: args.userId, grantId: existing.grantId })
-    })
+    await db.orm.public.UserSecret.where({ userId: args.userId, name: args.name }).deleteAndCount()
   }
 }

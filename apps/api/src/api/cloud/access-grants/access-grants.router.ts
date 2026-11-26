@@ -5,6 +5,7 @@ import {
   accessGrantListInputSchema,
   accessGrantListSchema,
   accessGrantMoveSchema,
+  accessGrantRelocateSchema,
   accessGrantSaveSchema,
   accessGrantSavedSchema,
   type AccessGrantKey,
@@ -13,6 +14,7 @@ import {
   type AccessGrantList,
   type AccessGrantListInput,
   type AccessGrantMove,
+  type AccessGrantRelocate,
   type AccessGrantSave,
   type AccessGrantSaved,
 } from '@dltech/atlas-wire'
@@ -56,6 +58,15 @@ export class AccessGrantsRouter {
   @UseMiddlewares(SessionMiddleware)
   async moveMember(@Input() input: AccessGrantMove, @Ctx() ctx: SessionTrpcCtx): Promise<void> {
     await this.grants.moveMember({ userId: ctx.auth.userId, input })
+  }
+
+  @Mutation({ input: accessGrantRelocateSchema, output: accessGrantSavedSchema })
+  @UseMiddlewares(SessionMiddleware)
+  async moveGrant(
+    @Input() input: AccessGrantRelocate,
+    @Ctx() ctx: SessionTrpcCtx,
+  ): Promise<AccessGrantSaved> {
+    return this.grants.moveGrant({ userId: ctx.auth.userId, input })
   }
 
   @Mutation({ input: accessGrantKeySchema, output: z.void() })

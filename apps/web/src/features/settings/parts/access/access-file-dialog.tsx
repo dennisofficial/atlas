@@ -140,7 +140,7 @@ export function AccessFileDialog({
           <FieldLabel htmlFor={`${fieldId}-contents`}>Contents</FieldLabel>
           <Textarea
             id={`${fieldId}-contents`}
-            className="min-h-40 font-mono text-xs md:text-xs"
+            className="max-h-[40dvh] min-h-40 font-mono text-xs md:text-xs"
             aria-invalid={contentsTooLarge || undefined}
             spellCheck={false}
             value={contents}

@@ -2,15 +2,10 @@ import { ConflictException, NotFoundException } from '@nestjs/common'
 import { isUniqueViolation, type Tx } from '@dltech/atlas-db'
 
 import {
-  cleanupGroupGrant,
-  cleanupPersonalGrant,
-  cleanupProjectGrant,
   createGroupGrant,
   createPersonalGrant,
   createProjectGrant,
 } from '../../../_lib/access-grants/grant-of-one'
-
-export { cleanupGroupGrant, cleanupPersonalGrant, cleanupProjectGrant }
 
 const GRANT_NOT_FOUND = 'access grant not found'
 const GRANT_NAME_TAKEN = 'a grant with that name already exists'

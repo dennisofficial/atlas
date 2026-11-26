@@ -3,10 +3,7 @@ import type { FileMountSummary } from '@dltech/atlas-wire/web'
 import { Injectable, NotFoundException } from '@nestjs/common'
 import { db } from '@dltech/atlas-db'
 import { SecretCipherService } from '../../../_lib/crypto/secret-cipher.service'
-import {
-  cleanupPersonalGrant,
-  resolvePersonalGrantId,
-} from '../access-grants/access-grant-membership'
+import { resolvePersonalGrantId } from '../access-grants/access-grant-membership'
 import { openSecretValue, sealSecretValue } from '../secrets/sealed-secret'
 
 @Injectable()
@@ -66,24 +63,13 @@ export class UserFileMountsService {
         },
         update: { sealedContents, mode: args.mode, grantId },
       })
-      if (existing !== null && existing.grantId !== grantId) {
-        await cleanupPersonalGrant({ tx, userId: args.userId, grantId: existing.grantId })
-      }
     })
   }
 
   async remove(args: { userId: string; path: string }): Promise<void> {
-    await db.transaction(async (tx) => {
-      const existing = await tx.orm.public.UserFileMount.where({
-        userId: args.userId,
-        path: args.path,
-      }).first()
-      if (existing === null) return
-      await tx.orm.public.UserFileMount.where({
-        userId: args.userId,
-        path: args.path,
-      }).deleteAndCount()
-      await cleanupPersonalGrant({ tx, userId: args.userId, grantId: existing.grantId })
-    })
+    await db.orm.public.UserFileMount.where({
+      userId: args.userId,
+      path: args.path,
+    }).deleteAndCount()
   }
 }
