@@ -22,38 +22,37 @@ A spec earns its place by failing when the behaviour it names breaks. A good uni
 
 ## Backlog
 
-Ordered by value. Each item fits in one sitting. Rechecked 2026-11-25 after the v1 deletion
-removed ~227k spec lines; items whose files are gone were dropped.
+Ordered by value. Each item fits in one sitting. Rechecked 2026-11-26.
 1. **Scan specs go stale under CI's incremental run.** `no-chrome-overrides.spec.ts` went red with
    #2645 while main CI stayed green. Likely cause: it reads sources through `Bun.Glob`/`Bun.file`,
    which neither `--changed` import selection nor the recorder
    (`packages/bun-test-incremental/src/fs-env-recorder.ts:129-130`, `node:fs` only) sees.
    Confirm first. The fix is in the runner, so the PR stays open.
-2. **Real sleeps.** Test-only: `workspace-setup.spec.ts` (23s on 11-23; 15s poll helpers),
-   `agent-tools/bash.spec.ts:106-121` (3.3s), `use-preview-origins.spec.tsx:102` (5.7s),
-   `agent37-wake-abort.spec.ts:183,199` (2.2s, 1.2s), `pg-host-watch.spec.ts:158-219`
-   (0.5–1s each), daemon `quiet()` 900 ms in `ops/watch/tree.spec.ts:16` and `ops/git/git.spec.ts:47`,
-   `previews.spec.ts:332` (1.4s), `context-mirror.spec.ts:209-228` and
-   `held-observation-context.spec.ts:95` (`settle(1_200)`). Production seam: `sign-in-flow.spec.tsx:63` (6.1s).
-3. **Assertion-free bodies: 3 left.** `shimmer-line.spec.tsx:72` (sleeps, asserts nothing),
-   `prose-stream.bench.spec.tsx:58,73` (console.log benches; delete).
-4. **Wall-clock and date rot.** Real-clock duration asserts: `follow-live.spec.ts:169` (<1s),
+2. **Real-clock upper bounds (flaky).** `plugin-resources-turn-start-ready.spec.ts:76,120,173`
+   (`Date.now() - started < 200` around daemon work), `follow-live.spec.ts:169` (<1s),
    `transaction-deadline.spec.ts:67`, `crew-takeover.spec.ts:228`, `live-model-port.spec.ts:186-188`,
    `quality/deadline.spec.ts:139-146`, `plugin-resources-turn-start.spec.ts:105,136`.
-   `expiresAt: '2026-12-01'` in `classifier-config.spec.ts:31`, `accounts.router.spec.ts:251`,
-   `credentials/accounts.spec.ts:95,113` turns past on 2026-12-01; no expiry check reads it today.
-5. **Duplicates.** `registered-plugins.spec.ts` in api, mobile, web and `packages/pods/src/control`;
+3. **Real sleeps.** Test-only: `workspace-setup.spec.ts` (23s; 15s poll helpers),
+   `agent-tools/bash.spec.ts:106-121` (3.3s), `use-preview-origins.spec.tsx:102` (5.7s),
+   `agent37-wake-abort.spec.ts:183,199`, `handoff-bash-deadline.fault.spec.ts:74` (2s),
+   `exec-deadline.spec.ts:77` (1.2s), `handoff-pod-resize-idle.fault.spec.ts:139` (1s),
+   `crew-takeover.spec.ts:354` (600 ms), `pg-host-watch.spec.ts:158-219`, daemon `quiet()` 900 ms in
+   `ops/watch/tree.spec.ts:16` and `ops/git/git.spec.ts:47`, `previews.spec.ts:332` (1.4s),
+   `context-mirror.spec.ts:209-228`, `held-observation-context.spec.ts:95` (`settle(1_200)`).
+   Production seam: `sign-in-flow.spec.tsx:63` (6.1s).
+4. **Duplicates.** `registered-plugins.spec.ts` in api, mobile, web and `packages/pods/src/control`;
    `passes prisma db verify --strict` byte-identical in `drop-v2-views.spec.ts:177` and
    `move-v2-tables.spec.ts:221` (180s each); the web prototype mirror pairs.
-6. **Missing specs, by churn × importers:** `packages/control/src/postgres/postgres-rows.ts`
-   (pure row mappers; all-distinct-field row spec), `holder/held-runner.ts:57` `ranQueuedCommand`,
-   `control/src/inbox-ops.ts` (pure), `holder/staged-log.ts` (pure over events),
-   `postgres-digests.ts:12` `likePatternOf`.
-7. **Drift:** `apps/web/.../use-pod-power.spec.ts` and the `packages/github/src` top-level specs
-   (two more added since 11-24: `github-pr-outbox.v1-rows.postgres`, `github-watch-scope.postgres`)
-   sit outside `__tests__/`; needs a local `AGENTS.md` or a move. Unreset `let pathname` in
-   `in-app-notices.spec.tsx:35`.
-8. **Over-300-line specs** (119 of 2,828 files). Split as touched, from `remote-delta-channel.spec.ts`.
+5. **Missing specs, by churn × importers:** `packages/control/src/postgres/postgres-rows.ts`
+   (pure row mappers), `holder/held-runner.ts:57` `ranQueuedCommand`, `control/src/inbox-ops.ts`
+   (pure), `holder/staged-log.ts` (pure over events), `postgres-digests.ts:12` `likePatternOf`.
+6. **Drift:** specs outside `__tests__/`: `apps/web/.../data/use-pod-power{,-stop}.spec.ts` and the
+   `packages/github/src` top-level specs (now incl. `github-notice.merge-queue`,
+   `github-subscription-target-states.required-checks`); needs a local `AGENTS.md` or a move.
+   Unreset `let pathname` in `in-app-notices.spec.tsx:35`. `prose-stream.bench.spec.tsx` is an
+   env-gated `console.log` bench with no assertion: move it to a script or delete it.
+7. **Over-300-line specs** (~120 files, new: `crew-drain-cap.spec.ts` 307). Split as touched, from
+   `remote-delta-channel.spec.ts`. `expiresAt: '2026-12-01'` fixtures are past on 12-01; nothing reads them.
 
 ## Ruled out — do not re-investigate
 
@@ -75,6 +74,8 @@ removed ~227k spec lines; items whose files are gone were dropped.
 - **`describe.skipIf(REDIS_URL === undefined)`** in the api fault and redis specs is an env gate.
 - **Caller-abort in `runModelStream`** has three guards (`ai-sdk-model-port.ts:143,163`,
   `stream-ended-without-finish.ts:22`); a single-guard mutation stays green by design.
+- **Shimmer teardown is triple-guarded** (effect cleanup on unmount, null ref, `isDestroyed` in
+  `shimmer-line.tsx:31`); `renderer.destroy()` unmounts first, so a single-guard mutation stays green.
 - **Postgres specs failing with `no test Postgres at localhost:55441`** are environmental. Run
   `bun run --cwd packages/db db:test:up` first.
 - **Not untested:** `threads-api.ts` has a spec; `overlay-stack.tsx` was deleted in #2791;
@@ -82,6 +83,18 @@ removed ~227k spec lines; items whose files are gone were dropped.
 - **No snapshots exist** (`toMatchSnapshot` has no use), so there are no unread snapshots.
 - **Convention drift:** no `.test.ts(x)`, no Vitest outside `evals/`, `noFocusedTests` blocks
   focused tests. Specs outside `__tests__/` are sanctioned by `apps/api/AGENTS.md`.
+
+## 2026-11-26
+
+- **`shimmer-line.spec.tsx`:** the teardown case asserted nothing; it now asserts no paint after
+  `renderer.destroy()`. "stops drawing once the line is gone" asserted the opposite (frames keep
+  growing); it now unmounts the line and asserts no paint and no text. Tick waits replace 400 ms
+  sleeps (2.0s → 1.0s). 10 reruns green.
+- **`mcp-oauth-per-server.spec.ts:116`:** dropped `expect(servers).toBeDefined()` on a fixture.
+- Audit of 382 specs changed since 11-25: no new skips, no assertion-free bodies, 10 sleeps ≥100 ms,
+  one new flaky real-clock bound (backlog 2).
+- Mutation checks: leaking the ticker plus painting past the ref guard turns both cases red; each
+  single guard alone stays green (ruled out). Listed in the PR.
 
 ## 2026-11-25
 
