@@ -153,6 +153,7 @@ export default function SessionScreen() {
               sessionNameOf={session.sessionNameOf}
               onOpenAgent={handleOpenAgent}
               queued={queuedTurns}
+              background={session.background}
             />
             {session.failure === null || session.startFailure !== undefined ? null : (
               <View style={styles.failure}>
