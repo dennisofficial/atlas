@@ -1,4 +1,4 @@
-import { EKilledBy, EShellStatus, quotedShellCommand } from '@dltech/atlas-core'
+import { EKilledBy, EShellStatus, quotedShellName } from '@dltech/atlas-core'
 
 export type ShellEnding = {
   command: string
@@ -9,11 +9,6 @@ export type ShellEnding = {
 }
 
 type NamedShell = { command: string; description?: string | undefined }
-
-const named = (shell: NamedShell): string => {
-  const description = shell.description?.trim() ?? ''
-  return description === '' ? quotedShellCommand(shell.command) : `"${description}"`
-}
 
 const killedOutcome = (killedBy: EKilledBy | undefined): string => {
   if (killedBy === EKilledBy.User) return 'was killed by you'
@@ -36,7 +31,7 @@ function outcomeOf(ending: ShellEnding): string {
 }
 
 export const shellEndedLine = (ending: ShellEnding): string =>
-  `Background shell ${named(ending)} ${outcomeOf(ending)}`
+  `Background shell ${quotedShellName(ending)} ${outcomeOf(ending)}`
 
 export const shellEndingFailed = (ending: ShellEnding): boolean =>
   ending.status === EShellStatus.Overflowed ||
@@ -46,7 +41,7 @@ export const shellEndingFailed = (ending: ShellEnding): boolean =>
   (ending.exitCode !== undefined && ending.exitCode !== 0)
 
 export const shellAwaitingInputLine = (shell: NamedShell): string =>
-  `Background shell ${named(shell)} reached an input prompt`
+  `Background shell ${quotedShellName(shell)} reached an input prompt`
 
 export const shellMatchedNoticeLine = (shell: NamedShell): string =>
-  `Background shell ${named(shell)} matched its watch`
+  `Background shell ${quotedShellName(shell)} matched its watch`

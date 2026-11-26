@@ -12,7 +12,6 @@ import {
   openServices,
   selectedService,
   selectService,
-  serviceNameLabel,
 } from '../services-model'
 
 const service = (over: { serviceId: string; status?: EServiceStatus }): ServiceRowView => ({
@@ -74,17 +73,16 @@ describe('selectService', () => {
   })
 })
 
-describe('serviceNameLabel', () => {
+describe('an undeclared service row name', () => {
+  const nameOf = (named: { command: string; description: string }) =>
+    rowsOf([{ ...service({ serviceId: 'svc_1' }), ...named }])[0]?.name
+
   it('prefers the trimmed description', () => {
-    expect(serviceNameLabel({ command: 'bun run dev', description: '  web  app ' })).toBe(
-      'web  app',
-    )
+    expect(nameOf({ command: 'bun run dev', description: '  web  app ' })).toBe('web  app')
   })
 
   it('folds the command onto one trimmed line when the description is blank', () => {
-    expect(serviceNameLabel({ command: '\n bun run\t\tdev \n', description: '  ' })).toBe(
-      'bun run dev',
-    )
+    expect(nameOf({ command: '\n bun run\t\tdev \n', description: '  ' })).toBe('bun run dev')
   })
 })
 

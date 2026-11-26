@@ -1,7 +1,7 @@
 import {
   EKilledBy,
   EServiceStatus,
-  quotedShellCommand,
+  quotedShellName,
   serviceEnding,
   type ServiceEnding,
 } from '@dltech/atlas-core'
@@ -12,13 +12,6 @@ export type ServiceEndedNotice = ServiceEnding & {
   description?: string | undefined
 }
 
-type NamedService = { command: string; description?: string | undefined }
-
-const named = (service: NamedService): string => {
-  const description = service.description?.trim() ?? ''
-  return description === '' ? quotedShellCommand(service.command) : `"${description}"`
-}
-
 const outcomeOf = (ending: ServiceEnding): string => {
   if (ending.status !== EServiceStatus.Killed) return serviceEnding(ending)
   if (ending.killedBy === EKilledBy.User) return 'was stopped by you'
@@ -27,4 +20,4 @@ const outcomeOf = (ending: ServiceEnding): string => {
 }
 
 export const serviceEndedLine = (ended: ServiceEndedNotice): string =>
-  `Service ${ended.serviceId} ${named(ended)} ${outcomeOf(ended)}`
+  `Service ${ended.serviceId} ${quotedShellName(ended)} ${outcomeOf(ended)}`
