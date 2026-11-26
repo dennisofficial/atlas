@@ -14,13 +14,13 @@ import {
   type RunFailure,
   type ThreadId,
 } from '@dltech/atlas-core'
-import { PauseSignal, type LoopTurnRunner, type TurnOutcome } from '@dltech/atlas-agent'
+import type { LoopTurnRunner, TurnOutcome } from '@dltech/atlas-agent'
 import { logFieldsOf } from '@dltech/atlas-observability'
 import type { PodCrew, SubagentSaid, SubagentSnapshot } from '@dltech/atlas-plugin-sdk'
 
 import type { RoleModelChoice } from '../ports'
-import { oweChildStoppedCalls } from '../stop-debts'
 import type { LeaseLostError, SessionRecord } from '../record/record-adapter'
+import { ChildLifecycle } from './child-lifecycle'
 import { childInboxOf, type ChildInbox } from './child-inbox'
 import { inboxInputOf, type CrewSender } from './child-message'
 import { childPortOf } from './child-port'
@@ -38,7 +38,6 @@ import {
 import { childRunnerOf } from './child-runner'
 import { ChildTranscript } from './child-transcript'
 import { GroupRunState } from './group-run-state'
-import { drainChildTurn } from './child-drain'
 import { driveLifecycle, type DriveArgs } from './child-turns'
 import { lastSeqOf } from './child-reports'
 import {
@@ -60,18 +59,13 @@ export class ChildRun {
   readonly startedAt: string
   private inbox!: ChildInbox
   private readonly transcript: ChildTranscript
-  private readonly pauseSignal = new PauseSignal()
+  private readonly lifecycle: ChildLifecycle
   private record!: SessionRecord
   private runner!: LoopTurnRunner
   private pump: Promise<void> | undefined
-  private abort: AbortController | undefined
   private listeners: AbortController | undefined
-  private stopping = false
-  private handingOff = false
-  private pausing: Promise<void> | undefined
   private ending: EAgentStatus | undefined
   private endedAt: string | undefined
-  private killedBy: EKilledBy | undefined
   private failure: string | undefined
   private readonly group: GroupRunState
   private awaitingAdoptSettle = false
@@ -88,6 +82,13 @@ export class ChildRun {
     this.startedAt = startedAt
     this.group = new GroupRunState(args.groupHold ?? ((draft) => draft))
     this.posts = args.postHold ?? ((post) => post())
+    this.lifecycle = new ChildLifecycle({
+      agentId,
+      deps: args.deps,
+      parentRecord: args.parentRecord,
+      record: () => this.record,
+      done: () => this.done,
+    })
     this.transcript = new ChildTranscript({
       deps: args.deps,
       runtime: args.runtime,
@@ -219,17 +220,11 @@ export class ChildRun {
     return EResumeOutcome.Resumed
   }
 
-  stop(by: EKilledBy): SubagentSnapshot {
-    this.stopping = true
-    this.killedBy = by
-    void oweChildStoppedCalls({
-      child: this.record,
-      parent: this.args.parentRecord,
-      runId: () => this.args.deps.ids.nextRunId(),
-      ...(this.args.deps.log === undefined ? {} : { log: this.args.deps.log }),
-    })
-    this.abort?.abort('agent_stop')
-    return this.snapshot()
+  async stop(by: EKilledBy): Promise<SubagentSnapshot> {
+    const owed = this.lifecycle.stop(by)
+    const snapshot = this.snapshot()
+    await owed
+    return snapshot
   }
 
   async endIdle(by: EKilledBy): Promise<void> {
@@ -238,22 +233,11 @@ export class ChildRun {
   }
 
   pause(): Promise<void> {
-    this.handingOff = true
-    this.pauseSignal.pause()
-    this.pausing ??= drainChildTurn({
-      timers: this.args.deps.timers,
-      drainCapMs: this.args.deps.drainCapMs,
-      agentId: this.agentId,
-      pause: this.pauseSignal,
-      done: this.done,
-      log: this.args.deps.log,
-    })
-    return this.pausing
+    return this.lifecycle.pause()
   }
 
   handoff(): void {
-    this.handingOff = true
-    this.abort?.abort('handoff')
+    this.lifecycle.handoff()
   }
 
   dispose(): void {
@@ -292,7 +276,7 @@ export class ChildRun {
 
   private lost(error: LeaseLostError): void {
     this.args.onLeaseLost(error)
-    this.abort?.abort('handoff')
+    this.lifecycle.abortWith('handoff')
   }
 
   port(): PodCrew {
@@ -321,7 +305,7 @@ export class ChildRun {
     const listeners = new AbortController()
     const abort = new AbortController()
     this.listeners = listeners
-    this.abort = abort
+    this.lifecycle.attach(abort)
     try {
       this.runner = childRunnerOf({
         deps: this.args.deps,
@@ -336,19 +320,19 @@ export class ChildRun {
         parentRecord: this.args.parentRecord,
         intake: this.inbox.intake,
         notify: (event, options) => this.notice(event, options),
-        isDraining: () => this.handingOff,
+        isDraining: () => this.lifecycle.handingOff,
         onFallback: (refs) => this.transcript.fellBack(refs),
       })
       await driveLifecycle({
         drive,
         runner: this.runner,
-        pause: this.pauseSignal,
+        pause: this.lifecycle.pauseSignal,
         threadId: this.agentId,
         signal: abort.signal,
-        stopped: () => this.stopping,
+        stopped: () => this.lifecycle.stopping,
         restarted: (via) => this.transcript.restarted({ via }),
-        owedTurn: async () => !this.stopping && (await this.inbox.intake.hasQueued()),
-        handingOff: () => this.handingOff,
+        owedTurn: async () => !this.lifecycle.stopping && (await this.inbox.intake.hasQueued()),
+        handingOff: () => this.lifecycle.handingOff,
         reset: () => this.resetDrive(),
         settle: (outcome) => this.settle(outcome),
       })
@@ -356,7 +340,7 @@ export class ChildRun {
       await this.settleFailure(error)
     } finally {
       this.pump = undefined
-      this.abort = undefined
+      this.lifecycle.release()
       this.listeners = undefined
       listeners.abort()
     }
@@ -364,24 +348,23 @@ export class ChildRun {
 
   private resetDrive(): void {
     this.group.started()
-    this.stopping = false
+    this.lifecycle.reset()
     this.ending = undefined
     this.endedAt = undefined
-    this.killedBy = undefined
     this.failure = undefined
   }
 
   private async settle(outcome: TurnOutcome): Promise<void> {
-    if (this.handingOff) return
+    if (this.lifecycle.handingOff) return
     const status = statusOf(outcome)
     const failure = failureOf(outcome)
     const killedBy =
-      status === EAgentStatus.Stopped ? (this.killedBy ?? EKilledBy.Model) : undefined
+      status === EAgentStatus.Stopped ? (this.lifecycle.killedBy ?? EKilledBy.Model) : undefined
     await this.end({ status, failure, runFailure: runFailureOf(outcome), killedBy })
   }
 
   private async settleFailure(error: unknown): Promise<void> {
-    if (this.handingOff) return
+    if (this.lifecycle.handingOff) return
     const message = error instanceof Error ? error.message : String(error)
     await this.end({ status: EAgentStatus.Failed, failure: message, killedBy: undefined })
   }
@@ -402,7 +385,6 @@ export class ChildRun {
     this.ending = args.status
     this.endedAt = new Date(this.args.deps.timers.now()).toISOString()
     this.failure = args.failure
-    this.killedBy = args.killedBy
     const draft = this.group.ended(this.transcript.endingDraft({ progress, ...args, runFailure }))
     await this.posts(() => this.transcript.ended({ draft }))
   }
