@@ -5,6 +5,7 @@ import { describe, expect, it } from 'bun:test'
 import { z } from 'zod'
 
 import { pluginResourcesHook } from '../plugin-resources'
+import { watchIdOf } from '../plugin-resource-probes'
 import {
   DIRECTORY,
   agentsRootOf,
@@ -198,6 +199,69 @@ describe('the turn times what it waits for on plugin resources', () => {
     expect(waits.every((span) => span.parent?.name === ESpan.Turn)).toBe(true)
     expect(durationOf(waits[0])).toBeGreaterThanOrEqual(HOLD_MS - TIMER_SLACK_MS)
     expect(loads).toEqual(['skills'])
+  }, 10_000)
+
+  it('records one wait for a changed resource while a refresh round is still loading', async () => {
+    const trace = new RecordingTracer()
+    const gate = gateOf()
+    const loads: string[] = []
+    let value = 'one'
+    const skills = stringResource({
+      name: 'skills',
+      loads,
+      value: () => value,
+      watch: true,
+      cloud: [ECloudSetting.Skills],
+    })
+    let crewStarted: () => void = () => undefined
+    const crewLoading = new Promise<void>((resolve) => {
+      crewStarted = resolve
+    })
+    let crewLoads = 0
+    const crewRoot = `${DIRECTORY}/crew`
+    const crewWatchId = watchIdOf({ roots: [crewRoot] })
+    const crew: PodResource<string> = {
+      name: 'crew',
+      schema: z.string(),
+      watch: () => ({ roots: [crewRoot] }),
+      load: async () => {
+        crewLoads += 1
+        if (crewLoads === 1) return 'crew v1'
+        crewStarted()
+        return await gate.promise
+      },
+    }
+    const turn = rig({ resources: [skills, crew], trace })
+
+    turn.start()
+    await turn.sync.settled()
+    expect(loads).toEqual(['skills'])
+
+    turn.daemon.seqs.set(crewWatchId, 1)
+    turn.sync.refreshInBackground()
+    await crewLoading
+    await sleep(10)
+
+    value = 'two'
+    turn.daemon.setVersions({ ...versionsAt('v1'), [ECloudSetting.Skills]: 'v2' })
+
+    const hook = pluginResourcesHook({ sync: turn.sync })
+    await trace.span({
+      name: ESpan.Turn,
+      root: true,
+      run: () => hook.run({ threadId: THREAD, projectDirectory: DIRECTORY }),
+    })
+    expect(readResource({ ctx: turn.ctx, resource: skills })).toBe('two')
+
+    gate.open('crew v2')
+    await turn.sync.settled()
+    await sleep(20)
+
+    const waits = trace
+      .named(ESpan.ResourceWait)
+      .filter((span) => span.fields.waitFor === EResourceWait.ChangedResource)
+    expect(waits.map((span) => span.fields.resource)).toEqual(['skills'])
+    expect(waits.every((span) => span.parent?.name === ESpan.Turn)).toBe(true)
   }, 10_000)
 
   it('opens a load span for a background resource', async () => {

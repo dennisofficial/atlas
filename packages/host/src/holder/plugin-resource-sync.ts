@@ -8,7 +8,7 @@ import { ELoadReason } from './plugin-resource-reason'
 import { refresh, watchOf, type Adoption } from './plugin-resource-refresh'
 import { reloadOne } from './plugin-resource-reload'
 import { ResourceTurn } from './plugin-resource-turn'
-import { spanWaitOf, waitingOn, type ResourceWait } from './plugin-resource-waits'
+import { spanWaitOf, type ResourceWait } from './plugin-resource-waits'
 
 type Ctx = PluginPodContext
 
@@ -234,7 +234,6 @@ export class ResourceSync {
     resource: PodResource<unknown>
     directory: string
     reason: ELoadReason
-    wait?: ResourceWait | undefined
   }): Promise<void> {
     const name = args.resource.name
     const running = this.running.get(name)
@@ -251,30 +250,13 @@ export class ResourceSync {
     resource: PodResource<unknown>
     directory: string
     reason: ELoadReason
-    wait?: ResourceWait | undefined
   }): Promise<void> {
     const planned = this.refreshing === undefined ? undefined : this.planned
     const refreshed = this.refreshLoads.get(args.resource.name)
-    if (planned !== undefined || refreshed !== undefined) {
-      await waitingOn({
-        wait: args.wait,
-        waitFor: EResourceWait.ChangedResource,
-        resource: args.resource.name,
-        work: async () => {
-          if (planned !== undefined) await planned.catch(() => undefined)
-          if (refreshed !== undefined) await refreshed.catch(() => undefined)
-        },
-      })
-    }
+    if (planned !== undefined) await planned.catch(() => undefined)
+    if (refreshed !== undefined) await refreshed.catch(() => undefined)
     const background = this.backgroundLoads.get(args.resource.name)
-    if (background !== undefined) {
-      await waitingOn({
-        wait: args.wait,
-        waitFor: EResourceWait.BackgroundLoad,
-        resource: args.resource.name,
-        work: () => background.catch(() => undefined),
-      })
-    }
+    if (background !== undefined) await background.catch(() => undefined)
     await reloadOne({
       ctx: this.args.ctx,
       trace: this.args.trace,
