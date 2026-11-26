@@ -1000,9 +1000,9 @@
     ],
     "maxOutputTokens": 384000,
     "cost": {
-      "inputPerMillion": 0.06,
-      "outputPerMillion": 0.18,
-      "cacheReadPerMillion": 0.015
+      "inputPerMillion": 0.0456,
+      "outputPerMillion": 0.3,
+      "cacheReadPerMillion": 0.035
     },
     "effort": {
       "off": "none",
@@ -1051,9 +1051,9 @@
     ],
     "maxOutputTokens": 393216,
     "cost": {
-      "inputPerMillion": 0.888188,
-      "outputPerMillion": 1.5082,
-      "cacheReadPerMillion": 0.2
+      "inputPerMillion": 0.75726,
+      "outputPerMillion": 1.5004,
+      "cacheReadPerMillion": 0.21
     },
     "effort": {
       "off": "none",
@@ -1101,9 +1101,9 @@
     ],
     "maxOutputTokens": 393216,
     "cost": {
-      "inputPerMillion": 0.14,
-      "outputPerMillion": 0.42,
-      "cacheReadPerMillion": 0.0042
+      "inputPerMillion": 0.0507,
+      "outputPerMillion": 0.2028,
+      "cacheReadPerMillion": 0.001014
     },
     "effort": {
       "off": "none",
@@ -1707,10 +1707,11 @@
       "text",
       "image"
     ],
-    "maxOutputTokens": 16384,
+    "maxOutputTokens": 131072,
     "cost": {
       "inputPerMillion": 0.08,
-      "outputPerMillion": 0.16
+      "outputPerMillion": 0.45,
+      "cacheReadPerMillion": 0.04
     }
   },
   {
@@ -1913,6 +1914,26 @@
     "cost": {
       "inputPerMillion": 0,
       "outputPerMillion": 0
+    }
+  },
+  {
+    "ref": {
+      "providerId": "openrouter",
+      "modelId": "inclusionai/lingsante-3.1-air-vl"
+    },
+    "label": "LingSante 3.1 Air VL",
+    "api": "openai-completions",
+    "contextWindow": 131072,
+    "imageTier": "standard",
+    "inputModalities": [
+      "text",
+      "image"
+    ],
+    "maxOutputTokens": 32768,
+    "cost": {
+      "inputPerMillion": 0.06,
+      "outputPerMillion": 0.18,
+      "cacheReadPerMillion": 0.012
     }
   },
   {
@@ -2785,6 +2806,42 @@
       "inputPerMillion": 0.1,
       "outputPerMillion": 0.3,
       "cacheReadPerMillion": 0.01
+    }
+  },
+  {
+    "ref": {
+      "providerId": "openrouter",
+      "modelId": "moonshotai/kimi-k2"
+    },
+    "label": "Kimi K2 0711",
+    "api": "openai-completions",
+    "contextWindow": 131072,
+    "imageTier": "standard",
+    "inputModalities": [
+      "text"
+    ],
+    "maxOutputTokens": 98304,
+    "cost": {
+      "inputPerMillion": 0.57,
+      "outputPerMillion": 2.3
+    }
+  },
+  {
+    "ref": {
+      "providerId": "openrouter",
+      "modelId": "moonshotai/kimi-k2-0905"
+    },
+    "label": "Kimi K2 Instruct 0905",
+    "api": "openai-completions",
+    "contextWindow": 262144,
+    "imageTier": "standard",
+    "inputModalities": [
+      "text"
+    ],
+    "maxOutputTokens": 98304,
+    "cost": {
+      "inputPerMillion": 0.6,
+      "outputPerMillion": 2.5
     }
   },
   {
@@ -4693,7 +4750,7 @@
       "text",
       "image"
     ],
-    "maxOutputTokens": 131072,
+    "maxOutputTokens": 943718,
     "cost": {
       "inputPerMillion": 0.07,
       "outputPerMillion": 0.5,
@@ -4722,7 +4779,7 @@
       "text",
       "image"
     ],
-    "maxOutputTokens": 131072,
+    "maxOutputTokens": 943718,
     "cost": {
       "inputPerMillion": 0,
       "outputPerMillion": 0
@@ -5444,11 +5501,11 @@
       "image",
       "video"
     ],
-    "maxOutputTokens": 131072,
+    "maxOutputTokens": 32768,
     "cost": {
-      "inputPerMillion": 0.035,
-      "outputPerMillion": 1.5,
-      "cacheReadPerMillion": 0.0175
+      "inputPerMillion": 0.06,
+      "outputPerMillion": 1.96,
+      "cacheReadPerMillion": 0.059
     },
     "effort": {
       "off": "none",
@@ -6355,8 +6412,8 @@
     "inputModalities": [
       "text",
       "image",
-      "video",
-      "audio"
+      "audio",
+      "video"
     ],
     "maxOutputTokens": 32768,
     "cost": {
@@ -6455,7 +6512,7 @@
     },
     "label": "GLM-4.6",
     "api": "openai-completions",
-    "contextWindow": 204800,
+    "contextWindow": 202752,
     "imageTier": "standard",
     "inputModalities": [
       "text"
@@ -6933,11 +6990,11 @@
     "inputModalities": [
       "text"
     ],
-    "maxOutputTokens": 943718,
+    "maxOutputTokens": 131072,
     "cost": {
-      "inputPerMillion": 0.047,
-      "outputPerMillion": 0.3,
-      "cacheReadPerMillion": 0.035
+      "inputPerMillion": 0.04532,
+      "outputPerMillion": 0.13596,
+      "cacheReadPerMillion": 0.001442
     },
     "effort": {
       "off": "none",
