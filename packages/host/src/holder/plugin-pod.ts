@@ -5,6 +5,8 @@ import {
   projectDirectoryOfState,
   type EventBody,
   type EventDraft,
+  type PluginEventBody,
+  type RecordBody,
   type RecordEvent,
   type ThreadId,
 } from '@dltech/atlas-core'
@@ -94,6 +96,8 @@ const podResourcesOf = (args: {
   }
 }
 
+type PodDraft = EventDraft | RecordBody | PluginEventBody
+
 export const resolvedEventsOf = (record: SessionRecord): readonly RecordEvent[] => {
   const cache = record.eventCache()
   return cache.eventsAfter(0).map((event) => cache.resolvedEvent(event))
@@ -119,8 +123,13 @@ export const pluginPodContextOf = (args: {
       op: request.op,
       input: request.input,
     })
-  const append = async (drafts: readonly EventDraft[]): Promise<void> => {
-    await record.append({ threadId, runId: deps.ids.nextRunId(), drafts })
+  const append = async (drafts: readonly PodDraft[]): Promise<void> => {
+    const bookkeeping = record.eventCache().bookkeeping()
+    const fresh = drafts.filter(
+      (draft) => draft.type !== 'fact-recorded' || !bookkeeping.fact(draft.key).found,
+    )
+    if (fresh.length === 0) return
+    await record.append({ threadId, runId: deps.ids.nextRunId(), drafts: fresh })
   }
   const ctx: PluginPodContext = {
     sessionId: deps.sessionId,

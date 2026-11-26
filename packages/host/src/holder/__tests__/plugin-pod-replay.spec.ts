@@ -91,7 +91,7 @@ const contextOf = async () => {
 const inScope = async (body: () => Promise<void>): Promise<void> =>
   await runInCallScope({ scopeKey: SCOPE, body })
 
-describe('pluginPodContextOf sessions on a replayed call', () => {
+describe('pluginPodContextOf on a replayed call', () => {
   it('appends the teammate fallback to the record once', async () => {
     const { plane, ctx, drafts, facts } = await contextOf()
     const spawn = async () =>
@@ -107,6 +107,33 @@ describe('pluginPodContextOf sessions on a replayed call', () => {
     const roster = await plane.sessionsOf({ sessionId: SPAWNER.sessionId })
     expect(
       roster.sessions.filter((row) => row.spawnedBySessionId === SPAWNER.sessionId),
+    ).toHaveLength(1)
+  })
+
+  it('appends a fact the record already holds once, and other drafts every time', async () => {
+    const { ctx, drafts } = await contextOf()
+    const fact = { type: 'fact-recorded' as const, key: 'probe:a', kind: 'probe', value: 1 }
+    await ctx.append([fact])
+    await ctx.append([fact])
+    await ctx.append([{ type: 'idle-released', inboxHead: 1 }])
+    await ctx.append([{ type: 'idle-released', inboxHead: 1 }])
+    expect(drafts.filter((draft) => draft.type === 'fact-recorded')).toHaveLength(1)
+    expect(drafts.filter((draft) => draft.type === 'idle-released')).toHaveLength(2)
+  })
+
+  it('posts a notice once for a repeated key', async () => {
+    const { plane, ctx } = await contextOf()
+    const event = {
+      type: 'agent-reported' as const,
+      agentId: toThreadId('agent-1'),
+      agentType: 'general-purpose',
+      intent: 'read the port',
+      prose: 'done',
+    }
+    await ctx.notify(event, { key: 'service-ended:box-1' })
+    await ctx.notify(event, { key: 'service-ended:box-1' })
+    expect(
+      await plane.readInbox({ sessionId: SPAWNER.sessionId, afterId: 0, limit: 50 }),
     ).toHaveLength(1)
   })
 })
