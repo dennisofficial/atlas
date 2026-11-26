@@ -79,6 +79,7 @@ a thread's event log.
 ### Post, subscribe and open a terminal
 
 - `post`, `withdraw`, `readInbox`, `readInboxEntry`; `INBOX_KIND_WITHDRAW`, `withdrawPayloadOf`.
+  A `receipt` key makes a post once for good; a plain `clientId` dedupes in the last 200 entries.
 - `subscribe`, `unsubscribe`, `endSubscriptions`, `listSubscriptions`.
 - A plane that reads the state of a subscription target takes `targetStates` in
   `ControlPlaneParams`. `@dltech/atlas-github` supplies the GitHub port.
@@ -106,7 +107,7 @@ a thread's event log.
   `listRoutineRuns`, `runRoutine`.
 - `routineCreateOf(plane)`, `routineGetOf`, `routineListOf`, `routineUpdateOf`, `routineRemoveOf`,
   `routineRunNowOf`, `routineRunsOf`: the same operations over a `RoutinePlane`.
-- `MINIMUM_ROUTINE_GAP_MINUTES`, `RoutineInvalidError`, `RoutineNotFoundError`.
+- `MINIMUM_ROUTINE_GAP_MINUTES`, `RoutineInvalidError`, `RoutineNotFoundError`. Keyed: replay-safe.
 
 ### Use a store
 
