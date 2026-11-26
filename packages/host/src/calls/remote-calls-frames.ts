@@ -109,6 +109,7 @@ export type FrameSink = {
     capabilities?: readonly string[] | undefined
   }): void
   answered(key: string, state: DaemonAnswer): void
+  scopeCancelled(args: { scope: string; cancelled: readonly string[] }): void
   emitEvent(frame: Extract<DaemonFrame, { kind: 'event' }>): void
 }
 
@@ -119,6 +120,10 @@ export const handleDaemonFrame = (state: FrameSink, frame: DaemonFrame): void =>
   }
   if (frame.kind === 'answered') {
     state.answered(frame.key, frame.state)
+    return
+  }
+  if (frame.kind === 'scope-cancelled') {
+    state.scopeCancelled({ scope: frame.scope, cancelled: frame.cancelled })
     return
   }
   if (frame.kind === 'output') {

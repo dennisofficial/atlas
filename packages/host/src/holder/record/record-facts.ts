@@ -2,9 +2,14 @@ import type { FactRecord } from '@dltech/atlas-core'
 
 import type { RecordCache } from './record-cache'
 
-export const factsOfKindIn = (args: { cache: RecordCache; kind: string }): readonly FactRecord[] =>
+export type FactCache = Pick<RecordCache, 'eventsAfter' | 'resolvedEvent'>
+
+export const factsOfKindsIn = (args: {
+  cache: FactCache
+  kinds: ReadonlySet<string>
+}): readonly FactRecord[] =>
   args.cache.eventsAfter(0).flatMap((event) => {
-    if (event.type !== 'fact-recorded' || event.kind !== args.kind) return []
+    if (event.type !== 'fact-recorded' || !args.kinds.has(event.kind)) return []
     const resolved = args.cache.resolvedEvent(event)
     return resolved.type === 'fact-recorded'
       ? [
@@ -17,3 +22,6 @@ export const factsOfKindIn = (args: { cache: RecordCache; kind: string }): reado
         ]
       : []
   })
+
+export const factsOfKindIn = (args: { cache: FactCache; kind: string }): readonly FactRecord[] =>
+  factsOfKindsIn({ cache: args.cache, kinds: new Set([args.kind]) })

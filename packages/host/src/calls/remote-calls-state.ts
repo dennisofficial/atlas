@@ -20,13 +20,18 @@ import {
 } from './remote-calls-frames'
 import { settleCall, settleFailed } from './remote-calls-settle'
 import { frameSinkOf } from './remote-calls-sink'
-import type { RemoteCallsArgs } from './remote-calls'
+import type { RemoteCallsArgs, ScopeCancelled } from './remote-calls'
 import { interruptPendingForResize } from './restart-interrupt'
 import { ScopeAcks } from './scope-acks'
+import { sendCancelScope } from './scope-cancel'
 
 export { ACK_TIMEOUT_MS } from './scope-acks'
 
-type StateArgs = RemoteCallsArgs & { releaseResize(): void; resizeReason(): string | undefined }
+type StateArgs = RemoteCallsArgs & {
+  releaseResize(): void
+  resizeReason(): string | undefined
+  onScopeCancelled(cancelled: ScopeCancelled): void
+}
 
 export class RemoteCallsState {
   private readonly pending = new Map<string, Pending>()
@@ -146,7 +151,7 @@ export class RemoteCallsState {
     this.reopenIfDown()
     const reply = await withReadyDeadline({
       promise: this.gate.promise,
-      timeoutMs: this.timeoutMs(),
+      timeoutMs: this.args.readyTimeoutMs ?? READY_TIMEOUT_MS,
       timers: this.args.timers,
       ...(this.args.started === undefined ? {} : { armedAfter: this.args.started }),
     })
@@ -206,6 +211,10 @@ export class RemoteCallsState {
     return this.acks.scope(args)
   }
 
+  cancelScope(args: { scope: string }): void {
+    sendCancelScope({ link: this.link, epoch: () => this.epoch, scope: args.scope })
+  }
+
   interruptForRestart(args: { reason: string }): void {
     interruptPendingForResize({
       pending: this.pending,
@@ -215,14 +224,10 @@ export class RemoteCallsState {
     })
   }
 
-  private timeoutMs(): number {
-    return this.args.readyTimeoutMs ?? READY_TIMEOUT_MS
-  }
-
   private readyWithin(signal?: AbortSignal): Promise<ReadyReply | undefined> {
     return withReadyDeadline({
       promise: this.gate.promise,
-      timeoutMs: this.timeoutMs(),
+      timeoutMs: this.args.readyTimeoutMs ?? READY_TIMEOUT_MS,
       timers: this.args.timers,
       signal,
     })
@@ -284,6 +289,7 @@ export class RemoteCallsState {
       failAll: (error) => this.failAll(error),
       handleHelloReply: (frame) => handleHello(this.lane, frame),
       answered: (key, state) => this.answers.settle({ key, state }),
+      scopeCancelled: (cancelled) => this.args.onScopeCancelled(cancelled),
       emitEvent: (frame) => {
         this.args.onEvent?.(frame)
       },

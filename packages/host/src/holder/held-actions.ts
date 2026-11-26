@@ -20,6 +20,7 @@ type FirstStepWaiting = Omit<TakeOverFirstStep, 'action'>
 import { consumeStops } from './held-wait'
 import { settleOperatorOnStop } from './operator-stop'
 import { closeOpenTurn } from './orphan-turn'
+import { oweOwnStoppedTurn } from './stop-debts'
 import type { SessionRuntime } from './ports'
 import type { SessionRecord } from './record/record-adapter'
 import { STOPPED_BY_OPERATOR } from './turn-boundary'
@@ -98,7 +99,7 @@ export class HeldActions {
       this.args.request()
       return
     }
-    if (action === EHeldAction.AbortTurn) return turns.abort(OPERATOR_STOP_REASON)
+    if (action === EHeldAction.AbortTurn) return this.stopTurn()
     if (
       action !== EHeldAction.StartTurn &&
       (await this.settleStagedResize(await this.staged?.()))
@@ -142,6 +143,16 @@ export class HeldActions {
         return
       }
     }
+  }
+
+  private async stopTurn(): Promise<void> {
+    const owed = oweOwnStoppedTurn({
+      record: this.args.record(),
+      runId: () => this.args.deps.ids.nextRunId(),
+      ...(this.args.deps.log === undefined ? {} : { log: this.args.deps.log }),
+    })
+    this.args.turns.abort(OPERATOR_STOP_REASON)
+    await owed
   }
 
   private async settleStagedResize(entries: readonly InboxEntry[] | undefined): Promise<boolean> {

@@ -1,4 +1,5 @@
 import { describeCallsConformance } from './calls'
+import { describeCancelScopeConformance } from './cancel-scope'
 import { describeExecConformance } from './exec'
 import { describeFencingConformance } from './fencing'
 import { describeFilesConformance } from './files'
@@ -16,6 +17,7 @@ export type { DaemonConformanceTarget, DaemonHandle } from './support'
 export const describeDaemonConformance = (target: DaemonConformanceTarget): void => {
   describeFencingConformance(target)
   describeCallsConformance(target)
+  describeCancelScopeConformance(target)
   describeExecConformance(target)
   describeFilesConformance(target)
   describeFilesMirrorConformance(target)

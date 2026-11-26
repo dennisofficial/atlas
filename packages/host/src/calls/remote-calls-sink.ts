@@ -17,6 +17,7 @@ export const frameSinkOf = (args: {
     capabilities?: readonly string[] | undefined
   }): void
   answered(key: string, state: DaemonAnswer): void
+  scopeCancelled(args: { scope: string; cancelled: readonly string[] }): void
   emitEvent(frame: Extract<DaemonFrame, { kind: 'event' }>): void
 }): FrameSink => ({
   pending: args.pending,
@@ -28,5 +29,6 @@ export const frameSinkOf = (args: {
   failAll: (error) => args.failAll(error),
   handleHelloReply: (frame) => args.handleHelloReply(frame),
   answered: (key, state) => args.answered(key, state),
+  scopeCancelled: (cancelled) => args.scopeCancelled(cancelled),
   emitEvent: (frame) => args.emitEvent(frame),
 })
