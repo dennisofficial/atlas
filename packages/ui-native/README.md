@@ -7,7 +7,8 @@ palette and one type scale. `apps/mobile` is the only consumer.
 ## Owns
 
 - The native components: `Alert`, `Avatar`, `Bubble`, `Button`, `Card`, `CodeBlock`, `HarnessNotice`,
-  `Icon`, `Input`, `Markdown`, `Reasoning`, `Separator`, `Text`, `Trace`, `AtlasMark` and `BrandMark`.
+  `Icon`, `Input`, `Markdown`, `Reasoning`, `Separator`, `Spinner`, `Text`, `Trace`, `AtlasMark` and
+  `BrandMark`.
 - The native theme hooks: `useTheme`, `useScheme`, `useIsDark`.
 - The native type enums `ETextRole`, `ETextTone`, `EFontFamily`, `EFontWeight`.
 - A small markdown renderer with no web view.
@@ -54,6 +55,7 @@ palette and one type scale. `apps/mobile` is the only consumer.
   an icon, a leading node and a loading state.
 - `Input` with `IInputProps`, `InputRef`: a text field.
 - `Avatar` with `EAvatarSize`, `Icon`: an avatar, and a lucide icon.
+- `Spinner`: the Atlas loading spinner, the same turning `LoaderCircle` as the web `Spinner`.
 - `Bubble`, `MessageActions`, `MessageAction`, `MessageFooter`: a message and its actions.
 
 ### Draw a run
@@ -86,6 +88,7 @@ const Row = ({ label }: { label: string }) => (
 - Read a color through `useTheme()` or `resolveTheme`. Do not hard-code a color value.
 - Read a size through `space`, `radius` or `typeScale` from `@dltech/atlas-ui/tokens`.
 - Use `lucide-react-native` for an icon, and pass it to `Icon`.
+- Show loading with `Spinner`, never the iOS `ActivityIndicator`.
 - Add a component here only when `@dltech/atlas-ui` has no native equivalent.
 - Keep `react-native`, `react`, `react-native-svg` and `lucide-react-native` as peer
   dependencies. The app supplies them.

@@ -32,8 +32,9 @@ in the same PR.
 - Live check on an Expo iOS simulator (EAS Simulators, `simulator` profile in `apps/mobile/eas.json`)
   against the same session, opened on web beside it. Compare the two screens: every action and
   piece of information that web shows and the screen lacks is either built in the PR or added below
-  as an unchecked feature. The design stays native: compare what the screen offers, not how it
-  looks. The PR has the simulator and web screenshots side by side.
+  as an unchecked feature. Then compare how they look: where the iOS screen looks worse than web
+  in person (for example the iOS `ActivityIndicator` against the web spinner), fix it or add it
+  below. The PR has the simulator and web screenshots side by side.
 - One PR with a conventional title (`feat(mobile): …` for something new). CI green, merged.
 
 ## Features

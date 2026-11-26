@@ -15,10 +15,11 @@ import {
   TraceLine,
   useTheme,
   withAlpha,
+  Spinner,
 } from '@dltech/atlas-ui-native'
 import { Circle, CircleCheck, CircleX } from 'lucide-react-native'
 import { useMemo } from 'react'
-import { ActivityIndicator, ScrollView, StyleSheet, View } from 'react-native'
+import { ScrollView, StyleSheet, View } from 'react-native'
 
 import { bootDisplayOf, type BootChildDisplay, type BootStepDisplay } from '../session/boot-display'
 
@@ -38,7 +39,7 @@ const errorOf = (step: { state: EBootStepState; detail?: string }): string | und
 const StepMark = ({ state }: { state: EBootStepState }) => {
   const theme = useTheme()
   if (state === EBootStepState.Running || state === EBootStepState.Interrupted) {
-    return <ActivityIndicator size="small" color={theme.mutedForeground} />
+    return <Spinner color={theme.mutedForeground} />
   }
   if (state === EBootStepState.Error) return <Icon icon={CircleX} color={theme.destructive} />
   if (state === EBootStepState.Done)
