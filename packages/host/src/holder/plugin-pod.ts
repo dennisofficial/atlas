@@ -172,6 +172,7 @@ export const pluginPodContextOf = (args: {
     }),
     worktrees: worktreesOf({
       calls: runtime.remoteCalls,
+      step,
       ...(runtime.workspaceGate === undefined ? {} : { gate: runtime.workspaceGate }),
     }),
     append,
