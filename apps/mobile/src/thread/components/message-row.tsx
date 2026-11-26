@@ -25,7 +25,7 @@ import {
   type MessageRow,
   type SessionNameOf,
 } from '../rows'
-import { CollapsibleBody } from './collapsible-body'
+import { InboundBubble } from './inbound-bubble'
 import { MessageAttachments } from './message-attachments'
 
 const renderDiagram = ({ source, closed }: IRenderDiagramArgs) => (
@@ -97,17 +97,12 @@ export const MessageRowView = ({
     const caption = senderLabelOf({ row, sessionNameOf })
     return (
       <View style={styles.message}>
-        {caption === undefined ? null : (
-          <Text size={ETextRole.Xs} weight={EFontWeight.Medium} tone={ETextTone.Muted}>
-            {caption}
-          </Text>
-        )}
         {caption === undefined ? (
           <Markdown value={row.text} selectable renderDiagram={renderDiagram} />
         ) : (
-          <CollapsibleBody>
+          <InboundBubble caption={caption}>
             <Markdown value={row.text} selectable renderDiagram={renderDiagram} />
-          </CollapsibleBody>
+          </InboundBubble>
         )}
         <SentAt at={row.at} />
       </View>
