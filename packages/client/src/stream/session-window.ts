@@ -6,7 +6,7 @@ import {
   foldableOf,
   initialSessionViewState,
   isCommandLogEvent,
-  isDurable,
+  retainedOf,
   visibleWithin,
   needsRebuild,
   rebuildEditSensitive,
@@ -30,7 +30,7 @@ import {
   type QuickStopState,
 } from '../session/quick-stop-state'
 
-export const RENDER_LIMIT = 3_000
+export const RENDER_LIMIT = 200
 
 export const OLDER_PAGE = 200
 
@@ -164,7 +164,10 @@ export const applyPageOutcome = (args: {
   const visible = visibleWithin({ state: visibility, events: [...window.events, ...events] }).slice(
     -(args.renderLimit ?? RENDER_LIMIT),
   )
-  const durable = [...window.durable, ...events.filter((event) => isDurable(event.type))]
+  const durable = retainedOf({
+    events: [...window.durable, ...window.events, ...events],
+    before: visible[0]?.seq ?? last.seq + 1,
+  })
   const foldable = foldableOf({ visible, durable })
   return {
     window: {

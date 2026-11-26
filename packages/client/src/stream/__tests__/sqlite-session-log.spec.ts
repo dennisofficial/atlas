@@ -6,6 +6,7 @@ import {
   initialFailureMessage,
   initialSessionViewState,
 } from '@dltech/atlas-core'
+import type { QuickStopState } from '../../session/quick-stop-state'
 import { SESSION_LOG_STRUCTURE_VERSION, type SessionLogSnapshot } from '../session-log'
 import { createSqliteSessionLog } from '../sqlite-session-log'
 import type { SqlValue, SqliteExecutor } from '../sqlite-executor'
@@ -41,7 +42,11 @@ const setup = async () => {
   return { log }
 }
 
-const snapshotAt = (args: { throughSeq: number; cursorSeq?: number }): SessionLogSnapshot => ({
+const snapshotAt = (args: {
+  throughSeq: number
+  cursorSeq?: number
+  quickStops?: QuickStopState | undefined
+}): SessionLogSnapshot => ({
   version: SESSION_LOG_STRUCTURE_VERSION,
   cursor: { seq: args.cursorSeq ?? args.throughSeq, hash: 'h' },
   visibility: EMPTY_VISIBILITY,
@@ -50,6 +55,7 @@ const snapshotAt = (args: { throughSeq: number; cursorSeq?: number }): SessionLo
   failureMessage: initialFailureMessage,
   durable: [],
   commandLog: [],
+  quickStops: args.quickStops,
   throughSeq: args.throughSeq,
 })
 
@@ -78,6 +84,24 @@ describe('the sqlite session log', () => {
       ...snapshotAt({ throughSeq: 1 }),
       cursor: { seq: 2, hash: headOf(events).hash },
     })
+  })
+
+  it('round-trips the quick stops of a snapshot', async () => {
+    const { log } = await setup()
+    const events = mintEvents({ bodies: [userSaid('a'), userSaid('b')] })
+    await log.appendPage({ sessionId: 's1', events, head: headOf(events) })
+    const quickStops: QuickStopState = {
+      clientIdByInbox: [[3, 'client-1']],
+      candidates: [{ clientId: 'client-1', text: 'stop', attachments: [], seq: 2 }],
+      lastTurnEndedSeq: 2,
+      evidence: [],
+    }
+    await log.saveSnapshot({
+      sessionId: 's1',
+      snapshot: snapshotAt({ throughSeq: 2, quickStops }),
+    })
+
+    expect((await log.loadSnapshot('s1'))?.quickStops).toEqual(quickStops)
   })
 
   it('forgets a session of another structure version', async () => {
