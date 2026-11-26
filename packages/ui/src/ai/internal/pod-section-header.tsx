@@ -34,9 +34,9 @@ function stateTextOf({
   waiting: boolean
 }): string {
   if (waiting) return 'Waiting for idle…'
+  if (resizing) return 'Resizing…'
   if (stopping) return 'Stopping…'
-  if (starting) return 'Starting…'
-  return resizing ? 'Resizing…' : STATE_TEXT[state]
+  return starting ? 'Starting…' : STATE_TEXT[state]
 }
 
 function powerLabelOf({
@@ -52,10 +52,10 @@ function powerLabelOf({
   resizing: boolean
   waiting: boolean
 }): string {
-  if (stopping) return 'Stopping pod'
-  if (starting) return 'Starting pod'
   if (waiting) return 'Waiting to resize pod'
   if (resizing) return 'Resizing pod'
+  if (stopping) return 'Stopping pod'
+  if (starting) return 'Starting pod'
   if (wakingOf(state)) return 'Starting pod'
   return state === EPodState.Running ? 'Stop pod' : 'Start pod'
 }
