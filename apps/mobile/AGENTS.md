@@ -21,6 +21,9 @@ web spinner), never `ActivityIndicator`.
   (`src/navigation/header-options.tsx`), which places the title as a `custom` item in
   `unstable_headerLeftItems`. Its `titleButtons` counts every bar button on the screen plus one
   spare slot. With too little room, iOS moves every bar item into one overflow "…" menu.
+- **Hiding the bar on a live screen:** do not toggle `headerShown` from state. The change remounts
+  the screen's content, so its state and any scroll or zoom reset (#3036, measured in the photo
+  viewer). Keep `headerShown: true` on a transparent bar and empty its items instead.
 - **Bar buttons:** use native bar button items (`unstable_headerLeftItems`,
   `unstable_headerRightItems`) with SF Symbols. Then iOS 26+ gives them the glass style. Use a
   React Native button in the bar only as the non-iOS fallback.
