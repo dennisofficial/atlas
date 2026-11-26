@@ -39,10 +39,10 @@ export const launchTracked = async (
   args: LaunchArgs,
 ): Promise<{ ok: true; value: LaunchedService } | { ok: false; reason: string }> => {
   const { ctx, state } = args
-  const serviceId = newServiceId()
+  const requested = newServiceId()
   let settled: () => void = () => undefined
   state.starting.set(
-    serviceId,
+    requested,
     new Promise<void>((resolve) => {
       settled = resolve
     }),
@@ -50,7 +50,7 @@ export const launchTracked = async (
   try {
     const launched = await startService({
       ctx,
-      serviceId,
+      serviceId: requested,
       command: args.command,
       cwd: args.cwd,
       env: await serviceEnvOf({ ctx, env: args.env }),
@@ -60,6 +60,7 @@ export const launchTracked = async (
       signal: args.signal,
     })
     if (!launched.ok) return { ok: false, reason: launched.reason }
+    const serviceId = launched.value.serviceId
     const exposure =
       args.port === undefined || args.expose === false
         ? undefined
@@ -97,7 +98,7 @@ export const launchTracked = async (
     }
   } finally {
     settled()
-    state.starting.delete(serviceId)
+    state.starting.delete(requested)
   }
 }
 
