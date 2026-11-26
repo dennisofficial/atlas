@@ -78,7 +78,7 @@ only what it can rebuild or drop.
 ### Keep the record
 
 - `SessionRecord`: the `AgentRecordPort` and `ModelContextPort` over the control plane.
-- `RecordCache`: keeps the events of a thread in memory while the holder holds the session.
+- `RecordCache`: keeps the events of a thread in memory, and resumes them on the next take-over instead of replaying the thread.
 - `RecordOnceLedger`: the `OnceLedger` backed by the record cache.
 - `PictureStore`, `storePictures`: move a tool result's pictures into the media store at append,
   so the event holds a `MediaPart`; one the store does not take becomes `[picture not kept: …]`.
