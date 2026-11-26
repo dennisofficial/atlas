@@ -20,4 +20,16 @@ describe('Button', () => {
     expect(classes).toContain('text-xs')
     expect(classes).not.toContain('px-2.5')
   })
+
+  it('disabled is a muted fill with a muted label, not a faded variant', () => {
+    const base = buttonVariants().split(' ')
+    const filled = ['default', 'secondary', 'destructive'] as const
+
+    expect(base).toContain('disabled:text-muted-foreground')
+    expect(base).not.toContain('disabled:opacity-50')
+    for (const variant of filled) {
+      expect(buttonVariants({ variant }).split(' ')).toContain('disabled:bg-muted')
+    }
+    expect(buttonVariants({ variant: 'ghost' }).split(' ')).not.toContain('disabled:bg-muted')
+  })
 })

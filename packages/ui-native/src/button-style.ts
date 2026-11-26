@@ -47,7 +47,41 @@ export const buttonBoxOf = (size: EButtonSize) => {
 
 export const touchSlopOf = (size: EButtonSize) => Math.max(0, (MIN_TOUCH_TARGET - HEIGHT[size]) / 2)
 
+interface IButtonColors {
+  background: string
+  foreground: string
+  border: string
+}
+
+const FILLED_VARIANTS: ReadonlySet<EButtonVariant> = new Set([
+  EButtonVariant.Default,
+  EButtonVariant.Secondary,
+  EButtonVariant.Destructive,
+])
+
 export const buttonColorsOf = ({
+  variant,
+  theme,
+  dark,
+  pressed,
+  disabled = false,
+}: {
+  variant: EButtonVariant
+  theme: SemanticTheme
+  dark: boolean
+  pressed: boolean
+  disabled?: boolean
+}): IButtonColors => {
+  const enabled = enabledColorsOf({ variant, theme, dark, pressed: pressed && !disabled })
+  if (!disabled) return enabled
+  return {
+    background: FILLED_VARIANTS.has(variant) ? theme.muted : enabled.background,
+    foreground: theme.mutedForeground,
+    border: enabled.border,
+  }
+}
+
+const enabledColorsOf = ({
   variant,
   theme,
   dark,
@@ -57,7 +91,7 @@ export const buttonColorsOf = ({
   theme: SemanticTheme
   dark: boolean
   pressed: boolean
-}): { background: string; foreground: string; border: string } => {
+}): IButtonColors => {
   const clear = 'transparent'
   if (variant === EButtonVariant.Default) {
     return {

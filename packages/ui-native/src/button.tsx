@@ -53,7 +53,7 @@ export const Button = ({
       hitSlop={touchSlopOf(size)}
       onPress={onPress}
       style={({ pressed }) => {
-        const colors = buttonColorsOf({ variant, theme, dark, pressed })
+        const colors = buttonColorsOf({ variant, theme, dark, pressed, disabled })
         return [
           styles.base,
           buttonBoxOf(size),
@@ -62,13 +62,12 @@ export const Button = ({
           {
             backgroundColor: colors.background,
             borderColor: colors.border,
-            opacity: disabled ? 0.5 : 1,
           },
         ]
       }}
     >
       {({ pressed }) => {
-        const { foreground } = buttonColorsOf({ variant, theme, dark, pressed })
+        const { foreground } = buttonColorsOf({ variant, theme, dark, pressed, disabled })
         if (loading) return <Spinner color={foreground} />
         return (
           <>
