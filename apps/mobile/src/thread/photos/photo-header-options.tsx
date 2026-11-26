@@ -74,12 +74,22 @@ export const photoHeaderOptionsOf = ({
   onShare: () => void
 }): NativeStackNavigationOptions => {
   const base: NativeStackNavigationOptions = {
-    headerShown: visible,
+    headerShown: true,
     headerTransparent: true,
     headerShadowVisible: false,
     headerTintColor: tint,
     scrollEdgeEffects: HIDDEN_EDGES,
   }
+  if (!visible)
+    return {
+      ...base,
+      title: '',
+      headerTitle: '',
+      headerLeft: () => null,
+      headerRight: () => null,
+      unstable_headerLeftItems: () => [],
+      unstable_headerRightItems: () => [],
+    }
   if (Platform.OS !== 'ios')
     return {
       ...base,
