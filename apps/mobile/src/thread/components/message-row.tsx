@@ -166,7 +166,7 @@ const styles = StyleSheet.create({
     opacity: 0.45,
   },
   wideBubble: {
-    alignSelf: 'stretch',
+    width: '80%',
   },
   message: {
     gap: space(2),
