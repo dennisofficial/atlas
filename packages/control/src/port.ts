@@ -512,6 +512,7 @@ export interface ControlTx {
   updateRoutine(row: RoutineRow): Promise<void>
   deleteRoutine(routineId: string): Promise<void>
   claimEffectReceipt(params: EffectReceiptKey): Promise<EffectReceiptClaim>
+  readEffectReceipt(params: EffectReceiptKey): Promise<JsonValue | undefined>
   completeEffectReceipt(params: EffectReceiptKey & { result: JsonValue }): Promise<void>
 }
 

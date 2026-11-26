@@ -134,6 +134,46 @@ describe('routine effects keyed by a step receipt', () => {
     expect(await db.orm.public.Session.all()).toHaveLength(1)
   })
 
+  it('returns the completed update receipt after the routine was removed', async () => {
+    const { db } = currentDb()
+    await seedProject({ db })
+    const plane = planeOf(db)
+    setSystemTime(T0)
+
+    const created = await routineCreateOf({ plane, userId: 'usr-1', input })
+    const call = {
+      plane,
+      userId: 'usr-1',
+      projectId: 'prj-1',
+      input: { routineId: created.routineId, name: 'renamed' },
+      receipt: { threadId: 'thr-1', stepKey: 'update-after-remove.0' },
+    }
+    const first = await routineUpdateOf(call)
+    await routineRemoveOf({ plane, userId: 'usr-1', routineId: created.routineId })
+
+    expect(await routineUpdateOf(call)).toEqual(first)
+  })
+
+  it('returns the completed run receipt after the routine was removed', async () => {
+    const { db } = currentDb()
+    await seedProject({ db })
+    const plane = planeOf(db)
+    setSystemTime(T0)
+
+    const created = await routineCreateOf({ plane, userId: 'usr-1', input })
+    const call = {
+      plane,
+      userId: 'usr-1',
+      projectId: 'prj-1',
+      routineId: created.routineId,
+      receipt: { threadId: 'thr-1', stepKey: 'run-after-remove.0' },
+    }
+    const first = await routineRunNowOf(call)
+    await routineRemoveOf({ plane, userId: 'usr-1', routineId: created.routineId })
+
+    expect(await routineRunNowOf(call)).toEqual(first)
+  })
+
   it('leaves a routine in another project alone and reports it as not removed', async () => {
     const { db } = currentDb()
     await seedProject({ db })

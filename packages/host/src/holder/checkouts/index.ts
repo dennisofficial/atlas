@@ -13,6 +13,7 @@ import { DaemonFileSystemPort } from '../../calls/ports/filesystem'
 import { DaemonProcessPort } from '../../calls/ports/process'
 import type { RemoteCalls } from '../../calls/remote-calls'
 import { POD_WAIT_INTERRUPTED, type WorkspaceGate } from '../../calls/workspace-gate'
+import type { HostStepPort } from '../record/host-step'
 import { complaintOf, runGit } from './git'
 import { parseStatus, parseWorktrees } from './parse'
 
@@ -38,6 +39,7 @@ export class HostWorktrees implements PodWorktrees {
       processes: ProcessPort
       files: FileSystemPort
       gate?: WorkspaceGate | undefined
+      step?: HostStepPort | undefined
     },
   ) {}
 
@@ -57,6 +59,7 @@ export class HostWorktrees implements PodWorktrees {
   }
 
   async create(args: { cwd: string; name: string }): Promise<WorktreeEntryInfo> {
+    await this.args.step?.({ op: 'worktrees.create', input: { name: args.name } })
     const { repository, worktrees } = await this.list({ cwd: args.cwd })
     const home = join(repository, WORKTREE_HOME)
     const path = join(home, args.name)
@@ -119,6 +122,10 @@ export class HostWorktrees implements PodWorktrees {
     branch?: string | undefined
     force: boolean
   }): Promise<WorktreeRemoval> {
+    await this.args.step?.({
+      op: 'worktrees.remove',
+      input: { path: args.path, branch: args.branch, force: args.force },
+    })
     const checkedOut = await this.branchOf(args.path)
     if (args.branch !== undefined && checkedOut !== undefined && args.branch !== checkedOut) {
       throw new Error(
@@ -234,6 +241,7 @@ export class HostWorktrees implements PodWorktrees {
 export const worktreesOf = (args: {
   calls: RemoteCalls
   gate?: WorkspaceGate | undefined
+  step?: HostStepPort | undefined
 }): PodWorktrees =>
   new HostWorktrees({
     processes: new DaemonProcessPort({
@@ -242,4 +250,5 @@ export const worktreesOf = (args: {
     }),
     files: new DaemonFileSystemPort({ calls: args.calls }),
     ...(args.gate === undefined ? {} : { gate: args.gate }),
+    ...(args.step === undefined ? {} : { step: args.step }),
   })

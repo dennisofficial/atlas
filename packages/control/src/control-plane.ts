@@ -938,6 +938,10 @@ export class ControlPlane {
     )
   }
 
+  async readEffectReceipt(receipt: EffectReceiptKey): Promise<JsonValue | undefined> {
+    return this.store.transact(async (tx) => await tx.readEffectReceipt(receipt))
+  }
+
   async createRoutine(row: RoutineRow, receipt?: EffectReceiptKey): Promise<RoutineRow> {
     return this.store.transact(async (tx) =>
       onceInReceipt({
