@@ -124,6 +124,7 @@ export class ChildTranscript {
         prose: args.text,
       },
       key: args.clientId ?? reportKeyOf({ agentId: this.args.agentId, seq: this.args.lastSeq() }),
+      ...(args.clientId === undefined ? {} : { receipt: args.clientId }),
     })
   }
 

@@ -84,6 +84,7 @@ export const spawnPeerIn = async (params: {
     }),
     at: params.at,
     senderSessionId: spawner.sessionId,
+    receipt: spawnBriefClientIdOf(params.sessionId),
   })
   return { inboxId: posted.inboxId, already }
 }
@@ -126,6 +127,7 @@ export const reportToSpawnerIn = async (params: {
     }),
     at: params.at,
     senderSessionId: params.session.sessionId,
+    ...(params.clientId === undefined ? {} : { receipt: params.clientId }),
   })
 }
 
@@ -157,6 +159,7 @@ export const messagePeerIn = async (params: {
     }),
     at: params.at,
     senderSessionId: from.sessionId,
+    ...(params.clientId === undefined ? {} : { receipt: params.clientId }),
   })
   return { inboxId: posted.inboxId, title: to.title }
 }

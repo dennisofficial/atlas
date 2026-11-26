@@ -837,6 +837,7 @@ export class ControlPlane {
     kind: string
     payload: string
     threadId?: ThreadId | undefined
+    receipt?: string | undefined
   }): Promise<{ inboxId: number }> {
     return this.store.transact(async (tx) => postIn({ tx, ...params, at: await this.nowIn(tx) }))
   }

@@ -177,7 +177,10 @@ export class ChildRun {
     from?: CrewSender | undefined
     clientId?: string | undefined
   }): Promise<SubagentSaid> {
-    await this.inbox.post(inboxInputOf(args))
+    await this.inbox.post({
+      ...inboxInputOf(args),
+      ...(args.clientId === undefined ? {} : { receipt: args.clientId }),
+    })
     if (this.pump !== undefined) return { queued: true, snapshot: this.snapshot() }
     if (!(await this.inbox.intake.hasQueued())) return { queued: false, snapshot: this.snapshot() }
     this.begin({ restart: this.ending !== undefined })
