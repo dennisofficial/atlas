@@ -25,6 +25,7 @@ export {
   type RemoteCallsArgs,
   type RemoteCloseReason,
   type EventFrame,
+  type ScopeCancelled,
 } from './calls/remote-calls'
 export {
   webSocketConnector,
@@ -97,6 +98,14 @@ export type { ChangesCheckout, ChangesSnapshotterArgs } from './holder/changes/s
 export { changeCheckoutId, changeRepoOf } from './holder/changes/identity'
 export { fingerprintOf } from './holder/changes/fingerprint'
 export { InboxIntake, INBOX_KIND_STOP } from './holder/inbox-intake'
+export {
+  oweStoppedCalls,
+  payStopDebts,
+  wireStopDebts,
+  type StopDebtCalls,
+  type StopDebtPorts,
+  type StopDebtRecord,
+} from './holder/stop-debts'
 export {
   LeaseLostError,
   RecordCorruptionError,

@@ -20,6 +20,8 @@ export type RemoteCloseReason = 'asleep' | 'detached'
 
 export type RemoteHello = { bootId: string; restart: boolean }
 
+export type ScopeCancelled = { scope: string; cancelled: readonly string[] }
+
 export type RemoteCallsArgs = {
   sessionId: string
   token: string | (() => string)
@@ -43,6 +45,7 @@ export class RemoteCalls {
   private readonly eventListeners = new Set<(frame: EventFrame) => void>()
   private readonly closeListeners = new Set<(reason: RemoteCloseReason) => void>()
   private readonly readyListeners = new Set<(hello: RemoteHello) => void>()
+  private readonly scopeListeners = new Set<(cancelled: ScopeCancelled) => void>()
   private readonly log: LogPort | undefined
 
   constructor(args: RemoteCallsArgs) {
@@ -56,6 +59,7 @@ export class RemoteCalls {
       ...args,
       onEvent: (frame) => this.emitEvent(frame),
       onReady: (hello) => this.emitReady(hello),
+      onScopeCancelled: (frame) => this.emitScopeCancelled(frame),
       releaseResize: () => this.gate.release(),
       resizeReason: () => this.gate.reason,
     })
@@ -75,6 +79,13 @@ export class RemoteCalls {
     }
   }
 
+  onScopeCancelled(listener: (cancelled: ScopeCancelled) => void): () => void {
+    this.scopeListeners.add(listener)
+    return () => {
+      this.scopeListeners.delete(listener)
+    }
+  }
+
   onClose(listener: (reason: RemoteCloseReason) => void): () => void {
     this.closeListeners.add(listener)
     return () => {
@@ -90,6 +101,20 @@ export class RemoteCalls {
         this.log?.error({
           source: 'remote-calls',
           message: 'ready listener threw',
+          ...logFieldsOf({ error }),
+        })
+      }
+    }
+  }
+
+  private emitScopeCancelled(cancelled: ScopeCancelled): void {
+    for (const listener of [...this.scopeListeners]) {
+      try {
+        listener(cancelled)
+      } catch (error) {
+        this.log?.error({
+          source: 'remote-calls',
+          message: 'scope-cancelled listener threw',
           ...logFieldsOf({ error }),
         })
       }
@@ -141,6 +166,7 @@ export class RemoteCalls {
     this.closeListeners.clear()
     this.eventListeners.clear()
     this.readyListeners.clear()
+    this.scopeListeners.clear()
     this.state.close()
     for (const listener of listeners) {
       try {
@@ -207,6 +233,10 @@ export class RemoteCalls {
 
   ackScope(args: { scopeKey: string; count?: number | undefined }): Promise<void> {
     return this.state.ackScope(args)
+  }
+
+  cancelScope(args: { scope: string }): void {
+    this.state.cancelScope(args)
   }
 }
 

@@ -8,6 +8,7 @@ import {
 } from '@dltech/atlas-core'
 
 import { EDaemonErrorKind, ERunState } from '../frames'
+import { abortAllOf, cancelOf, ScopeCancels, type ScopeCancelOutcome } from './cancel-ops'
 import { ECallFailure, type CallOp, type CallResult, type DaemonEvent, type OpName } from '../ops'
 import type { CallSink } from './call-output'
 import { ECallJournalState, type CallJournal, type CallStore } from './call-store'
@@ -46,6 +47,7 @@ export class CallLedger {
   private readonly lock = new KeyLock()
   private readonly calls = new Map<string, LiveCall>()
   private readonly arrivals = new RunArrivals()
+  private readonly scopes = new ScopeCancels()
 
   constructor(private readonly args: CallLedgerArgs) {
     this.protocol = initialCalls({ bootId: args.bootId })
@@ -159,21 +161,19 @@ export class CallLedger {
   }
 
   cancel(args: { key: string; epoch: number }): LedgerOutcome {
-    const stepped = stepCalls({
-      state: this.protocol,
-      input: { type: 'cancel', key: args.key, epoch: args.epoch },
-    })
-    if (stepped.effects.errors.includes(ECallError.StaleEpoch)) return staleEpoch(args.epoch)
-    const call = this.calls.get(args.key)
-    if (call === undefined) {
-      if (!this.arrivals.isWaiting(args.key)) return unknownKey(args.key)
-      this.arrivals.cancel(args.key)
-      return { ok: true }
-    }
-    if (!stepped.effects.cancelled.includes(args.key)) return { ok: true }
-    this.arrivals.cancel(args.key)
-    call.abort.abort()
-    return { ok: true }
+    return cancelOf({ ...this.cancelArgs(), key: args.key, epoch: args.epoch })
+  }
+
+  cancelScope(args: { scope: string; epoch: number }): Promise<ScopeCancelOutcome> {
+    return this.scopes.cancel({ ...this.cancelArgs(), scope: args.scope, epoch: args.epoch })
+  }
+
+  private cancelArgs(): {
+    state: SteppedCalls
+    calls: Map<string, LiveCall>
+    arrivals: RunArrivals
+  } {
+    return { state: this.protocol, calls: this.calls, arrivals: this.arrivals }
   }
 
   detachOwner(args: { owner: object }): void {
@@ -181,7 +181,7 @@ export class CallLedger {
   }
 
   abortAll(): void {
-    for (const call of this.calls.values()) call.abort.abort()
+    abortAllOf({ calls: this.calls.values() })
   }
 
   private isRunning(key: string): boolean {
@@ -260,6 +260,7 @@ export class CallLedger {
       handler: args.handler,
     }).catch((error: unknown) => this.args.onFault({ key: args.key, error }))
     this.args.onRunning(running)
+    this.scopes.track({ key: args.key, running })
     return { ok: true }
   }
 

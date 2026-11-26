@@ -1,8 +1,8 @@
 import {
   EDaemonErrorKind,
-  daemonFrameSchema,
   hostFrameSchema,
   type AnswerFrame,
+  type CancelScopeFrame,
   type DaemonFrame,
   type HostFrame,
 } from '../frames'
@@ -19,9 +19,12 @@ import type { DaemonGroup } from './group'
 import { CallLedger, type LedgerOutcome } from './ledger'
 import { helloReplyOf } from './hello-reply'
 import { ExecutingCalls } from './live-call'
+import { rejectPeer, sendErrorFrame, sendFrame, type Peer } from './peer-frames'
 import { unreadableRunOf } from './unreadable-run'
 
-type Peer = { connection: EngineConnection; epoch: number | null; live: boolean }
+type CallFrame = Exclude<HostFrame, { kind: 'hello' } | { kind: 'ping' } | { kind: 'answer' }>
+
+type DispatchFrame = Exclude<CallFrame, { kind: 'cancel-scope' }>
 
 export class DaemonEngine {
   private readonly ledger: CallLedger
@@ -78,15 +81,7 @@ export class DaemonEngine {
   }
 
   private send(args: { peer: Peer; frame: DaemonFrame }): void {
-    if (!args.peer.live) return
-    const checked = daemonFrameSchema.safeParse(args.frame)
-    if (!checked.success) {
-      this.args.onFault({
-        error: new Error(`refusing to send ${args.frame.kind}: ${checked.error.message}`),
-      })
-      return
-    }
-    args.peer.connection.send(JSON.stringify(checked.data))
+    sendFrame({ onFault: this.args.onFault, peer: args.peer, frame: args.frame })
   }
 
   private error(args: {
@@ -95,15 +90,7 @@ export class DaemonEngine {
     message: string
     key?: string | undefined
   }): void {
-    this.send({
-      peer: args.peer,
-      frame: {
-        kind: 'error',
-        ...(args.key === undefined ? {} : { key: args.key }),
-        errorKind: args.errorKind,
-        message: args.message,
-      },
-    })
+    sendErrorFrame({ onFault: this.args.onFault, ...args })
   }
 
   private reject(args: {
@@ -112,9 +99,7 @@ export class DaemonEngine {
     errorKind: EDaemonErrorKind
     message: string
   }): void {
-    this.error(args)
-    args.peer.live = false
-    args.peer.connection.close({ code: args.code, reason: args.message })
+    rejectPeer({ onFault: this.args.onFault, ...args })
   }
 
   private receive(args: { peer: Peer; text: string }): void {
@@ -140,20 +125,21 @@ export class DaemonEngine {
       })
       return
     }
+    const key = 'key' in frame ? frame.key : undefined
     if (frame.epoch !== peer.epoch) {
       this.error({
         peer,
-        key: frame.key,
+        ...(key === undefined ? {} : { key }),
         errorKind: EDaemonErrorKind.InvalidFrame,
         message: `frame epoch ${frame.epoch} differs from the hello epoch ${peer.epoch}`,
       })
       return
     }
     void this.call({ peer, frame }).catch((error: unknown) => {
-      this.args.onFault({ key: frame.key, error })
+      this.args.onFault({ ...(key === undefined ? {} : { key }), error })
       this.error({
         peer,
-        key: frame.key,
+        ...(key === undefined ? {} : { key }),
         errorKind: EDaemonErrorKind.Internal,
         message: 'internal error',
       })
@@ -240,11 +226,12 @@ export class DaemonEngine {
     this.send({ peer: args.peer, frame: { kind: 'answered', key: args.frame.key, state } })
   }
 
-  private async call(args: {
-    peer: Peer
-    frame: Exclude<HostFrame, { kind: 'hello' } | { kind: 'ping' } | { kind: 'answer' }>
-  }): Promise<void> {
+  private async call(args: { peer: Peer; frame: CallFrame }): Promise<void> {
     const { peer, frame } = args
+    if (frame.kind === 'cancel-scope') {
+      await this.cancelScope({ peer, frame })
+      return
+    }
     const outcome = await this.dispatch({ peer, frame })
     if (outcome.ok) {
       if (frame.kind === 'ack') this.send({ peer, frame: { kind: 'acked', key: frame.key } })
@@ -253,10 +240,26 @@ export class DaemonEngine {
     this.error({ peer, key: frame.key, errorKind: outcome.errorKind, message: outcome.message })
   }
 
-  private dispatch(args: {
-    peer: Peer
-    frame: Exclude<HostFrame, { kind: 'hello' } | { kind: 'ping' } | { kind: 'answer' }>
-  }): Promise<LedgerOutcome> {
+  private async cancelScope(args: { peer: Peer; frame: CancelScopeFrame }): Promise<void> {
+    const outcome = await this.ledger.cancelScope({
+      scope: args.frame.scope,
+      epoch: args.frame.epoch,
+    })
+    if (!outcome.ok) {
+      this.error({ peer: args.peer, errorKind: outcome.errorKind, message: outcome.message })
+      return
+    }
+    this.send({
+      peer: args.peer,
+      frame: {
+        kind: 'scope-cancelled',
+        scope: args.frame.scope,
+        cancelled: [...outcome.cancelled],
+      },
+    })
+  }
+
+  private dispatch(args: { peer: Peer; frame: DispatchFrame }): Promise<LedgerOutcome> {
     const { peer, frame } = args
     if (frame.kind === 'ack') return this.ledger.ack({ key: frame.key, epoch: frame.epoch })
     if (frame.kind === 'cancel')
