@@ -1,12 +1,18 @@
-import { createContext, type ReactNode, useContext, useMemo, useState } from 'react'
+import { createContext, type ReactNode, useContext, useMemo } from 'react'
 
-export type TSessionsDrawerState = { open: boolean; setOpen: (open: boolean) => void }
+import { usePosture } from '../layout/use-posture'
+import { type TScopedOverlayState, useScopedOverlay } from '../layout/use-scoped-overlay'
+import { useSelectedSession } from './selected-session'
+
+export type TSessionsDrawerState = TScopedOverlayState
 
 const SessionsDrawerContext = createContext<TSessionsDrawerState | null>(null)
 
 export const SessionsDrawerProvider = ({ children }: { children: ReactNode }) => {
-  const [open, setOpen] = useState(false)
-  const value = useMemo(() => ({ open, setOpen }), [open])
+  const posture = usePosture()
+  const selected = useSelectedSession()
+  const { open, setOpen } = useScopedOverlay({ layout: posture.sessionsList, screen: selected })
+  const value = useMemo(() => ({ open, setOpen }), [open, setOpen])
   return <SessionsDrawerContext.Provider value={value}>{children}</SessionsDrawerContext.Provider>
 }
 

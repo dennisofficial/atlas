@@ -17,6 +17,14 @@ export const drawerGeometryOf = ({
   return { permanent: false, width }
 }
 
+export const opensDrawerWithoutSessionOf = ({
+  listLayout,
+  selected,
+}: {
+  listLayout: ESessionsListLayout
+  selected: string | null
+}): boolean => selected === null && listLayout === ESessionsListLayout.Stacked
+
 export const drawerSwipeEnabledOf = ({
   geometry,
   open,

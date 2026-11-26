@@ -11,6 +11,7 @@ import { newSessionHeaderItemOf } from '../../../navigation/header-options'
 import { NewSessionButton } from '../../../navigation/new-session-button'
 import { sessionsTabHrefOf } from '../../../navigation/root-navigation'
 import { SessionsButton } from '../../../navigation/sessions-button'
+import { opensDrawerWithoutSessionOf } from '../../../sessions/drawer-layout'
 import { useSelectedSession, useSelectedSessionLoaded } from '../../../sessions/selected-session'
 import { useSessionsDrawer } from '../../../sessions/sessions-drawer-state'
 
@@ -34,9 +35,10 @@ export default function SessionsIndexScreen() {
 
   useFocusEffect(
     useCallback(() => {
-      if (!loaded || selected !== null) return
+      if (!loaded) return
+      if (!opensDrawerWithoutSessionOf({ listLayout: posture.sessionsList, selected })) return
       setOpen(true)
-    }, [loaded, selected, setOpen]),
+    }, [loaded, selected, posture.sessionsList, setOpen]),
   )
 
   return (
