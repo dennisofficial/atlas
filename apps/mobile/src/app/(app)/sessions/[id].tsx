@@ -131,6 +131,8 @@ export default function SessionScreen() {
               rows={[...session.rows, ...session.stagedRows]}
               working={session.turnRunning}
               now={session.now}
+              boot={session.boot}
+              onRetryBoot={() => void session.retry()}
               threadId={id}
               sessionId={id}
               onLoadOlder={session.loadOlder}
