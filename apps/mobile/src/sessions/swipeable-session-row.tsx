@@ -2,16 +2,23 @@ import { ETextRole, ETextTone, Icon, Text, useTheme, withAlpha } from '@dltech/a
 import { radius, space } from '@dltech/atlas-ui/tokens'
 import { Archive, ArchiveRestore } from 'lucide-react-native'
 import { type ReactNode, useRef } from 'react'
-import { StyleSheet, View } from 'react-native'
+import { StyleSheet } from 'react-native'
 import { Pressable } from 'react-native-gesture-handler'
 import ReanimatedSwipeable, {
   type SwipeableMethods,
 } from 'react-native-gesture-handler/ReanimatedSwipeable'
-import { type SharedValue, useAnimatedReaction, useSharedValue } from 'react-native-reanimated'
-import { scheduleOnRN } from 'react-native-worklets'
+import Animated, {
+  Extrapolation,
+  interpolate,
+  type SharedValue,
+  useAnimatedStyle,
+} from 'react-native-reanimated'
+
+import { rowSwipeHitSlopOf } from './drawer-pan'
+import { LIST_EDGE_INSET } from './session-row-layout'
 
 const ACTION_WIDTH = 88
-const FULL_SWIPE_DISTANCE = 160
+const ROW_SWIPE_HIT_SLOP = rowSwipeHitSlopOf({ listEdgeInset: LIST_EDGE_INSET })
 
 let openSwipe: SwipeableMethods | null = null
 
@@ -24,51 +31,31 @@ const releaseOpen = (methods: SwipeableMethods): void => {
   if (openSwipe === methods) openSwipe = null
 }
 
-const FullSwipeCommit = ({
-  translation,
-  onCommit,
-}: {
-  translation: SharedValue<number>
-  onCommit: () => void
-}) => {
-  const fired = useSharedValue(false)
-  useAnimatedReaction(
-    () => translation.value,
-    (current) => {
-      if (current > -FULL_SWIPE_DISTANCE) {
-        fired.value = false
-        return
-      }
-      if (fired.value) return
-      fired.value = true
-      scheduleOnRN(onCommit)
-    },
-  )
-  return null
-}
-
 const ArchiveAction = ({
   archived,
-  translation,
-  onCommit,
+  progress,
+  onPress,
 }: {
   archived: boolean
-  translation: SharedValue<number>
-  onCommit: () => void
+  progress: SharedValue<number>
+  onPress: () => void
 }) => {
   const theme = useTheme()
   const label = archived ? 'Unarchive' : 'Archive'
+  const revealStyle = useAnimatedStyle(() => ({
+    opacity: interpolate(progress.value, [0, 0.5, 1], [0, 0.6, 1], Extrapolation.CLAMP),
+    transform: [{ scale: interpolate(progress.value, [0, 1], [0.85, 1], Extrapolation.CLAMP) }],
+  }))
   return (
-    <View
-      style={styles.action}
+    <Animated.View
+      style={[styles.action, revealStyle]}
       accessibilityElementsHidden
       importantForAccessibility="no-hide-descendants"
     >
-      <FullSwipeCommit translation={translation} onCommit={onCommit} />
       <Pressable
         accessibilityRole="button"
         accessibilityLabel={label}
-        onPress={onCommit}
+        onPress={onPress}
         style={[
           styles.actionButton,
           { backgroundColor: withAlpha({ color: theme.destructive, alpha: 0.14 }) },
@@ -79,7 +66,7 @@ const ArchiveAction = ({
           {label}
         </Text>
       </Pressable>
-    </View>
+    </Animated.View>
   )
 }
 
@@ -108,13 +95,13 @@ export const SwipeableSessionRow = ({
       ref={swipeRef}
       friction={1}
       rightThreshold={ACTION_WIDTH / 2}
-      overshootRight
-      overshootFriction={1}
+      overshootRight={false}
+      hitSlop={ROW_SWIPE_HIT_SLOP}
       onSwipeableOpen={handleOpen}
       onSwipeableClose={handleClose}
       childrenContainerStyle={[styles.row, { backgroundColor: theme.sidebar }]}
-      renderRightActions={(_progress, translation) => (
-        <ArchiveAction archived={archived} translation={translation} onCommit={onArchive} />
+      renderRightActions={(progress) => (
+        <ArchiveAction archived={archived} progress={progress} onPress={onArchive} />
       )}
     >
       {children}
@@ -124,16 +111,16 @@ export const SwipeableSessionRow = ({
 
 const styles = StyleSheet.create({
   action: {
-    justifyContent: 'center',
-    paddingHorizontal: space(1),
+    alignSelf: 'stretch',
+    paddingLeft: space(1),
     width: ACTION_WIDTH,
   },
   actionButton: {
     alignItems: 'center',
     borderRadius: radius(0.8),
+    flex: 1,
     gap: space(0.5),
     justifyContent: 'center',
-    paddingVertical: space(1),
   },
   row: {
     borderRadius: radius(0.8),

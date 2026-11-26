@@ -1,14 +1,19 @@
 import { useTheme } from '@dltech/atlas-ui-native'
 import { usePathname } from 'expo-router'
-import type { ReactNode } from 'react'
+import { type ReactNode, useMemo } from 'react'
 import { StyleSheet, useWindowDimensions } from 'react-native'
 import { Drawer } from 'react-native-drawer-layout'
 
 import { usePosture } from '../layout/use-posture'
 import { applyNavigation } from '../navigation/apply-navigation'
 import { sessionOpenOf } from '../navigation/root-navigation'
-import { drawerDockedOf, drawerGeometryOf, drawerSwipeEnabledOf } from './drawer-layout'
-import { DRAWER_PAN, tuneDrawerPan } from './drawer-pan'
+import {
+  drawerDockedOf,
+  drawerGeometryOf,
+  drawerHidableOf,
+  drawerSwipeEnabledOf,
+} from './drawer-layout'
+import { DRAWER_PAN, drawerPanTunerOf } from './drawer-pan'
 import type { ISessionEntry } from './session-groups'
 import { useSelectedSession } from './selected-session'
 import { SessionsDrawerShell } from './sessions-drawer-shell'
@@ -23,6 +28,8 @@ export const SessionsDrawer = ({ children }: { children: ReactNode }) => {
   const { open, setOpen } = useSessionsDrawer()
   const geometry = drawerGeometryOf({ listLayout: posture.sessionsList, width })
   const docked = drawerDockedOf({ geometry, open })
+  const hidable = drawerHidableOf({ listLayout: posture.sessionsList, selected })
+  const tunePan = useMemo(() => drawerPanTunerOf({ open }), [open])
 
   const handleOpen = () => setOpen(true)
   const handleClose = () => setOpen(false)
@@ -38,10 +45,10 @@ export const SessionsDrawer = ({ children }: { children: ReactNode }) => {
       onOpen={handleOpen}
       onClose={handleClose}
       drawerType={docked ? 'permanent' : 'front'}
-      swipeEnabled={drawerSwipeEnabledOf({ geometry, open })}
+      swipeEnabled={drawerSwipeEnabledOf({ geometry, open, hidable })}
       swipeEdgeWidth={DRAWER_PAN.edgeWidth}
       swipeMinDistance={DRAWER_PAN.minDistance}
-      configureGestureHandler={tuneDrawerPan}
+      configureGestureHandler={tunePan}
       overlayAccessibilityLabel="Close sessions"
       drawerStyle={{
         backgroundColor: theme.sidebar,
