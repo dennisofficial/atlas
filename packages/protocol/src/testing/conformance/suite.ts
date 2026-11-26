@@ -5,6 +5,7 @@ import { describeFilesConformance } from './files'
 import { describeFilesMirrorConformance } from './files-mirror'
 import { describeGitConformance } from './git'
 import { describeMcpConformance } from './mcp'
+import { describeMcpRequestConformance } from './mcp-request'
 import { describeServicesConformance } from './services'
 import { describeShellsConformance } from './shells'
 import type { DaemonConformanceTarget } from './support'
@@ -20,6 +21,7 @@ export const describeDaemonConformance = (target: DaemonConformanceTarget): void
   describeFilesMirrorConformance(target)
   describeGitConformance(target)
   describeMcpConformance(target)
+  describeMcpRequestConformance(target)
   describeServicesConformance(target)
   describeTerminalConformance(target)
   describeShellsConformance(target)

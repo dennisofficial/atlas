@@ -15,21 +15,7 @@ import {
   type DaemonConformanceTarget,
 } from './support'
 
-import {
-  ECHO_SCRIPT,
-  exitedEventOf,
-  messageEventOf,
-  readLines,
-  requestOf,
-  sendLine,
-  spawnEcho,
-  spawnSilent,
-} from './mcp-support'
-
-const recordOf = (value: unknown): Record<string, unknown> | undefined =>
-  typeof value === 'object' && value !== null && !Array.isArray(value)
-    ? (value as Record<string, unknown>)
-    : undefined
+import { ECHO_SCRIPT, exitedEventOf, messageEventOf, sendLine, spawnEcho } from './mcp-support'
 
 export const describeMcpConformance = (target: DaemonConformanceTarget): void => {
   describe(`mcp conformance (${target.name})`, () => {
@@ -85,104 +71,6 @@ export const describeMcpConformance = (target: DaemonConformanceTarget): void =>
           expect(only.seq).toBe(2)
           const parsed = JSON.parse(only.line) as { id: number }
           expect(parsed.id).toBe(2)
-        },
-      }))
-
-    it('answers a request by its call key and still publishes the line', () =>
-      withDaemon({
-        target,
-        body: async (handle) => {
-          const session = await connectAt({ handle })
-          await spawnEcho({ session, serverId: 'srv-request' })
-          const value = await requestOf({
-            session,
-            serverId: 'srv-request',
-            key: 'req-answer',
-            method: 'tools/call',
-            params: { name: 'search', arguments: { q: 'x' } },
-          })
-          if (value.kind !== 'response') throw new Error(`expected a response, got ${value.kind}`)
-          const response = recordOf(value.response)
-          expect(response?.['id']).toBe('req-answer')
-          const echo = recordOf(response?.['result'])?.['echo']
-          expect(JSON.parse(String(echo))).toEqual({
-            jsonrpc: '2.0',
-            id: 'req-answer',
-            method: 'tools/call',
-            params: { name: 'search', arguments: { q: 'x' } },
-          })
-          expect(await readLines({ session, serverId: 'srv-request' })).toHaveLength(1)
-        },
-      }))
-
-    it('resolves a waiting request as exited, with the exit of the server', () =>
-      withDaemon({
-        target,
-        body: async (handle) => {
-          const session = await connectAt({ handle })
-          await spawnSilent({ session, serverId: 'srv-request-exit' })
-          sendRun({
-            session,
-            key: 'req-exit',
-            op: {
-              op: 'mcp.request',
-              serverId: 'srv-request-exit',
-              method: 'tools/call',
-              params: { name: 'count' },
-              timeoutMs: 5_000,
-            },
-          })
-          await replyOf({ session, key: 'req-exit' })
-          await runToEnd({
-            session,
-            key: 'close-request-exit',
-            op: { op: 'mcp.close', serverId: 'srv-request-exit' },
-          })
-          const value = await resultOf({ session, key: 'req-exit' }).then((result) =>
-            okValue({ result, op: 'mcp.request' }),
-          )
-          expect(value).toEqual({ kind: 'exited', exit: { exitCode: 0, signal: null }, stderr: [] })
-        },
-      }))
-
-    it('times out a request the server never answers', () =>
-      withDaemon({
-        target,
-        body: async (handle) => {
-          const session = await connectAt({ handle })
-          await spawnSilent({ session, serverId: 'srv-request-timeout' })
-          const value = await requestOf({
-            session,
-            serverId: 'srv-request-timeout',
-            key: 'req-timeout',
-            method: 'tools/call',
-            params: { name: 'count' },
-            timeoutMs: 50,
-          })
-          expect(value).toEqual({ kind: 'timed-out' })
-        },
-      }))
-
-    it('replays a done request under its key without writing it twice', () =>
-      withDaemon({
-        target,
-        body: async (handle) => {
-          const session = await connectAt({ handle })
-          await spawnEcho({ session, serverId: 'srv-request-replay' })
-          const first = await requestOf({
-            session,
-            serverId: 'srv-request-replay',
-            key: 'req-replay',
-            method: 'tools/list',
-          })
-          const again = await requestOf({
-            session,
-            serverId: 'srv-request-replay',
-            key: 'req-replay',
-            method: 'tools/list',
-          })
-          expect(again).toEqual(first)
-          expect(await readLines({ session, serverId: 'srv-request-replay' })).toHaveLength(1)
         },
       }))
 
@@ -275,17 +163,6 @@ export const describeMcpConformance = (target: DaemonConformanceTarget): void =>
             op: { op: 'mcp.close', serverId: 'srv-unknown' },
           })
           expect(failureOf(close)).toBe(ECallFailure.NotFound)
-          const request = await runToEnd({
-            session,
-            key: 'request-unknown',
-            op: {
-              op: 'mcp.request',
-              serverId: 'srv-unknown',
-              method: 'tools/list',
-              timeoutMs: 1_000,
-            },
-          })
-          expect(failureOf(request)).toBe(ECallFailure.NotFound)
         },
       }))
 

@@ -170,23 +170,42 @@ export const fakeMcpGroup = (): DaemonGroupFactory => {
             const settled = new Promise<McpRequestResult>((resolve) => {
               settle = resolve
             })
+            let refuse: (error: Error) => void = () => undefined
+            const cancelled = new Promise<never>((_, reject) => {
+              refuse = reject
+            })
             server.pending.set(ctx.key, settle)
             const timer = setTimeout(() => {
-              server.pending.delete(ctx.key)
+              drop()
               settle({ kind: 'timed-out' })
             }, op.timeoutMs)
+            const drop = (): void => {
+              server.pending.delete(ctx.key)
+              clearTimeout(timer)
+            }
+            const handleAbort = (): void => {
+              drop()
+              refuse(
+                new CallFailureError({
+                  code: ECallFailure.Cancelled,
+                  message: 'the mcp request was cancelled',
+                }),
+              )
+            }
+            if (ctx.signal.aborted) handleAbort()
+            else ctx.signal.addEventListener('abort', handleAbort, { once: true })
             const line = requestLineOf({ key: ctx.key, method: op.method, params: op.params })
             if (!server.silent) {
               const response = { jsonrpc: '2.0', id: ctx.key, result: { echo: line } }
-              server.pending.delete(ctx.key)
+              drop()
               server.respond(JSON.stringify(response))
               settle({ kind: 'response', response })
             }
             try {
-              return await settled
+              return await Promise.race([settled, cancelled])
             } finally {
-              clearTimeout(timer)
-              server.pending.delete(ctx.key)
+              drop()
+              ctx.signal.removeEventListener('abort', handleAbort)
             }
           },
         }),

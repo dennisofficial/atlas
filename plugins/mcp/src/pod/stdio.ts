@@ -2,6 +2,7 @@ import type { PluginPodContext } from '@dltech/atlas-plugin-sdk'
 import { type DaemonEvent, ECallStatus, EDaemonCapability } from '@dltech/atlas-protocol'
 
 import type { McpStdioTransport } from '../core'
+import { exitReasonOf, requestCall, type Exit } from './request'
 import {
   asRecord,
   callResultOf,
@@ -26,16 +27,9 @@ const INITIALIZATION = {
 
 type Pending = { resolve(value: unknown): void; reject(reason: Error): void }
 
-type Exit = { exitCode: number | null; signal: string | null }
-
 type ReadLine = { seq: number; line: string }
 
 type ReadResult = { lines: readonly ReadLine[]; stderr: readonly string[]; ended: Exit | null }
-
-const exitReasonOf = (ended: Exit): string =>
-  ended.signal === null
-    ? `the server exited with code ${ended.exitCode ?? 'unknown'}`
-    : `the server was killed by ${ended.signal}`
 
 export class StdioClient implements McpTransportClient {
   private readonly pending = new Map<string, Pending>()
@@ -165,32 +159,14 @@ export class StdioClient implements McpTransportClient {
   }): Promise<McpCallResult> {
     if (this.closed) throw new McpTransportError('the transport is closed')
     if (this.exitError !== null) throw this.exitError
-    const result = await this.args.ctx.call(
-      {
-        op: 'mcp.request',
-        serverId: this.args.serverId,
-        method: 'tools/call',
-        params: args.params,
-        timeoutMs: this.args.timeoutMs ?? REQUEST_TIMEOUT_MS,
-      },
-      args.signal === undefined ? undefined : { signal: args.signal },
-    )
-    if (result.status !== ECallStatus.Ok || result.op !== 'mcp.request') {
-      const reason = result.status === ECallStatus.Ok ? 'the request failed' : result.error.message
-      throw new McpTransportError(`could not reach the server: ${reason}`)
-    }
-    const value = result.value
-    if (value.kind === 'timed-out') throw new McpTransportError('request timed out')
-    if (value.kind === 'exited') {
-      const error = new McpTransportError(exitReasonOf(value.exit), value.stderr)
-      this.markExited(error)
-      throw error
-    }
-    const response = asRecord(value.response)
-    const error = response?.['error']
-    if (error !== undefined)
-      throw new McpTransportError(messageOf(asRecord(error)?.['message'] ?? error))
-    return callResultOf(response?.['result'])
+    return await requestCall({
+      ctx: this.args.ctx,
+      serverId: this.args.serverId,
+      params: args.params,
+      signal: args.signal,
+      timeoutMs: this.args.timeoutMs ?? REQUEST_TIMEOUT_MS,
+      onExited: (error) => this.markExited(error),
+    })
   }
 
   private async request(payload: { method: string; params?: unknown }): Promise<unknown> {
@@ -258,6 +234,7 @@ export class StdioClient implements McpTransportClient {
   }
 
   private markExited(error: McpTransportError): void {
+    if (this.exitError !== null) return
     this.exitError = error
     this.rejectAll(error)
     if (this.closed) return

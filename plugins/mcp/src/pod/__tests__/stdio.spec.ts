@@ -139,4 +139,30 @@ describe('a stdio tool call', () => {
     expect(exited).toEqual(['the server exited with code 2'])
     expect(await thrownOf(client.callTool({ name: 'search', input: {} }))).toBe(error)
   })
+
+  it('settles one server exit once when the event and the request both report it', async () => {
+    const behaviour: FakeBehaviour = {}
+    const daemon = fakeDaemon({ [serverId]: behaviour }, requestCapable)
+    const exited: string[] = []
+    const client = clientOf({ daemon, onExit: (reason) => void exited.push(reason) })
+
+    await client.connect()
+    behaviour.exit = { exitCode: 2, signal: null }
+    behaviour.stderr = ['bad config']
+
+    daemon.kill(serverId, { exitCode: 2, signal: null })
+    const first = await thrownOf(client.callTool({ name: 'search', input: {} }))
+    await new Promise((resolve) => setTimeout(resolve, 0))
+
+    expect(first).toBeInstanceOf(McpTransportError)
+    expect((first as Error).message).toBe('the server exited with code 2')
+    expect(exited).toEqual(['the server exited with code 2'])
+
+    const second = await thrownOf(client.callTool({ name: 'search', input: {} }))
+
+    expect(second).toBeInstanceOf(McpTransportError)
+    expect((second as Error).message).toBe('the server exited with code 2')
+    expect((second as McpTransportError).stderr).toEqual(['bad config'])
+    expect(exited).toEqual(['the server exited with code 2'])
+  })
 })
