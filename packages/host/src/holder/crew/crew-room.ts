@@ -126,8 +126,8 @@ export class CrewRoom {
     return true
   }
 
-  stop(args: { agentId: string }): SubagentSnapshot {
-    return this.find(args.agentId).stop(EKilledBy.Model)
+  async stop(args: { agentId: string }): Promise<SubagentSnapshot> {
+    return await this.find(args.agentId).stop(EKilledBy.Model)
   }
 
   list(): readonly SubagentSnapshot[] {
@@ -160,7 +160,7 @@ export class CrewRoom {
     return {
       spawn: (args) => this.spawn(args),
       say: (args) => this.say(args),
-      stop: async (args) => this.stop(args),
+      stop: (args) => this.stop(args),
       resume: (args) => this.resume(args),
       list: () => this.list(),
       report: async () => {
@@ -173,7 +173,7 @@ export class CrewRoom {
 
   async stopAll(): Promise<void> {
     const all = [...this.runs.values()]
-    for (const run of all) run.stop(EKilledBy.SessionEnd)
+    await Promise.all(all.map((run) => run.stop(EKilledBy.SessionEnd)))
     await Promise.all(all.map((run) => run.done))
     await Promise.all(all.map((run) => run.endIdle(EKilledBy.SessionEnd)))
     this.disposeAll()

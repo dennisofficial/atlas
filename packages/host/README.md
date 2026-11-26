@@ -58,7 +58,7 @@ only what it can rebuild or drop.
 
 ### Call the daemon
 
-- `RemoteCalls`: the client of the daemon link. `open`, `ready`, `daemonCapabilities`, `invoke`, `ack`, `ackScope`, `handoff`, `bootId`, `close`.
+- `RemoteCalls`: the client of the daemon link. `open`, `ready`, `daemonCapabilities`, `invoke`, `ack`, `ackScope`, `cancelScope`, `onScopeCancelled`, `handoff`, `bootId`, `close`.
 - `WorkspaceGate`, `POD_WAIT_INTERRUPTED`, `WorkspaceGateOutcome`, `webSocketConnector({url})`,
   `DaemonConnector`, `DaemonSocket`: hold a tool call until the workspace prepare settles, and connect.
 - `newKey()`, `systemTimers`, `CallTimers`, `ScopedToolDispatcher`, `runInCallScope`, `scopeKeyOf`,
@@ -85,6 +85,9 @@ only what it can rebuild or drop.
   so the event holds a `MediaPart`; one the store does not take becomes `[picture not kept: …]`.
 - `LeaseLostError`, `RecordCorruptionError`: the two failures a record raises.
 - `InboxIntake`, `INBOX_KIND_STOP`: turn the inbox into the agent's input.
+- `oweOwnStoppedTurn`, `oweChildStoppedCalls`, `payStopDebts`, `wireStopDebts`, `stoppedScopesOf`:
+  record the pod work a stopped turn or a stopped child left behind, in the record append tail, and
+  cancel it from whichever holder reaches the daemon next.
 
 ### Stream and observe
 

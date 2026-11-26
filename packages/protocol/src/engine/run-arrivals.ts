@@ -19,6 +19,10 @@ export class RunArrivals {
     return this.waiting.has(key)
   }
 
+  keys(): readonly string[] {
+    return [...this.waiting.keys()]
+  }
+
   cancel(key: string): void {
     this.cancelledThrough.set(key, this.count)
   }

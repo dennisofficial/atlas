@@ -2,6 +2,7 @@ import type { ThreadId } from '@dltech/atlas-core'
 
 import type { OpenChild } from './crew/open-children'
 import { adoptChildrenOf, settleCrashedOf } from './held-runner'
+import { wireStopDebts } from './stop-debts'
 import type { HeldSessionDeps } from './held-session-deps'
 import { ETakeoverLap, type TakeOver } from './held-takeover'
 import type { SessionRuntime } from './ports'
@@ -15,6 +16,12 @@ export const settleAndAdoptOf = async (args: {
   threadId: ThreadId
 }): Promise<void> => {
   await settleCrashedOf(args)
+  wireStopDebts({
+    record: args.record,
+    calls: args.runtime.remoteCalls,
+    runId: () => args.deps.ids.nextRunId(),
+    ...(args.deps.log === undefined ? {} : { log: args.deps.log }),
+  })
   await args.crew.adoptAll(await adoptChildrenOf(args))
 }
 

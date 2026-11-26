@@ -26,6 +26,7 @@ export const newSessionHeaderItemOf = (): NativeStackHeaderItem => ({
 })
 
 export const leadingHeaderOptionsOf = ({
+  leading = [],
   lead,
   title,
   glassTitle = false,
@@ -33,6 +34,7 @@ export const leadingHeaderOptionsOf = ({
   windowWidth,
   posture,
 }: {
+  leading?: NativeStackHeaderItem[]
   lead?: ReactNode
   title: ReactNode
   glassTitle?: boolean
@@ -57,6 +59,7 @@ export const leadingHeaderOptionsOf = ({
   return {
     headerTitle: Platform.OS === 'ios' ? '' : () => titleElement,
     unstable_headerLeftItems: () => [
+      ...leading,
       { type: 'custom', element: titleElement, hidesSharedBackground: !glassTitle },
     ],
   }

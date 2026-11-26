@@ -24,6 +24,7 @@ import {
 } from '../tail-follow'
 import type { AgentLinks } from '../session/agent-links'
 import { BootRowView } from './boot-row'
+import { QueuedTurns, type QueuedTurnsProps } from './queued-turns'
 import { ThreadRowView } from './thread-row'
 
 const NEAR_TOP_PX = 400
@@ -76,6 +77,7 @@ export const Transcript = ({
   agentLinks,
   sessionNameOf,
   onOpenAgent,
+  queued,
 }: {
   rows: readonly ThreadRow[]
   working: boolean
@@ -89,6 +91,7 @@ export const Transcript = ({
   agentLinks?: AgentLinks | undefined
   sessionNameOf?: SessionNameOf | undefined
   onOpenAgent?: ((agentId: string) => void) | undefined
+  queued?: QueuedTurnsProps | undefined
 }) => {
   const listRef = useRef<FlatList<ThreadRow>>(null)
   const tail = useRef<TTailFollow>(FOLLOWING_TAIL)
@@ -158,7 +161,24 @@ export const Transcript = ({
       <BootRowView view={boot} now={now} onRetry={onRetryBoot ?? NO_RETRY} />
     )
 
-  const emptyView = placeholder ?? (working || header !== null ? undefined : <EmptyTranscript />)
+  const hasQueued = queued !== undefined && queued.queued.rows.length > 0
+  const footer =
+    !showWorking && !hasQueued ? undefined : (
+      <>
+        {showWorking ? <WorkingFooter /> : null}
+        {queued === undefined ? null : (
+          <QueuedTurns
+            {...queued}
+            threadId={threadId}
+            sessionId={sessionId}
+            sessionNameOf={sessionNameOf}
+          />
+        )}
+      </>
+    )
+
+  const emptyView =
+    placeholder ?? (working || header !== null || hasQueued ? undefined : <EmptyTranscript />)
 
   return (
     <FlatList
@@ -169,7 +189,7 @@ export const Transcript = ({
       renderItem={renderRow}
       contentInsetAdjustmentBehavior="automatic"
       contentContainerStyle={styles.content}
-      keyboardDismissMode="none"
+      keyboardDismissMode="interactive"
       keyboardShouldPersistTaps="handled"
       onScroll={handleScroll}
       onScrollBeginDrag={signalOf(EScrollSignal.BeginDrag)}
@@ -182,7 +202,7 @@ export const Transcript = ({
       onLayout={handleLayout}
       ListHeaderComponent={header ?? undefined}
       ListEmptyComponent={emptyView}
-      ListFooterComponent={showWorking ? WorkingFooter : undefined}
+      ListFooterComponent={footer}
     />
   )
 }

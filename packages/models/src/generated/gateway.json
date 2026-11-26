@@ -20,24 +20,6 @@
   {
     "ref": {
       "providerId": "gateway",
-      "modelId": "alibaba/qwen-3-235b"
-    },
-    "label": "Qwen3 235B A22B",
-    "api": "ai-gateway",
-    "contextWindow": 262144,
-    "imageTier": "standard",
-    "inputModalities": [
-      "text"
-    ],
-    "maxOutputTokens": 16384,
-    "cost": {
-      "inputPerMillion": 0.22,
-      "outputPerMillion": 0.88
-    }
-  },
-  {
-    "ref": {
-      "providerId": "gateway",
       "modelId": "alibaba/qwen-3-30b"
     },
     "label": "Qwen3-30B-A3B",
@@ -80,25 +62,6 @@
   {
     "ref": {
       "providerId": "gateway",
-      "modelId": "alibaba/qwen3-coder"
-    },
-    "label": "Qwen3 Coder 480B A35B Instruct",
-    "api": "ai-gateway",
-    "contextWindow": 262144,
-    "imageTier": "standard",
-    "inputModalities": [
-      "text"
-    ],
-    "maxOutputTokens": 32768,
-    "cost": {
-      "inputPerMillion": 0.22,
-      "outputPerMillion": 1.8,
-      "cacheReadPerMillion": 0.022
-    }
-  },
-  {
-    "ref": {
-      "providerId": "gateway",
       "modelId": "alibaba/qwen3-coder-30b-a3b"
     },
     "label": "Qwen 3 Coder 30B A3B Instruct",
@@ -135,56 +98,19 @@
   {
     "ref": {
       "providerId": "gateway",
-      "modelId": "alibaba/qwen3-max-thinking"
-    },
-    "label": "Qwen 3 Max Thinking",
-    "api": "ai-gateway",
-    "contextWindow": 256000,
-    "imageTier": "standard",
-    "inputModalities": [
-      "text"
-    ],
-    "maxOutputTokens": 65536,
-    "cost": {
-      "inputPerMillion": 1.2,
-      "outputPerMillion": 6,
-      "cacheReadPerMillion": 0.24
-    }
-  },
-  {
-    "ref": {
-      "providerId": "gateway",
       "modelId": "alibaba/qwen3-next-80b-a3b-instruct"
     },
     "label": "Qwen3 Next 80B A3B Instruct",
-    "api": "ai-gateway",
-    "contextWindow": 262114,
-    "imageTier": "standard",
-    "inputModalities": [
-      "text"
-    ],
-    "maxOutputTokens": 262114,
-    "cost": {
-      "inputPerMillion": 0.15,
-      "outputPerMillion": 1.2
-    }
-  },
-  {
-    "ref": {
-      "providerId": "gateway",
-      "modelId": "alibaba/qwen3-next-80b-a3b-thinking"
-    },
-    "label": "Qwen3 Next 80B A3B Thinking",
     "api": "ai-gateway",
     "contextWindow": 262144,
     "imageTier": "standard",
     "inputModalities": [
       "text"
     ],
-    "maxOutputTokens": 262144,
+    "maxOutputTokens": 32768,
     "cost": {
-      "inputPerMillion": 0.15,
-      "outputPerMillion": 1.2
+      "inputPerMillion": 0.09,
+      "outputPerMillion": 1.1
     }
   },
   {
@@ -287,6 +213,26 @@
     "cost": {
       "inputPerMillion": 0.6,
       "outputPerMillion": 3.6
+    }
+  },
+  {
+    "ref": {
+      "providerId": "gateway",
+      "modelId": "alibaba/qwen3.6-35b-a3b"
+    },
+    "label": "Qwen 3.6 35B A3B",
+    "api": "ai-gateway",
+    "contextWindow": 262144,
+    "imageTier": "standard",
+    "inputModalities": [
+      "text",
+      "image",
+      "video"
+    ],
+    "maxOutputTokens": 65536,
+    "cost": {
+      "inputPerMillion": 0.375,
+      "outputPerMillion": 2.25
     }
   },
   {
@@ -424,7 +370,7 @@
       "text",
       "image"
     ],
-    "maxOutputTokens": 128000,
+    "maxOutputTokens": 131072,
     "cost": {
       "inputPerMillion": 2,
       "outputPerMillion": 6,
@@ -454,7 +400,7 @@
     "maxOutputTokens": 262144,
     "cost": {
       "inputPerMillion": 0.06,
-      "outputPerMillion": 2.3,
+      "outputPerMillion": 1.96,
       "cacheReadPerMillion": 0.059
     },
     "effort": {
@@ -498,7 +444,7 @@
     },
     "label": "Qwen 3.8 Max",
     "api": "ai-gateway",
-    "contextWindow": 262144,
+    "contextWindow": 1000000,
     "imageTier": "standard",
     "inputModalities": [
       "text",
@@ -508,7 +454,8 @@
     "cost": {
       "inputPerMillion": 2,
       "outputPerMillion": 6,
-      "cacheReadPerMillion": 0.25
+      "cacheReadPerMillion": 0.25,
+      "cacheWritePerMillion": 2.5
     },
     "effort": {
       "low": "low",
@@ -598,6 +545,32 @@
   {
     "ref": {
       "providerId": "gateway",
+      "modelId": "alibaba/qwen4-max"
+    },
+    "label": "Qwen 4 Max",
+    "api": "ai-gateway",
+    "contextWindow": 1000000,
+    "imageTier": "standard",
+    "inputModalities": [
+      "text",
+      "image"
+    ],
+    "maxOutputTokens": 384000,
+    "cost": {
+      "inputPerMillion": 1.5,
+      "outputPerMillion": 4.5,
+      "cacheReadPerMillion": 0.075,
+      "cacheWritePerMillion": 1.875
+    },
+    "effort": {
+      "low": "low",
+      "high": "high",
+      "xhigh": "xhigh"
+    }
+  },
+  {
+    "ref": {
+      "providerId": "gateway",
       "modelId": "amazon/nova-2-lite"
     },
     "label": "Nova 2 Lite",
@@ -616,10 +589,8 @@
       "cacheReadPerMillion": 0.0825
     },
     "effort": {
-      "off": "none",
       "low": "low",
-      "medium": "medium",
-      "high": "high"
+      "medium": "medium"
     }
   },
   {
@@ -1229,52 +1200,6 @@
   {
     "ref": {
       "providerId": "gateway",
-      "modelId": "bytedance/seed-1.6"
-    },
-    "label": "Seed 1.6",
-    "api": "ai-gateway",
-    "contextWindow": 256000,
-    "imageTier": "standard",
-    "inputModalities": [
-      "text",
-      "image"
-    ],
-    "maxOutputTokens": 32000,
-    "cost": {
-      "inputPerMillion": 0.25,
-      "outputPerMillion": 2,
-      "cacheReadPerMillion": 0.05
-    }
-  },
-  {
-    "ref": {
-      "providerId": "gateway",
-      "modelId": "bytedance/seed-1.8"
-    },
-    "label": "Bytedance Seed 1.8",
-    "api": "ai-gateway",
-    "contextWindow": 256000,
-    "imageTier": "standard",
-    "inputModalities": [
-      "text",
-      "image"
-    ],
-    "maxOutputTokens": 64000,
-    "cost": {
-      "inputPerMillion": 0.25,
-      "outputPerMillion": 2,
-      "cacheReadPerMillion": 0.05
-    },
-    "effort": {
-      "minimal": "minimal",
-      "low": "low",
-      "medium": "medium",
-      "high": "high"
-    }
-  },
-  {
-    "ref": {
-      "providerId": "gateway",
       "modelId": "bytedance/seed-2.1-turbo"
     },
     "label": "Seed 2.1 Turbo",
@@ -1359,12 +1284,6 @@
     "cost": {
       "inputPerMillion": 1.35,
       "outputPerMillion": 5.4
-    },
-    "effort": {
-      "off": "none",
-      "low": "low",
-      "medium": "medium",
-      "high": "high"
     }
   },
   {
@@ -1548,16 +1467,16 @@
     },
     "label": "DeepSeek V4 Pro 0813",
     "api": "ai-gateway",
-    "contextWindow": 1000000,
+    "contextWindow": 1048600,
     "imageTier": "standard",
     "inputModalities": [
       "text"
     ],
-    "maxOutputTokens": 384000,
+    "maxOutputTokens": 1048600,
     "cost": {
-      "inputPerMillion": 0.66,
-      "outputPerMillion": 1.98,
-      "cacheReadPerMillion": 0.066
+      "inputPerMillion": 1.32,
+      "outputPerMillion": 3.96,
+      "cacheReadPerMillion": 0.132
     },
     "effort": {
       "off": "none",
@@ -1580,11 +1499,11 @@
       "image",
       "pdf"
     ],
-    "maxOutputTokens": 32768,
+    "maxOutputTokens": 1048576,
     "cost": {
       "inputPerMillion": 0.3,
       "outputPerMillion": 1.2,
-      "cacheReadPerMillion": 0.007
+      "cacheReadPerMillion": 0.006
     },
     "effort": {
       "off": "none",
@@ -1604,7 +1523,8 @@
     "imageTier": "standard",
     "inputModalities": [
       "text",
-      "image"
+      "image",
+      "pdf"
     ],
     "maxOutputTokens": 262144,
     "cost": {
@@ -1641,8 +1561,8 @@
     "effort": {
       "off": "none",
       "low": "low",
-      "medium": "medium",
-      "high": "high"
+      "high": "high",
+      "max": "max"
     }
   },
   {
@@ -1797,7 +1717,6 @@
       "cacheReadPerMillion": 0.125
     },
     "effort": {
-      "off": "none",
       "low": "low",
       "medium": "medium",
       "high": "high"
@@ -1824,7 +1743,9 @@
       "cacheReadPerMillion": 0.05
     },
     "effort": {
+      "minimal": "minimal",
       "low": "low",
+      "medium": "medium",
       "high": "high"
     }
   },
@@ -1849,7 +1770,9 @@
       "cacheReadPerMillion": 0.03
     },
     "effort": {
+      "minimal": "minimal",
       "low": "low",
+      "medium": "medium",
       "high": "high"
     }
   },
@@ -1875,6 +1798,7 @@
     },
     "effort": {
       "low": "low",
+      "medium": "medium",
       "high": "high"
     }
   },
@@ -1900,7 +1824,7 @@
       "cacheReadPerMillion": 0.15
     },
     "effort": {
-      "off": "none",
+      "minimal": "minimal",
       "low": "low",
       "medium": "medium",
       "high": "high"
@@ -1928,7 +1852,9 @@
       "cacheReadPerMillion": 0.03
     },
     "effort": {
+      "minimal": "minimal",
       "low": "low",
+      "medium": "medium",
       "high": "high"
     }
   },
@@ -1954,7 +1880,9 @@
       "cacheReadPerMillion": 0.075
     },
     "effort": {
+      "minimal": "minimal",
       "low": "low",
+      "medium": "medium",
       "high": "high"
     }
   },
@@ -1980,7 +1908,6 @@
       "cacheReadPerMillion": 0.075
     },
     "effort": {
-      "off": "none",
       "low": "low",
       "medium": "medium",
       "high": "high"
@@ -2009,6 +1936,7 @@
     },
     "effort": {
       "low": "low",
+      "medium": "medium",
       "high": "high"
     }
   },
@@ -2069,9 +1997,93 @@
   {
     "ref": {
       "providerId": "gateway",
+      "modelId": "google/gemini-4-hydrogen"
+    },
+    "label": "Gemini 4 Hydrogen",
+    "api": "ai-gateway",
+    "contextWindow": 1000000,
+    "imageTier": "standard",
+    "inputModalities": [
+      "text",
+      "image",
+      "pdf",
+      "video"
+    ],
+    "maxOutputTokens": 1000000,
+    "cost": {
+      "inputPerMillion": 1.5,
+      "outputPerMillion": 7.5,
+      "cacheReadPerMillion": 0.075
+    },
+    "effort": {
+      "low": "low",
+      "medium": "medium",
+      "high": "high",
+      "xhigh": "xhigh"
+    }
+  },
+  {
+    "ref": {
+      "providerId": "gateway",
+      "modelId": "google/gemini-4-neon"
+    },
+    "label": "Gemini 4 Neon",
+    "api": "ai-gateway",
+    "contextWindow": 1000000,
+    "imageTier": "standard",
+    "inputModalities": [
+      "text",
+      "image",
+      "pdf",
+      "video"
+    ],
+    "maxOutputTokens": 1000000,
+    "cost": {
+      "inputPerMillion": 3,
+      "outputPerMillion": 15,
+      "cacheReadPerMillion": 0.15
+    },
+    "effort": {
+      "low": "low",
+      "medium": "medium",
+      "high": "high",
+      "xhigh": "xhigh"
+    }
+  },
+  {
+    "ref": {
+      "providerId": "gateway",
+      "modelId": "google/gemini-4-neon-fast"
+    },
+    "label": "Gemini 4 Neon (Fast)",
+    "api": "ai-gateway",
+    "contextWindow": 1000000,
+    "imageTier": "standard",
+    "inputModalities": [
+      "text",
+      "image",
+      "pdf",
+      "video"
+    ],
+    "maxOutputTokens": 1000000,
+    "cost": {
+      "inputPerMillion": 5.4,
+      "outputPerMillion": 27,
+      "cacheReadPerMillion": 0.27
+    },
+    "effort": {
+      "low": "low",
+      "medium": "medium",
+      "high": "high",
+      "xhigh": "xhigh"
+    }
+  },
+  {
+    "ref": {
+      "providerId": "gateway",
       "modelId": "google/gemma-4-26b-a4b-it"
     },
-    "label": "Google Gemma 4 26B A4B",
+    "label": "Gemma 4 26B A4B IT",
     "api": "ai-gateway",
     "contextWindow": 262144,
     "imageTier": "standard",
@@ -2134,54 +2146,6 @@
   {
     "ref": {
       "providerId": "gateway",
-      "modelId": "inception/mercury-2"
-    },
-    "label": "Mercury 2",
-    "api": "ai-gateway",
-    "contextWindow": 128000,
-    "imageTier": "standard",
-    "inputModalities": [
-      "text"
-    ],
-    "maxOutputTokens": 128000,
-    "cost": {
-      "inputPerMillion": 0.25,
-      "outputPerMillion": 0.75,
-      "cacheReadPerMillion": 0.025
-    },
-    "effort": {
-      "low": "low",
-      "medium": "medium",
-      "high": "high"
-    }
-  },
-  {
-    "ref": {
-      "providerId": "gateway",
-      "modelId": "inception/mercury-2.5"
-    },
-    "label": "Mercury 2.5",
-    "api": "ai-gateway",
-    "contextWindow": 260000,
-    "imageTier": "standard",
-    "inputModalities": [
-      "text"
-    ],
-    "maxOutputTokens": 65536,
-    "cost": {
-      "inputPerMillion": 0.04,
-      "outputPerMillion": 0.15,
-      "cacheReadPerMillion": 0.004
-    },
-    "effort": {
-      "low": "low",
-      "medium": "medium",
-      "high": "high"
-    }
-  },
-  {
-    "ref": {
-      "providerId": "gateway",
       "modelId": "inception/mercury-3"
     },
     "label": "Mercury 3",
@@ -2201,24 +2165,6 @@
       "low": "low",
       "medium": "medium",
       "high": "high"
-    }
-  },
-  {
-    "ref": {
-      "providerId": "gateway",
-      "modelId": "inception/mercury-coder-small"
-    },
-    "label": "Mercury Coder Small Beta",
-    "api": "ai-gateway",
-    "contextWindow": 32000,
-    "imageTier": "standard",
-    "inputModalities": [
-      "text"
-    ],
-    "maxOutputTokens": 16384,
-    "cost": {
-      "inputPerMillion": 0.25,
-      "outputPerMillion": 1
     }
   },
   {
@@ -2276,12 +2222,6 @@
       "inputPerMillion": 0.075,
       "outputPerMillion": 0.22,
       "cacheReadPerMillion": 0.015
-    },
-    "effort": {
-      "off": "none",
-      "low": "low",
-      "medium": "medium",
-      "high": "high"
     }
   },
   {
@@ -2322,12 +2262,6 @@
       "inputPerMillion": 0.3,
       "outputPerMillion": 0.9,
       "cacheReadPerMillion": 0.06
-    },
-    "effort": {
-      "off": "none",
-      "low": "low",
-      "medium": "medium",
-      "high": "high"
     }
   },
   {
@@ -2347,12 +2281,6 @@
       "inputPerMillion": 0.3,
       "outputPerMillion": 0.9,
       "cacheReadPerMillion": 0.06
-    },
-    "effort": {
-      "off": "none",
-      "low": "low",
-      "medium": "medium",
-      "high": "high"
     }
   },
   {
@@ -2443,12 +2371,6 @@
     "cost": {
       "inputPerMillion": 0.72,
       "outputPerMillion": 0.72
-    },
-    "effort": {
-      "off": "none",
-      "low": "low",
-      "medium": "medium",
-      "high": "high"
     }
   },
   {
@@ -2467,12 +2389,6 @@
     "cost": {
       "inputPerMillion": 0.22,
       "outputPerMillion": 0.22
-    },
-    "effort": {
-      "off": "none",
-      "low": "low",
-      "medium": "medium",
-      "high": "high"
     }
   },
   {
@@ -2491,12 +2407,6 @@
     "cost": {
       "inputPerMillion": 0.72,
       "outputPerMillion": 0.72
-    },
-    "effort": {
-      "off": "none",
-      "low": "low",
-      "medium": "medium",
-      "high": "high"
     }
   },
   {
@@ -2516,12 +2426,6 @@
     "cost": {
       "inputPerMillion": 0.24,
       "outputPerMillion": 0.97
-    },
-    "effort": {
-      "off": "none",
-      "low": "low",
-      "medium": "medium",
-      "high": "high"
     }
   },
   {
@@ -2541,12 +2445,6 @@
     "cost": {
       "inputPerMillion": 0.17,
       "outputPerMillion": 0.66
-    },
-    "effort": {
-      "off": "none",
-      "low": "low",
-      "medium": "medium",
-      "high": "high"
     }
   },
   {
@@ -2806,26 +2704,6 @@
   {
     "ref": {
       "providerId": "gateway",
-      "modelId": "minimax/minimax-m2"
-    },
-    "label": "MiniMax M2",
-    "api": "ai-gateway",
-    "contextWindow": 205000,
-    "imageTier": "standard",
-    "inputModalities": [
-      "text"
-    ],
-    "maxOutputTokens": 205000,
-    "cost": {
-      "inputPerMillion": 0.3,
-      "outputPerMillion": 1.2,
-      "cacheReadPerMillion": 0.03,
-      "cacheWritePerMillion": 0.375
-    }
-  },
-  {
-    "ref": {
-      "providerId": "gateway",
       "modelId": "minimax/minimax-m2.1"
     },
     "label": "MiniMax M2.1",
@@ -2839,28 +2717,7 @@
     "cost": {
       "inputPerMillion": 0.3,
       "outputPerMillion": 1.2,
-      "cacheReadPerMillion": 0.03,
-      "cacheWritePerMillion": 0.375
-    }
-  },
-  {
-    "ref": {
-      "providerId": "gateway",
-      "modelId": "minimax/minimax-m2.1-lightning"
-    },
-    "label": "MiniMax M2.1 Lightning",
-    "api": "ai-gateway",
-    "contextWindow": 204800,
-    "imageTier": "standard",
-    "inputModalities": [
-      "text"
-    ],
-    "maxOutputTokens": 131072,
-    "cost": {
-      "inputPerMillion": 0.3,
-      "outputPerMillion": 2.4,
-      "cacheReadPerMillion": 0.03,
-      "cacheWritePerMillion": 0.375
+      "cacheReadPerMillion": 0.15
     }
   },
   {
@@ -2870,37 +2727,15 @@
     },
     "label": "MiniMax M2.5",
     "api": "ai-gateway",
-    "contextWindow": 204800,
+    "contextWindow": 1000000,
     "imageTier": "standard",
     "inputModalities": [
       "text"
     ],
-    "maxOutputTokens": 131000,
+    "maxOutputTokens": 8192,
     "cost": {
       "inputPerMillion": 0.3,
-      "outputPerMillion": 1.2,
-      "cacheReadPerMillion": 0.03,
-      "cacheWritePerMillion": 0.375
-    }
-  },
-  {
-    "ref": {
-      "providerId": "gateway",
-      "modelId": "minimax/minimax-m2.5-highspeed"
-    },
-    "label": "MiniMax M2.5 High Speed",
-    "api": "ai-gateway",
-    "contextWindow": 204800,
-    "imageTier": "standard",
-    "inputModalities": [
-      "text"
-    ],
-    "maxOutputTokens": 131000,
-    "cost": {
-      "inputPerMillion": 0.6,
-      "outputPerMillion": 2.4,
-      "cacheReadPerMillion": 0.03,
-      "cacheWritePerMillion": 0.375
+      "outputPerMillion": 1.2
     }
   },
   {
@@ -2915,32 +2750,16 @@
     "inputModalities": [
       "text"
     ],
-    "maxOutputTokens": 131000,
+    "maxOutputTokens": 131072,
     "cost": {
       "inputPerMillion": 0.3,
       "outputPerMillion": 1.2,
-      "cacheReadPerMillion": 0.06,
-      "cacheWritePerMillion": 0.375
-    }
-  },
-  {
-    "ref": {
-      "providerId": "gateway",
-      "modelId": "minimax/minimax-m2.7-highspeed"
+      "cacheReadPerMillion": 0.06
     },
-    "label": "MiniMax M2.7 High Speed",
-    "api": "ai-gateway",
-    "contextWindow": 204800,
-    "imageTier": "standard",
-    "inputModalities": [
-      "text"
-    ],
-    "maxOutputTokens": 131100,
-    "cost": {
-      "inputPerMillion": 0.6,
-      "outputPerMillion": 2.4,
-      "cacheReadPerMillion": 0.06,
-      "cacheWritePerMillion": 0.375
+    "effort": {
+      "low": "low",
+      "medium": "medium",
+      "high": "high"
     }
   },
   {
@@ -2950,14 +2769,14 @@
     },
     "label": "MiniMax M3",
     "api": "ai-gateway",
-    "contextWindow": 512000,
+    "contextWindow": 1000000,
     "imageTier": "standard",
     "inputModalities": [
       "text",
       "image",
       "pdf"
     ],
-    "maxOutputTokens": 512000,
+    "maxOutputTokens": 1000000,
     "cost": {
       "inputPerMillion": 0.3,
       "outputPerMillion": 1.2,
@@ -2971,13 +2790,13 @@
     },
     "label": "MiniMax-M3.1-Flash",
     "api": "ai-gateway",
-    "contextWindow": 1048576,
+    "contextWindow": 1000000,
     "imageTier": "standard",
     "inputModalities": [
       "text",
       "image"
     ],
-    "maxOutputTokens": 1048576,
+    "maxOutputTokens": 524288,
     "cost": {
       "inputPerMillion": 0.15,
       "outputPerMillion": 0.6,
@@ -3357,11 +3176,11 @@
       "image",
       "pdf"
     ],
-    "maxOutputTokens": 131072,
+    "maxOutputTokens": 1000000,
     "cost": {
-      "inputPerMillion": 4.5,
+      "inputPerMillion": 6,
       "outputPerMillion": 22.5,
-      "cacheReadPerMillion": 0.45
+      "cacheReadPerMillion": 0.6
     },
     "effort": {
       "off": "none",
@@ -3414,37 +3233,12 @@
       "inputPerMillion": 4,
       "outputPerMillion": 20,
       "cacheReadPerMillion": 0.2,
-      "cacheWritePerMillion": 4
+      "cacheWritePerMillion": 5
     },
     "effort": {
       "low": "low",
       "high": "high",
       "max": "max"
-    }
-  },
-  {
-    "ref": {
-      "providerId": "gateway",
-      "modelId": "nvidia/nemotron-3-nano-30b-a3b"
-    },
-    "label": "Nemotron 3 Nano 30B A3B",
-    "api": "ai-gateway",
-    "contextWindow": 262144,
-    "imageTier": "standard",
-    "inputModalities": [
-      "text"
-    ],
-    "maxOutputTokens": 262144,
-    "cost": {
-      "inputPerMillion": 0.05,
-      "outputPerMillion": 0.2,
-      "cacheReadPerMillion": 0.025
-    },
-    "effort": {
-      "off": "none",
-      "low": "low",
-      "medium": "medium",
-      "high": "high"
     }
   },
   {
@@ -3463,12 +3257,6 @@
     "cost": {
       "inputPerMillion": 0.15,
       "outputPerMillion": 0.65
-    },
-    "effort": {
-      "off": "none",
-      "low": "low",
-      "medium": "medium",
-      "high": "high"
     }
   },
   {
@@ -3589,12 +3377,6 @@
     "cost": {
       "inputPerMillion": 0.2,
       "outputPerMillion": 0.6
-    },
-    "effort": {
-      "off": "none",
-      "low": "low",
-      "medium": "medium",
-      "high": "high"
     }
   },
   {
@@ -3613,12 +3395,6 @@
     "cost": {
       "inputPerMillion": 0.06,
       "outputPerMillion": 0.23
-    },
-    "effort": {
-      "off": "none",
-      "low": "low",
-      "medium": "medium",
-      "high": "high"
     }
   },
   {
@@ -4015,7 +3791,6 @@
       "cacheReadPerMillion": 0.13
     },
     "effort": {
-      "off": "none",
       "low": "low",
       "medium": "medium",
       "high": "high"
@@ -4042,10 +3817,10 @@
       "cacheReadPerMillion": 0.125
     },
     "effort": {
-      "off": "none",
       "low": "low",
       "medium": "medium",
-      "high": "high"
+      "high": "high",
+      "xhigh": "xhigh"
     }
   },
   {
@@ -4069,7 +3844,6 @@
       "cacheReadPerMillion": 0.03
     },
     "effort": {
-      "off": "none",
       "low": "low",
       "medium": "medium",
       "high": "high"
@@ -4097,11 +3871,9 @@
     },
     "effort": {
       "off": "none",
-      "minimal": "minimal",
       "low": "low",
       "medium": "medium",
-      "high": "high",
-      "xhigh": "xhigh"
+      "high": "high"
     }
   },
   {
@@ -4126,11 +3898,9 @@
     },
     "effort": {
       "off": "none",
-      "minimal": "minimal",
       "low": "low",
       "medium": "medium",
-      "high": "high",
-      "xhigh": "xhigh"
+      "high": "high"
     }
   },
   {
@@ -4155,7 +3925,6 @@
     },
     "effort": {
       "off": "none",
-      "minimal": "minimal",
       "low": "low",
       "medium": "medium",
       "high": "high",
@@ -4183,10 +3952,10 @@
       "cacheReadPerMillion": 0.175
     },
     "effort": {
-      "off": "none",
       "low": "low",
       "medium": "medium",
-      "high": "high"
+      "high": "high",
+      "xhigh": "xhigh"
     }
   },
   {
@@ -4211,7 +3980,6 @@
     },
     "effort": {
       "off": "none",
-      "minimal": "minimal",
       "low": "low",
       "medium": "medium",
       "high": "high",
@@ -4265,7 +4033,6 @@
     },
     "effort": {
       "off": "none",
-      "minimal": "minimal",
       "low": "low",
       "medium": "medium",
       "high": "high",
@@ -4294,7 +4061,6 @@
     },
     "effort": {
       "off": "none",
-      "minimal": "minimal",
       "low": "low",
       "medium": "medium",
       "high": "high",
@@ -4323,7 +4089,6 @@
     },
     "effort": {
       "off": "none",
-      "minimal": "minimal",
       "low": "low",
       "medium": "medium",
       "high": "high",
@@ -4352,7 +4117,6 @@
     },
     "effort": {
       "off": "none",
-      "minimal": "minimal",
       "low": "low",
       "medium": "medium",
       "high": "high",
@@ -4381,7 +4145,6 @@
     },
     "effort": {
       "off": "none",
-      "minimal": "minimal",
       "low": "low",
       "medium": "medium",
       "high": "high",
@@ -4410,7 +4173,6 @@
     },
     "effort": {
       "off": "none",
-      "minimal": "minimal",
       "low": "low",
       "medium": "medium",
       "high": "high",
@@ -4439,7 +4201,6 @@
     },
     "effort": {
       "off": "none",
-      "minimal": "minimal",
       "low": "low",
       "medium": "medium",
       "high": "high",
@@ -4466,9 +4227,6 @@
       "outputPerMillion": 180
     },
     "effort": {
-      "off": "none",
-      "minimal": "minimal",
-      "low": "low",
       "medium": "medium",
       "high": "high",
       "xhigh": "xhigh"
@@ -4496,7 +4254,6 @@
     },
     "effort": {
       "off": "none",
-      "minimal": "minimal",
       "low": "low",
       "medium": "medium",
       "high": "high",
@@ -4525,7 +4282,6 @@
     },
     "effort": {
       "off": "none",
-      "minimal": "minimal",
       "low": "low",
       "medium": "medium",
       "high": "high",
@@ -4640,7 +4396,6 @@
     },
     "effort": {
       "off": "none",
-      "minimal": "minimal",
       "low": "low",
       "medium": "medium",
       "high": "high",
@@ -4671,7 +4426,6 @@
     },
     "effort": {
       "off": "none",
-      "minimal": "minimal",
       "low": "low",
       "medium": "medium",
       "high": "high",
@@ -4702,7 +4456,6 @@
     },
     "effort": {
       "off": "none",
-      "minimal": "minimal",
       "low": "low",
       "medium": "medium",
       "high": "high",
@@ -4733,7 +4486,6 @@
     },
     "effort": {
       "off": "none",
-      "minimal": "minimal",
       "low": "low",
       "medium": "medium",
       "high": "high",
@@ -5040,6 +4792,122 @@
   {
     "ref": {
       "providerId": "gateway",
+      "modelId": "openai/gpt-6.2-astra"
+    },
+    "label": "GPT-6.2 Astra",
+    "api": "ai-gateway",
+    "contextWindow": 1050000,
+    "imageTier": "standard",
+    "inputModalities": [
+      "text",
+      "image",
+      "pdf"
+    ],
+    "maxOutputTokens": 128000,
+    "cost": {
+      "inputPerMillion": 8,
+      "outputPerMillion": 40,
+      "cacheReadPerMillion": 0.4,
+      "cacheWritePerMillion": 10
+    },
+    "effort": {
+      "low": "low",
+      "medium": "medium",
+      "high": "high",
+      "xhigh": "xhigh",
+      "max": "max"
+    }
+  },
+  {
+    "ref": {
+      "providerId": "gateway",
+      "modelId": "openai/gpt-6.2-astra-fast"
+    },
+    "label": "GPT-6.2 Astra (Fast)",
+    "api": "ai-gateway",
+    "contextWindow": 1050000,
+    "imageTier": "standard",
+    "inputModalities": [
+      "text",
+      "image",
+      "pdf"
+    ],
+    "maxOutputTokens": 128000,
+    "cost": {
+      "inputPerMillion": 16,
+      "outputPerMillion": 80,
+      "cacheReadPerMillion": 0.8,
+      "cacheWritePerMillion": 20
+    },
+    "effort": {
+      "low": "low",
+      "medium": "medium",
+      "high": "high",
+      "xhigh": "xhigh",
+      "max": "max"
+    }
+  },
+  {
+    "ref": {
+      "providerId": "gateway",
+      "modelId": "openai/gpt-6.2-sol"
+    },
+    "label": "GPT-6.2 Sol",
+    "api": "ai-gateway",
+    "contextWindow": 1050000,
+    "imageTier": "standard",
+    "inputModalities": [
+      "text",
+      "image",
+      "pdf"
+    ],
+    "maxOutputTokens": 128000,
+    "cost": {
+      "inputPerMillion": 2,
+      "outputPerMillion": 10,
+      "cacheReadPerMillion": 0.1,
+      "cacheWritePerMillion": 2.5
+    },
+    "effort": {
+      "low": "low",
+      "medium": "medium",
+      "high": "high",
+      "xhigh": "xhigh",
+      "max": "max"
+    }
+  },
+  {
+    "ref": {
+      "providerId": "gateway",
+      "modelId": "openai/gpt-6.2-sol-fast"
+    },
+    "label": "GPT-6.2 Sol (Fast)",
+    "api": "ai-gateway",
+    "contextWindow": 1050000,
+    "imageTier": "standard",
+    "inputModalities": [
+      "text",
+      "image",
+      "pdf"
+    ],
+    "maxOutputTokens": 128000,
+    "cost": {
+      "inputPerMillion": 4,
+      "outputPerMillion": 20,
+      "cacheReadPerMillion": 0.2,
+      "cacheWritePerMillion": 5
+    },
+    "effort": {
+      "low": "low",
+      "medium": "medium",
+      "high": "high",
+      "xhigh": "xhigh",
+      "max": "max"
+    }
+  },
+  {
+    "ref": {
+      "providerId": "gateway",
       "modelId": "openai/gpt-oss-120b"
     },
     "label": "GPT OSS 120B",
@@ -5286,6 +5154,31 @@
   {
     "ref": {
       "providerId": "gateway",
+      "modelId": "paperinstruments/ultramarine-1-flash"
+    },
+    "label": "Ultramarine 1 Flash",
+    "api": "ai-gateway",
+    "contextWindow": 1048576,
+    "imageTier": "standard",
+    "inputModalities": [
+      "text",
+      "image"
+    ],
+    "maxOutputTokens": 131000,
+    "cost": {
+      "inputPerMillion": 0.15,
+      "outputPerMillion": 0.5,
+      "cacheReadPerMillion": 0.03
+    },
+    "effort": {
+      "low": "low",
+      "high": "high",
+      "max": "max"
+    }
+  },
+  {
+    "ref": {
+      "providerId": "gateway",
       "modelId": "particle/particle-1"
     },
     "label": "Particle-1",
@@ -5296,7 +5189,7 @@
       "text",
       "image"
     ],
-    "maxOutputTokens": 131072,
+    "maxOutputTokens": 1048576,
     "cost": {
       "inputPerMillion": 0.125,
       "outputPerMillion": 0.5,
@@ -5307,25 +5200,6 @@
       "low": "low",
       "high": "high",
       "max": "max"
-    }
-  },
-  {
-    "ref": {
-      "providerId": "gateway",
-      "modelId": "poolside/laguna-s-2.1"
-    },
-    "label": "Laguna S 2.1",
-    "api": "ai-gateway",
-    "contextWindow": 1000000,
-    "imageTier": "standard",
-    "inputModalities": [
-      "text"
-    ],
-    "maxOutputTokens": 131072,
-    "cost": {
-      "inputPerMillion": 0.09,
-      "outputPerMillion": 0.18,
-      "cacheReadPerMillion": 0.009
     }
   },
   {
@@ -5380,6 +5254,29 @@
       "medium": "medium",
       "high": "high",
       "xhigh": "xhigh"
+    }
+  },
+  {
+    "ref": {
+      "providerId": "gateway",
+      "modelId": "recursive/flint-v1.0"
+    },
+    "label": "Flint",
+    "api": "ai-gateway",
+    "contextWindow": 262144,
+    "imageTier": "standard",
+    "inputModalities": [
+      "text"
+    ],
+    "maxOutputTokens": 262144,
+    "cost": {
+      "inputPerMillion": 0,
+      "outputPerMillion": 0
+    },
+    "effort": {
+      "low": "low",
+      "medium": "medium",
+      "high": "high"
     }
   },
   {
@@ -5558,7 +5455,6 @@
       "cacheReadPerMillion": 0.2
     },
     "effort": {
-      "off": "none",
       "low": "low",
       "medium": "medium",
       "high": "high"
@@ -5585,7 +5481,6 @@
       "cacheReadPerMillion": 0.2
     },
     "effort": {
-      "off": "none",
       "low": "low",
       "medium": "medium",
       "high": "high"
@@ -5610,12 +5505,6 @@
       "inputPerMillion": 1.25,
       "outputPerMillion": 2.5,
       "cacheReadPerMillion": 0.2
-    },
-    "effort": {
-      "off": "none",
-      "low": "low",
-      "medium": "medium",
-      "high": "high"
     }
   },
   {
@@ -5637,12 +5526,6 @@
       "inputPerMillion": 1.25,
       "outputPerMillion": 2.5,
       "cacheReadPerMillion": 0.2
-    },
-    "effort": {
-      "off": "none",
-      "low": "low",
-      "medium": "medium",
-      "high": "high"
     }
   },
   {
@@ -5664,12 +5547,6 @@
       "inputPerMillion": 1.25,
       "outputPerMillion": 2.5,
       "cacheReadPerMillion": 0.2
-    },
-    "effort": {
-      "off": "none",
-      "low": "low",
-      "medium": "medium",
-      "high": "high"
     }
   },
   {
@@ -5691,12 +5568,6 @@
       "inputPerMillion": 1.25,
       "outputPerMillion": 2.5,
       "cacheReadPerMillion": 0.2
-    },
-    "effort": {
-      "off": "none",
-      "low": "low",
-      "medium": "medium",
-      "high": "high"
     }
   },
   {
@@ -5806,32 +5677,6 @@
   {
     "ref": {
       "providerId": "gateway",
-      "modelId": "spacexai/grok-build-0.1"
-    },
-    "label": "Grok Build 0.1",
-    "api": "ai-gateway",
-    "contextWindow": 256000,
-    "imageTier": "standard",
-    "inputModalities": [
-      "text",
-      "image"
-    ],
-    "maxOutputTokens": 256000,
-    "cost": {
-      "inputPerMillion": 1,
-      "outputPerMillion": 2,
-      "cacheReadPerMillion": 0.2
-    },
-    "effort": {
-      "off": "none",
-      "low": "low",
-      "medium": "medium",
-      "high": "high"
-    }
-  },
-  {
-    "ref": {
-      "providerId": "gateway",
       "modelId": "stealth/glyph-cluster"
     },
     "label": "Glyph Cluster",
@@ -5885,14 +5730,13 @@
     },
     "label": "Step 5 Preview",
     "api": "ai-gateway",
-    "contextWindow": 1048576,
+    "contextWindow": 1000000,
     "imageTier": "standard",
     "inputModalities": [
       "text",
-      "image",
-      "video"
+      "image"
     ],
-    "maxOutputTokens": 1048576,
+    "maxOutputTokens": 1000000,
     "cost": {
       "inputPerMillion": 1,
       "outputPerMillion": 2.7,
@@ -5955,6 +5799,30 @@
   {
     "ref": {
       "providerId": "gateway",
+      "modelId": "tencent/hy4-flash"
+    },
+    "label": "Hy4 Flash",
+    "api": "ai-gateway",
+    "contextWindow": 1024000,
+    "imageTier": "standard",
+    "inputModalities": [
+      "text",
+      "image"
+    ],
+    "maxOutputTokens": 64000,
+    "cost": {
+      "inputPerMillion": 0.035,
+      "outputPerMillion": 0.1405,
+      "cacheReadPerMillion": 0.0015
+    },
+    "effort": {
+      "off": "none",
+      "high": "high"
+    }
+  },
+  {
+    "ref": {
+      "providerId": "gateway",
       "modelId": "tencent/hy4-preview"
     },
     "label": "Tencent Hy4 Preview",
@@ -5994,6 +5862,64 @@
       "inputPerMillion": 1,
       "outputPerMillion": 4.05,
       "cacheReadPerMillion": 0.17
+    },
+    "effort": {
+      "off": "none",
+      "minimal": "minimal",
+      "low": "low",
+      "medium": "medium",
+      "high": "high",
+      "xhigh": "xhigh",
+      "max": "max"
+    }
+  },
+  {
+    "ref": {
+      "providerId": "gateway",
+      "modelId": "thinkingmachines/inkling-2-mini"
+    },
+    "label": "Inkling 2 Mini",
+    "api": "ai-gateway",
+    "contextWindow": 1048576,
+    "imageTier": "standard",
+    "inputModalities": [
+      "text",
+      "image"
+    ],
+    "maxOutputTokens": 1000000,
+    "cost": {
+      "inputPerMillion": 0.075,
+      "outputPerMillion": 0.3,
+      "cacheReadPerMillion": 0.015
+    },
+    "effort": {
+      "off": "none",
+      "minimal": "minimal",
+      "low": "low",
+      "medium": "medium",
+      "high": "high",
+      "xhigh": "xhigh",
+      "max": "max"
+    }
+  },
+  {
+    "ref": {
+      "providerId": "gateway",
+      "modelId": "thinkingmachines/inkling-2-small"
+    },
+    "label": "Inkling 2 Small",
+    "api": "ai-gateway",
+    "contextWindow": 1048576,
+    "imageTier": "standard",
+    "inputModalities": [
+      "text",
+      "image"
+    ],
+    "maxOutputTokens": 262144,
+    "cost": {
+      "inputPerMillion": 0.3,
+      "outputPerMillion": 1,
+      "cacheReadPerMillion": 0.03
     },
     "effort": {
       "off": "none",

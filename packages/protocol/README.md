@@ -63,6 +63,9 @@ that serves it advertises `EDaemonCapability.McpRequest`.
 
 - `hostFrameSchema`, `HostFrame`, `daemonFrameSchema`, `DaemonFrame`: the frame each side sends.
 - `EDaemonErrorKind`, `ERunState`, `EDaemonCapability`: error kind, run state, hello capabilities.
+- `cancel-scope` and `scope-cancelled`: a host aborts every running key of one call scope — the
+  `<scope>.<n>` steps, its `read.<id>` and `no-step.<id>` keys — and the daemon answers with the keys
+  it stopped. `EDaemonCapability.CancelScope` announces it.
 - `DAEMON_PORT`, `DAEMON_LINK_PROTOCOL_VERSION`, `DAEMON_LINK_PROTOCOL_MIN_VERSION`: the link
   constants. `DAEMON_LINK_SCHEMA_HASH`, `DAEMON_PROTOCOL_HEADER`, `DAEMON_MIN_PROTOCOL_HEADER`: the
   hash of `hostFrameSchema` and the two headers.

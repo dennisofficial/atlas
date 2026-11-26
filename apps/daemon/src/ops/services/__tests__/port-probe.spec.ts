@@ -49,6 +49,27 @@ describe('waitForHealth', () => {
     }
   })
 
+  it('gives up at the deadline when the port accepts and never answers', async () => {
+    const silent = Bun.listen({
+      hostname: '127.0.0.1',
+      port: 0,
+      socket: { data: () => {} },
+    })
+    try {
+      const started = Date.now()
+      const healthy = await waitForHealth({
+        port: silent.port,
+        path: '/healthz',
+        timeoutMs: 300,
+        cancelled: () => false,
+      })
+      expect(healthy).toBe(false)
+      expect(Date.now() - started).toBeLessThan(2_000)
+    } finally {
+      silent.stop(true)
+    }
+  })
+
   it('fails when the port answers nothing', async () => {
     const healthy = await waitForHealth({
       port: 1,

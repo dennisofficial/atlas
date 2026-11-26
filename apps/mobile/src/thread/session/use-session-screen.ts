@@ -21,7 +21,7 @@ import { dismissPresentedForSession } from '../../push/notification-handler'
 import type { SessionNameOf, ThreadRow } from '../rows'
 import { agentLinksOf, type AgentLinks } from './agent-links'
 import type { ContextMeter } from '../composer/context-reading'
-import { queuedDockOf, type QueuedDockState } from './queued-dock'
+import { queuedTranscriptOf, type QueuedTranscript } from './queued-transcript'
 import { stagedRowsOf, type ThreadView } from './rows'
 import { sessionHeaderOf, type SessionHeader } from './session-header'
 import { sessionStream } from './session-stream'
@@ -44,7 +44,7 @@ export type SessionScreen = ThreadView & {
   stateLine: string | null
   canReconnect: boolean
   header: SessionHeader
-  queued: QueuedDockState
+  queued: QueuedTranscript
   sessionNameOf: SessionNameOf
   blocking: BlockingCommand | undefined
   startFailure: { reason: string | undefined } | undefined
@@ -197,7 +197,7 @@ export function useSessionScreen(args: {
     if (settlement.notices.length > 0) setNotice(settlement.notices.join('\n'))
   }, [staged, snapshot.events, unread, withdraw.ownedInboxIds])
   const queued = useMemo(
-    () => queuedDockOf({ snapshot, staged, now, hiddenInboxIds: withdraw.hiddenInboxIds }),
+    () => queuedTranscriptOf({ snapshot, staged, now, hiddenInboxIds: withdraw.hiddenInboxIds }),
     [snapshot, staged, now, withdraw.hiddenInboxIds],
   )
   const header = useMemo(
