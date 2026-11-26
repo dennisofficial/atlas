@@ -11,7 +11,13 @@ import { z } from 'zod'
 import { useAuth } from '../../auth/auth-provider'
 import { createSession } from '../../composer/create-session'
 import { EffortSelect, FastToggle } from '../../composer/model-controls'
-import { effortChoicesOf, type IModelSelection, selectionOf } from '../../composer/model-options'
+import {
+  defaultModelIdOf,
+  effortChoicesOf,
+  type IModelSelection,
+  knownEffortOf,
+  selectionOf,
+} from '../../composer/model-options'
 import { ModelSelect } from '../../composer/model-picker'
 import type { IProjectOption } from '../../composer/project-options'
 import { ProjectSelect } from '../../composer/project-select'
@@ -32,15 +38,20 @@ export default function NewSessionScreen() {
   const [projectId, setProjectId] = useState<string | null>(project ?? null)
   const [modelId, setModelId] = useState<string | null>(null)
   const [effort, setEffort] = useState<string | null>(null)
-  const [fast, setFast] = useState(false)
-  const { models } = useModels()
+  const [fast, setFast] = useState<boolean | null>(null)
+  const { models, ready: modelsReady } = useModels()
   const attachments = useAttachments()
   const settings = useSettings()
   const [localPinned, setLocalPinned] = useState<string[] | null>(null)
-  const selection = selectionOf({ models, modelId, effort, fast })
+  const personalId = settings.read({ key: 'model.id', schema: z.string() })
+  const selection = selectionOf({
+    models,
+    modelId: modelId ?? defaultModelIdOf({ models, personalId }),
+    effort: effort ?? knownEffortOf(settings.read({ key: 'model.effort', schema: z.string() })),
+    fast: fast ?? settings.read({ key: 'model.fast', schema: z.boolean() }),
+  })
   const efforts = effortChoicesOf(selection)
   const projectName = projects.find((entry) => entry.id === projectId)?.name ?? null
-  const personalId = settings.read({ key: 'model.id', schema: z.string() })
   const pinned =
     localPinned ??
     decodeModelFavourites(settings.read({ key: 'model.favourites', schema: z.string() }))
@@ -54,9 +65,10 @@ export default function NewSessionScreen() {
   }, [api])
 
   const handleModelSelect = (next: IModelSelection | null) => {
-    setModelId(next?.model.id ?? null)
-    setEffort(next?.effort ?? null)
-    setFast(next?.fast ?? false)
+    if (next === null) return
+    setModelId(next.model.id)
+    setEffort(next.effort)
+    setFast(next.fast)
   }
 
   const handlePinnedChange = (ids: string[]) => {
@@ -118,14 +130,17 @@ export default function NewSessionScreen() {
           onSend={handleSend}
         >
           <View style={styles.footer}>
-            <ModelSelect
-              models={models}
-              selection={selection}
-              pinned={pinned}
-              personalId={personalId}
-              onPinnedChange={handlePinnedChange}
-              onSelect={handleModelSelect}
-            />
+            {modelsReady && settings.ready ? (
+              <ModelSelect
+                models={models}
+                selection={selection}
+                pinned={pinned}
+                personalId={personalId}
+                defaultRow={false}
+                onPinnedChange={handlePinnedChange}
+                onSelect={handleModelSelect}
+              />
+            ) : null}
             {selection === null || efforts.length === 0 ? null : (
               <EffortSelect selection={selection} onChange={handleEffortSelect} />
             )}

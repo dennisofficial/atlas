@@ -31,6 +31,7 @@ type Props = {
   selection: IModelSelection | null
   pinned: readonly string[]
   personalId: string
+  defaultRow?: boolean | undefined
   onPinnedChange: (ids: string[]) => void
   onSelect: (selection: IModelSelection | null) => void
 }
@@ -40,6 +41,7 @@ const SheetBody = ({
   selection,
   pinned,
   personalId,
+  defaultRow = true,
   onPinnedChange,
   onSelect,
   onClose,
@@ -102,7 +104,7 @@ const SheetBody = ({
         />
       </View>
       <ScrollView keyboardShouldPersistTaps="handled">
-        {query.trim() === '' ? (
+        {defaultRow && query.trim() === '' ? (
           <DefaultRow label={personalLabel} selected={selection === null} onPress={handleDefault} />
         ) : null}
         {models.length === 0 ? (
@@ -143,6 +145,7 @@ export const ModelSheet = ({
   selection,
   pinned,
   personalId,
+  defaultRow,
   onPinnedChange,
   onSelect,
 }: Props & { open: boolean; onClose: () => void }) => {
@@ -172,6 +175,7 @@ export const ModelSheet = ({
             selection={selection}
             pinned={pinned}
             personalId={personalId}
+            defaultRow={defaultRow}
             onPinnedChange={onPinnedChange}
             onSelect={onSelect}
             onClose={onClose}
@@ -187,6 +191,7 @@ export const ModelSelect = ({
   selection,
   pinned,
   personalId,
+  defaultRow,
   onPinnedChange,
   onSelect,
 }: Props) => {
@@ -202,6 +207,7 @@ export const ModelSelect = ({
         selection={selection}
         pinned={pinned}
         personalId={personalId}
+        defaultRow={defaultRow}
         onPinnedChange={onPinnedChange}
         onSelect={onSelect}
       />
