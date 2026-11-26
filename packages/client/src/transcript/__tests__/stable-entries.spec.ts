@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'bun:test'
 
-import { stabilisedEntries } from '../stable-entries'
-import { EAuthor, EEntryKind, type TranscriptEntry } from '@dltech/atlas-client/transcript'
+import { stabilisedBy, stabilisedEntries } from '../stable-entries'
+import { EAuthor, EEntryKind, type TranscriptEntry } from '../transcript-model'
 
 const said = (args: { key: string; text: string }): TranscriptEntry => ({
   kind: EEntryKind.OperatorSaid,
@@ -69,5 +69,29 @@ describe('stabilisedEntries', () => {
     expect(settled).not.toBe(previous)
     expect(settled[0]).toBe(previous[1])
     expect(settled[1]).toBe(previous[0])
+  })
+})
+
+describe('stabilisedBy', () => {
+  const row = (args: { id: string; text: string }) => ({ id: args.id, text: args.text })
+
+  it('keys on whatever the caller names, so a row keeps its identity', () => {
+    const previous = [row({ id: 'message:1', text: 'one' })]
+    const next = [row({ id: 'message:1', text: 'one' }), row({ id: 'message:2', text: 'two' })]
+
+    const settled = stabilisedBy({ previous, next, keyOf: (item) => item.id })
+
+    expect(settled[0]).toBe(previous[0])
+    expect(settled[1]).toBe(next[1])
+  })
+
+  it('rebuilds only the item whose content moved', () => {
+    const previous = [row({ id: 'a', text: 'one' }), row({ id: 'b', text: 'two' })]
+    const next = [row({ id: 'a', text: 'one' }), row({ id: 'b', text: 'two, later' })]
+
+    const settled = stabilisedBy({ previous, next, keyOf: (item) => item.id })
+
+    expect(settled[0]).toBe(previous[0])
+    expect(settled[1]).toBe(next[1])
   })
 })

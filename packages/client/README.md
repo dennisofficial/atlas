@@ -80,7 +80,7 @@ The headless client library that web, the TUI and the mobile app share.
   sub-agent's type, intent, state.
 - `noticeEntriesOf(event)`: one event's notice rows. `thinkingVisibilityOf`, `foldThoughts`, `toolsAboveThoughts`: the folds.
 - `revealedText({ key, text, gate })`, `runAttentionOf(args)`, `plural(many, one, rest?)`,
-  `formatElapsed(ms)`: the revealed text and the helpers that a surface also uses.
+  `formatElapsed(ms)`: the revealed text and the helpers that a surface also uses. `stabilisedEntries(args)`: an unchanged entry carried onto its previous identity, and `stabilisedBy(args)` for a row.
 
 ### Feed the chat transport
 

@@ -4,8 +4,9 @@ import { useEffect, useMemo, useState } from 'react'
 
 import { useAuth } from '../../auth/auth-provider'
 import { agentLinksOf, type AgentLinks } from './agent-links'
-import { viewOf, type ThreadView } from './rows'
+import type { ThreadView } from './rows'
 import { useSession } from './use-session'
+import { useThreadView } from './use-thread-view'
 
 const TICK_MS = 1_000
 
@@ -34,7 +35,7 @@ export function useAgentScreen(args: {
     [parent.snapshot.foldable, agentId],
   )
   const working = agent?.running ?? false
-  const view = useMemo(() => viewOf({ snapshot: child.snapshot, now }), [child.snapshot, now])
+  const view = useThreadView({ snapshot: child.snapshot, now })
   const agentLinks = useMemo(
     () => agentLinksOf({ events: child.snapshot.events }),
     [child.snapshot.events],
