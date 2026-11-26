@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'bun:test'
 
-import { applyPage, EMPTY_WINDOW } from '@dltech/atlas-client/stream'
+import { applyPage, EMPTY_WINDOW } from '../../stream'
 import {
   chainEvents,
   chainHash,

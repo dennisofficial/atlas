@@ -11,14 +11,9 @@ import {
 } from '#components/code-block'
 import { Trace } from '#components/trace'
 import { EStepStatus, Step, StatusIcon, StepLine, traceStatusOf } from './internal/step'
+import { EBootStepState, sandboxBootSummary, sandboxBootTitle } from './sandbox-boot-copy'
 
-export enum EBootStepState {
-  Pending = 'pending',
-  Running = 'running',
-  Done = 'done',
-  Error = 'error',
-  Interrupted = 'interrupted',
-}
+export { EBootStepState, sandboxBootSummary, sandboxBootTitle } from './sandbox-boot-copy'
 
 export interface SandboxBootChild {
   id: string
@@ -55,39 +50,7 @@ const STEP_STATUS = {
   [EBootStepState.Interrupted]: EStepStatus.Running,
 } as const
 
-const TITLES = {
-  [EBootStepState.Pending]: 'Waiting for sandbox',
-  [EBootStepState.Running]: 'Starting sandbox',
-  [EBootStepState.Done]: 'Sandbox ready',
-  [EBootStepState.Error]: 'Sandbox failed to start',
-  [EBootStepState.Interrupted]: 'Setup restarted · running again',
-} as const
-
 const ERROR_LABEL = 'Sandbox'
-
-export function sandboxBootTitle(state: EBootStepState): string {
-  return TITLES[state]
-}
-
-function formatElapsed(elapsedMs: number): string {
-  return `${(elapsedMs / 1000).toFixed(1)}s`
-}
-
-type SandboxBootSummaryInput = Pick<SandboxBootProps, 'steps' | 'state' | 'elapsedMs'>
-
-export function sandboxBootSummary({
-  steps,
-  state,
-  elapsedMs,
-}: SandboxBootSummaryInput): string | undefined {
-  if (state === EBootStepState.Error || state === EBootStepState.Pending) return undefined
-  if (state === EBootStepState.Done) {
-    return elapsedMs === undefined ? undefined : formatElapsed(elapsedMs)
-  }
-  const done = steps.filter((step) => step.state === EBootStepState.Done).length
-  const progress = `${done}/${steps.length}`
-  return elapsedMs === undefined ? progress : `${progress} · ${formatElapsed(elapsedMs)}`
-}
 
 const errorTextOf = (step: SandboxBootChild): string | undefined =>
   step.state === EBootStepState.Error ? step.detail : undefined

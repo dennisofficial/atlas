@@ -9,10 +9,35 @@ import {
   type RecordEvent,
   type WorkspaceStepStatus,
 } from '@dltech/atlas-core'
-import type { SessionSnapshot } from '@dltech/atlas-client/stream'
 import { EBootStep, EBootStepState } from '@dltech/atlas-wire/web'
 
-import type { BootStepChild, BootStepView, BootView } from '@/features/threads/data/boot-view'
+import type { SessionSnapshot } from '../stream'
+
+export type BootStepChild = {
+  id: string
+  label: string
+  state: EBootStepState
+  detail?: string
+}
+
+export type BootStepView = {
+  id: EBootStep
+  label: string
+  state: EBootStepState
+  detail?: string
+  children?: BootStepChild[]
+  command?: string
+  output?: string
+}
+
+export type BootView = {
+  steps: BootStepView[]
+  state: EBootStepState
+  title?: string
+  error?: string
+  elapsedMs?: number
+  startedAtMs?: number
+}
 
 const BOOT_STEP: Record<EWorkspaceStep, EBootStep> = {
   [EWorkspaceStep.Sandbox]: EBootStep.Provision,
