@@ -23,6 +23,8 @@ import {
   type TTailPin,
 } from '../tail-follow'
 import type { AgentLinks } from '../session/agent-links'
+import type { BackgroundWait } from '../session/background-wait'
+import { BackgroundWaitRow } from './background-wait-row'
 import { BootRowView } from './boot-row'
 import { QueuedTurns, type QueuedTurnsProps } from './queued-turns'
 import { ThreadRowView } from './thread-row'
@@ -78,6 +80,7 @@ export const Transcript = ({
   sessionNameOf,
   onOpenAgent,
   queued,
+  background,
 }: {
   rows: readonly ThreadRow[]
   working: boolean
@@ -92,6 +95,7 @@ export const Transcript = ({
   sessionNameOf?: SessionNameOf | undefined
   onOpenAgent?: ((agentId: string) => void) | undefined
   queued?: QueuedTurnsProps | undefined
+  background?: BackgroundWait | null | undefined
 }) => {
   const listRef = useRef<FlatList<ThreadRow>>(null)
   const tail = useRef<TTailFollow>(FOLLOWING_TAIL)
@@ -162,10 +166,16 @@ export const Transcript = ({
     )
 
   const hasQueued = queued !== undefined && queued.queued.rows.length > 0
+  const waiting = !working && background !== undefined && background !== null
   const footer =
-    !showWorking && !hasQueued ? undefined : (
+    !showWorking && !hasQueued && !waiting ? undefined : (
       <>
         {showWorking ? <WorkingFooter /> : null}
+        {waiting ? (
+          <View style={styles.item}>
+            <BackgroundWaitRow wait={background} />
+          </View>
+        ) : null}
         {queued === undefined ? null : (
           <QueuedTurns
             {...queued}
@@ -178,7 +188,8 @@ export const Transcript = ({
     )
 
   const emptyView =
-    placeholder ?? (working || header !== null || hasQueued ? undefined : <EmptyTranscript />)
+    placeholder ??
+    (working || header !== null || hasQueued || waiting ? undefined : <EmptyTranscript />)
 
   return (
     <FlatList

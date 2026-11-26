@@ -153,6 +153,7 @@ export default function SessionScreen() {
           sessionNameOf={session.sessionNameOf}
           onOpenAgent={handleOpenAgent}
           queued={session.loaded ? queuedTurns : undefined}
+          background={session.loaded ? session.background : undefined}
         />
         {session.loaded ? (
           <>

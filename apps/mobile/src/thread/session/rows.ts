@@ -14,6 +14,7 @@ import {
 import type { Attachment } from '@dltech/atlas-core'
 
 import { EMessageAuthor, ERowKind, rowsOf, type ThreadRow } from '../rows'
+import { backgroundWaitOf, type BackgroundWait } from './background-wait'
 import { entryFolds } from './registered-plugins'
 
 export type ThreadModel = {
@@ -29,6 +30,7 @@ export type ThreadView = {
   streaming: boolean
   failure: string | null
   lastUserRowId: string | null
+  background: BackgroundWait | null
 }
 
 const stagedRowOf = (entry: {
@@ -107,5 +109,6 @@ export const viewOf = (args: {
     streaming: args.model.streaming,
     failure: args.model.failure,
     lastUserRowId: lastUser?.id ?? null,
+    background: backgroundWaitOf({ snapshot: args.snapshot, turnRunning }),
   }
 }
