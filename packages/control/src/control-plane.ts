@@ -133,6 +133,15 @@ const headOf = (row: ThreadRow): LogHead => ({
   hash: row.headHash,
 })
 
+const assertThreadOwner = (params: {
+  thread: ThreadRow
+  threadId: string
+  sessionId: string
+}): void => {
+  if (params.thread.sessionId !== params.sessionId)
+    throw new Error(`thread ${params.threadId} belongs to another session`)
+}
+
 export class ControlPlane {
   private readonly store: ControlStorePort
   private readonly clock: (() => string) | undefined
@@ -517,15 +526,18 @@ export class ControlPlane {
     await this.store.transact(async (tx) => {
       const open = await tx.readThread(params.threadId)
       if (open !== undefined) {
-        if (open.sessionId !== params.sessionId)
-          throw new Error(`thread ${params.threadId} belongs to another session`)
+        assertThreadOwner({ thread: open, ...params })
         return
       }
-      await tx.createThread({
+      await tx.ensureThread({
         ...params,
         visibility: EMPTY_VISIBILITY_TEXT,
         at: await this.nowIn(tx),
       })
+      const created = await tx.readThread(params.threadId)
+      if (created === undefined)
+        throw new Error(`thread ${params.threadId} is missing after its create`)
+      assertThreadOwner({ thread: created, ...params })
     })
   }
 

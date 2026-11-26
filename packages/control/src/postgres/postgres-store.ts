@@ -185,6 +185,20 @@ import {
   renameTerminalIn,
 } from './postgres-terminals'
 
+const threadRowOf = (params: {
+  threadId: string
+  sessionId: string
+  visibility: string
+  at: string
+}) => ({
+  id: params.threadId,
+  sessionId: params.sessionId,
+  headSeq: 0,
+  headHash: GENESIS_HASH,
+  visibility: params.visibility,
+  createdAt: new Date(params.at),
+})
+
 export class PostgresTx implements ControlTx {
   constructor(private readonly tx: Tx) {}
 
@@ -371,14 +385,16 @@ export class PostgresTx implements ControlTx {
     visibility: string
     at: string
   }): Promise<void> {
-    await this.tx.orm.public.Thread.create({
-      id: params.threadId,
-      sessionId: params.sessionId,
-      headSeq: 0,
-      headHash: GENESIS_HASH,
-      visibility: params.visibility,
-      createdAt: new Date(params.at),
-    })
+    await this.tx.orm.public.Thread.create(threadRowOf(params))
+  }
+
+  async ensureThread(params: {
+    threadId: string
+    sessionId: string
+    visibility: string
+    at: string
+  }): Promise<void> {
+    await this.tx.orm.public.Thread.createAndCount([threadRowOf(params)], { onConflict: 'skip' })
   }
 
   async openAppend(threadId: string): Promise<AppendOpening | undefined> {

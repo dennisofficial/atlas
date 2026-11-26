@@ -96,7 +96,7 @@ import { commitAppendIn, openAppendIn } from './memory-append'
 import { insertEventsIn, readEventsIn } from './memory-events'
 import { claimNeedingIn } from './memory-claim-next'
 import { leasesHeldByIn, writeLeaseIn } from './memory-leases'
-import { createThreadIn, readThreadIn, writeThreadHeadIn } from './memory-threads'
+import { createThreadIn, ensureThreadIn, readThreadIn, writeThreadHeadIn } from './memory-threads'
 import { sessionBucketCountsIn, sessionDigestsIn } from './memory-digests'
 import { podPeersPlacedIn, podSessionsPlacedIn } from './memory-peers'
 import { clearPodParkIn, failPodParkIn, parkPodIn } from './memory-pod-park'
@@ -283,6 +283,14 @@ export class MemoryTx extends MemoryTxViews implements ControlTx {
     visibility: string
   }): Promise<void> {
     createThreadIn({ state: this.state, ...params })
+  }
+
+  async ensureThread(params: {
+    threadId: string
+    sessionId: string
+    visibility: string
+  }): Promise<void> {
+    ensureThreadIn({ state: this.state, ...params })
   }
 
   async useSnapshot(): Promise<void> {}

@@ -9,8 +9,27 @@ export const createThreadIn = (params: {
   sessionId: string
   visibility: string
 }): void => {
+  if (params.state.threads.has(params.threadId)) throw new Error('thread exists')
+  threadRowIn(params)
+}
+
+export const ensureThreadIn = (params: {
+  state: State
+  threadId: string
+  sessionId: string
+  visibility: string
+}): void => {
+  if (params.state.threads.has(params.threadId)) return
+  threadRowIn(params)
+}
+
+const threadRowIn = (params: {
+  state: State
+  threadId: string
+  sessionId: string
+  visibility: string
+}): void => {
   const { state } = params
-  if (state.threads.has(params.threadId)) throw new Error('thread exists')
   if (!state.sessions.has(params.sessionId)) throw new Error('unknown session')
   state.threads.set(params.threadId, {
     threadId: params.threadId,

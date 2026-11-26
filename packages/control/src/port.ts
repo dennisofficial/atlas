@@ -397,6 +397,12 @@ export interface ControlTx {
     visibility: string
     at: string
   }): Promise<void>
+  ensureThread(params: {
+    threadId: string
+    sessionId: string
+    visibility: string
+    at: string
+  }): Promise<void>
   openAppend(threadId: string): Promise<AppendOpening | undefined>
   commitAppend(params: AppendCommit): Promise<boolean>
   lockThread(threadId: string): Promise<ThreadRow | undefined>
