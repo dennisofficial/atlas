@@ -12,7 +12,7 @@ import type { SessionModelAsk } from '@dltech/atlas-models'
 import { INBOX_KIND_MESSAGE } from '@dltech/atlas-protocol'
 
 import { postIn } from './inbox-ops'
-import type { ControlSessionRow, ControlTx, SessionDigestRow } from './port'
+import type { ControlSessionRow, ControlTx, EffectReceiptKey, SessionDigestRow } from './port'
 import { createSessionIn } from './session-ops'
 
 export type PeerRefusal = { refused: string }
@@ -28,6 +28,16 @@ const spawnRefusalOf = (params: {
     : `the session ${params.sessionId} already exists and this session did not create it`
 
 export const spawnBriefClientIdOf = (sessionId: string): string => `spawn-brief:${sessionId}`
+
+const SPAWN_RECEIPT_NAMESPACE = 'spawn'
+
+const spawnReceiptOf = (params: {
+  spawnerSessionId: string
+  sessionId: string
+}): EffectReceiptKey => ({
+  threadId: `${SPAWN_RECEIPT_NAMESPACE}:${params.spawnerSessionId}`,
+  stepKey: params.sessionId,
+})
 
 const archivedRefusalOf = (session: ControlSessionRow): string | undefined =>
   session.archivedAt === null
@@ -50,10 +60,22 @@ export const spawnPeerIn = async (params: {
   const files = params.files ?? []
   const refusal = spawnFilesRefusalOf(files)
   if (refusal !== null) return { refused: refusal }
-  const existing = await tx.readSession({ sessionId: params.sessionId })
+  let existing = await tx.readSession({ sessionId: params.sessionId })
   if (existing !== undefined) {
     const refused = spawnRefusalOf({ existing, sessionId: params.sessionId, spawner })
     if (refused !== undefined) return { refused }
+  }
+  const receipt = spawnReceiptOf({
+    spawnerSessionId: spawner.sessionId,
+    sessionId: params.sessionId,
+  })
+  const claim = await tx.claimEffectReceipt(receipt)
+  if (claim.kind === 'replayed') {
+    existing = await tx.readSession({ sessionId: params.sessionId })
+    if (existing !== undefined) {
+      const refused = spawnRefusalOf({ existing, sessionId: params.sessionId, spawner })
+      if (refused !== undefined) return { refused }
+    }
   }
   if (existing === undefined) {
     await createSessionIn({
@@ -71,7 +93,12 @@ export const spawnPeerIn = async (params: {
   }
   const already = existing !== undefined
   const text = spawnBriefOf({ brief: params.brief, files })
-  if (text === '') return { inboxId: null, already }
+  if (text === '') {
+    if (claim.kind === 'claimed') {
+      await tx.completeEffectReceipt({ ...receipt, result: { inboxId: null } })
+    }
+    return { inboxId: null, already }
+  }
   const posted = await postIn({
     tx,
     sessionId: params.sessionId,
@@ -86,6 +113,9 @@ export const spawnPeerIn = async (params: {
     senderSessionId: spawner.sessionId,
     receipt: spawnBriefClientIdOf(params.sessionId),
   })
+  if (claim.kind === 'claimed') {
+    await tx.completeEffectReceipt({ ...receipt, result: { inboxId: posted.inboxId } })
+  }
   return { inboxId: posted.inboxId, already }
 }
 

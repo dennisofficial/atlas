@@ -70,4 +70,20 @@ describe('an original host and its replay posting at the same time', () => {
     expect((await second).inboxId).toBe(await first)
     expect(await db.orm.public.InboxEntry.where({ sessionId: SPAWNER }).all()).toHaveLength(1)
   })
+
+  it('makes one session and one brief for two copies of a spawn', async () => {
+    const { plane, db } = await rig()
+    const spawn = {
+      spawnerSessionId: SPAWNER,
+      sessionId: 'child',
+      mainThreadId: 'tc',
+      brief: 'read the port',
+    }
+    const answers = await Promise.all([plane.spawnPeer(spawn), plane.spawnPeer(spawn)])
+    const spawned = answers.flatMap((answer) => ('inboxId' in answer ? [answer] : []))
+    expect(spawned).toHaveLength(2)
+    expect(new Set(spawned.map((answer) => answer.inboxId)).size).toBe(1)
+    expect(await db.orm.public.Session.where({ id: 'child' }).all()).toHaveLength(1)
+    expect(await db.orm.public.InboxEntry.where({ sessionId: 'child' }).all()).toHaveLength(1)
+  })
 })
