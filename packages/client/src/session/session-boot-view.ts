@@ -92,10 +92,28 @@ const REPO_STATE: Record<EWorkspaceRepoState, EBootStepState> = {
 
 type Phase = 'live' | 'failed' | 'catching-up' | 'settled'
 
-const phaseOf = (args: { status: SessionSnapshot['status']; catchingUp: boolean }): Phase => {
+const BOOT_ENDS: ReadonlySet<RecordEvent['type']> = new Set<RecordEvent['type']>([
+  'workspace-prepared',
+  'workspace-prepare-failed',
+  'session-start-failed',
+  'user-said',
+])
+
+const bootInFlightOf = (events: readonly RecordEvent[]): boolean => {
+  const start = events.findLastIndex((event) => event.type === 'workspace-attempt-started')
+  if (start === -1) return false
+  return !events.slice(start + 1).some((event) => BOOT_ENDS.has(event.type))
+}
+
+const phaseOf = (args: {
+  status: SessionSnapshot['status']
+  catchingUp: boolean
+  inFlight: boolean
+}): Phase => {
   if (args.status?.state === ESessionStatus.Preparing) return 'live'
   if (args.status?.state === ESessionStatus.SetupFailed) return 'failed'
   if (args.catchingUp) return 'catching-up'
+  if (args.inFlight) return 'live'
   return 'settled'
 }
 
@@ -215,7 +233,11 @@ export const sessionBootViewOf = (args: {
 }): BootView | null => {
   const folded = workspaceStepsOf(args.events)
   const recordedSteps = WORKSPACE_STEP_ORDER.map((step) => folded[step])
-  const phase = phaseOf({ status: args.status, catchingUp: args.catchingUp === true })
+  const phase = phaseOf({
+    status: args.status,
+    catchingUp: args.catchingUp === true,
+    inFlight: bootInFlightOf(args.events),
+  })
   const settling = phase === 'settled' || phase === 'catching-up'
   if (settling && recordedSteps.every((step) => step === undefined)) return null
   if (phase === 'settled' && args.status === undefined) return null
@@ -245,3 +267,8 @@ export const sessionBootViewOf = (args: {
     ...(state === EBootStepState.Running && first !== undefined ? { startedAtMs: first } : {}),
   }
 }
+
+export const bootViewAt = (args: { view: BootView; now: number }): BootView =>
+  args.view.startedAtMs === undefined
+    ? args.view
+    : { ...args.view, elapsedMs: Math.max(0, args.now - args.view.startedAtMs) }

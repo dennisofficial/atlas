@@ -4,6 +4,10 @@ The iOS app must feel like a real iOS app, not a web page inside an iOS shell. U
 component for a job whenever expo-router or react-native-screens has one. Build a JS version only
 when no native one exists, and say why in the PR.
 
+Native first does not mean the stock iOS look everywhere. Where a stock control looks worse than
+the Atlas design, use the Atlas one. Loading uses `Spinner` from `@dltech/atlas-ui-native` (the
+web spinner), never `ActivityIndicator`.
+
 ## Native first
 
 - **Navigation bar:** every screen uses the native stack header. Do not draw a custom `header`.

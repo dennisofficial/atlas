@@ -9,7 +9,10 @@ export type { McpToolsSnapshot } from './snapshot'
 
 export const bridgeToolsOf = (args: {
   snapshot: McpToolsSnapshot | undefined
-  call(server: string, call: { tool: string; input: unknown }): Promise<McpCallResult>
+  call(
+    server: string,
+    call: { tool: string; input: unknown; signal?: AbortSignal | undefined },
+  ): Promise<McpCallResult>
 }): readonly ToolDefinition[] =>
   connectedServersOf(args.snapshot).flatMap((server) =>
     server.tools.map(

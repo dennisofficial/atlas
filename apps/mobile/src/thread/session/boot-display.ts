@@ -1,8 +1,13 @@
-import type { BootStepChild, BootStepView, BootView } from '@dltech/atlas-client/session'
+import {
+  bootViewAt,
+  type BootStepChild,
+  type BootStepView,
+  type BootView,
+} from '@dltech/atlas-client/session'
 import {
   EBootStepState,
-  sandboxBootSummary,
-  sandboxBootTitle,
+  sandboxBootDisplayOf,
+  type SandboxBootDisplay,
 } from '@dltech/atlas-ui/sandbox-boot-copy'
 import { EBootStepState as EWireBootStepState } from '@dltech/atlas-wire/web'
 
@@ -31,13 +36,8 @@ export type BootStepDisplay = {
   output?: string
 }
 
-export type BootDisplay = {
-  title: string
-  summary: string | undefined
+export type BootDisplay = SandboxBootDisplay & {
   state: EBootStepState
-  open: boolean
-  headerError: string | undefined
-  failed: boolean
   steps: readonly BootStepDisplay[]
 }
 
@@ -58,33 +58,19 @@ const stepOf = (step: BootStepView): BootStepDisplay => ({
   ...(step.output === undefined ? {} : { output: step.output }),
 })
 
-const errorOf = (step: { state: EBootStepState; detail?: string }): string | undefined =>
-  step.state === EBootStepState.Error ? step.detail : undefined
-
-const carriesError = (step: BootStepDisplay): boolean =>
-  errorOf(step) !== undefined || (step.children ?? []).some((child) => errorOf(child) !== undefined)
-
 export const bootDisplayOf = (args: { view: BootView; now: number }): BootDisplay => {
-  const { view, now } = args
-  const elapsedMs =
-    view.startedAtMs === undefined ? view.elapsedMs : Math.max(0, now - view.startedAtMs)
+  const view = bootViewAt(args)
   const state = BOOT_STATE[view.state]
   const steps = view.steps.map(stepOf)
-  const carried = steps.some(carriesError)
   return {
-    title: view.title ?? sandboxBootTitle(state),
-    summary: sandboxBootSummary({ steps, state, elapsedMs }),
+    ...sandboxBootDisplayOf({
+      steps,
+      state,
+      title: view.title,
+      elapsedMs: view.elapsedMs,
+      error: view.error,
+    }),
     state,
-    open:
-      state === EBootStepState.Running ||
-      state === EBootStepState.Interrupted ||
-      state === EBootStepState.Error ||
-      carried,
-    headerError:
-      state === EBootStepState.Error && view.error !== undefined && !carried
-        ? view.error
-        : undefined,
-    failed: state === EBootStepState.Error,
     steps,
   }
 }

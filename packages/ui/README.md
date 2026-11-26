@@ -22,23 +22,23 @@ The package ships TypeScript source with no build step.
 
 ## Entry points
 
-| Import                               | Use it for                                                         |
-| ------------------------------------ | ------------------------------------------------------------------ |
-| `@dltech/atlas-ui`                   | `cn` and the tokens, from one import.                              |
-| `@dltech/atlas-ui/tokens`            | Pure token values. No platform import.                             |
-| `@dltech/atlas-ui/brand`             | Pure brand data: `EBrand`, `BRAND_PATHS`, `brandOfProvider`.       |
-| `@dltech/atlas-ui/sandbox-boot-copy` | The sandbox start title and summary, with no platform import.      |
-| `@dltech/atlas-ui/components/*`      | A vendored component, such as `components/button`.                 |
-| `@dltech/atlas-ui/ai/*`              | An AI pattern, such as `ai/message` or `ai/tool`.                  |
-| `@dltech/atlas-ui/lib/*`             | `lib/utils` (`cn`), `lib/language-of-path`, `lib/shiki-languages`. |
-|                                      | `lib/mermaid-parse` checks a diagram source.                       |
-| `@dltech/atlas-ui/lib/highlighter`   | The lazy shiki highlighter.                                        |
-| `@dltech/atlas-ui/hooks/*`           | `hooks/use-highlighted-code`, `hooks/use-mobile`.                  |
-| `@dltech/atlas-ui/fixtures/*`        | Development data, such as `fixtures/settings-agent`.               |
-| `@dltech/atlas-ui/fixtures/*.json`   | Raw recorded data, such as `real-transcript.json`.                 |
-| `@dltech/atlas-ui/theme.css`         | The generated color variables.                                     |
-| `@dltech/atlas-ui/base.css`          | The base layer and the safe-area variables.                        |
-| `@dltech/atlas-ui/fonts.css`         | The Geist, JetBrains Mono and Space Grotesk faces.                 |
+| Import                               | Use it for                                                                                               |
+| ------------------------------------ | -------------------------------------------------------------------------------------------------------- |
+| `@dltech/atlas-ui`                   | `cn` and the tokens, from one import.                                                                    |
+| `@dltech/atlas-ui/tokens`            | Pure token values. No platform import.                                                                   |
+| `@dltech/atlas-ui/brand`             | Pure brand data: `EBrand`, `BRAND_PATHS`, `brandOfProvider`.                                             |
+| `@dltech/atlas-ui/sandbox-boot-copy` | The sandbox start title, summary and display rules (open, header error, retry), with no platform import. |
+| `@dltech/atlas-ui/components/*`      | A vendored component, such as `components/button`.                                                       |
+| `@dltech/atlas-ui/ai/*`              | An AI pattern, such as `ai/message` or `ai/tool`.                                                        |
+| `@dltech/atlas-ui/lib/*`             | `lib/utils` (`cn`), `lib/language-of-path`, `lib/shiki-languages`.                                       |
+|                                      | `lib/mermaid-parse` checks a diagram source.                                                             |
+| `@dltech/atlas-ui/lib/highlighter`   | The lazy shiki highlighter.                                                                              |
+| `@dltech/atlas-ui/hooks/*`           | `hooks/use-highlighted-code`, `hooks/use-mobile`.                                                        |
+| `@dltech/atlas-ui/fixtures/*`        | Development data, such as `fixtures/settings-agent`.                                                     |
+| `@dltech/atlas-ui/fixtures/*.json`   | Raw recorded data, such as `real-transcript.json`.                                                       |
+| `@dltech/atlas-ui/theme.css`         | The generated color variables.                                                                           |
+| `@dltech/atlas-ui/base.css`          | The base layer and the safe-area variables.                                                              |
+| `@dltech/atlas-ui/fonts.css`         | The Geist, JetBrains Mono and Space Grotesk faces.                                                       |
 
 ## Capabilities
 
@@ -49,8 +49,9 @@ The package ships TypeScript source with no build step.
 - `primitives`, `font`, `radiusBase`, `radiusScale`, `radius`, `radiusPx`, `space`, `spacingUnit`.
 - `ETextRole`, `typeScale`, `EFontFamily`, `EFontWeight`, `fontFaceNames`, `REM_PX`.
 - `readingClasses`, `readingType`, `readingRole`, `READING_LEADING`, `READING_HEADING_LEADING`,
-  `READING_MEASURE_REM`: the measure, the leading and the sizes that a transcript and the web
-  screens share.
+  `READING_MEASURE_REM`: the measure, the leading and the sizes of transcript text. Native
+  body text uses `ETextRole.Reading`, Apple's 17pt body. Web body text stays 16px. Both have a
+  26px line.
 - `buildThemeCss()`: the stylesheet text for the tokens.
 
 ### Mark a brand

@@ -1,5 +1,5 @@
 import type { BootView } from '@dltech/atlas-client/session'
-import { EBootStepState } from '@dltech/atlas-ui/sandbox-boot-copy'
+import { bootStepErrorOf, EBootStepState } from '@dltech/atlas-ui/sandbox-boot-copy'
 import { radius, space } from '@dltech/atlas-ui/tokens'
 import {
   Button,
@@ -15,10 +15,11 @@ import {
   TraceLine,
   useTheme,
   withAlpha,
+  Spinner,
 } from '@dltech/atlas-ui-native'
 import { Circle, CircleCheck, CircleX } from 'lucide-react-native'
 import { useMemo } from 'react'
-import { ActivityIndicator, ScrollView, StyleSheet, View } from 'react-native'
+import { ScrollView, StyleSheet, View } from 'react-native'
 
 import { bootDisplayOf, type BootChildDisplay, type BootStepDisplay } from '../session/boot-display'
 
@@ -32,13 +33,10 @@ const TRACE_STATUS: Record<EBootStepState, ETraceStatus | undefined> = {
   [EBootStepState.Interrupted]: ETraceStatus.Running,
 }
 
-const errorOf = (step: { state: EBootStepState; detail?: string }): string | undefined =>
-  step.state === EBootStepState.Error ? step.detail : undefined
-
 const StepMark = ({ state }: { state: EBootStepState }) => {
   const theme = useTheme()
   if (state === EBootStepState.Running || state === EBootStepState.Interrupted) {
-    return <ActivityIndicator size="small" color={theme.mutedForeground} />
+    return <Spinner color={theme.mutedForeground} />
   }
   if (state === EBootStepState.Error) return <Icon icon={CircleX} color={theme.destructive} />
   if (state === EBootStepState.Done)
@@ -64,7 +62,7 @@ const ErrorBlock = ({ text }: { text: string }) => {
 }
 
 const ChildLine = ({ child }: { child: BootChildDisplay }) => {
-  const error = errorOf(child)
+  const error = bootStepErrorOf(child)
   return (
     <View style={styles.step}>
       <TraceLine
@@ -87,7 +85,7 @@ const terminalOf = (step: BootStepDisplay): string | undefined => {
 
 const StepItem = ({ step }: { step: BootStepDisplay }) => {
   const theme = useTheme()
-  const error = errorOf(step)
+  const error = bootStepErrorOf(step)
   const children = step.children ?? []
   const terminal = terminalOf(step)
   return (

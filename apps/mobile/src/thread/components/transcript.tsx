@@ -1,9 +1,8 @@
 import type { BootView } from '@dltech/atlas-client/session'
 import { space } from '@dltech/atlas-ui/tokens'
-import { EFontWeight, ETextRole, ETextTone, Text, useTheme } from '@dltech/atlas-ui-native'
+import { EFontWeight, ETextRole, ETextTone, Text, useTheme, Spinner } from '@dltech/atlas-ui-native'
 import { useCallback, useEffect, useRef } from 'react'
 import {
-  ActivityIndicator,
   FlatList,
   type ListRenderItem,
   type NativeScrollEvent,
@@ -45,7 +44,7 @@ const WorkingFooter = () => {
   const theme = useTheme()
   return (
     <View style={styles.working}>
-      <ActivityIndicator size="small" color={theme.mutedForeground} />
+      <Spinner color={theme.mutedForeground} />
       <Text size={ETextRole.Sm} tone={ETextTone.Muted}>
         Working…
       </Text>

@@ -38,6 +38,28 @@ export const mcpSendOpSchema = z
 
 export const mcpSendResultSchema = z.null()
 
+export const mcpRequestOpSchema = z
+  .object({
+    op: z.literal('mcp.request'),
+    serverId: serverIdSchema,
+    method: z.string().min(1),
+    params: z.unknown().optional(),
+    timeoutMs: z.number().int().min(1).max(600_000),
+  })
+  .strict()
+
+export const mcpRequestResultSchema = z.discriminatedUnion('kind', [
+  z.object({ kind: z.literal('response'), response: z.unknown() }).strict(),
+  z.object({ kind: z.literal('timed-out') }).strict(),
+  z
+    .object({
+      kind: z.literal('exited'),
+      exit: exitSchema,
+      stderr: z.array(z.string()).readonly(),
+    })
+    .strict(),
+])
+
 export const mcpReadOpSchema = z
   .object({
     op: z.literal('mcp.read'),
@@ -73,6 +95,7 @@ export const mcpListResultSchema = z.array(mcpListEntrySchema).readonly()
 export const mcpOpSchemas = [
   mcpSpawnOpSchema,
   mcpSendOpSchema,
+  mcpRequestOpSchema,
   mcpReadOpSchema,
   mcpCloseOpSchema,
   mcpListOpSchema,
@@ -81,6 +104,7 @@ export const mcpOpSchemas = [
 export const mcpResultSchemas = [
   okResultSchema({ op: 'mcp.spawn', value: mcpSpawnResultSchema }),
   okResultSchema({ op: 'mcp.send', value: mcpSendResultSchema }),
+  okResultSchema({ op: 'mcp.request', value: mcpRequestResultSchema }),
   okResultSchema({ op: 'mcp.read', value: mcpReadResultSchema }),
   okResultSchema({ op: 'mcp.close', value: mcpCloseResultSchema }),
   okResultSchema({ op: 'mcp.list', value: mcpListResultSchema }),
@@ -115,6 +139,8 @@ export const mcpEventSchemas = [
 
 export type McpSpawnOp = z.infer<typeof mcpSpawnOpSchema>
 export type McpSendOp = z.infer<typeof mcpSendOpSchema>
+export type McpRequestOp = z.infer<typeof mcpRequestOpSchema>
+export type McpRequestResult = z.infer<typeof mcpRequestResultSchema>
 export type McpReadOp = z.infer<typeof mcpReadOpSchema>
 export type McpCloseOp = z.infer<typeof mcpCloseOpSchema>
 export type McpListOp = z.infer<typeof mcpListOpSchema>

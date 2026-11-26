@@ -19,7 +19,13 @@ const harnessOf = (
 ) => {
   const recorded: RecordedStep[] = [...(args.recorded ?? [])]
   const trace: string[] = []
-  const invoked: { key: string; op: CallOp; replayed: boolean; bootId?: string | undefined }[] = []
+  const invoked: {
+    key: string
+    op: CallOp
+    replayed: boolean
+    bootId?: string | undefined
+    handoff?: boolean | undefined
+  }[] = []
   const acked: string[] = []
   const steps: PluginSteps = {
     recorded: () => recorded,
@@ -36,6 +42,7 @@ const harnessOf = (
         op: request.op,
         replayed: request.replayed === true,
         bootId: request.dispatchedBootId,
+        handoff: request.detachOnHandoff === true,
       })
       return resultOf(request.op)
     },
@@ -133,6 +140,46 @@ describe('pluginCallOf step identity', () => {
 
     expect(harness.invoked[0]?.key).toMatch(/^host-/)
     expect(harness.recorded).toHaveLength(0)
+  })
+})
+
+const requestOp = {
+  op: 'mcp.request',
+  serverId: 'call-1.docs',
+  method: 'tools/call',
+  params: { name: 'search' },
+  timeoutMs: 30_000,
+} as const
+
+describe('pluginCallOf mcp.request steps', () => {
+  it('records a step before the request and replays it under the key the step took', async () => {
+    const harness = harnessOf()
+    await inScope(() => harness.call(requestOp))
+    await inScope(() => harness.call(requestOp))
+
+    expect(harness.trace).toEqual(['record call-1.0', 'invoke call-1.0', 'invoke call-1.0'])
+    expect(harness.invoked.map((call) => call.key)).toEqual(['call-1.0', 'call-1.0'])
+    expect(harness.invoked.map((call) => call.replayed)).toEqual([false, true])
+    expect(harness.recorded).toHaveLength(1)
+  })
+
+  it('detaches the request on a handoff, so a drain does not lose it', async () => {
+    const harness = harnessOf()
+    await inScope(() => harness.call(requestOp))
+
+    expect(harness.invoked[0]?.handoff).toBe(true)
+  })
+
+  it('keeps the handshake and stream ops without a step', async () => {
+    const harness = harnessOf()
+    await inScope(async () => {
+      await harness.call({ op: 'mcp.spawn', serverId: 'call-1.docs', command: 'bun' })
+      await harness.call({ op: 'mcp.send', serverId: 'call-1.docs', line: '{"id":1}' })
+      await harness.call(requestOp)
+    })
+
+    expect(harness.recorded.map((step) => step.key)).toEqual(['call-1.0'])
+    expect(harness.invoked[2]?.key).toBe('call-1.0')
   })
 })
 

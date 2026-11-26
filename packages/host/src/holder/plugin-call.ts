@@ -52,7 +52,7 @@ const SIDE_EFFECT_FREE_OPS: ReadonlySet<CallOp['op']> = new Set([
 
 const isStepFreeOp = (op: CallOp['op']): boolean => isReadOnlyOp(op) || SIDE_EFFECT_FREE_OPS.has(op)
 
-const MCP_OPS_WITHOUT_A_STEP_UNTIL_A_REQUEST_OP_EXISTS: ReadonlySet<CallOp['op']> = new Set([
+const MCP_OPS_WITHOUT_A_STEP: ReadonlySet<CallOp['op']> = new Set([
   'mcp.close',
   'mcp.list',
   'mcp.read',
@@ -110,7 +110,7 @@ export const pluginCallOf = (args: {
   const planOf = async (op: CallOp): Promise<PlannedCall> => {
     const scope = scopeKey()
     if (scope === undefined || args.steps === undefined) return freshCallOf(op)
-    if (MCP_OPS_WITHOUT_A_STEP_UNTIL_A_REQUEST_OP_EXISTS.has(op.op)) {
+    if (MCP_OPS_WITHOUT_A_STEP.has(op.op)) {
       return { key: noStepKey(), replayed: false, read: false, step: false }
     }
     if (isStepFreeOp(op.op)) return freshCallOf(op)
