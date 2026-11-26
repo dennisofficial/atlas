@@ -1,5 +1,5 @@
 import type { BootView } from '@dltech/atlas-client/session'
-import { EBootStepState } from '@dltech/atlas-ui/sandbox-boot-copy'
+import { bootStepErrorOf, EBootStepState } from '@dltech/atlas-ui/sandbox-boot-copy'
 import { radius, space } from '@dltech/atlas-ui/tokens'
 import {
   Button,
@@ -32,9 +32,6 @@ const TRACE_STATUS: Record<EBootStepState, ETraceStatus | undefined> = {
   [EBootStepState.Interrupted]: ETraceStatus.Running,
 }
 
-const errorOf = (step: { state: EBootStepState; detail?: string }): string | undefined =>
-  step.state === EBootStepState.Error ? step.detail : undefined
-
 const StepMark = ({ state }: { state: EBootStepState }) => {
   const theme = useTheme()
   if (state === EBootStepState.Running || state === EBootStepState.Interrupted) {
@@ -64,7 +61,7 @@ const ErrorBlock = ({ text }: { text: string }) => {
 }
 
 const ChildLine = ({ child }: { child: BootChildDisplay }) => {
-  const error = errorOf(child)
+  const error = bootStepErrorOf(child)
   return (
     <View style={styles.step}>
       <TraceLine
@@ -87,7 +84,7 @@ const terminalOf = (step: BootStepDisplay): string | undefined => {
 
 const StepItem = ({ step }: { step: BootStepDisplay }) => {
   const theme = useTheme()
-  const error = errorOf(step)
+  const error = bootStepErrorOf(step)
   const children = step.children ?? []
   const terminal = terminalOf(step)
   return (
