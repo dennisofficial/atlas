@@ -12,6 +12,7 @@ import { EAnalyticsLinks, type PluginPodContext } from '@dltech/atlas-plugin-sdk
 import { CodeQualityReview } from '../review/engine'
 import { qualityRegistry } from '../review/registry'
 import { prepareQualityScopes } from '../review/source'
+import { writesIntoWorkspace } from './analytics/bash-write'
 import { closedFindingProperties } from './analytics/closed-properties'
 import { nudgeReactionProperties, QUALITY_NUDGE_REACTION } from './analytics/reaction-properties'
 import { reviewIdOf, type QualityNotified } from './analytics/review-links'
@@ -90,6 +91,16 @@ export const qualityReviewHook = (args: {
       return {}
     }
     if (!result.ok) return {}
+    if (writesIntoWorkspace({ call, projectDirectory })) {
+      const { enabled } = await args.options.settings(args.ctx)
+      captureUnavailable({
+        ctx: args.ctx,
+        reason: enabled
+          ? EQualityUnavailableReason.BashWrite
+          : EQualityUnavailableReason.SettingOff,
+      })
+      return {}
+    }
     const changes = result.fileChanges ?? []
     const captureFaults = result.fileChangeFaults ?? []
     if (changes.length === 0 && captureFaults.length === 0) return {}

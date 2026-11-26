@@ -576,8 +576,8 @@ carry a weight of 1 / inclusion probability (§6.3).
 ### 12.5 Known limits
 
 - `thread_kind` is absent on events from a caller that cannot name the thread kind (#2972).
-- `quality review unavailable` has no `bash_write` reason yet (§5.3); only `classifier_off` and
-  `setting_off` are sent, and production had none of either by 2026-11-26.
+- `quality review unavailable` sends `bash_write` from 2026-11-26. It reads the command with the core
+  command reader (`readCommand`, `deedsOf`), so a write that the reader cannot parse is not counted.
 - The first labels: 5 trace reviews from a dry run on 2026-11-25 saw Jev's answer. Routine step 2.0
   re-labels them blind once.
 - A turn can still run the previous deploy's code for about 2 minutes after Render reports the new
