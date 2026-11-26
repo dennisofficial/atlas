@@ -123,7 +123,6 @@ export const projectConfigClientOf = (args: {
         })
         if (existing.grantId === grantId) return true
         await rows.where({ projectId, name }).update({ grantId })
-        await cleanupProjectGrant({ tx, projectId, grantId: existing.grantId })
         return true
       }),
     removeSecret: async (name) => {
@@ -197,7 +196,6 @@ export const projectConfigClientOf = (args: {
         })
         if (existing.grantId === grantId) return true
         await rows.where({ projectId, path }).update({ grantId })
-        await cleanupProjectGrant({ tx, projectId, grantId: existing.grantId })
         return true
       }),
     listGrants: async () => {

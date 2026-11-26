@@ -172,10 +172,13 @@ describe('cloud config store keeps every member in a grant', () => {
     expect(await project.listFileMounts()).toEqual([
       { path: '.env.keys', mode: 0o600, grant: 'PlanetScale' },
     ])
-    expect((await project.listGrants()).map((grant) => grant.name)).toEqual(['PlanetScale'])
+    expect((await project.listGrants()).map((grant) => grant.name)).toEqual([
+      'PlanetScale',
+      'Scratch',
+    ])
     expect(
       await db.orm.public.ProjectAccessGrant.where({ projectId: PROJECT, name: 'Scratch' }).first(),
-    ).toBeNull()
+    ).not.toBeNull()
   })
 
   it('leaves its grant alone when a member moves to that same grant', async () => {
@@ -195,7 +198,7 @@ describe('cloud config store keeps every member in a grant', () => {
     expect(grants.map((grant) => grant.name)).toEqual(['Scratch'])
   })
 
-  it('moves a personal secret between grants and cleans up the emptied one', async () => {
+  it('moves a personal secret between grants and keeps the emptied one', async () => {
     const { personal } = await clientsOf()
     await personal.setGrant({ name: 'Scratch' })
     await personal.setGrant({ name: 'PlanetScale' })
@@ -204,7 +207,10 @@ describe('cloud config store keeps every member in a grant', () => {
     expect(await personal.moveSecret({ name: 'API_TOKEN', grant: 'PlanetScale' })).toBe(true)
 
     expect(await personal.listSecrets()).toEqual([{ name: 'API_TOKEN', grant: 'PlanetScale' }])
-    expect((await personal.listGrants()).map((grant) => grant.name)).toEqual(['PlanetScale'])
+    expect((await personal.listGrants()).map((grant) => grant.name)).toEqual([
+      'PlanetScale',
+      'Scratch',
+    ])
   })
 
   it('moves group members between grants', async () => {
@@ -225,6 +231,9 @@ describe('cloud config store keeps every member in a grant', () => {
     expect(await group.listFileMounts()).toEqual([
       { path: '.env.keys', mode: 0o600, grant: 'PlanetScale' },
     ])
-    expect((await group.listGrants()).map((grant) => grant.name)).toEqual(['PlanetScale'])
+    expect((await group.listGrants()).map((grant) => grant.name)).toEqual([
+      'PlanetScale',
+      'Scratch',
+    ])
   })
 })

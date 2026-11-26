@@ -129,7 +129,6 @@ export const groupConfigClientOf = (args: {
         })
         if (existing.grantId === grantId) return true
         await rows.where({ groupId, name }).update({ grantId })
-        await cleanupGroupGrant({ tx, groupId, grantId: existing.grantId })
         return true
       })
     },
@@ -210,7 +209,6 @@ export const groupConfigClientOf = (args: {
         })
         if (existing.grantId === grantId) return true
         await rows.where({ groupId, path }).update({ grantId })
-        await cleanupGroupGrant({ tx, groupId, grantId: existing.grantId })
         return true
       })
     },
