@@ -12,6 +12,8 @@ import { Platform } from 'react-native'
 import type { TPosture } from '../../layout/posture'
 import { leadingHeaderOptionsOf } from '../../navigation/header-options'
 
+const PHOTO_TITLE_LINES = 2
+
 const HIDDEN_EDGES = { top: 'hidden', bottom: 'hidden', left: 'hidden', right: 'hidden' } as const
 
 const closeItemOf = (onPress: () => void): NativeStackHeaderItem => ({
@@ -33,7 +35,13 @@ const shareItemOf = (onPress: () => void): NativeStackHeaderItem => ({
 })
 
 const PhotoTitle = ({ name }: { name: string }) => (
-  <Text size={ETextRole.Sm} weight={EFontWeight.Medium} numberOfLines={1} ellipsizeMode="middle">
+  <Text
+    size={ETextRole.Sm}
+    weight={EFontWeight.Medium}
+    numberOfLines={PHOTO_TITLE_LINES}
+    ellipsizeMode="middle"
+    accessibilityRole="header"
+  >
     {name}
   </Text>
 )
