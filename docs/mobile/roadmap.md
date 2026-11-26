@@ -38,7 +38,12 @@ in the same PR.
 - [x] Session screen basics: streamed transcript, composer, header state, Stop, Retry, queued messages
 - [x] Answer operator input: questions from `operator_input` and `operator_shell_input` (`operatorRequests.answer`)
 - [x] Attachments: photos, camera and files in the composer (`media.presign/confirm`)
-- [ ] Notifications: presence and Expo token on the shared push port
+- Notifications: presence and Expo token on the shared push port
+  - [x] 1. Presence: surface, open session and foreground on `notifications.reportPresence`
+  - [x] 2. Expo token registration that always settles, retries on foreground and shows its
+    outcome in Settings and PostHog (`push_registration`)
+  - [ ] 3. The iPhone registers an Expo device in production and receives a push (read the
+    Settings row or the `push_registration` event, fix what it names)
 - [ ] Session actions: archive, pin, withdraw a queued message
 - [ ] Model and effort per session
 - [ ] Changes: diff list and file diffs (`sessions.changes`, `sessions.changeContent`)
