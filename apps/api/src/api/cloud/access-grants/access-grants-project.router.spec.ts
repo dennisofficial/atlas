@@ -103,8 +103,9 @@ describe('access grants router at project scope', () => {
       })
       .expect(200)
     const grants = await api.list({ scope: projectScope(projectId) })
-    expect(grants.map((grant) => grant.name)).toEqual(['other'])
-    expect(grants[0]?.secrets.map((secret) => secret.name)).toEqual(['NPM_TOKEN'])
+    expect(grants.map((grant) => grant.name)).toEqual(['npm', 'other'])
+    expect(grants[0]?.secrets).toEqual([])
+    expect(grants[1]?.secrets.map((secret) => secret.name)).toEqual(['NPM_TOKEN'])
   })
 
   it('answers 404 for a grant of another project or another user', async () => {
@@ -174,7 +175,7 @@ describe('access grants router at project scope', () => {
     ).toBeNull()
   })
 
-  it('deletes an emptied auto grant but keeps a described one', async () => {
+  it('keeps a grant whose last secret is deleted', async () => {
     await api
       .projectCall({
         procedure: 'setSecret',
@@ -198,7 +199,7 @@ describe('access grants router at project scope', () => {
       .expect(200)
 
     await api.projectCall({ procedure: 'removeSecret', input: { projectId, name: 'AUTO' } })
-    expect(await projectGrant('AUTO')).toBeNull()
+    expect(await projectGrant('AUTO')).not.toBeNull()
 
     await api.projectCall({ procedure: 'removeSecret', input: { projectId, name: 'KEPT' } })
     expect(await projectGrant('described')).not.toBeNull()
@@ -233,10 +234,11 @@ describe('access grants router at project scope', () => {
       .expect(404)
 
     const grants = await api.list({ scope })
-    expect(grants).toHaveLength(1)
-    expect(grants[0]?.secrets.map((secret) => secret.name)).toEqual(['A_TOKEN'])
-    expect(grants[0]?.files.map((file) => file.path)).toEqual(['~/.a'])
-    expect(await projectGrant('A_TOKEN')).toBeNull()
+    expect(grants.map((grant) => grant.name)).toEqual(['A_TOKEN', '~/.a'])
+    expect(grants[0]?.secrets).toEqual([])
+    expect(grants[0]?.files).toEqual([])
+    expect(grants[1]?.secrets.map((secret) => secret.name)).toEqual(['A_TOKEN'])
+    expect(grants[1]?.files.map((file) => file.path)).toEqual(['~/.a'])
   })
 
   it('renames a grant, answers 409 on a duplicate and hides it from another user', async () => {

@@ -83,6 +83,13 @@ export const accessGrantMoveSchema = z.strictObject({
 })
 export type AccessGrantMove = z.infer<typeof accessGrantMoveSchema>
 
+export const accessGrantRelocateSchema = z.strictObject({
+  scope: accessScopeSchema,
+  id: z.string().min(1),
+  target: accessScopeSchema,
+})
+export type AccessGrantRelocate = z.infer<typeof accessGrantRelocateSchema>
+
 export const accessGrantLayeredSecretSchema = accessGrantSecretSchema.extend({
   overriddenBy: configLayerSchema.nullable(),
 })

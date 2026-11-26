@@ -13,7 +13,7 @@ import {
   EmptyTitle,
 } from '@dltech/atlas-ui/components/empty'
 import { Skeleton } from '@dltech/atlas-ui/components/skeleton'
-import type { AccessGrant } from '@dltech/atlas-wire/web'
+import type { AccessGrant, AccessScope } from '@dltech/atlas-wire/web'
 
 import type { TreeEntry } from '@/features/project-settings/data/file-mount-helpers'
 import { runAction } from '@/features/settings/data/shared/run-action'
@@ -21,7 +21,7 @@ import { runAction } from '@/features/settings/data/shared/run-action'
 import { LibraryConfirmDialog } from '../library-confirm-dialog'
 import { AccessGrantCard } from './access-grant-card'
 import { AccessGrantDialog } from './access-grant-dialog'
-import { deleteGrantDescription } from './access-grant-helpers'
+import { deleteGrantDescription, type GrantMoveScopeOption } from './access-grant-helpers'
 import type { AccessGrantsActions } from './use-access-grants'
 
 const SKELETON_KEYS = ['a', 'b', 'c']
@@ -47,6 +47,9 @@ export function AccessGrantsSkeleton() {
 
 export function AccessGrantsContent({
   grants,
+  scope,
+  groups,
+  projects,
   now,
   personal,
   entries,
@@ -54,6 +57,9 @@ export function AccessGrantsContent({
   actions,
 }: {
   grants: readonly AccessGrant[]
+  scope: AccessScope
+  groups: readonly GrantMoveScopeOption[]
+  projects: readonly GrantMoveScopeOption[]
   now: number
   personal: boolean
   entries: readonly TreeEntry[]
@@ -103,6 +109,9 @@ export function AccessGrantsContent({
             key={grant.id}
             grant={grant}
             grants={grants}
+            scope={scope}
+            groups={groups}
+            projects={projects}
             now={now}
             personal={personal}
             entries={entries}

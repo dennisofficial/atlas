@@ -81,7 +81,7 @@ describe('access grants router at personal scope', () => {
     ])
   })
 
-  it('moves a re-set secret and deletes the auto grant it emptied', async () => {
+  it('moves a re-set secret and keeps the auto grant it left empty', async () => {
     await api.setSecret({ name: 'A_TOKEN', value: 'a' }).expect(200)
     const target = savedId(
       (await api.save({ input: { scope: PERSONAL, name: 'target', instruction: '' } }).expect(200))
@@ -90,8 +90,9 @@ describe('access grants router at personal scope', () => {
 
     await api.setSecret({ name: 'A_TOKEN', value: 'a', grantId: target }).expect(200)
     const grants = await api.list({ scope: PERSONAL })
-    expect(grants).toHaveLength(1)
-    expect(grants[0]).toMatchObject({ id: target, secrets: [{ name: 'A_TOKEN' }] })
+    expect(grants.map((grant) => grant.name)).toEqual(['A_TOKEN', 'target'])
+    expect(grants[0]?.secrets).toEqual([])
+    expect(grants[1]).toMatchObject({ id: target, secrets: [{ name: 'A_TOKEN' }] })
   })
 
   it('answers 404 for a grant of another user', async () => {
@@ -118,7 +119,7 @@ describe('access grants router at personal scope', () => {
     expect(await userSecret('GONE')).toBeNull()
   })
 
-  it('deletes an emptied auto grant but keeps a described one', async () => {
+  it('keeps a grant whose last secret is deleted', async () => {
     await api.setSecret({ name: 'AUTO', value: 'v' }).expect(200)
     const described = savedId(
       (
@@ -130,17 +131,22 @@ describe('access grants router at personal scope', () => {
     await api.setSecret({ name: 'KEPT', value: 'v', grantId: described }).expect(200)
 
     await api.removeSecret({ name: 'AUTO' }).expect(200)
-    expect(await grantNamed('AUTO')).toBeNull()
+    expect(await grantNamed('AUTO')).not.toBeNull()
 
     await api.removeSecret({ name: 'KEPT' }).expect(200)
     expect(await grantNamed('described')).not.toBeNull()
-    expect((await api.list({ scope: PERSONAL }))[0]).toMatchObject({
-      name: 'described',
-      secrets: [],
-    })
+    expect(
+      (await api.list({ scope: PERSONAL })).map((grant) => ({
+        name: grant.name,
+        secrets: grant.secrets,
+      })),
+    ).toEqual([
+      { name: 'AUTO', secrets: [] },
+      { name: 'described', secrets: [] },
+    ])
   })
 
-  it('moves one member to another grant and cleans the source', async () => {
+  it('moves one member to another grant and keeps the source grant', async () => {
     await api.setSecret({ name: 'A_TOKEN', value: 'a' }).expect(200)
     await api.setSecret({ name: 'B_TOKEN', value: 'b' }).expect(200)
     const target = (await grantNamed('B_TOKEN'))?.id ?? ''
@@ -152,9 +158,9 @@ describe('access grants router at personal scope', () => {
       .expect(200)
 
     const grants = await api.list({ scope: PERSONAL })
-    expect(grants).toHaveLength(1)
-    expect(grants[0]?.secrets.map((secret) => secret.name)).toEqual(['A_TOKEN', 'B_TOKEN'])
-    expect(await grantNamed('A_TOKEN')).toBeNull()
+    expect(grants.map((grant) => grant.name)).toEqual(['A_TOKEN', 'B_TOKEN'])
+    expect(grants[0]?.secrets).toEqual([])
+    expect(grants[1]?.secrets.map((secret) => secret.name)).toEqual(['A_TOKEN', 'B_TOKEN'])
   })
 
   it('answers 404 for an unknown member or grant on move', async () => {

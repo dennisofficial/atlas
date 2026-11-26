@@ -2,6 +2,7 @@ import { describe, expect, it } from 'bun:test'
 import { renderToStaticMarkup } from 'react-dom/server'
 
 import type { AccessGrant } from '@dltech/atlas-wire/web'
+import { EAccessScope } from '@dltech/atlas-wire/web'
 
 import { AccessGrantsContent } from '../access-grants-content'
 import type { AccessGrantsActions } from '../use-access-grants'
@@ -21,6 +22,7 @@ const ACTIONS: AccessGrantsActions = {
   save: noop,
   remove: noop,
   moveMember: noop,
+  moveGrant: noop,
   setSecret: noop,
   removeSecret: noop,
   revealSecret: async () => '',
@@ -33,6 +35,12 @@ const render = (grants: AccessGrant[]): string =>
   renderToStaticMarkup(
     <AccessGrantsContent
       grants={grants}
+      scope={{ kind: EAccessScope.Project, projectId: 'prj_1' }}
+      groups={[{ id: 'grp_1', name: 'Comp AI' }]}
+      projects={[
+        { id: 'prj_1', name: 'atlas' },
+        { id: 'prj_2', name: 'other' },
+      ]}
       now={Date.parse('2026-11-25T00:00:00.000Z')}
       personal={false}
       entries={[]}

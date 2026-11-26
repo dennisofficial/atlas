@@ -7,6 +7,7 @@ import { GroupAccessGrantsService } from './group-access-grants.service'
 import { LayeredAccessGrantsService } from './layered-access-grants.service'
 import { PersonalAccessGrantsService } from './personal-access-grants.service'
 import { ProjectAccessGrantsService } from './project-access-grants.service'
+import { RelocateAccessGrantsService } from './access-grant-relocation'
 
 @Module({
   imports: [ProjectsModule, ProjectGroupsModule],
@@ -17,6 +18,7 @@ import { ProjectAccessGrantsService } from './project-access-grants.service'
     LayeredAccessGrantsService,
     PersonalAccessGrantsService,
     ProjectAccessGrantsService,
+    RelocateAccessGrantsService,
   ],
 })
 export class AccessGrantsModule {}

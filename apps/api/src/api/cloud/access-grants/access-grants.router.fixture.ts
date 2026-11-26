@@ -17,6 +17,7 @@ import { LayeredAccessGrantsService } from './layered-access-grants.service'
 import { AccessGrantsService } from './access-grants.service'
 import { PersonalAccessGrantsService } from './personal-access-grants.service'
 import { ProjectAccessGrantsService } from './project-access-grants.service'
+import { RelocateAccessGrantsService } from './access-grant-relocation'
 
 export const PERSONAL: AccessScope = { kind: EAccessScope.Personal }
 
@@ -68,6 +69,7 @@ export const buildAccessGrantsApp = (): Promise<INestApplication> =>
       ProjectGroupsRouter,
       PersonalAccessGrantsService,
       ProjectAccessGrantsService,
+      RelocateAccessGrantsService,
       AccessGrantsRouter,
     ],
   })
@@ -125,6 +127,13 @@ export const accessGrantApi = (app: INestApplication) => ({
     trpcMutation({
       app,
       path: 'accessGrants.moveMember',
+      token: args.token ?? 'session-a',
+      input: args.input,
+    }),
+  moveGrant: (args: { input: object; token?: string }) =>
+    trpcMutation({
+      app,
+      path: 'accessGrants.moveGrant',
       token: args.token ?? 'session-a',
       input: args.input,
     }),

@@ -3,7 +3,7 @@ import { Injectable, NotFoundException } from '@nestjs/common'
 import { db } from '@dltech/atlas-db'
 import type { FileMountSummary, SecretSummary } from '@dltech/atlas-wire/web'
 import { SecretCipherService } from '../../../_lib/crypto/secret-cipher.service'
-import { cleanupGroupGrant, resolveGroupGrantId } from '../access-grants/access-grant-membership'
+import { resolveGroupGrantId } from '../access-grants/access-grant-membership'
 import { assertEnvName, openSecretValue, sealSecretValue } from '../secrets/sealed-secret'
 import { GroupsService } from './project-groups.service'
 
@@ -69,25 +69,16 @@ export class GroupResourcesService {
         },
         update: { sealedValue, grantId },
       })
-      if (existing !== null && existing.grantId !== grantId) {
-        await cleanupGroupGrant({ tx, groupId, grantId: existing.grantId })
-      }
     })
   }
 
   async removeSecret(args: Scope & { name: string }): Promise<void> {
     assertEnvName(args.name)
     await this.groups.owned(args)
-    await db.transaction(async (tx) => {
-      const { groupId } = args
-      const existing = await tx.orm.public.GroupSecret.where({
-        groupId,
-        name: args.name,
-      }).first()
-      if (existing === null) return
-      await tx.orm.public.GroupSecret.where({ groupId, name: args.name }).deleteAndCount()
-      await cleanupGroupGrant({ tx, groupId, grantId: existing.grantId })
-    })
+    await db.orm.public.GroupSecret.where({
+      groupId: args.groupId,
+      name: args.name,
+    }).deleteAndCount()
   }
 
   async listFileMounts(args: Scope): Promise<FileMountSummary[]> {
@@ -143,23 +134,14 @@ export class GroupResourcesService {
         },
         update: { sealedContents, mode: args.mode, grantId },
       })
-      if (existing !== null && existing.grantId !== grantId) {
-        await cleanupGroupGrant({ tx, groupId, grantId: existing.grantId })
-      }
     })
   }
 
   async removeFileMount(args: Scope & { path: string }): Promise<void> {
     await this.groups.owned(args)
-    await db.transaction(async (tx) => {
-      const { groupId } = args
-      const existing = await tx.orm.public.GroupFileMount.where({
-        groupId,
-        path: args.path,
-      }).first()
-      if (existing === null) return
-      await tx.orm.public.GroupFileMount.where({ groupId, path: args.path }).deleteAndCount()
-      await cleanupGroupGrant({ tx, groupId, grantId: existing.grantId })
-    })
+    await db.orm.public.GroupFileMount.where({
+      groupId: args.groupId,
+      path: args.path,
+    }).deleteAndCount()
   }
 }

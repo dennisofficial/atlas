@@ -57,7 +57,7 @@ describe('cloud config store keeps every member in a grant', () => {
     ])
   })
 
-  it('cleans up the emptied grant a moved member leaves behind', async () => {
+  it('keeps the emptied grant a moved member leaves behind', async () => {
     const { db, project } = await clientsOf()
     await project.setGrant({ name: 'Scratch' })
     await project.setGrant({ name: 'PlanetScale', instruction: 'Database work.' })
@@ -66,7 +66,13 @@ describe('cloud config store keeps every member in a grant', () => {
     await project.setSecret({ name: 'API_TOKEN', value: 'two', grant: 'PlanetScale' })
 
     const grants = await db.orm.public.ProjectAccessGrant.where({ projectId: PROJECT }).all()
-    expect(grants.map((grant) => grant.name)).toEqual(['PlanetScale'])
+    expect(grants.map((grant) => grant.name).sort()).toEqual(['PlanetScale', 'Scratch'])
+    expect((await project.listGrants()).find((grant) => grant.name === 'Scratch')).toEqual({
+      name: 'Scratch',
+      instruction: '',
+      secrets: [],
+      files: [],
+    })
   })
 
   it('renames a project grant and refuses a taken name', async () => {

@@ -10,6 +10,7 @@ import {
   REAUTH_REQUIRED_CODE,
   type AccessGrant,
   type AccessGrantMember,
+  type AccessScope,
 } from '@dltech/atlas-wire/web'
 
 import { formatFileMode, type TreeEntry } from '@/features/project-settings/data/file-mount-helpers'
@@ -18,10 +19,16 @@ import { CloudApiError } from '@/lib/cloud-api'
 
 import { AddSecretDialog, BulkAddDialog, type SecretPair } from '../env-secrets-dialogs'
 import { LibraryConfirmDialog } from '../library-confirm-dialog'
-import { LibraryRowMenu } from '../library-row-menu'
+import { LibraryRowMenu, type LibraryMenuAction, type LibraryMenuEntry } from '../library-row-menu'
 import { ReauthDialog } from '../reauth-dialog'
 import { AccessFileDialog, type AccessFileDraft, type EditingFile } from './access-file-dialog'
-import { moveTargetsOf } from './access-grant-helpers'
+import {
+  grantMoveBranchesOf,
+  moveTargetsOf,
+  type GrantMoveBranch,
+  type GrantMoveScopeOption,
+  type GrantMoveTarget,
+} from './access-grant-helpers'
 import { AccessMemberSection } from './access-grant-section'
 import { FileMemberRow, SecretMemberRow } from './access-member-rows'
 import type { AccessGrantsActions } from './use-access-grants'
@@ -29,6 +36,9 @@ import type { AccessGrantsActions } from './use-access-grants'
 export function AccessGrantCard({
   grant,
   grants,
+  scope,
+  groups,
+  projects,
   now,
   personal,
   entries,
@@ -39,6 +49,9 @@ export function AccessGrantCard({
 }: {
   grant: AccessGrant
   grants: readonly AccessGrant[]
+  scope: AccessScope
+  groups: readonly GrantMoveScopeOption[]
+  projects: readonly GrantMoveScopeOption[]
   now: number
   personal: boolean
   entries: readonly TreeEntry[]
@@ -51,6 +64,27 @@ export function AccessGrantCard({
     id: target.id,
     name: target.name,
   }))
+  const handleMoveGrant = (target: GrantMoveTarget) => {
+    void runAction({
+      work: () => actions.moveGrant({ id: grant.id, target: target.scope }),
+      success: `Moved ${grant.name} to ${target.name}`,
+    })
+  }
+  const targetEntryOf = (target: GrantMoveTarget): LibraryMenuAction => ({
+    label: target.name,
+    onSelect: () => handleMoveGrant(target),
+  })
+  const branchEntryOf = (branch: GrantMoveBranch): LibraryMenuEntry => {
+    const [only] = branch.targets
+    if (branch.label === 'Personal' && only !== undefined) return targetEntryOf(only)
+    return { label: branch.label, items: branch.targets.map(targetEntryOf) }
+  }
+  const moveEntries = grantMoveBranchesOf({ scope, groups, projects }).map(branchEntryOf)
+  const grantEntries: LibraryMenuEntry[] = [
+    { label: 'Edit grant', onSelect: onEditGrant },
+    ...(moveEntries.length === 0 ? [] : [{ label: 'Move to', items: moveEntries }]),
+    { label: 'Delete grant', onSelect: onDeleteGrant, destructive: true },
+  ]
   const [editingSecret, setEditingSecret] = useState<string | null>(null)
   const [editingFile, setEditingFile] = useState<EditingFile | null>(null)
   const [deletingSecret, setDeletingSecret] = useState<string | null>(null)
@@ -137,13 +171,7 @@ export function AccessGrantCard({
               <p className="max-w-prose text-sm text-muted-foreground">{grant.instruction}</p>
             )}
           </div>
-          <LibraryRowMenu
-            label={grant.name}
-            actions={[
-              { label: 'Edit grant', onSelect: onEditGrant },
-              { label: 'Delete grant', onSelect: onDeleteGrant, destructive: true },
-            ]}
-          />
+          <LibraryRowMenu label={grant.name} actions={grantEntries} />
         </div>
         <AccessMemberSection
           title="Secrets"

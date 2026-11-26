@@ -27,6 +27,7 @@ export type AccessGrantsActions = AccessMemberApi & {
   save: (draft: AccessGrantDraft) => Promise<void>
   remove: (id: string) => Promise<void>
   moveMember: (args: { member: AccessGrantMember; grantId: string }) => Promise<void>
+  moveGrant: (args: { id: string; target: AccessScope }) => Promise<void>
 }
 
 export type AccessGrantsResource = {
@@ -84,6 +85,12 @@ export function useAccessGrants({
             }),
           ),
         ),
+      moveGrant: (args) =>
+        write(async () => {
+          await cloudCall(
+            api.accessGrants.moveGrant.mutate({ scope, id: args.id, target: args.target }),
+          )
+        }),
       setSecret: (args) => write(() => members.setSecret(args)),
       removeSecret: (name) => write(() => members.removeSecret(name)),
       setFile: (args) => write(() => members.setFile(args)),

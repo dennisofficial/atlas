@@ -60,9 +60,10 @@ response payloads, the constants that both sides must agree on, and the sandbox 
 - `memoryPutSchema`, `memoryEditSchema`, `memoryKeySchema`: the memory write and edit payloads.
 - `MEMORY_STALE_REVISION_CODE`, `MEMORY_EDIT_NO_MATCH_CODE`, `MEMORY_EDIT_AMBIGUOUS_CODE`: the
   memory error codes. `@dltech/atlas-core` owns these, and wire re-exports them.
-- `accessScopeSchema`, `accessGrantSchema`, `accessGrantSaveSchema`, `accessGrantMoveSchema`: a
-  grant at personal, group or project scope, the secrets and files it holds, and its writes.
-  `EAccessScope` and `EAccessMemberKind` name the scopes and the member kinds.
+- `accessScopeSchema`, `accessGrantSchema`, `accessGrantSaveSchema`, `accessGrantMoveSchema`,
+  `accessGrantRelocateSchema`: a grant at personal, group or project scope, the secrets and files it
+  holds, its writes, and its move to another layer. `EAccessScope` and `EAccessMemberKind` name the
+  scopes and the member kinds.
 - `fileMountSummarySchema`, `projectFileMountSetSchema`, `personalFileMountSetSchema`: a file mount
   a sandbox gets, with its mode. A personal mount path must start with `~/` or `@/`.
 

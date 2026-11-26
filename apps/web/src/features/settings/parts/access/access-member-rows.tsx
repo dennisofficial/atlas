@@ -34,10 +34,17 @@ function MemberRowMenu({
       label={label}
       actions={[
         { label: 'Edit', onSelect: onEdit },
-        ...targets.map((target) => ({
-          label: `Move to ${target.name}`,
-          onSelect: () => onMove(target.id),
-        })),
+        ...(targets.length === 0
+          ? []
+          : [
+              {
+                label: 'Move to',
+                items: targets.map((target) => ({
+                  label: target.name,
+                  onSelect: () => onMove(target.id),
+                })),
+              },
+            ]),
         { label: 'Delete', onSelect: onDelete, destructive: true },
       ]}
     />

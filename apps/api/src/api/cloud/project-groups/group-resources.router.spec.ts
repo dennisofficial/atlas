@@ -68,7 +68,7 @@ describe('group resources router', () => {
       .expect(200)
     expect(
       await db.orm.public.GroupAccessGrant.where({ groupId, name: 'GROUP_TOKEN' }).first(),
-    ).toBeNull()
+    ).not.toBeNull()
   })
 
   it('sets, reveals and removes a group file mount', async () => {

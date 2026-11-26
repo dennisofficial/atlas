@@ -16,6 +16,42 @@ export function moveTargetsOf({
   return grants.filter((grant) => grant.id !== fromGrantId)
 }
 
+export type GrantMoveTarget = { name: string; scope: AccessScope }
+
+export type GrantMoveBranch = { label: string; targets: readonly GrantMoveTarget[] }
+
+export type GrantMoveScopeOption = { id: string; name: string }
+
+export function grantMoveBranchesOf(args: {
+  scope: AccessScope
+  groups: readonly GrantMoveScopeOption[]
+  projects: readonly GrantMoveScopeOption[]
+}): GrantMoveBranch[] {
+  const personal: GrantMoveTarget[] =
+    args.scope.kind === EAccessScope.Personal
+      ? []
+      : [{ name: 'Personal', scope: { kind: EAccessScope.Personal } }]
+  const groups: GrantMoveTarget[] = args.groups
+    .filter((group) => args.scope.kind !== EAccessScope.Group || args.scope.groupId !== group.id)
+    .map((group) => ({
+      name: group.name,
+      scope: { kind: EAccessScope.Group, groupId: group.id } as const,
+    }))
+  const projects: GrantMoveTarget[] = args.projects
+    .filter(
+      (project) => args.scope.kind !== EAccessScope.Project || args.scope.projectId !== project.id,
+    )
+    .map((project) => ({
+      name: project.name,
+      scope: { kind: EAccessScope.Project, projectId: project.id } as const,
+    }))
+  return [
+    { label: 'Personal', targets: personal },
+    { label: 'Group', targets: groups },
+    { label: 'Project', targets: projects },
+  ].filter((branch) => branch.targets.length > 0)
+}
+
 const counted = ({ count, one, many }: { count: number; one: string; many: string }): string =>
   `${count} ${count === 1 ? one : many}`
 

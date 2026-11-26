@@ -4,7 +4,6 @@ import type { Db, Tx } from '@dltech/atlas-db'
 import type { SecretCipher } from '@dltech/atlas-pods/config/secret-cipher'
 import { EAccessScope } from '@dltech/atlas-wire/web'
 
-import { cleanupProjectGrant } from '../../_lib/access-grants/grant-of-one'
 import {
   grantInstructionProblem,
   grantNameProblem,
@@ -108,9 +107,6 @@ export const projectConfigClientOf = (args: {
           return
         }
         await rows.where({ projectId, name }).update({ sealedValue, grantId })
-        if (existing.grantId !== grantId) {
-          await cleanupProjectGrant({ tx, projectId, grantId: existing.grantId })
-        }
       })
     },
     removeSecret: async (name) => {
@@ -120,7 +116,6 @@ export const projectConfigClientOf = (args: {
         const row = await tx.orm.public.ProjectSecret.where({ projectId, name }).first()
         if (row === null) return false
         await tx.orm.public.ProjectSecret.where({ projectId, name }).deleteAndCount()
-        await cleanupProjectGrant({ tx, projectId, grantId: row.grantId })
         return true
       })
     },
@@ -162,9 +157,6 @@ export const projectConfigClientOf = (args: {
           return
         }
         await rows.where({ projectId, path }).update({ sealedContents, mode, grantId })
-        if (existing.grantId !== grantId) {
-          await cleanupProjectGrant({ tx, projectId, grantId: existing.grantId })
-        }
       })
     },
     removeFileMount: async (path) =>
@@ -172,7 +164,6 @@ export const projectConfigClientOf = (args: {
         const row = await tx.orm.public.ProjectFileMount.where({ projectId, path }).first()
         if (row === null) return false
         await tx.orm.public.ProjectFileMount.where({ projectId, path }).deleteAndCount()
-        await cleanupProjectGrant({ tx, projectId, grantId: row.grantId })
         return true
       }),
     listGrants: async () => {

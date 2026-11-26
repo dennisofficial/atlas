@@ -75,14 +75,14 @@ describe('personal file mounts router', () => {
     expect(stale.text).not.toContain('token')
   })
 
-  it('gives a mount a grant of its own and deletes it when the mount goes', async () => {
+  it('gives a mount a grant of its own and keeps the grant when the mount goes', async () => {
     await api
       .personalMount({ procedure: 'set', input: { path: '~/allowed-users', contents: 'v' } })
       .expect(200)
     const grantId = (await mount('~/allowed-users'))?.grantId ?? ''
 
     await api.personalMount({ procedure: 'remove', input: { path: '~/allowed-users' } }).expect(200)
-    expect(await db.orm.public.UserAccessGrant.where({ id: grantId }).first()).toBeNull()
+    expect(await db.orm.public.UserAccessGrant.where({ id: grantId }).first()).not.toBeNull()
   })
 
   it('keeps a chosen grant on a plain re-set', async () => {

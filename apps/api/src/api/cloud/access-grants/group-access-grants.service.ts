@@ -8,11 +8,7 @@ import {
 import { Injectable, NotFoundException } from '@nestjs/common'
 import { db } from '@dltech/atlas-db'
 import { GroupsService } from '../project-groups/project-groups.service'
-import {
-  assertGroupGrant,
-  cleanupGroupGrant,
-  withGrantNameConflict,
-} from './access-grant-membership'
+import { assertGroupGrant, withGrantNameConflict } from './access-grant-membership'
 
 const GRANT_NOT_FOUND = 'access grant not found'
 const MEMBER_NOT_FOUND = 'access grant member not found'
@@ -101,14 +97,12 @@ export class GroupAccessGrantsService {
         if (secret === null) throw new NotFoundException(MEMBER_NOT_FOUND)
         if (secret.grantId === grantId) return
         await tx.orm.public.GroupSecret.where({ groupId, name: member.name }).update({ grantId })
-        await cleanupGroupGrant({ tx, groupId, grantId: secret.grantId })
         return
       }
       const mount = await tx.orm.public.GroupFileMount.where({ groupId, path: member.path }).first()
       if (mount === null) throw new NotFoundException(MEMBER_NOT_FOUND)
       if (mount.grantId === grantId) return
       await tx.orm.public.GroupFileMount.where({ groupId, path: member.path }).update({ grantId })
-      await cleanupGroupGrant({ tx, groupId, grantId: mount.grantId })
     })
   }
 }

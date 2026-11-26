@@ -2,6 +2,7 @@ import {
   EAccessScope,
   type AccessGrant,
   type AccessGrantMove,
+  type AccessGrantRelocate,
   type AccessGrantSave,
   type AccessGrantLayeredList,
   type AccessScope,
@@ -11,6 +12,7 @@ import { GroupAccessGrantsService } from './group-access-grants.service'
 import { LayeredAccessGrantsService } from './layered-access-grants.service'
 import { PersonalAccessGrantsService } from './personal-access-grants.service'
 import { ProjectAccessGrantsService } from './project-access-grants.service'
+import { RelocateAccessGrantsService } from './access-grant-relocation'
 
 @Injectable()
 export class AccessGrantsService {
@@ -19,6 +21,7 @@ export class AccessGrantsService {
     private readonly group: GroupAccessGrantsService,
     private readonly project: ProjectAccessGrantsService,
     private readonly layered: LayeredAccessGrantsService,
+    private readonly relocate: RelocateAccessGrantsService,
   ) {}
 
   list(args: { userId: string; scope: AccessScope }): Promise<AccessGrant[]> {
@@ -78,5 +81,9 @@ export class AccessGrantsService {
       projectId: args.input.scope.projectId,
       input: args.input,
     })
+  }
+
+  moveGrant(args: { userId: string; input: AccessGrantRelocate }): Promise<{ id: string }> {
+    return this.relocate.move(args)
   }
 }

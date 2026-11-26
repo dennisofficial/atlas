@@ -3,8 +3,6 @@ import { randomUUID } from 'node:crypto'
 import type { Db, Tx } from '@dltech/atlas-db'
 import type { SecretCipher } from '@dltech/atlas-pods/config/secret-cipher'
 import { EAccessScope, personalFileMountPathProblem } from '@dltech/atlas-wire/web'
-
-import { cleanupPersonalGrant } from '../../_lib/access-grants/grant-of-one'
 import {
   grantInstructionProblem,
   grantNameProblem,
@@ -103,9 +101,6 @@ export const personalConfigClientOf = (args: {
           return
         }
         await rows.where({ userId, name }).update({ sealedValue, grantId })
-        if (existing.grantId !== grantId) {
-          await cleanupPersonalGrant({ tx, userId, grantId: existing.grantId })
-        }
       })
     },
     removeSecret: async (name) => {
@@ -115,7 +110,6 @@ export const personalConfigClientOf = (args: {
         const row = await tx.orm.public.UserSecret.where({ userId, name }).first()
         if (row === null) return false
         await tx.orm.public.UserSecret.where({ userId, name }).deleteAndCount()
-        await cleanupPersonalGrant({ tx, userId, grantId: row.grantId })
         return true
       })
     },
@@ -159,9 +153,6 @@ export const personalConfigClientOf = (args: {
           return
         }
         await rows.where({ userId, path }).update({ sealedContents, mode, grantId })
-        if (existing.grantId !== grantId) {
-          await cleanupPersonalGrant({ tx, userId, grantId: existing.grantId })
-        }
       })
     },
     removeFileMount: async (path) =>
@@ -169,7 +160,6 @@ export const personalConfigClientOf = (args: {
         const row = await tx.orm.public.UserFileMount.where({ userId, path }).first()
         if (row === null) return false
         await tx.orm.public.UserFileMount.where({ userId, path }).deleteAndCount()
-        await cleanupPersonalGrant({ tx, userId, grantId: row.grantId })
         return true
       }),
     listGrants: async () => {

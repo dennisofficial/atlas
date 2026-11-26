@@ -116,7 +116,7 @@ export function AddSecretDialog({
           <FieldLabel htmlFor="secret-value">Value</FieldLabel>
           <Textarea
             id="secret-value"
-            className="min-h-20 font-mono text-xs md:text-xs"
+            className="max-h-[40dvh] min-h-20 font-mono text-xs md:text-xs"
             spellCheck={false}
             value={value}
             onChange={(event) => setValue(event.target.value)}
@@ -176,7 +176,7 @@ export function BulkAddDialog({
           <FieldLabel htmlFor="bulk-secrets">One KEY=value per line</FieldLabel>
           <Textarea
             id="bulk-secrets"
-            className="min-h-40 font-mono text-xs md:text-xs"
+            className="max-h-[40dvh] min-h-40 font-mono text-xs md:text-xs"
             spellCheck={false}
             placeholder={'API_KEY=…\nDATABASE_URL=…'}
             aria-invalid={invalid.length > 0 || undefined}

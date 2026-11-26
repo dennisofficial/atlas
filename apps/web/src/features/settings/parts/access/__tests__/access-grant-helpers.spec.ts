@@ -2,7 +2,12 @@ import { describe, expect, it } from 'bun:test'
 
 import { EAccessScope, type AccessGrant } from '@dltech/atlas-wire/web'
 
-import { deleteGrantDescription, moveTargetsOf, scopeKeyOf } from '../access-grant-helpers'
+import {
+  deleteGrantDescription,
+  grantMoveBranchesOf,
+  moveTargetsOf,
+  scopeKeyOf,
+} from '../access-grant-helpers'
 
 const grantOf = (args: Partial<AccessGrant> & { id: string; name: string }): AccessGrant => ({
   instruction: '',
@@ -70,5 +75,82 @@ describe('deleteGrantDescription', () => {
     expect(deleteGrantDescription(grantOf({ id: 'g4', name: 'Empty' }))).toBe(
       'The grant has no secrets or files. This cannot be undone.',
     )
+  })
+})
+
+describe('grantMoveBranchesOf', () => {
+  const GROUPS = [
+    { id: 'grp_1', name: 'Comp AI' },
+    { id: 'grp_2', name: 'Personal projects' },
+  ]
+  const PROJECTS = [
+    { id: 'prj_1', name: 'atlas' },
+    { id: 'prj_2', name: 'other' },
+  ]
+
+  const labelsOf = (branches: ReturnType<typeof grantMoveBranchesOf>) =>
+    branches.map((branch) => ({
+      label: branch.label,
+      targets: branch.targets.map((target) => target.name),
+    }))
+
+  it('offers every other layer from the personal scope', () => {
+    expect(
+      labelsOf(
+        grantMoveBranchesOf({
+          scope: { kind: EAccessScope.Personal },
+          groups: GROUPS,
+          projects: PROJECTS,
+        }),
+      ),
+    ).toEqual([
+      { label: 'Group', targets: ['Comp AI', 'Personal projects'] },
+      { label: 'Project', targets: ['atlas', 'other'] },
+    ])
+  })
+
+  it('leaves the current project and the personal layer offer', () => {
+    const branches = grantMoveBranchesOf({
+      scope: { kind: EAccessScope.Project, projectId: 'prj_1' },
+      groups: GROUPS,
+      projects: PROJECTS,
+    })
+    expect(labelsOf(branches)).toEqual([
+      { label: 'Personal', targets: ['Personal'] },
+      { label: 'Group', targets: ['Comp AI', 'Personal projects'] },
+      { label: 'Project', targets: ['other'] },
+    ])
+    expect(branches[0]?.targets[0]?.scope).toEqual({ kind: EAccessScope.Personal })
+  })
+
+  it('drops a branch that has no targets left', () => {
+    expect(
+      labelsOf(
+        grantMoveBranchesOf({
+          scope: { kind: EAccessScope.Group, groupId: 'grp_1' },
+          groups: GROUPS,
+          projects: [],
+        }),
+      ),
+    ).toEqual([
+      { label: 'Personal', targets: ['Personal'] },
+      { label: 'Group', targets: ['Personal projects'] },
+    ])
+  })
+
+  it('names the scope each target moves to', () => {
+    const branches = grantMoveBranchesOf({
+      scope: { kind: EAccessScope.Personal },
+      groups: GROUPS,
+      projects: PROJECTS,
+    })
+    expect(branches[0]?.targets[1]?.scope).toEqual({
+      kind: EAccessScope.Group,
+      groupId: 'grp_2',
+    })
+    expect(branches[1]?.targets[0]?.scope).toEqual({
+      kind: EAccessScope.Project,
+      projectId: 'prj_1',
+    })
   })
 })
