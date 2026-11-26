@@ -4,6 +4,7 @@ import {
   inboxEventPayloadOf,
   type EventBody,
   type EventDraft,
+  type RecordBody,
   type ThreadId,
   type RecordEvent,
 } from '@dltech/atlas-core'
@@ -27,7 +28,7 @@ const THREAD_SEQ_PAGE = 1000
 
 export const appendOnParent = async (
   parent: ChildParent,
-  drafts: readonly EventDraft[],
+  drafts: readonly (EventDraft | RecordBody)[],
 ): Promise<void> => {
   await parent.record.append({
     threadId: parent.threadId,
@@ -75,11 +76,12 @@ export const messagePayloadOf = (args: { text: string; clientId?: string | undef
 
 export const postNotice = async (
   parent: Pick<ChildParent, 'deps'>,
-  args: { event: EventBody; key: string },
+  args: { event: EventBody; key: string; receipt?: string | undefined },
 ): Promise<void> => {
   await parent.deps.plane.post({
     sessionId: parent.deps.sessionId,
     kind: INBOX_KIND_EVENT,
     payload: inboxEventPayloadOf({ event: args.event, clientId: args.key }),
+    ...(args.receipt === undefined ? {} : { receipt: args.receipt }),
   })
 }

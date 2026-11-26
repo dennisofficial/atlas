@@ -7,14 +7,38 @@ import {
   type ThreadId,
 } from '@dltech/atlas-core'
 import { INBOX_KIND_MESSAGE, inboxMessageSchema } from '@dltech/atlas-protocol'
+import { z } from 'zod'
 
 import { asksForHolderOf, wakesHolderOf } from './claim-ops'
 import { LeaseConflictError, MainThreadOnlyKindError } from './errors'
-import type { ControlTx } from './port'
+import type { ControlTx, EffectReceiptKey } from './port'
 
 export const INBOX_KIND_WITHDRAW = 'withdraw'
 
 export const INBOX_IDEMPOTENCY_LOOKBACK = 200
+
+const INBOX_RECEIPT_NAMESPACE = 'inbox'
+
+const storedInboxSchema = z.object({ inboxId: z.number() })
+
+const inboxReceiptOf = (params: { sessionId: string; stepKey: string }): EffectReceiptKey => ({
+  threadId: `${INBOX_RECEIPT_NAMESPACE}:${params.sessionId}`,
+  stepKey: params.stepKey,
+})
+
+const inboxIdOfReceipt = (result: unknown): number => storedInboxSchema.parse(result).inboxId
+
+export const postedReceiptOf = async (params: {
+  tx: ControlTx
+  sessionId: string
+  receipt: string | undefined
+}): Promise<{ inboxId: number } | undefined> => {
+  if (params.receipt === undefined) return undefined
+  const stored = await params.tx.readEffectReceipt(
+    inboxReceiptOf({ sessionId: params.sessionId, stepKey: params.receipt }),
+  )
+  return stored === undefined ? undefined : { inboxId: inboxIdOfReceipt(stored) }
+}
 
 export type WithdrawPayload = { targetInboxId: number }
 
@@ -126,6 +150,7 @@ export const postIn = async (params: {
   threadId?: ThreadId | undefined
   senderSessionId?: string | undefined
   wake?: boolean | undefined
+  receipt?: string | undefined
 }): Promise<{ inboxId: number }> => {
   if (
     params.kind === INBOX_KIND_MESSAGE &&
@@ -137,13 +162,26 @@ export const postIn = async (params: {
   if (threadId !== null && isMainThreadOnlyKind(params.kind)) {
     throw new MainThreadOnlyKindError(params.kind)
   }
-  const existing = await alreadyPosted({
-    tx: params.tx,
-    sessionId: params.sessionId,
-    kind: params.kind,
-    threadId,
-    clientId: clientIdOfPayload(params.payload),
-  })
+  const locked = await params.tx.lockSession(params.sessionId)
+  if (locked === undefined) throw new Error(`unknown session ${params.sessionId}`)
+  const receipt =
+    params.receipt === undefined
+      ? undefined
+      : inboxReceiptOf({ sessionId: params.sessionId, stepKey: params.receipt })
+  if (receipt !== undefined) {
+    const claim = await params.tx.claimEffectReceipt(receipt)
+    if (claim.kind === 'replayed') return { inboxId: inboxIdOfReceipt(claim.result) }
+  }
+  const existing =
+    receipt === undefined
+      ? await alreadyPosted({
+          tx: params.tx,
+          sessionId: params.sessionId,
+          kind: params.kind,
+          threadId,
+          clientId: clientIdOfPayload(params.payload),
+        })
+      : undefined
   if (existing !== undefined) return { inboxId: existing }
   const inboxId = await params.tx.allocateInboxId(params.sessionId)
   await params.tx.insertInboxEntry({
@@ -156,6 +194,9 @@ export const postIn = async (params: {
     threadId,
     senderSessionId: params.senderSessionId ?? null,
   })
+  if (receipt !== undefined) {
+    await params.tx.completeEffectReceipt({ ...receipt, result: { inboxId } })
+  }
   if (asksForHolderOf(params.kind) && params.kind !== INBOX_KIND_STOP) {
     await params.tx.clearPodPark({ sessionId: params.sessionId })
   }

@@ -27,6 +27,13 @@ const LISTING = [
   '',
 ].join('\n')
 
+const LISTING_WITHOUT_WT = [
+  'worktree /work',
+  'HEAD 1111111111111111111111111111111111111111',
+  'branch refs/heads/main',
+  '',
+].join('\n')
+
 type Answer = { stdout?: string; code?: number }
 
 const streamOf = (text: string): ReadableStream<Uint8Array> =>
@@ -182,19 +189,41 @@ describe('the host worktrees port', () => {
     )
   })
 
-  it('refuses with git’s own words when the branch or path already exists', async () => {
-    const { worktrees } = rig({
+  it('returns the worktree that is already there on the branch asked for', async () => {
+    const { worktrees, processes, files } = rig({
       'git worktree list --porcelain': { stdout: LISTING },
-      'git fetch origin': {},
       'git symbolic-ref --quiet --short refs/remotes/origin/HEAD': { stdout: 'origin/main\n' },
-      'git worktree add /work/.atlas/worktrees/dennis/wt -b dennis/wt origin/main': {
-        stdout: "fatal: a branch named 'dennis/wt' already exists",
-        code: 128,
-      },
     })
 
+    const entry = await worktrees.create({ cwd: '/work', name: 'dennis/wt' })
+
+    expect(entry).toEqual({
+      path: '/work/.atlas/worktrees/dennis/wt',
+      branch: 'dennis/wt',
+      base: 'origin/main',
+    })
+    expect(files.written).toEqual([])
+    expect(processes.calls).toEqual([
+      'git worktree list --porcelain',
+      'git symbolic-ref --quiet --short refs/remotes/origin/HEAD',
+    ])
+  })
+
+  it('refuses a path that is already a worktree on another branch', async () => {
+    const listing = [
+      'worktree /work',
+      'HEAD 1111111111111111111111111111111111111111',
+      'branch refs/heads/main',
+      '',
+      'worktree /work/.atlas/worktrees/dennis/wt',
+      'HEAD 2222222222222222222222222222222222222222',
+      'branch refs/heads/dennis/other',
+      '',
+    ].join('\n')
+    const { worktrees } = rig({ 'git worktree list --porcelain': { stdout: listing } })
+
     await expect(worktrees.create({ cwd: '/work', name: 'dennis/wt' })).rejects.toThrow(
-      "a branch named 'dennis/wt' already exists",
+      'a worktree already exists at /work/.atlas/worktrees/dennis/wt on dennis/other, not dennis/wt',
     )
   })
 
@@ -348,5 +377,42 @@ describe('the host worktrees port', () => {
     await expect(
       worktrees.remove({ cwd: '/work', path: '/work/.atlas/worktrees/dennis/wt', force: false }),
     ).rejects.toThrow('contains modified or untracked files')
+  })
+
+  it('deletes the branch of a worktree whose path is already gone', async () => {
+    const { worktrees, processes } = rig({
+      'git worktree remove --force /work/.atlas/worktrees/dennis/wt': { code: 128 },
+      'git worktree list --porcelain': { stdout: LISTING_WITHOUT_WT },
+      'git rev-parse --verify --quiet refs/heads/dennis/wt': { stdout: 'abc123\n' },
+      'git branch -D dennis/wt': { stdout: 'Deleted branch dennis/wt\n' },
+    })
+
+    const removal = await worktrees.remove({
+      cwd: '/work',
+      path: '/work/.atlas/worktrees/dennis/wt',
+      branch: 'dennis/wt',
+      force: true,
+    })
+
+    expect(removal).toEqual({ branch: 'dennis/wt', branchDeleted: true })
+    expect(processes.calls).toContain('git branch -D dennis/wt')
+  })
+
+  it('reports a removal that already happened as done, without a git refusal', async () => {
+    const { worktrees, processes } = rig({
+      'git worktree remove --force /work/.atlas/worktrees/dennis/wt': { code: 128 },
+      'git worktree list --porcelain': { stdout: LISTING_WITHOUT_WT },
+      'git rev-parse --verify --quiet refs/heads/dennis/wt': { code: 1 },
+    })
+
+    const removal = await worktrees.remove({
+      cwd: '/work',
+      path: '/work/.atlas/worktrees/dennis/wt',
+      branch: 'dennis/wt',
+      force: true,
+    })
+
+    expect(removal).toEqual({ branch: 'dennis/wt', branchDeleted: true })
+    expect(processes.calls).not.toContain('git branch -D dennis/wt')
   })
 })

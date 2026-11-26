@@ -1,6 +1,6 @@
 import { randomUUID } from 'node:crypto'
 
-import { EMessageOrigin } from '@dltech/atlas-core'
+import { EMessageOrigin, type JsonValue } from '@dltech/atlas-core'
 import {
   INBOX_KIND_MESSAGE,
   type Routine,
@@ -20,7 +20,9 @@ import {
 } from '@dltech/atlas-schedule'
 
 import type { ControlPlane } from './control-plane'
+import type { EffectReceiptKey } from './port'
 import type { RoutinePatch } from './routine-crud'
+import { replayedMaybeRoutineOf, replayedSessionOf } from './routine-receipts'
 import type { RoutineRow, RoutineRunRow as ControlRoutineRunRow } from './routine-rows'
 
 export const MINIMUM_ROUTINE_GAP_MINUTES = 5
@@ -47,6 +49,7 @@ export type RoutinePlane = Pick<
   | 'listRoutineRuns'
   | 'listRoutines'
   | 'readRoutine'
+  | 'readEffectReceipt'
   | 'updateRoutine'
 >
 
@@ -129,6 +132,16 @@ const routineIn = async (args: RoutinesFor & { routineId: string }): Promise<Rou
   return row
 }
 
+const replayedOf = async <T>(args: {
+  plane: RoutinePlane
+  receipt: EffectReceiptKey | undefined
+  decode: (result: JsonValue) => T
+}): Promise<T | undefined> => {
+  if (args.receipt === undefined) return undefined
+  const result = await args.plane.readEffectReceipt(args.receipt)
+  return result === undefined ? undefined : args.decode(result)
+}
+
 export const routineListOf = async (scope: RoutinesFor): Promise<RoutineListOutput> => {
   const rows = await scope.plane.listRoutines({ userId: scope.userId, projectId: scope.projectId })
   return { routines: rows.map(routineOf) }
@@ -138,7 +151,9 @@ export const routineGetOf = async (args: RoutinesFor & { routineId: string }): P
   routineOf(await routineIn(args))
 
 export const routineCreateOf = async (
-  args: { userId: string; input: RoutineCreateInput } & { plane: RoutinePlane },
+  args: { userId: string; input: RoutineCreateInput; receipt?: EffectReceiptKey | undefined } & {
+    plane: RoutinePlane
+  },
 ): Promise<Routine> => {
   const cron = checkedCron({ cron: args.input.cron, timezone: args.input.timezone })
   const now = new Date()
@@ -161,13 +176,19 @@ export const routineCreateOf = async (
     createdAt: at,
     updatedAt: at,
   }
-  await args.plane.createRoutine(row)
-  return routineOf(row)
+  const created = await args.plane.createRoutine(row, args.receipt)
+  return routineOf(created)
 }
 
 export const routineUpdateOf = async (
-  args: RoutinesFor & { input: RoutineUpdateInput },
+  args: RoutinesFor & { input: RoutineUpdateInput; receipt?: EffectReceiptKey | undefined },
 ): Promise<Routine> => {
+  const replayed = await replayedOf({
+    plane: args.plane,
+    receipt: args.receipt,
+    decode: replayedMaybeRoutineOf,
+  })
+  if (replayed !== undefined) return routineOf(replayed)
   const row = await routineIn({ ...args, routineId: args.input.routineId })
   const cron = args.input.cron ?? row.cron
   const timezone = args.input.timezone ?? row.timezone
@@ -188,6 +209,7 @@ export const routineUpdateOf = async (
   const changed = await args.plane.updateRoutine({
     routineId: row.routineId,
     userId: args.userId,
+    receipt: args.receipt,
     patch,
     ...(rescheduled || enabling
       ? { nextRunAt: nextRunOf({ cron: parsed, timezone, after: new Date(at) }) }
@@ -203,14 +225,13 @@ export const routineRemoveOf = async (args: {
   userId: string
   routineId: string
   projectId?: string | undefined
+  receipt?: EffectReceiptKey | undefined
 }): Promise<{ removed: boolean }> => {
-  if (args.projectId !== undefined) {
-    const row = await args.plane.readRoutine({ routineId: args.routineId, userId: args.userId })
-    if (row === undefined || row.projectId !== args.projectId) return { removed: false }
-  }
   const removed = await args.plane.deleteRoutine({
     routineId: args.routineId,
     userId: args.userId,
+    projectId: args.projectId,
+    receipt: args.receipt,
   })
   return { removed }
 }
@@ -227,11 +248,18 @@ export const routineRunsOf = async (
 }
 
 export const routineRunNowOf = async (
-  args: RoutinesFor & { routineId: string },
+  args: RoutinesFor & { routineId: string; receipt?: EffectReceiptKey | undefined },
 ): Promise<RoutineRunOutput> => {
+  const replayed = await replayedOf({
+    plane: args.plane,
+    receipt: args.receipt,
+    decode: replayedSessionOf,
+  })
+  if (replayed !== undefined) return { sessionId: replayed.sessionId }
   const row = await routineIn({ ...args, routineId: args.routineId })
   const sessionId = randomUUID()
-  await args.plane.createSessionWithMessage({
+  const created = await args.plane.createSessionWithMessage({
+    receipt: args.receipt,
     sessionId,
     mainThreadId: randomUUID(),
     userId: args.userId,
@@ -248,5 +276,5 @@ export const routineRunNowOf = async (
       payload: JSON.stringify({ text: row.prompt, via: EMessageOrigin.Routine }),
     },
   })
-  return { sessionId }
+  return { sessionId: created.sessionId }
 }

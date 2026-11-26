@@ -65,6 +65,8 @@ export type HandoffScenario = {
   runs(ctx: HandoffContext): Promise<number>
   /** after the pod itself restarted: the work did not finish, and never ran again */
   interrupted?(ctx: HandoffContext): Promise<void>
+  /** what a host-side effect keeps across a pod restart: it finishes, and only once, on the new bootId */
+  podRestart?: 'survives'
 }
 
 /**
@@ -74,7 +76,9 @@ export type HandoffScenario = {
  * - host A drains cleanly mid-work;
  * - host A is SIGKILLed mid-work;
  * - the pod restarts mid-work: the call is gone, so the record says it was interrupted and the
- *   work is never run a second time (only when the scenario supplies `interrupted`).
+ *   work is never run a second time (only when the scenario supplies `interrupted`);
+ * - the pod restarts mid-work under a host-side effect, which is not pod work: it survives the new
+ *   bootId and finishes exactly once (only when the scenario is declared `podRestart: 'survives'`).
  *
  * Every case starts its own rig, pod and workspace, because a setup script leaves markers in the
  * workspace that a later case must not inherit.
@@ -145,6 +149,17 @@ export const describeHandoff = (scenario: HandoffScenario): void => {
       expect(await scenario.runs(ctx)).toBe(1)
     }
 
+    const killAndRestartPod = async (args: {
+      ctx: HandoffContext
+      hostA: HostProcess
+    }): Promise<string> => {
+      const before = args.ctx.daemon.bootId
+      args.hostA.kill('SIGKILL')
+      await args.hostA.exited
+      await args.ctx.daemon.restart({ keepHome: true })
+      return before
+    }
+
     const ownFault = async (args: {
       slug: string
       apply(ctx: HandoffContext, hostA: HostProcess): Promise<void>
@@ -193,9 +208,7 @@ export const describeHandoff = (scenario: HandoffScenario): void => {
         withRig(async (rig, root) => {
           const ctx = await fresh({ rig, root, slug: 'restart' })
           const hostA = await scenario.start(ctx)
-          hostA.kill('SIGKILL')
-          await hostA.exited
-          await ctx.daemon.restart({ keepHome: true })
+          await killAndRestartPod({ ctx, hostA })
           const hostB = await takeOver(ctx)
           try {
             // give the new holder time to re-join the call and find it gone from the pod
@@ -205,6 +218,26 @@ export const describeHandoff = (scenario: HandoffScenario): void => {
           } catch (error: unknown) {
             throw new Error(
               `${error instanceof Error ? error.message : String(error)}\n${await handoffFailureOf({ ctx, hosts: [hostB] })}`,
+            )
+          }
+        }),
+      90_000,
+    )
+
+    it.skipIf(scenario.podRestart !== 'survives')(
+      'survives the pod restarting mid-work',
+      async () =>
+        withRig(async (rig, root) => {
+          const ctx = await fresh({ rig, root, slug: 'pod-restart' })
+          const hostA = await scenario.start(ctx)
+          const before = await killAndRestartPod({ ctx, hostA })
+          expect(ctx.daemon.bootId).not.toBe(before)
+          const hostB = await takeOver(ctx)
+          try {
+            await collectOnce(ctx)
+          } catch (error: unknown) {
+            throw new Error(
+              `${error instanceof Error ? error.message : String(error)}\n${await handoffFailureOf({ ctx, hosts: [hostA, hostB] })}`,
             )
           }
         }),

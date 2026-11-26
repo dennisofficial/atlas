@@ -16,12 +16,15 @@ import type { LeaseLostError, SessionRecord } from '../record/record-adapter'
 import { SessionRecord as RecordAdapter } from '../record/record-adapter'
 import type { CrewSender } from './child-message'
 
+export type ChildKey = { agentId: ThreadId; stepKey: string; callId?: string | undefined }
+
 export type ChildRunArgs = {
   deps: HeldSessionDeps
   runtime: SessionRuntime
   parentRecord: SessionRecord
   parentThreadId: ThreadId
   epoch: number
+  key?: ChildKey | undefined
   agentType: string
   intent: string
   group?: string | undefined
@@ -69,6 +72,14 @@ export type AdoptRecordResult = { ok: true; record: SessionRecord } | { ok: fals
 const messageOf = (error: unknown): string =>
   error instanceof Error ? error.message : String(error)
 
+export const settleCallsOf = (spec: RecordArgs & { record: SessionRecord }): Promise<unknown> =>
+  settleCrashedCalls({
+    record: spec.record,
+    ids: spec.args.deps.ids,
+    threadId: spec.agentId,
+    settleOf: (call) => crashSettleOf({ runtime: spec.args.runtime, record: spec.record, call }),
+  })
+
 export const adoptRecordOf = async (spec: RecordArgs): Promise<AdoptRecordResult> => {
   let opened: SessionRecord
   try {
@@ -84,14 +95,15 @@ export const adoptRecordOf = async (spec: RecordArgs): Promise<AdoptRecordResult
       ok: false,
       lost: { cause: EAgentLostCause.NeverStarted, detail: 'its log holds no events' },
     }
-  await settleCrashedCalls({
-    record: opened,
-    ids: spec.args.deps.ids,
-    threadId: spec.agentId,
-    settleOf: (call) => crashSettleOf({ runtime: spec.args.runtime, record: opened, call }),
-  })
+  await settleCallsOf({ ...spec, record: opened })
   return { ok: true, record: opened }
 }
+
+export const holdsWorktreeOf = (record: Pick<SessionRecord, 'eventCache'>): boolean =>
+  record
+    .eventCache()
+    .eventsAfter(0)
+    .some((event) => event.type === 'worktree-entered')
 
 export const seedWorktreeOf = (spec: {
   record: SessionRecord

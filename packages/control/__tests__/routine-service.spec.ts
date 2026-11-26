@@ -44,15 +44,23 @@ const fakePlane = (rows: readonly RoutineRow[] = []) => {
     },
     createSessionWithMessage: async (args) => {
       sessions.push({ userId: args.userId, projectId: args.projectId, routineId: args.routineId })
-      return {} as never
+      return {
+        sessionId: args.sessionId,
+        inboxId: 1,
+        modelRef: 'anthropic/claude-sonnet-4-6',
+        modelEffort: 'high',
+        modelFast: false,
+      }
     },
-    deleteRoutine: async ({ routineId, userId }) => {
+    deleteRoutine: async ({ routineId, userId, projectId }) => {
       const row = routines.get(routineId)
       if (row === undefined || row.userId !== userId) return false
+      if (projectId !== undefined && row.projectId !== projectId) return false
       routines.delete(routineId)
       return true
     },
     listRoutineRuns: async () => [],
+    readEffectReceipt: async () => undefined,
     listRoutines: async ({ userId, projectId }) =>
       [...routines.values()].filter(
         (row) => row.userId === userId && (projectId === undefined || row.projectId === projectId),

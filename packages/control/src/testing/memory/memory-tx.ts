@@ -1,4 +1,4 @@
-import type { InboxEntry, Lease, ThreadId } from '@dltech/atlas-core'
+import type { InboxEntry, JsonValue, Lease, ThreadId } from '@dltech/atlas-core'
 import type { SessionChange } from '@dltech/atlas-protocol'
 
 import type { ContextFileRow, ContextFileWrite } from '../../context-files'
@@ -15,6 +15,8 @@ import {
   type ChangedFileWrite,
   type ClaimedBatch,
   type ControlTx,
+  type EffectReceiptClaim,
+  type EffectReceiptKey,
   type SubscriptionDraft,
   type SubscriptionKey,
   type SubscriptionLease,
@@ -56,6 +58,11 @@ import {
   readRoutineIn,
   updateRoutineIn,
 } from './memory-routines'
+import {
+  claimEffectReceiptIn,
+  completeEffectReceiptIn,
+  readEffectReceiptIn,
+} from './memory-receipts'
 import { subscriptionLeaseKey, trackingTargetKey } from './memory-state'
 import {
   deleteSubscriptionRowIfEndedBeforeIn,
@@ -89,7 +96,7 @@ import { commitAppendIn, openAppendIn } from './memory-append'
 import { insertEventsIn, readEventsIn } from './memory-events'
 import { claimNeedingIn } from './memory-claim-next'
 import { leasesHeldByIn, writeLeaseIn } from './memory-leases'
-import { createThreadIn, readThreadIn, writeThreadHeadIn } from './memory-threads'
+import { createThreadIn, ensureThreadIn, readThreadIn, writeThreadHeadIn } from './memory-threads'
 import { sessionBucketCountsIn, sessionDigestsIn } from './memory-digests'
 import { podPeersPlacedIn, podSessionsPlacedIn } from './memory-peers'
 import { clearPodParkIn, failPodParkIn, parkPodIn } from './memory-pod-park'
@@ -276,6 +283,14 @@ export class MemoryTx extends MemoryTxViews implements ControlTx {
     visibility: string
   }): Promise<void> {
     createThreadIn({ state: this.state, ...params })
+  }
+
+  async ensureThread(params: {
+    threadId: string
+    sessionId: string
+    visibility: string
+  }): Promise<void> {
+    ensureThreadIn({ state: this.state, ...params })
   }
 
   async useSnapshot(): Promise<void> {}
@@ -613,5 +628,17 @@ export class MemoryTx extends MemoryTxViews implements ControlTx {
 
   async deleteRoutine(routineId: string): Promise<void> {
     await deleteRoutineIn({ state: this.state, routineId })
+  }
+
+  async claimEffectReceipt(params: EffectReceiptKey): Promise<EffectReceiptClaim> {
+    return claimEffectReceiptIn({ state: this.state, ...params })
+  }
+
+  async readEffectReceipt(params: EffectReceiptKey): Promise<JsonValue | undefined> {
+    return readEffectReceiptIn({ state: this.state, ...params })
+  }
+
+  async completeEffectReceipt(params: EffectReceiptKey & { result: JsonValue }): Promise<void> {
+    completeEffectReceiptIn({ state: this.state, ...params })
   }
 }

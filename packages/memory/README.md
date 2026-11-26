@@ -40,7 +40,8 @@ plugin's tools and the web settings page both call it, so a memory has one rule 
   revision. It returns the summary.
 - `editMemory(args)`: replaces one occurrence of `old` in the body and bumps the revision. It
   throws `MemoryStaleRevisionError` when `revision` is not current, and `MemoryEditRefusedError`
-  when `old` is absent or occurs more than once.
+  when `old` is absent or occurs more than once. With a `step` key a replay returns the first
+  summary instead of a stale-revision error.
 - `removeMemory(args)`: deletes the memory. A missing memory throws `MemoryNotFoundError`, so a
   repeated delete is not idempotent.
 

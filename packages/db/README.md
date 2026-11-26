@@ -43,6 +43,13 @@ Atlas Cloud's Postgres contract, migrations and runtime client, on Prisma 8. Ser
 - `contract`, `contractStorageHash`, `Models`, `Row`, `Scalars`, `Shape`, `Db`, `Tx`.
 - `and`, `not`, `or`: the query combinators.
 
+### Run an effect once
+
+- `onceByStep({ db, threadId, stepKey, run, encode, decode })`: runs `run` and stores its result
+  under (`threadId`, `stepKey`) in one transaction; a replay returns the stored result, runs nothing.
+- `claimEffectReceiptIn`, `completeEffectReceiptIn`, `readEffectReceiptIn`: the same receipt inside
+  a transaction the caller already holds. Receipts are never deleted.
+
 ### Read an error
 
 - `isUniqueViolation(error)`: says if the error is the SQLSTATE 23505.

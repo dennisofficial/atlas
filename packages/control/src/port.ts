@@ -283,6 +283,10 @@ export type AppendCommit = {
   change: SessionChange
 }
 
+export type EffectReceiptKey = { threadId: string; stepKey: string }
+
+export type EffectReceiptClaim = { kind: 'claimed' } | { kind: 'replayed'; result: JsonValue }
+
 export class SeqConflictError extends Error {
   constructor() {
     super('thread sequence conflict')
@@ -388,6 +392,12 @@ export interface ControlTx {
   podPeersPlaced(params: { podSessionId: string; excludeSessionId: string }): Promise<number>
   podSessionsPlaced(params: { podSessionId: string }): Promise<PodPlacedSession[]>
   createThread(params: {
+    threadId: string
+    sessionId: string
+    visibility: string
+    at: string
+  }): Promise<void>
+  ensureThread(params: {
     threadId: string
     sessionId: string
     visibility: string
@@ -507,6 +517,9 @@ export interface ControlTx {
   insertRoutine(row: RoutineRow): Promise<void>
   updateRoutine(row: RoutineRow): Promise<void>
   deleteRoutine(routineId: string): Promise<void>
+  claimEffectReceipt(params: EffectReceiptKey): Promise<EffectReceiptClaim>
+  readEffectReceipt(params: EffectReceiptKey): Promise<JsonValue | undefined>
+  completeEffectReceipt(params: EffectReceiptKey & { result: JsonValue }): Promise<void>
 }
 
 export abstract class ControlStorePort {

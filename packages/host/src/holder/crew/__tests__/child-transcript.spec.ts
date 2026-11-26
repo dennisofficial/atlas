@@ -33,14 +33,16 @@ const transcriptOf = (
   choice: RoleModelChoice,
   posted: string[],
   seq = 0,
-): { transcript: ChildTranscript; appends: EventDraft[][] } => {
+): { transcript: ChildTranscript; appends: EventDraft[][]; receipts: string[] } => {
   const appends: EventDraft[][] = []
+  const receipts: string[] = []
   const deps = {
     sessionId: 'session-1',
     ids: { nextRunId: () => 'run-1' },
     plane: {
-      post: async (message: { payload: string }) => {
+      post: async (message: { payload: string; receipt?: string | undefined }) => {
         posted.push(message.payload)
+        if (message.receipt !== undefined) receipts.push(message.receipt)
       },
       readInbox: async () => [],
     },
@@ -63,7 +65,7 @@ const transcriptOf = (
     group: undefined,
     lastSeq: () => seq,
   })
-  return { transcript, appends }
+  return { transcript, appends, receipts }
 }
 
 describe('ChildTranscript', () => {
@@ -131,5 +133,15 @@ describe('ChildTranscript', () => {
     expect(posted[1]).toContain('"agent-ended"')
     expect(JSON.parse(posted[0] ?? '{}').clientId).toBe(`agent-reported:${CHILD}:12`)
     expect(JSON.parse(posted[1] ?? '{}').clientId).toBe(`agent-ended:${CHILD}:12`)
+  })
+
+  it('keys a report by a receipt only when the report carries a client id', async () => {
+    const posted: string[] = []
+    const { transcript, receipts } = transcriptOf(MAIN, posted, 12)
+    await transcript.reported({ text: 'stuck' })
+    expect(receipts).toEqual([])
+    await transcript.reported({ text: 'done', clientId: 'call-1.0' })
+    expect(receipts).toEqual(['call-1.0'])
+    expect(JSON.parse(posted[1] ?? '{}').clientId).toBe('call-1.0')
   })
 })

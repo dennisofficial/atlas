@@ -21,6 +21,7 @@ import type { SessionSubscription } from '@dltech/atlas-protocol'
 import type { z } from 'zod'
 import type { AppendHook } from './append-hooks'
 import { appendIn } from './append-ops'
+import { onceInReceipt } from './effect-receipts'
 import type { ViewChangeHook } from './view-hooks'
 import { readBlobIn } from './blob-ops'
 import { UnknownThreadError } from './errors'
@@ -39,6 +40,7 @@ import {
   type ChangeBlobWrite,
   type ChangedFileWrite,
   type ControlTx,
+  type EffectReceiptKey,
   type ThreadRow,
   type WorktreeChangesRead,
   type WorktreeChangesSummary,
@@ -69,6 +71,16 @@ import {
 import { readEventsIn, type ReadEventsPage } from './read-events'
 import { readTailBaseIn, TAIL_BASE_ATTEMPTS, type TailBase } from './tail-base'
 import { runRoutineIn, type RunRoutineParams, type RunRoutineResult } from './routine-ops'
+import {
+  removalReceiptOf,
+  replayedMaybeRoutineOf,
+  replayedRemovalOf,
+  replayedRoutineOf,
+  replayedSessionOf,
+  storedMaybeRoutineOf,
+  storedRoutineOf,
+  storedSessionOf,
+} from './routine-receipts'
 import {
   createRoutineIn,
   deleteRoutineIn,
@@ -120,6 +132,15 @@ const headOf = (row: ThreadRow): LogHead => ({
   seq: row.headSeq,
   hash: row.headHash,
 })
+
+const assertThreadOwner = (params: {
+  thread: ThreadRow
+  threadId: string
+  sessionId: string
+}): void => {
+  if (params.thread.sessionId !== params.sessionId)
+    throw new Error(`thread ${params.threadId} belongs to another session`)
+}
 
 export class ControlPlane {
   private readonly store: ControlStorePort
@@ -173,20 +194,29 @@ export class ControlPlane {
     sandboxInstanceId?: string | null | undefined
     routineId?: string | undefined
     message: { kind: string; payload: string }
-  }): Promise<{ inboxId: number } & SessionModelRow> {
-    const { message, ...session } = params
-    return this.store.transact(async (tx) => {
-      const at = await this.nowIn(tx)
-      const model = await createSessionIn({ tx, ...session, at })
-      const { inboxId } = await postIn({
+    receipt?: EffectReceiptKey | undefined
+  }): Promise<{ sessionId: string; inboxId: number } & SessionModelRow> {
+    const { message, receipt, ...session } = params
+    return this.store.transact(async (tx) =>
+      onceInReceipt({
         tx,
-        sessionId: params.sessionId,
-        kind: message.kind,
-        payload: message.payload,
-        at,
-      })
-      return { inboxId, ...model }
-    })
+        receipt,
+        decode: replayedSessionOf,
+        encode: storedSessionOf,
+        run: async () => {
+          const at = await this.nowIn(tx)
+          const model = await createSessionIn({ tx, ...session, at })
+          const { inboxId } = await postIn({
+            tx,
+            sessionId: params.sessionId,
+            kind: message.kind,
+            payload: message.payload,
+            at,
+          })
+          return { sessionId: params.sessionId, inboxId, ...model }
+        },
+      }),
+    )
   }
 
   async setSessionModel(params: {
@@ -291,7 +321,7 @@ export class ControlPlane {
     brief?: string | undefined
     nested?: boolean | undefined
     files?: readonly SpawnFile[] | undefined
-  }): Promise<{ inboxId: number | null } | { refused: string }> {
+  }): Promise<{ inboxId: number | null; already: boolean } | { refused: string }> {
     return this.store.transact(async (tx) => {
       const spawner = await tx.readSession({
         sessionId: params.spawnerSessionId,
@@ -312,6 +342,7 @@ export class ControlPlane {
     fromSessionId: string
     toSessionId: string
     text: string
+    clientId?: string | undefined
   }): Promise<{ inboxId: number; title: string | null } | { refused: string }> {
     return this.store.transact(async (tx) => {
       const from = await tx.readSession({ sessionId: params.fromSessionId })
@@ -323,6 +354,7 @@ export class ControlPlane {
   async reportToSpawner(params: {
     sessionId: string
     text: string
+    clientId?: string | undefined
   }): Promise<{ inboxId: number } | { refused: string }> {
     return this.store.transact(async (tx) => {
       const session = await tx.readSession({ sessionId: params.sessionId })
@@ -491,13 +523,22 @@ export class ControlPlane {
   }
 
   async createThread(params: { threadId: string; sessionId: string }): Promise<void> {
-    await this.store.transact(async (tx) =>
-      tx.createThread({
+    await this.store.transact(async (tx) => {
+      const open = await tx.readThread(params.threadId)
+      if (open !== undefined) {
+        assertThreadOwner({ thread: open, ...params })
+        return
+      }
+      await tx.ensureThread({
         ...params,
         visibility: EMPTY_VISIBILITY_TEXT,
         at: await this.nowIn(tx),
-      }),
-    )
+      })
+      const created = await tx.readThread(params.threadId)
+      if (created === undefined)
+        throw new Error(`thread ${params.threadId} is missing after its create`)
+      assertThreadOwner({ thread: created, ...params })
+    })
   }
 
   async head(params: { threadId: string }): Promise<LogHead> {
@@ -808,6 +849,7 @@ export class ControlPlane {
     kind: string
     payload: string
     threadId?: ThreadId | undefined
+    receipt?: string | undefined
   }): Promise<{ inboxId: number }> {
     return this.store.transact(async (tx) => postIn({ tx, ...params, at: await this.nowIn(tx) }))
   }
@@ -908,8 +950,20 @@ export class ControlPlane {
     )
   }
 
-  async createRoutine(row: RoutineRow): Promise<RoutineRow> {
-    return this.store.transact((tx) => createRoutineIn({ tx, row }))
+  async readEffectReceipt(receipt: EffectReceiptKey): Promise<JsonValue | undefined> {
+    return this.store.transact(async (tx) => await tx.readEffectReceipt(receipt))
+  }
+
+  async createRoutine(row: RoutineRow, receipt?: EffectReceiptKey): Promise<RoutineRow> {
+    return this.store.transact(async (tx) =>
+      onceInReceipt({
+        tx,
+        receipt,
+        decode: replayedRoutineOf,
+        encode: storedRoutineOf,
+        run: async () => await createRoutineIn({ tx, row }),
+      }),
+    )
   }
 
   async updateRoutine(params: {
@@ -918,12 +972,36 @@ export class ControlPlane {
     patch: RoutinePatch
     nextRunAt?: string | undefined
     at: string
+    receipt?: EffectReceiptKey | undefined
   }): Promise<RoutineRow | undefined> {
-    return this.store.transact((tx) => updateRoutineIn({ tx, ...params }))
+    const { receipt, ...write } = params
+    return this.store.transact(async (tx) =>
+      onceInReceipt({
+        tx,
+        receipt,
+        decode: replayedMaybeRoutineOf,
+        encode: storedMaybeRoutineOf,
+        run: async () => await updateRoutineIn({ tx, ...write }),
+      }),
+    )
   }
 
-  async deleteRoutine(params: { routineId: string; userId: string }): Promise<boolean> {
-    return this.store.transact((tx) => deleteRoutineIn({ tx, ...params }))
+  async deleteRoutine(params: {
+    routineId: string
+    userId: string
+    projectId?: string | undefined
+    receipt?: EffectReceiptKey | undefined
+  }): Promise<boolean> {
+    const { receipt, ...write } = params
+    return this.store.transact(async (tx) =>
+      onceInReceipt({
+        tx,
+        receipt,
+        decode: replayedRemovalOf,
+        encode: removalReceiptOf,
+        run: async () => await deleteRoutineIn({ tx, ...write }),
+      }),
+    )
   }
 
   async listRoutines(params: ListRoutinesParams): Promise<RoutineRow[]> {

@@ -1,5 +1,19 @@
-import { retryOnConnectionLoss, type Db, type Tx } from '@dltech/atlas-db'
-import { GENESIS_HASH, type InboxEntry, type Lease, type ThreadId } from '@dltech/atlas-core'
+import {
+  claimEffectReceiptIn,
+  completeEffectReceiptIn,
+  readEffectReceiptIn,
+  retryOnConnectionLoss,
+  type Db,
+  type Tx,
+} from '@dltech/atlas-db'
+import {
+  GENESIS_HASH,
+  jsonValueSchema,
+  type InboxEntry,
+  type JsonValue,
+  type Lease,
+  type ThreadId,
+} from '@dltech/atlas-core'
 import type { SessionChange } from '@dltech/atlas-protocol'
 
 import {
@@ -15,6 +29,8 @@ import {
   type ChangedFileWrite,
   type ClaimedBatch,
   type ControlTx,
+  type EffectReceiptClaim,
+  type EffectReceiptKey,
   type InsertRoutineRunParams,
   type ListDueRoutinesParams,
   type ListRoutineRunsParams,
@@ -168,6 +184,20 @@ import {
   readTerminalIn,
   renameTerminalIn,
 } from './postgres-terminals'
+
+const threadRowOf = (params: {
+  threadId: string
+  sessionId: string
+  visibility: string
+  at: string
+}) => ({
+  id: params.threadId,
+  sessionId: params.sessionId,
+  headSeq: 0,
+  headHash: GENESIS_HASH,
+  visibility: params.visibility,
+  createdAt: new Date(params.at),
+})
 
 export class PostgresTx implements ControlTx {
   constructor(private readonly tx: Tx) {}
@@ -355,14 +385,16 @@ export class PostgresTx implements ControlTx {
     visibility: string
     at: string
   }): Promise<void> {
-    await this.tx.orm.public.Thread.create({
-      id: params.threadId,
-      sessionId: params.sessionId,
-      headSeq: 0,
-      headHash: GENESIS_HASH,
-      visibility: params.visibility,
-      createdAt: new Date(params.at),
-    })
+    await this.tx.orm.public.Thread.create(threadRowOf(params))
+  }
+
+  async ensureThread(params: {
+    threadId: string
+    sessionId: string
+    visibility: string
+    at: string
+  }): Promise<void> {
+    await this.tx.orm.public.Thread.createAndCount([threadRowOf(params)], { onConflict: 'skip' })
   }
 
   async openAppend(threadId: string): Promise<AppendOpening | undefined> {
@@ -717,6 +749,21 @@ export class PostgresTx implements ControlTx {
 
   async deleteRoutine(routineId: string): Promise<void> {
     await deleteRoutineIn({ tx: this.tx, routineId })
+  }
+
+  async claimEffectReceipt(params: EffectReceiptKey): Promise<EffectReceiptClaim> {
+    const claim = await claimEffectReceiptIn({ tx: this.tx, ...params })
+    if (claim.kind === 'claimed') return { kind: 'claimed' }
+    return { kind: 'replayed', result: jsonValueSchema.parse(claim.result) }
+  }
+
+  async readEffectReceipt(params: EffectReceiptKey): Promise<JsonValue | undefined> {
+    const result = await readEffectReceiptIn({ tx: this.tx, ...params })
+    return result === null || result === undefined ? undefined : jsonValueSchema.parse(result)
+  }
+
+  async completeEffectReceipt(params: EffectReceiptKey & { result: JsonValue }): Promise<void> {
+    await completeEffectReceiptIn({ tx: this.tx, ...params })
   }
 }
 

@@ -9,52 +9,37 @@ import {
   type EventDraft,
   type ThreadId,
 } from '@dltech/atlas-core'
-import type {
-  PodCrew,
-  SubagentSaid,
-  SubagentSnapshot,
-  WorktreeEntryInfo,
-} from '@dltech/atlas-plugin-sdk'
+import type { PodCrew, SubagentSaid, SubagentSnapshot } from '@dltech/atlas-plugin-sdk'
 
 import { ChildRun, type ChildRunArgs } from './child-run'
 import type { CrewSender } from './child-message'
 import { CHILD_READ_CONCURRENCY } from './child-reads'
 import { endingKeyOf, postNotice, threadLastSeq } from './child-reports'
+import { CrewSpawn, type CrewRoomArgs, type SpawnArgs } from './crew-spawn'
 import { settledChildOf, type OpenChild } from './open-children'
 import { pooledMap } from './pooled-map'
 
-export type CrewRoomArgs = Omit<
-  ChildRunArgs,
-  'agentType' | 'intent' | 'group' | 'groupHold' | 'saySibling'
->
+export type { CrewRoomArgs } from './crew-spawn'
 
 class UnknownChild extends Error {}
 
 export class CrewRoom {
   private readonly runs = new Map<ThreadId, ChildRun>()
+  private readonly spawner: CrewSpawn
   private posts: Promise<void> = Promise.resolve()
 
-  constructor(private readonly args: CrewRoomArgs) {}
-
-  async spawn(args: {
-    agentType: string
-    intent: string
-    prompt: string
-    group?: string | undefined
-    worktree?: WorktreeEntryInfo | undefined
-  }): Promise<SubagentSnapshot> {
-    const run = await ChildRun.open({
-      ...this.childArgs(),
-      agentType: args.agentType,
-      intent: args.intent,
-      groupHold: (draft) => this.holdOf(draft),
-      postHold: (post) => this.postInOrder(post),
-      ...(args.group === undefined ? {} : { group: args.group }),
-      ...(args.worktree === undefined ? {} : { worktree: args.worktree }),
+  constructor(private readonly args: CrewRoomArgs) {
+    this.spawner = new CrewSpawn({
+      args: this.args,
+      runs: this.runs,
+      childArgs: () => this.childArgs(),
+      holdOf: (draft) => this.holdOf(draft),
+      postInOrder: (post) => this.postInOrder(post),
     })
-    this.runs.set(run.agentId, run)
-    await run.say({ text: args.prompt })
-    return run.snapshot()
+  }
+
+  spawn(args: SpawnArgs): Promise<SubagentSnapshot> {
+    return this.spawner.spawn(args)
   }
 
   async adoptAll(children: readonly OpenChild[]): Promise<void> {

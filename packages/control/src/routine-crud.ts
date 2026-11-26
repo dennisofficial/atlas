@@ -57,9 +57,11 @@ export const deleteRoutineIn = async (params: {
   tx: ControlTx
   routineId: string
   userId: string
+  projectId?: string | undefined
 }): Promise<boolean> => {
   const routine = await params.tx.lockRoutine(params.routineId)
   if (routine === undefined || routine.userId !== params.userId) return false
+  if (params.projectId !== undefined && routine.projectId !== params.projectId) return false
   await params.tx.deleteRoutine(params.routineId)
   return true
 }

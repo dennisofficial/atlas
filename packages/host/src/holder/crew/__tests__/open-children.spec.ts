@@ -12,6 +12,7 @@ import {
   GENESIS_HASH,
   chainEvents,
   chainHash,
+  toCallId,
   toRunId,
   toThreadId,
   type Event,
@@ -35,6 +36,7 @@ const AT = '2026-01-01T00:00:00.000Z'
 const spawned = (args: {
   agentId: ThreadId
   group?: string | undefined
+  callId?: string | undefined
   worktree?: { path: string; branch: string } | undefined
 }): RecordEventBody => ({
   agentId: args.agentId,
@@ -43,6 +45,7 @@ const spawned = (args: {
   intent: 'build it',
   mode: EAgentStart.Fresh,
   ...(args.group === undefined ? {} : { group: args.group }),
+  ...(args.callId === undefined ? {} : { callId: args.callId }),
   ...(args.worktree === undefined ? {} : { worktree: args.worktree }),
 })
 
@@ -181,6 +184,25 @@ describe('adopting the children a takeover finds open', () => {
         via: EAgentRestart.Message,
       },
     ])
+
+    expect(children.map((child) => child.agentId)).toEqual([FIRST])
+  })
+
+  it('keeps a child whose spawn call was answered', async () => {
+    const children = await childrenOf([
+      spawned({ agentId: FIRST, callId: 'call-1' }),
+      { type: 'tool-result', callId: toCallId('call-1'), name: 'agent_spawn', output: {} },
+    ])
+
+    expect(children.map((child) => child.agentId)).toEqual([FIRST])
+  })
+
+  it('leaves out a child whose spawn call is still held, so its replay opens it', async () => {
+    expect(await childrenOf([spawned({ agentId: FIRST, callId: 'call-1' })])).toEqual([])
+  })
+
+  it('keeps a child whose spawn recorded no call', async () => {
+    const children = await childrenOf([spawned({ agentId: FIRST })])
 
     expect(children.map((child) => child.agentId)).toEqual([FIRST])
   })

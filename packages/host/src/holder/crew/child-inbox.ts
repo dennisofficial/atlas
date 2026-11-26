@@ -7,7 +7,7 @@ import type { SessionRecord } from '../record/record-adapter'
 
 export type ChildInbox = {
   intake: InboxIntake
-  post(input: { kind: string; payload: string }): Promise<void>
+  post(input: { kind: string; payload: string; receipt?: string | undefined }): Promise<void>
 }
 
 export const childInboxOf = (args: {
@@ -32,6 +32,7 @@ export const childInboxOf = (args: {
         kind: input.kind,
         payload: input.payload,
         threadId: args.threadId,
+        ...(input.receipt === undefined ? {} : { receipt: input.receipt }),
       })
       await intake.stage()
     },

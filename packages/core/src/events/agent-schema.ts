@@ -17,6 +17,7 @@ export const agentEventSchemas = [
     intent: z.string(),
     mode: z.enum(EAgentStart),
     group: z.string().optional(),
+    callId: z.string().min(1).optional(),
     worktree: z
       .object({
         path: z.string(),

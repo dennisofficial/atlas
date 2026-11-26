@@ -38,6 +38,7 @@ export type OpenChild = {
   group: string | undefined
   spawnedAt: string
   worktree: WorktreeEntryInfo | undefined
+  callId?: string | undefined
   settled?: ChildSettlement | undefined
   keepIdle?: boolean | undefined
 }
@@ -49,7 +50,24 @@ const openChildOf = (spawn: EventOfType<'agent-spawned'>): OpenChild => ({
   group: spawn.group,
   spawnedAt: spawn.at,
   worktree: spawn.worktree,
+  ...(spawn.callId === undefined ? {} : { callId: spawn.callId }),
 })
+
+const answeredCallIdsOf = (
+  events: readonly { type: string; callId?: string | undefined }[],
+): ReadonlySet<string> => {
+  const answered = new Set<string>()
+  for (const event of events) {
+    if (event.type !== 'tool-result') continue
+    if (event.callId !== undefined) answered.add(event.callId)
+  }
+  return answered
+}
+
+const waitsOnItsCallOf = (args: { child: OpenChild; answered: ReadonlySet<string> }): boolean =>
+  args.child.settled === undefined &&
+  args.child.callId !== undefined &&
+  !args.answered.has(args.child.callId)
 
 const settledStatusOf = (status: EAgentStatus): EAgentStatus =>
   status === EAgentStatus.Running ? EAgentStatus.Stopped : status
@@ -59,8 +77,12 @@ const settlementOf = (ending: EventOfType<'agent-ended'>): ChildSettlement => ({
   endedAt: ending.at,
 })
 
-export const openChildrenOf = (events: readonly Event[]): readonly OpenChild[] =>
-  unendedSpawns(events).map(openChildOf)
+export const openChildrenOf = (events: readonly Event[]): readonly OpenChild[] => {
+  const answered = answeredCallIdsOf(events)
+  return unendedSpawns(events)
+    .map(openChildOf)
+    .filter((child) => !waitsOnItsCallOf({ child, answered }))
+}
 
 const lastLifecycleSeqOf = (events: readonly Event[]): ReadonlyMap<ThreadId, number> => {
   const seqs = new Map<ThreadId, number>()
@@ -174,6 +196,28 @@ const pendingSettlementsOf = async (args: {
   return settlements
 }
 
+const needsSpawnInit = async (args: { plane: ControlPlane; child: OpenChild }): Promise<boolean> =>
+  threadEventsOf({ plane: args.plane, threadId: args.child.agentId, visible: false })
+    .then((events) => events.length === 0)
+    .catch(() => true)
+
+const startedChildrenOf = async (args: {
+  plane: ControlPlane
+  children: readonly OpenChild[]
+  answered: ReadonlySet<string>
+}): Promise<readonly OpenChild[]> => {
+  const kept = await pooledMap({
+    items: args.children,
+    limit: CHILD_READ_CONCURRENCY,
+    work: async (child) =>
+      waitsOnItsCallOf({ child, answered: args.answered }) &&
+      (await needsSpawnInit({ plane: args.plane, child }))
+        ? undefined
+        : child,
+  })
+  return kept.filter((child): child is OpenChild => child !== undefined)
+}
+
 export const openChildren = async (args: {
   record: SessionRecord
   plane: ControlPlane
@@ -181,7 +225,11 @@ export const openChildren = async (args: {
   threadId: ThreadId
 }): Promise<readonly OpenChild[]> => {
   const events = await survivingEventsOf(args)
-  const children = spawnedChildrenOf(loopEventsOf(events))
+  const children = await startedChildrenOf({
+    plane: args.plane,
+    children: spawnedChildrenOf(loopEventsOf(events)),
+    answered: answeredCallIdsOf(events),
+  })
   const open = children.filter((child) => child.settled === undefined)
   const pending =
     open.length === 0
