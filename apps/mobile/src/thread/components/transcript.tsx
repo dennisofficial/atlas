@@ -6,6 +6,7 @@ import {
   FlatList,
   type ListRenderItem,
   type NativeScrollEvent,
+  type LayoutChangeEvent,
   type NativeSyntheticEvent,
   StyleSheet,
   View,
@@ -13,7 +14,14 @@ import {
 
 import { EMessageAuthor, ERowKind, type SessionNameOf, type ThreadRow } from '../rows'
 import { useKeyboard } from '../../layout/use-keyboard'
-import { EScrollSignal, FOLLOWING_TAIL, tailFollowAfter, type TTailFollow } from '../tail-follow'
+import {
+  EScrollSignal,
+  FOLLOWING_TAIL,
+  pinOffsetOf,
+  tailFollowAfter,
+  type TTailFollow,
+  type TTailPin,
+} from '../tail-follow'
 import type { AgentLinks } from '../session/agent-links'
 import { ThreadRowView } from './thread-row'
 
@@ -21,10 +29,7 @@ const NEAR_TOP_PX = 400
 
 const keyOf = (row: ThreadRow): string => row.id
 
-const tailSizeOf = (rows: readonly ThreadRow[]): number => {
-  const last = rows.at(-1)
-  return last?.kind === ERowKind.Message ? last.text.length : 0
-}
+const UNMEASURED: TTailPin = { offset: 0, contentHeight: 0, viewportHeight: 0 }
 
 const isStreamingMessage = (row: ThreadRow | undefined): boolean =>
   row?.kind === ERowKind.Message && row.author === EMessageAuthor.Atlas && row.streaming
@@ -66,11 +71,9 @@ export const Transcript = ({
 }) => {
   const listRef = useRef<FlatList<ThreadRow>>(null)
   const tail = useRef<TTailFollow>(FOLLOWING_TAIL)
-  const settled = useRef(false)
+  const measured = useRef<TTailPin>(UNMEASURED)
   const loadingOlder = useRef(false)
-  const keyboardInset = useKeyboard().inset
-  const keyboardVisible = keyboardInset > 0
-  const tailSize = tailSizeOf(rows)
+  const keyboardVisible = useKeyboard().inset > 0
   const showWorking = working && !isStreamingMessage(rows.at(-1)) && !hasRunningWork(rows)
   const renderRow = useCallback<ListRenderItem<ThreadRow>>(
     ({ item }) => (
@@ -88,27 +91,28 @@ export const Transcript = ({
     [threadId, sessionId, agentLinks, sessionNameOf, onOpenAgent],
   )
 
-  const scrollToEnd = () => listRef.current?.scrollToEnd({ animated: settled.current })
+  const pinToTail = () => {
+    if (!tail.current.following) return
+    const offset = pinOffsetOf(measured.current)
+    if (offset === undefined) return
+    measured.current = { ...measured.current, offset }
+    listRef.current?.scrollToOffset({ offset, animated: false })
+  }
 
   useEffect(() => {
     tail.current = FOLLOWING_TAIL
-    settled.current = false
   }, [threadId])
 
   useEffect(() => {
-    if (tail.current.following) scrollToEnd()
-  }, [rows.length, tailSize])
-
-  useEffect(() => {
-    if (keyboardVisible && tail.current.following) scrollToEnd()
+    if (keyboardVisible) pinToTail()
   }, [keyboardVisible])
 
   const signalOf = (signal: EScrollSignal) => (event: NativeSyntheticEvent<NativeScrollEvent>) => {
-    if (signal === EScrollSignal.BeginDrag) settled.current = true
     tail.current = tailFollowAfter({ state: tail.current, signal, metrics: event.nativeEvent })
   }
 
   const handleScroll = (event: NativeSyntheticEvent<NativeScrollEvent>) => {
+    measured.current = { ...measured.current, offset: event.nativeEvent.contentOffset.y }
     if (tail.current.following) return
     if (onLoadOlder === undefined || loadingOlder.current) return
     if (event.nativeEvent.contentOffset.y > NEAR_TOP_PX) return
@@ -118,12 +122,14 @@ export const Transcript = ({
     })
   }
 
-  const handleContentSizeChange = () => {
-    if (tail.current.following) scrollToEnd()
+  const handleContentSizeChange = (_width: number, contentHeight: number) => {
+    measured.current = { ...measured.current, contentHeight }
+    pinToTail()
   }
 
-  const handleLayout = () => {
-    if (tail.current.following) scrollToEnd()
+  const handleLayout = (event: LayoutChangeEvent) => {
+    measured.current = { ...measured.current, viewportHeight: event.nativeEvent.layout.height }
+    pinToTail()
   }
 
   if (rows.length === 0 && !working) {

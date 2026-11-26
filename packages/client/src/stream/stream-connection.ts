@@ -3,7 +3,6 @@ import type { StreamServerMessage } from '@dltech/atlas-protocol'
 import type { z } from 'zod'
 
 import {
-  EConnectionTimer,
   EStreamConnectionState,
   initialConnectionState,
   reduceConnection,
@@ -11,6 +10,7 @@ import {
   type ConnectionInput,
   type ConnectionState,
 } from './connection-machine'
+import { createConnectionTimers } from './connection-timers'
 import { createListRetry, type ListRetry } from './list-retry'
 import { memorySessionLog } from './session-log'
 import { createSessionFollower, type SessionFollower } from './session-follower'
@@ -23,6 +23,7 @@ import {
 } from './sessions-list'
 import { createStreamHandlers } from './stream-handlers'
 import { followInputOf, followWithTailFallback } from './stream-follow'
+import { createWarmFollows } from './warm-follows'
 import {
   browserNetworkSignal,
   type FollowArgs,
@@ -70,9 +71,13 @@ export const createStreamConnection = (args: StreamConnectionArgs): StreamConnec
   let nextId = 0
   let tailUnsupported = false
   let unsubscribeNetwork: (() => void) | undefined
-  const timers = new Map<EConnectionTimer, unknown>()
+  const timers = createConnectionTimers({
+    scheduler,
+    onFire: (timer) => dispatch({ type: 'timer-fired', timer }),
+  })
   const followed = new Map<string, Followed>()
   const lists = new Set<Listed>()
+  const warm = createWarmFollows<Followed>()
 
   const stopSubscription = (holder: Followed | Listed): void => {
     if ('retry' in holder) holder.retry.cancel()
@@ -152,28 +157,11 @@ export const createStreamConnection = (args: StreamConnectionArgs): StreamConnec
     for (const entry of lists) stopSubscription(entry)
   }
 
-  const schedule = (request: { timer: EConnectionTimer; ms: number }): void => {
-    cancel(request.timer)
-    timers.set(
-      request.timer,
-      scheduler.setTimeout(() => {
-        timers.delete(request.timer)
-        dispatch({ type: 'timer-fired', timer: request.timer })
-      }, request.ms),
-    )
-  }
-
-  const cancel = (timer: EConnectionTimer): void => {
-    if (!timers.has(timer)) return
-    scheduler.clearTimeout(timers.get(timer))
-    timers.delete(timer)
-  }
-
   const run = (effect: ConnectionEffect): void => {
     if (effect.type === 'subscribe') subscribeAll()
     else if (effect.type === 'abort') abortAll()
-    else if (effect.type === 'schedule') schedule(effect)
-    else cancel(effect.timer)
+    else if (effect.type === 'schedule') timers.schedule(effect)
+    else timers.cancel(effect.timer)
   }
 
   const watchNetwork = (phase: EStreamConnectionState): void => {
@@ -230,7 +218,7 @@ export const createStreamConnection = (args: StreamConnectionArgs): StreamConnec
     }
   }
 
-  const follow: StreamConnection['follow'] = ({ sessionId, threadId, log }) => {
+  const newEntryOf = ({ sessionId, threadId, log }: FollowArgs): Followed => {
     nextId += 1
     const id = `s${nextId}`
     const entry: Followed = {
@@ -252,16 +240,26 @@ export const createStreamConnection = (args: StreamConnectionArgs): StreamConnec
       epoch: 0,
       watchdog: undefined,
     }
+    return entry
+  }
+
+  const follow: StreamConnection['follow'] = (followArgs) => {
+    const reused = warm.take(followArgs)
+    reused?.follower.markResubscribing()
+    const entry = reused ?? newEntryOf(followArgs)
     ensureConnected()
-    followed.set(id, entry)
+    followed.set(entry.id, entry)
     entry.follower.setConnection(machine.phase)
     if (live()) subscribeWhenHydrated(entry)
+    let open = true
     return {
       ...entry.follower,
       close: () => {
-        if (followed.get(id) !== entry) return
-        followed.delete(id)
+        if (!open || followed.get(entry.id) !== entry) return
+        open = false
+        followed.delete(entry.id)
         stopSubscription(entry)
+        if (entry.follower.getSnapshot().error === undefined) warm.keep({ key: entry, entry })
       },
     }
   }

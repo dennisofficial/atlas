@@ -49,3 +49,16 @@ export const tailFollowAfter = (args: {
   if (state.gesture !== EScrollGesture.Gliding) return state
   return { following: followsTailAfterUserScroll(metrics), gesture: EScrollGesture.None }
 }
+
+export const PIN_SLOP_PX = 1
+
+export type TTailPin = { offset: number; contentHeight: number; viewportHeight: number }
+
+export const pinOffsetOf = ({
+  offset,
+  contentHeight,
+  viewportHeight,
+}: TTailPin): number | undefined => {
+  const bottom = Math.max(0, contentHeight - viewportHeight)
+  return Math.abs(bottom - offset) < PIN_SLOP_PX ? undefined : bottom
+}
