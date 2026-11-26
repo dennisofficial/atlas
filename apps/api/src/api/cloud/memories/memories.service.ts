@@ -43,7 +43,11 @@ const guarded = async <T>(run: () => Promise<T>): Promise<T> => {
 
 @Injectable()
 export class MemoriesService {
-  list(args: { userId: string; project?: string | undefined }): Promise<MemorySummary[]> {
+  list(args: {
+    userId: string
+    project?: string | undefined
+    groupId?: string | undefined
+  }): Promise<MemorySummary[]> {
     return guarded(() => listMemories({ db, ...args }))
   }
 

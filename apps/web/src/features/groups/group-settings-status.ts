@@ -1,13 +1,18 @@
 import { EProjectSettingsSection } from '@/features/project-settings/project-settings-nav'
 import { EPageStatus, type PageStatusInfo } from '@/features/settings/status/page-status-kind'
 
-import type { GroupSection } from './group-settings-nav'
+import { EGroupSettingsSection, type GroupSection } from './group-settings-nav'
 
 export const GROUP_SECTION_STATUS: Record<GroupSection, PageStatusInfo> = {
   [EProjectSettingsSection.Overview]: {
     status: EPageStatus.Live,
     detail:
       'The name and the projects in the group. Every project inherits the group settings below.',
+  },
+  [EGroupSettingsSection.Instructions]: {
+    status: EPageStatus.Live,
+    detail:
+      "Loaded into every thread on every project of this group, after the personal instructions and before the repository's AGENTS.md files.",
   },
   [EProjectSettingsSection.Sandbox]: {
     status: EPageStatus.Live,

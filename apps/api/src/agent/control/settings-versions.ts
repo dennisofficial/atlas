@@ -18,7 +18,9 @@ const statementOf = (args: { db: Db; userId: string; projectId: string }) =>
       skill."count" AS "skillCount",
       skill."touchedAt" AS "skillTouchedAt",
       file."count" AS "instructionsCount",
-      file."touchedAt" AS "instructionsTouchedAt"
+      file."touchedAt" AS "instructionsTouchedAt",
+      grp."count" AS "groupInstructionsCount",
+      grp."touchedAt" AS "groupInstructionsTouchedAt"
     FROM
       (SELECT count(*)::int AS "count",
               max(GREATEST("updatedAt", COALESCE("oauthUpdatedAt", "updatedAt"))) AS "touchedAt"
@@ -38,10 +40,20 @@ const statementOf = (args: { db: Db; userId: string; projectId: string }) =>
          FROM "UserFile"
         WHERE "userId" = ${args.userId}
           AND "tree" = ${INSTRUCTIONS_TREE}
-          AND "path" = ${INSTRUCTIONS_PATH}) file`
+          AND "path" = ${INSTRUCTIONS_PATH}) file,
+      (SELECT count(*)::int AS "count",
+              max("updatedAt") AS "touchedAt"
+         FROM "GroupInstruction"
+        WHERE "groupId" = (SELECT "groupId" FROM "Project" WHERE "id" = ${args.projectId})) grp`
 
 const versionOf = (args: { count: number; touchedAt: Date | null }): string =>
   `${args.count}:${args.touchedAt?.getTime() ?? 0}`
+
+const latestOf = (left: Date | null, right: Date | null): Date | null => {
+  if (left === null) return right
+  if (right === null) return left
+  return left.getTime() >= right.getTime() ? left : right
+}
 
 export const settingsVersionsOf = async (args: {
   db: Db
@@ -60,6 +72,8 @@ export const settingsVersionsOf = async (args: {
       skillTouchedAt: { codecId: 'pg/timestamptz-date@1', nullable: true },
       instructionsCount: 'pg/int4@1',
       instructionsTouchedAt: { codecId: 'pg/timestamptz-date@1', nullable: true },
+      groupInstructionsCount: 'pg/int4@1',
+      groupInstructionsTouchedAt: { codecId: 'pg/timestamptz-date@1', nullable: true },
     })
     .build()
   const [row] = await args.db.query(statement)
@@ -68,8 +82,8 @@ export const settingsVersionsOf = async (args: {
     [ECloudSetting.McpServers]: versionOf({ count: row.mcpCount, touchedAt: row.mcpTouchedAt }),
     [ECloudSetting.Skills]: versionOf({ count: row.skillCount, touchedAt: row.skillTouchedAt }),
     [ECloudSetting.PersonalInstructions]: versionOf({
-      count: row.instructionsCount,
-      touchedAt: row.instructionsTouchedAt,
+      count: row.instructionsCount + row.groupInstructionsCount,
+      touchedAt: latestOf(row.instructionsTouchedAt, row.groupInstructionsTouchedAt),
     }),
   }
 }

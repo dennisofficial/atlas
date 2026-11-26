@@ -2,7 +2,7 @@ import type { Db } from '@dltech/atlas-db'
 import { useTestDatabase } from '@dltech/atlas-db/testing'
 import { describe, expect, it } from 'bun:test'
 
-import { seedOwner } from '../../config/__tests__/config-reader.fixture'
+import { seedGroup, seedOwner } from '../../config/__tests__/config-reader.fixture'
 import { McpOauthBeginService } from '../begin-service'
 import type { McpOauthBeginArgs, McpOauthGateway } from '../types'
 import { cipher, seedCloudServer } from './fixtures'
@@ -26,13 +26,15 @@ const serviceOver = (args: { db: Db; calls?: McpOauthBeginArgs[] }) =>
     gateway: gatewayOf(args.calls ?? []),
   })
 
-const bodyOf = (args: { serverId: string; scope?: 'user' | 'project' }) => ({
+const bodyOf = (args: { serverId: string; scope?: 'user' | 'project' | 'group' }) => ({
   serverId: args.serverId,
   surface: 'web' as const,
   screen:
     args.scope === 'project'
       ? ({ kind: 'settings', scope: 'project', id: 'proj-1' } as const)
-      : ({ kind: 'settings', scope: 'user' } as const),
+      : args.scope === 'group'
+        ? ({ kind: 'settings', scope: 'group', id: 'grp-1' } as const)
+        : ({ kind: 'settings', scope: 'user' } as const),
 })
 
 describe('McpOauthBeginService', () => {
@@ -129,5 +131,55 @@ describe('McpOauthBeginService', () => {
     })
 
     expect(answer.status).toBe(200)
+  })
+
+  it('begins a group server the signer owns the group of', async () => {
+    const { db } = testDb()
+    const calls: McpOauthBeginArgs[] = []
+    await seedOwner(db)
+    await seedGroup(db)
+    await seedCloudServer({ db, name: 'posthog', scope: { groupId: 'grp-1' } })
+
+    const answer = await serviceOver({ db, calls }).begin({
+      userId: 'user-1',
+      body: bodyOf({ serverId: 'srv-posthog', scope: 'group' }),
+    })
+
+    expect(answer.status).toBe(200)
+    expect(calls[0]).toMatchObject({
+      groupId: 'grp-1',
+      returnTarget: { surface: 'web', screen: { kind: 'settings', scope: 'group', id: 'grp-1' } },
+    })
+    expect(calls[0]?.projectId).toBeUndefined()
+  })
+
+  it('refuses a group screen the caller does not own', async () => {
+    const { db } = testDb()
+    await seedOwner(db)
+    await seedGroup(db)
+    await seedCloudServer({ db, name: 'posthog', scope: { groupId: 'grp-1' } })
+
+    const answer = await serviceOver({ db }).begin({
+      userId: 'user-2',
+      body: bodyOf({ serverId: 'srv-posthog', scope: 'group' }),
+    })
+
+    expect(answer.status).toBe(403)
+    expect(answer.body).toEqual({ reason: 'group' })
+  })
+
+  it('refuses a group server whose group the signer does not own', async () => {
+    const { db } = testDb()
+    await seedOwner(db)
+    await seedGroup(db)
+    await seedCloudServer({ db, name: 'posthog', scope: { groupId: 'grp-1' } })
+
+    const answer = await serviceOver({ db }).begin({
+      userId: 'user-2',
+      body: bodyOf({ serverId: 'srv-posthog' }),
+    })
+
+    expect(answer.status).toBe(403)
+    expect(answer.body).toEqual({ reason: 'server' })
   })
 })

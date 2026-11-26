@@ -54,6 +54,7 @@ export class McpOauthRouter {
     const servers = await this.oauth.servers({
       userId: ctx.auth.userId,
       ...(input.projectId === undefined ? {} : { projectId: input.projectId }),
+      ...(input.groupId === undefined ? {} : { groupId: input.groupId }),
     })
     return { servers }
   }

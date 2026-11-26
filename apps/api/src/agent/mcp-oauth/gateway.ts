@@ -175,18 +175,25 @@ export class McpOauthService implements McpOauthGateway {
       })
       return { ok: true, row }
     }
-    const scoped =
-      args.projectId === undefined
-        ? null
-        : await this.store.findByName({
-            projectId: args.projectId,
-            source: 'cloud',
-            name: args.name,
-          })
-    const row =
-      scoped ??
-      (await this.store.findByName({ userId: args.userId, source: 'cloud', name: args.name }))
+    const row = await this.cloudRow(args)
     return row === null ? { ok: false, reason: 'mcp server not found' } : { ok: true, row }
+  }
+
+  private async cloudRow(args: McpOauthServerRef): Promise<McpServerGrantRow | null> {
+    const name = args.name
+    if (args.projectId !== undefined) {
+      const project = await this.store.findByName({
+        projectId: args.projectId,
+        source: 'cloud',
+        name,
+      })
+      if (project !== null) return project
+    }
+    if (args.groupId !== undefined) {
+      const group = await this.store.findByName({ groupId: args.groupId, source: 'cloud', name })
+      if (group !== null) return group
+    }
+    return await this.store.findByName({ userId: args.userId, source: 'cloud', name })
   }
 
   private urlOf(row: McpServerGrantRow): string | undefined {

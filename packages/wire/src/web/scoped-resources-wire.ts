@@ -63,3 +63,17 @@ export type LayeredSettingLayer = z.infer<typeof layeredSettingLayerSchema>
 
 export const layeredSettingsSchema = z.object({ layers: z.array(layeredSettingLayerSchema) })
 export type LayeredSettings = z.infer<typeof layeredSettingsSchema>
+
+export const GROUP_INSTRUCTION_CHAR_LIMIT = 8000
+
+export const groupInstructionSchema = z.object({
+  content: z.string(),
+  updatedAt: z.string().nullable(),
+})
+export type GroupInstruction = z.infer<typeof groupInstructionSchema>
+
+export const groupInstructionSaveSchema = z.strictObject({
+  groupId: z.string().min(1),
+  content: z.string().max(GROUP_INSTRUCTION_CHAR_LIMIT),
+})
+export type GroupInstructionSave = z.infer<typeof groupInstructionSaveSchema>

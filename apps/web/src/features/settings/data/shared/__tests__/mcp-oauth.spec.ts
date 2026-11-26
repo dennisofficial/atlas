@@ -14,6 +14,8 @@ import {
   cloudServerOf,
   lastUsedOf,
   mcpOauthReturnOf,
+  mcpOauthScreenOf,
+  mcpOauthServersInputOf,
   repoServersOf,
   returnSurfaceOf,
 } from '../mcp-oauth'
@@ -144,5 +146,33 @@ describe('returnSurfaceOf', () => {
 
   it('returns to the website otherwise', () => {
     expect(returnSurfaceOf({})).toBe(EMcpOauthReturnSurface.Web)
+  })
+})
+
+describe('mcpOauthServersInputOf', () => {
+  it('names the scope of the server list it asks for', () => {
+    expect(mcpOauthServersInputOf({ kind: 'project', projectId: 'proj_1' })).toEqual({
+      projectId: 'proj_1',
+    })
+    expect(mcpOauthServersInputOf({ kind: 'group', groupId: 'grp_1' })).toEqual({
+      groupId: 'grp_1',
+    })
+    expect(mcpOauthServersInputOf({ kind: 'user' })).toEqual({})
+  })
+})
+
+describe('mcpOauthScreenOf', () => {
+  it('sends the sign-in back to the page that began it', () => {
+    expect(mcpOauthScreenOf({ kind: 'user' })).toEqual({ kind: 'settings', scope: 'user' })
+    expect(mcpOauthScreenOf({ kind: 'project', projectId: 'proj_1' })).toEqual({
+      kind: 'settings',
+      scope: 'project',
+      id: 'proj_1',
+    })
+    expect(mcpOauthScreenOf({ kind: 'group', groupId: 'grp_1' })).toEqual({
+      kind: 'settings',
+      scope: 'group',
+      id: 'grp_1',
+    })
   })
 })

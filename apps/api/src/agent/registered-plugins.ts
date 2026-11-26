@@ -66,6 +66,7 @@ const personalInstructions = instructionsPort()
 
 const instructionsPod = instructionsPodOf({
   personal: async (ctx) => await personalInstructions.personal(ctx.sessionId),
+  group: async (ctx) => await personalInstructions.group(ctx.sessionId),
 })
 
 const skillsPod = skillsPodOf({

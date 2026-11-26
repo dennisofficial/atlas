@@ -36,11 +36,7 @@ const ownsRow = async (args: {
   store: McpOauthStore
   row: McpServerGrantRow
   userId: string
-}): Promise<boolean> => {
-  if (args.row.userId !== null) return args.row.userId === args.userId
-  if (args.row.projectId === null) return false
-  return (await args.store.projectOwner({ projectId: args.row.projectId })) === args.userId
-}
+}): Promise<boolean> => await args.store.ownsRow({ row: args.row, userId: args.userId })
 
 export const mcpOauthCallbackOf = (args: McpOauthCallbackArgs) => {
   const store = new McpOauthStore(args.db)

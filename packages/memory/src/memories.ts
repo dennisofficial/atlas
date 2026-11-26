@@ -15,7 +15,7 @@ import {
   MemoryStaleRevisionError,
 } from './errors'
 
-export type MemoryScope = 'global' | 'project'
+export type MemoryScope = 'global' | 'group' | 'project'
 
 export type MemoryKind = 'user' | 'feedback' | 'project' | 'reference'
 
@@ -23,6 +23,7 @@ export type MemoryKey = {
   userId: string
   scope: MemoryScope
   project?: string | null | undefined
+  groupId?: string | null | undefined
   name: string
 }
 
@@ -32,25 +33,43 @@ type StoredKey = {
   userId: string
   scope: MemoryScope
   project: string
+  groupId: string
   name: string
 }
 
 type MemoryFields = { description: string; type: string; body: string }
 
-function storedKeyOf(args: MemoryKey): StoredKey {
+type OwnerKey = { scope: MemoryScope; project: string; groupId: string }
+
+function ownerKeyOf(args: MemoryKey): OwnerKey {
   if (args.project === null) throw new MemoryInvalidError('a project must be a string when given')
-  if (args.scope === 'project' && args.project === undefined) {
+  if (args.groupId === null) throw new MemoryInvalidError('a group must be a string when given')
+  if (args.scope === 'global') {
+    if (args.project !== undefined || args.groupId !== undefined) {
+      throw new MemoryInvalidError('a global memory has no project and no group')
+    }
+    return { scope: args.scope, project: '', groupId: '' }
+  }
+  if (args.scope === 'group') {
+    if (args.groupId === undefined)
+      throw new MemoryInvalidError('a group-scope memory needs a group')
+    if (args.project !== undefined) throw new MemoryInvalidError('a group memory has no project')
+    return { scope: args.scope, project: '', groupId: args.groupId }
+  }
+  if (args.project === undefined) {
     throw new MemoryInvalidError('a project-scope memory needs a project')
   }
-  if (args.scope === 'global' && args.project !== undefined) {
-    throw new MemoryInvalidError('a global memory has no project')
-  }
-  return { userId: args.userId, scope: args.scope, project: args.project ?? '', name: args.name }
+  if (args.groupId !== undefined) throw new MemoryInvalidError('a project memory has no group')
+  return { scope: args.scope, project: args.project, groupId: '' }
+}
+
+function storedKeyOf(args: MemoryKey): StoredKey {
+  return { userId: args.userId, ...ownerKeyOf(args), name: args.name }
 }
 
 const bumpRevisionStatement = (args: { handle: Handle; key: StoredKey; fields: MemoryFields }) =>
   args.handle.raw
-    .sql`UPDATE "Memory" SET description = ${args.fields.description}, type = ${args.fields.type}, body = ${args.fields.body}, revision = revision + 1, "updatedAt" = now() WHERE "userId" = ${args.key.userId} AND scope = ${args.key.scope} AND project = ${args.key.project} AND name = ${args.key.name} RETURNING id`
+    .sql`UPDATE "Memory" SET description = ${args.fields.description}, type = ${args.fields.type}, body = ${args.fields.body}, revision = revision + 1, "updatedAt" = now() WHERE "userId" = ${args.key.userId} AND scope = ${args.key.scope} AND project = ${args.key.project} AND "groupId" = ${args.key.groupId} AND name = ${args.key.name} RETURNING id`
     .returnsRow({ id: 'pg/text@1' })
     .build()
 
@@ -71,6 +90,7 @@ const firstOf = ({ handle, key }: { handle: Handle; key: StoredKey }) =>
     userId: key.userId,
     scope: key.scope,
     project: key.project,
+    groupId: key.groupId,
     name: key.name,
   })
 
@@ -78,6 +98,7 @@ function toSummary(row: Row<'Memory'>): MemorySummary {
   return memorySummarySchema.parse({
     scope: row.scope,
     project: row.project === '' ? null : row.project,
+    groupId: row.groupId === '' ? null : row.groupId,
     name: row.name,
     description: row.description,
     type: row.type,
@@ -129,10 +150,13 @@ export async function listMemories(args: {
   db: Db
   userId: string
   project?: string | undefined
+  groupId?: string | undefined
 }): Promise<MemorySummary[]> {
   const projects = args.project === undefined ? [''] : ['', args.project]
+  const groups = args.groupId === undefined ? [''] : ['', args.groupId]
   const rows = await args.db.orm.public.Memory.where({ userId: args.userId })
     .where((memory) => memory.project.in(projects))
+    .where((memory) => memory.groupId.in(groups))
     .orderBy((memory) => memory.updatedAt.desc())
     .all()
   return rows.map((row) => toSummary(row))
@@ -211,6 +235,7 @@ export async function removeMemory(args: { db: Db } & MemoryKey): Promise<void> 
     userId: key.userId,
     scope: key.scope,
     project: key.project,
+    groupId: key.groupId,
     name: key.name,
   }).deleteAndCount()
   if (count === 0) throw new MemoryNotFoundError()

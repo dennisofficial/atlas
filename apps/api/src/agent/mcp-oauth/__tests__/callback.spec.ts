@@ -2,7 +2,7 @@ import { useTestDatabase } from '@dltech/atlas-db/testing'
 import { afterEach, describe, expect, it } from 'bun:test'
 
 import { McpServerReader } from '../../config/mcp-servers'
-import { seedOwner } from '../../config/__tests__/config-reader.fixture'
+import { seedGroup, seedOwner } from '../../config/__tests__/config-reader.fixture'
 import { mcpOauthCallbackOf, type CallbackHandler } from '../callback'
 import { returnPathOf } from '../redirect'
 import type { McpReturnTarget } from '../types'
@@ -419,5 +419,39 @@ describe('the mcp oauth callback', () => {
     )
     const row = await db.orm.public.McpServer.first({ id: 'srv-posthog' })
     expect(row?.oauthSealed).toBeNull()
+  })
+
+  it('seals a grant on a group server and returns to the group MCP page', async () => {
+    const { db } = testDb()
+    await seedOwner(db)
+    await seedGroup(db)
+    await seedCloudServer({ db, name: 'posthog', scope: { groupId: 'grp-1' } })
+    const target: McpReturnTarget = {
+      surface: 'web',
+      screen: { kind: 'settings', scope: 'group', id: 'grp-1' },
+    }
+    await seedPending({ db, id: 'state-group', mcpServerId: 'srv-posthog', target })
+    tokenFetch()
+
+    const answer = await answerOf({ db, query: 'state=state-group&code=code-1' })
+
+    const location = new URL(answer?.location ?? '')
+    expect(location.pathname).toBe('/groups/grp-1/settings/mcp')
+    expect(location.searchParams.get('mcpOauth')).toBe('connected')
+    const row = await db.orm.public.McpServer.first({ id: 'srv-posthog' })
+    expect(row?.oauthStatus).toBe('active')
+  })
+
+  it('refuses a group row for someone outside the group', async () => {
+    const { db } = testDb()
+    await seedOwner(db)
+    await seedGroup(db)
+    await db.orm.public.User.create({ id: 'user-2', name: 'v', email: 'v@test.local' })
+    await seedCloudServer({ db, name: 'posthog', scope: { groupId: 'grp-1' } })
+    await seedPending({ db, id: 'state-outsider', mcpServerId: 'srv-posthog', userId: 'user-2' })
+
+    expect(await failingReason({ db, query: 'state=state-outsider&code=c' })).toBe(
+      'session_mismatch',
+    )
   })
 })

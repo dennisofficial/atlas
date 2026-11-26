@@ -39,7 +39,10 @@ const memoryProjectSchema = z
   .transform((project) => project.toLowerCase())
   .pipe(z.string().regex(MEMORY_PROJECT_PATTERN))
 
-export const memoryProjectQuerySchema = z.strictObject({ project: memoryProjectSchema.optional() })
+export const memoryProjectQuerySchema = z.strictObject({
+  project: memoryProjectSchema.optional(),
+  groupId: z.string().min(1).optional(),
+})
 export type MemoryProjectQueryWire = z.output<typeof memoryProjectQuerySchema>
 
 export const memoryKeySchema = memoryProjectQuerySchema.extend({
@@ -67,6 +70,7 @@ export type MemoryHostThreadWire = z.output<typeof memoryHostThreadSchema>
 
 export const memoryHostAddressSchema = memoryHostThreadSchema.extend({
   scope: z.enum(EMemoryScope),
+  groupId: z.string().min(1).optional(),
   name: z.string().regex(MEMORY_NAME_PATTERN),
 })
 export type MemoryHostAddressWire = z.output<typeof memoryHostAddressSchema>
@@ -85,7 +89,10 @@ export const memoryHostEditSchema = memoryHostAddressSchema.extend({
 })
 export type MemoryHostEditWire = z.output<typeof memoryHostEditSchema>
 
-export const memoryHostListSchema = memoryListSchema.extend({ project: z.string().nullable() })
+export const memoryHostListSchema = memoryListSchema.extend({
+  project: z.string().nullable(),
+  group: z.string().nullable(),
+})
 export type MemoryHostListWire = z.output<typeof memoryHostListSchema>
 
 export const memoryHostEntrySchema = z.object({ memory: memoryEntrySchema.nullable() })

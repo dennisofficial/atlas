@@ -118,6 +118,25 @@ export const groupConfigClientOf = (args: {
         }
       })
     },
+    moveSecret: async ({ name, grant }) => {
+      const groupId = await groupIdOf()
+      return db.transaction(async (tx) => {
+        const rows = tx.orm.public.GroupSecret
+        const existing = await rows.where({ groupId, name }).first()
+        if (existing === null) return false
+        const grantId = await groupGrantIdOf({
+          tx,
+          groupId,
+          name: grant,
+          current: existing.grantId,
+          member: 'secret',
+        })
+        if (existing.grantId === grantId) return true
+        await rows.where({ groupId, name }).update({ grantId })
+        await cleanupGroupGrant({ tx, groupId, grantId: existing.grantId })
+        return true
+      })
+    },
     removeSecret: async (name) => {
       const problem = envNameProblem(name)
       if (problem !== undefined) throw new Error(problem)
@@ -182,6 +201,25 @@ export const groupConfigClientOf = (args: {
         if (row === null) return false
         await tx.orm.public.GroupFileMount.where({ groupId, path }).deleteAndCount()
         await cleanupGroupGrant({ tx, groupId, grantId: row.grantId })
+        return true
+      })
+    },
+    moveFileMount: async ({ path, grant }) => {
+      const groupId = await groupIdOf()
+      return db.transaction(async (tx) => {
+        const rows = tx.orm.public.GroupFileMount
+        const existing = await rows.where({ groupId, path }).first()
+        if (existing === null) return false
+        const grantId = await groupGrantIdOf({
+          tx,
+          groupId,
+          name: grant,
+          current: existing.grantId,
+          member: 'file',
+        })
+        if (existing.grantId === grantId) return true
+        await rows.where({ groupId, path }).update({ grantId })
+        await cleanupGroupGrant({ tx, groupId, grantId: existing.grantId })
         return true
       })
     },

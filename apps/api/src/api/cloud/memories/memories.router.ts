@@ -35,7 +35,11 @@ export class MemoriesRouter {
     @Input() input: MemoryProjectQueryWire,
     @Ctx() ctx: SessionTrpcCtx,
   ): Promise<MemoryList> {
-    const memories = await this.memories.list({ userId: ctx.auth.userId, project: input.project })
+    const memories = await this.memories.list({
+      userId: ctx.auth.userId,
+      project: input.project,
+      groupId: input.groupId,
+    })
     return { memories }
   }
 
@@ -58,6 +62,7 @@ export class MemoriesRouter {
       userId: ctx.auth.userId,
       scope: input.scope,
       project: input.project,
+      groupId: input.groupId,
       name: input.name,
       old: input.old,
       replacement: input.new,

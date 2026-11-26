@@ -57,7 +57,9 @@ response payloads, the constants that both sides must agree on, and the sandbox 
   and duration or a fault with its detail.
 - `memorySummarySchema`, `memoryEntrySchema`, `memoryListSchema`: the memory rows of a list and a
   read.
-- `memoryPutSchema`, `memoryEditSchema`, `memoryKeySchema`: the memory write and edit payloads.
+- `memoryPutSchema`, `memoryEditSchema`, `memoryKeySchema`: the memory write and edit payloads. A
+  key names its `project` for a project scope or its `groupId` for a group scope, and `EMemoryScope`
+  is `global`, `group` or `project`.
 - `MEMORY_STALE_REVISION_CODE`, `MEMORY_EDIT_NO_MATCH_CODE`, `MEMORY_EDIT_AMBIGUOUS_CODE`: the
   memory error codes. `@dltech/atlas-core` owns these, and wire re-exports them.
 - `accessScopeSchema`, `accessGrantSchema`, `accessGrantSaveSchema`, `accessGrantMoveSchema`: a
@@ -75,6 +77,8 @@ settings, grants, skills and MCP servers apply to each project in it. `projectSc
 - `projectGroupSaveSchema`, `projectGroupKeySchema`, `projectGroupAssignSchema`: create or rename by
   `id`, name one by `id`, and move a project into a group, or out of every group with a null
   `groupId`.
+- `groupInstructionSchema`, `groupInstructionSaveSchema`: the one instruction document of a group
+  and its save, at most `GROUP_INSTRUCTION_CHAR_LIMIT` characters.
 - `EConfigLayer`, `configLayerSchema`: the five layers from lowest to highest, `built-in`,
   `personal`, `group`, `project` and `repo`. `@dltech/atlas-core` owns the enum, and wire re-exports
   it.

@@ -23,6 +23,7 @@ const SERVER_COLUMNS = [
   'id',
   'userId',
   'projectId',
+  'groupId',
   'name',
   'source',
   'sealedSpec',
@@ -57,9 +58,13 @@ const toServerGrantRow = <
 
 const scopeOf = (args: {
   userId?: string | undefined
+  groupId?: string | undefined
   projectId?: string | undefined
-}): { userId: string } | { projectId: string } =>
-  args.projectId === undefined ? { userId: args.userId ?? '' } : { projectId: args.projectId }
+}): { userId: string } | { groupId: string } | { projectId: string } => {
+  if (args.projectId !== undefined) return { projectId: args.projectId }
+  if (args.groupId !== undefined) return { groupId: args.groupId }
+  return { userId: args.userId ?? '' }
+}
 
 @Injectable()
 export class PrismaMcpOauthStore implements McpOauthStore {
@@ -101,6 +106,7 @@ export class PrismaMcpOauthStore implements McpOauthStore {
 
   async listServers(args: {
     userId?: string | undefined
+    groupId?: string | undefined
     projectId?: string | undefined
   }): Promise<ServerGrantRow[]> {
     const rows = await db.orm.public.McpServer.select(...SERVER_COLUMNS)
@@ -113,6 +119,7 @@ export class PrismaMcpOauthStore implements McpOauthStore {
 
   async findByName(args: {
     userId?: string | undefined
+    groupId?: string | undefined
     projectId?: string | undefined
     source: EMcpServerSource
     name: string
@@ -127,6 +134,7 @@ export class PrismaMcpOauthStore implements McpOauthStore {
 
   async touchRepoServer(args: {
     userId?: string | undefined
+    groupId?: string | undefined
     projectId?: string | undefined
     name: string
     url: string
@@ -169,6 +177,11 @@ export class PrismaMcpOauthStore implements McpOauthStore {
   async projectOwner(args: { projectId: string }): Promise<string | null> {
     const row = await db.orm.public.Project.select('ownerUserId').first({ id: args.projectId })
     return row?.ownerUserId ?? null
+  }
+
+  async groupOwner(args: { groupId: string }): Promise<string | null> {
+    const row = await db.orm.public.ProjectGroup.select('userId').first({ id: args.groupId })
+    return row?.userId ?? null
   }
 
   async writeGrant(args: { id: string; serverUrl: string; sealed: string }): Promise<void> {

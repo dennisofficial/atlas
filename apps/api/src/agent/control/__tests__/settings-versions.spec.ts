@@ -107,6 +107,27 @@ describe('settingsVersionsOf', () => {
     })
   })
 
+  it('counts the group instruction of the thread owner project', async () => {
+    const { db } = testDb()
+    await seedOwner(db)
+    await db.orm.public.ProjectGroup.create({ id: 'grp-1', userId: USER, name: 'Comp AI' })
+    await db.orm.public.Project.where({ id: PROJECT }).update({ groupId: 'grp-1' })
+    const file = await seedInstructions({ db })
+    const group = await db.orm.public.GroupInstruction.create({
+      groupId: 'grp-1',
+      content: 'the group ships on Fridays',
+    })
+
+    const versions = await versionsOf(db)
+
+    expect(versions[ECloudSetting.PersonalInstructions]).toBe(
+      versionOf({
+        count: 2,
+        touchedAt: new Date(Math.max(file.updatedAt.getTime(), group.updatedAt.getTime())),
+      }),
+    )
+  })
+
   it('answers the same version twice while nothing changed', async () => {
     const { db } = testDb()
     await seedOwner(db)

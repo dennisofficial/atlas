@@ -35,6 +35,7 @@ const keyOf = (address: { scope: MemoryScope; name: string }): string =>
 const summaryOf = (row: Stored): MemorySummary => ({
   scope: row.scope,
   project: null,
+  groupId: null,
   name: row.name,
   description: row.description,
   type: row.type,
@@ -42,10 +43,11 @@ const summaryOf = (row: Stored): MemorySummary => ({
   updatedAt: '2026-11-09T10:00:00.000Z',
 })
 
-export const fakeMemory = (args: { project?: string | null } = {}) => {
+export const fakeMemory = (args: { project?: string | null; group?: string | null } = {}) => {
   const rows = new Map<string, Stored>()
   const calls: string[] = []
   const project = args.project === undefined ? 'dennisofficial/atlas' : args.project
+  const group = args.group === undefined ? null : args.group
   const find = (address: { scope: MemoryScope; name: string }): Stored => {
     const row = rows.get(keyOf(address))
     if (row === undefined) throw new Error(`no such memory: ${address.name}`)
@@ -54,7 +56,7 @@ export const fakeMemory = (args: { project?: string | null } = {}) => {
   const port: PodMemory = {
     list: async () => {
       calls.push('list')
-      return { project, memories: [...rows.values()].map(summaryOf) }
+      return { project, group, memories: [...rows.values()].map(summaryOf) }
     },
     read: async (address) => {
       const row = rows.get(keyOf(address))

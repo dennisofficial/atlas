@@ -10,13 +10,14 @@ import type { AttemptFence, PendingRow, ServerGrantRow } from './mcp-oauth.types
 
 const REPO_SEEN_BUMP_MS = 3_600_000
 
-const grantKey = (row: Pick<ServerGrantRow, 'userId' | 'projectId'>): string =>
-  row.userId ?? row.projectId ?? ''
+const grantKey = (row: Pick<ServerGrantRow, 'userId' | 'groupId' | 'projectId'>): string =>
+  row.userId ?? row.groupId ?? row.projectId ?? ''
 
 export class FakeMcpStore implements McpOauthStore {
   readonly pendings = new Map<string, PendingRow>()
   readonly servers = new Map<string, ServerGrantRow>()
   readonly projectOwners = new Map<string, string>()
+  readonly groupOwners = new Map<string, string>()
   private nextId = 1
 
   async insertPending(row: PendingRow) {
@@ -34,8 +35,12 @@ export class FakeMcpStore implements McpOauthStore {
     return row === undefined ? null : { ...row }
   }
 
-  async listServers(args: { userId?: string | undefined; projectId?: string | undefined }) {
-    const scopeKey = args.projectId ?? args.userId ?? ''
+  async listServers(args: {
+    userId?: string | undefined
+    groupId?: string | undefined
+    projectId?: string | undefined
+  }) {
+    const scopeKey = args.projectId ?? args.groupId ?? args.userId ?? ''
     return [...this.servers.values()]
       .filter((row) => grantKey(row) === scopeKey)
       .sort(
@@ -47,11 +52,12 @@ export class FakeMcpStore implements McpOauthStore {
 
   async findByName(args: {
     userId?: string | undefined
+    groupId?: string | undefined
     projectId?: string | undefined
     source: EMcpServerSource
     name: string
   }) {
-    const scopeKey = args.projectId ?? args.userId ?? ''
+    const scopeKey = args.projectId ?? args.groupId ?? args.userId ?? ''
     const row = [...this.servers.values()].find(
       (entry) =>
         grantKey(entry) === scopeKey && entry.source === args.source && entry.name === args.name,
@@ -61,6 +67,7 @@ export class FakeMcpStore implements McpOauthStore {
 
   async touchRepoServer(args: {
     userId?: string | undefined
+    groupId?: string | undefined
     projectId?: string | undefined
     name: string
     url: string
@@ -68,6 +75,7 @@ export class FakeMcpStore implements McpOauthStore {
   }) {
     const existing = await this.findByName({
       userId: args.userId,
+      groupId: args.groupId,
       projectId: args.projectId,
       source: EMcpServerSource.Repo,
       name: args.name,
@@ -77,6 +85,7 @@ export class FakeMcpStore implements McpOauthStore {
         id: `server-${this.nextId++}`,
         userId: args.userId ?? null,
         projectId: args.projectId ?? null,
+        groupId: args.groupId ?? null,
         name: args.name,
         source: EMcpServerSource.Repo,
         sealedSpec: null,
@@ -106,6 +115,10 @@ export class FakeMcpStore implements McpOauthStore {
 
   async projectOwner(args: { projectId: string }) {
     return this.projectOwners.get(args.projectId) ?? null
+  }
+
+  async groupOwner(args: { groupId: string }) {
+    return this.groupOwners.get(args.groupId) ?? null
   }
 
   async writeGrant(args: { id: string; serverUrl: string; sealed: string }) {

@@ -15,15 +15,19 @@ const linesOf = (
 
 export const memoryIndexOf = (args: {
   project: string | null
+  group?: string | null
   memories: readonly MemorySummary[]
-}): string =>
-  renderMemoryIndex({
+}): string => {
+  const group = args.group ?? null
+  return renderMemoryIndex({
     global: linesOf(args.memories, 'global'),
+    group: group === null ? null : { key: group, entries: linesOf(args.memories, 'group') },
     project:
       args.project === null
         ? null
         : { key: args.project, entries: linesOf(args.memories, 'project') },
   })
+}
 
 export const memoryCoreSlots = {
   events: [] as readonly never[],

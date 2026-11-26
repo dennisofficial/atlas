@@ -10,7 +10,7 @@ import {
 import type { PluginPodContext } from '@dltech/atlas-plugin-sdk'
 import { readResource } from '@dltech/atlas-plugin-sdk'
 
-import { blockOf, instructionPathOf, PERSONAL_HEADER, projectHeader } from './blocks'
+import { blockOf, GROUP_HEADER, instructionPathOf, PERSONAL_HEADER, projectHeader } from './blocks'
 import {
   instructionsResource,
   type InstructionsPodOptions,
@@ -107,6 +107,9 @@ const descentBlocksOf = (args: { snapshot: InstructionsSnapshot }): readonly str
 
   const personal = blockOf({ header: PERSONAL_HEADER, content: snapshot.personal ?? '' })
   if (personal !== null) blocks.push(personal)
+
+  const group = blockOf({ header: GROUP_HEADER, content: snapshot.group ?? '' })
+  if (group !== null) blocks.push(group)
 
   for (const directory of descentOf({ root: snapshot.root, directory: snapshot.directory })) {
     const path = instructionPathOf(directory)

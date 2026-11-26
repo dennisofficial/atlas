@@ -2,7 +2,12 @@ import type { Db, Tx } from '@dltech/atlas-db'
 
 import { UnknownThreadError } from '../errors'
 
-export type ThreadOwner = { userId: string; projectId: string | null; project: string | null }
+export type ThreadOwner = {
+  userId: string
+  projectId: string | null
+  project: string | null
+  groupId: string | null
+}
 
 type OwningSession = { userId: string; projectId: string | null }
 
@@ -30,10 +35,15 @@ export const threadOwnerOf = async (args: {
   const session = await owningSessionOf(args)
   if (session === null) throw new UnknownThreadError(args.threadId)
   if (session.projectId === null) {
-    return { userId: session.userId, projectId: null, project: null }
+    return { userId: session.userId, projectId: null, project: null, groupId: null }
   }
   const project = await args.handle.orm.public.Project.where({ id: session.projectId })
-    .select('repo')
+    .select('repo', 'groupId')
     .first()
-  return { userId: session.userId, projectId: session.projectId, project: project?.repo ?? null }
+  return {
+    userId: session.userId,
+    projectId: session.projectId,
+    project: project?.repo ?? null,
+    groupId: project?.groupId ?? null,
+  }
 }

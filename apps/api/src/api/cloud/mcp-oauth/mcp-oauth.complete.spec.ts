@@ -187,6 +187,18 @@ describe('McpOauthService servers, disconnect and forget', () => {
     )
   })
 
+  it('lists group servers only to the group owner', async () => {
+    const env = build()
+    await addCloudServer(env, { groupId: 'grp-1', groupOwner: 'user-a', name: 'group-server' })
+
+    const listed = await env.oauth.servers({ userId: 'user-a', groupId: 'grp-1' })
+
+    expect(listed.map((entry) => entry.name)).toEqual(['group-server'])
+    await expect(env.oauth.servers({ userId: 'user-b', groupId: 'grp-1' })).rejects.toThrow(
+      'group not found',
+    )
+  })
+
   it('forget removes a repo row and refuses a cloud row', async () => {
     const env = build()
     const repo = await env.store.touchRepoServer({

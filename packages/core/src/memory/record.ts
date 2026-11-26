@@ -9,6 +9,7 @@ export const MEMORY_EDIT_AMBIGUOUS_CODE = 'memory-edit-ambiguous'
 export const memorySummarySchema = z.object({
   scope: z.enum(EMemoryScope),
   project: z.string().nullable(),
+  groupId: z.string().nullable(),
   name: z.string(),
   description: z.string(),
   type: z.enum(EMemoryType),

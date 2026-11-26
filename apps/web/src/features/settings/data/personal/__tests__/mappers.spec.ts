@@ -58,9 +58,15 @@ describe('file encoding', () => {
 })
 
 describe('memory mapping', () => {
-  const summary = (args: { project: string | null; name: string }) => ({
-    scope: args.project === null ? EMemoryScope.Global : EMemoryScope.Project,
+  const summary = (args: {
+    scope?: EMemoryScope
+    project: string | null
+    groupId?: string | null
+    name: string
+  }) => ({
+    scope: args.scope ?? (args.project === null ? EMemoryScope.Global : EMemoryScope.Project),
     project: args.project,
+    groupId: args.groupId ?? null,
     name: args.name,
     description: 'd',
     type: EMemoryType.User,
@@ -68,33 +74,44 @@ describe('memory mapping', () => {
     updatedAt: 'x',
   })
 
-  it('groups global first, then one group per project found in the rows', () => {
-    const groups = buildGroups([
-      summary({ project: 'a/b', name: 'p1' }),
-      summary({ project: null, name: 'g' }),
-      summary({ project: 'c/d', name: 'q' }),
-      summary({ project: 'a/b', name: 'p2' }),
-    ])
-    expect(groups.map((group) => group.id)).toEqual(['global', 'a/b', 'c/d'])
+  it('groups global first, then one group per project group and project in the rows', () => {
+    const groups = buildGroups({
+      memories: [
+        summary({ project: 'a/b', name: 'p1' }),
+        summary({ project: null, name: 'g' }),
+        summary({ scope: EMemoryScope.Group, project: null, groupId: 'pgr_comp', name: 'c1' }),
+        summary({ project: 'c/d', name: 'q' }),
+        summary({ project: 'a/b', name: 'p2' }),
+      ],
+      groupNames: new Map([['pgr_comp', 'Comp AI']]),
+    })
+    expect(groups.map((group) => group.id)).toEqual(['global', 'group:pgr_comp', 'a/b', 'c/d'])
     expect(groups[0]?.memories.map((entry) => entry.name)).toEqual(['g'])
-    expect(groups[1]?.memories.map((entry) => entry.name)).toEqual(['p1', 'p2'])
-    expect(groups[2]).toMatchObject({ scope: EMemoryScope.Project, project: 'c/d' })
+    expect(groups[1]).toMatchObject({
+      scope: EMemoryScope.Group,
+      groupId: 'pgr_comp',
+      name: 'Comp AI',
+    })
+    expect(groups[2]?.memories.map((entry) => entry.name)).toEqual(['p1', 'p2'])
+    expect(groups[3]).toMatchObject({ scope: EMemoryScope.Project, project: 'c/d' })
   })
 
   it('always offers an empty global group', () => {
-    expect(buildGroups([]).map((group) => group.id)).toEqual(['global'])
+    expect(buildGroups({ memories: [], groupNames: new Map() }).map((group) => group.id)).toEqual([
+      'global',
+    ])
   })
 
   it('builds the entry input', () => {
-    expect(memoryKeyInput({ scope: EMemoryScope.Global, project: null, name: 'n' })).toEqual({
-      scope: 'global',
-      name: 'n',
-    })
-    expect(memoryKeyInput({ scope: EMemoryScope.Project, project: 'a/b', name: 'n' })).toEqual({
-      scope: 'project',
-      name: 'n',
-      project: 'a/b',
-    })
+    expect(
+      memoryKeyInput({ scope: EMemoryScope.Global, project: null, groupId: null, name: 'n' }),
+    ).toEqual({ scope: 'global', name: 'n' })
+    expect(
+      memoryKeyInput({ scope: EMemoryScope.Project, project: 'a/b', groupId: null, name: 'n' }),
+    ).toEqual({ scope: 'project', name: 'n', project: 'a/b' })
+    expect(
+      memoryKeyInput({ scope: EMemoryScope.Group, project: null, groupId: 'pgr_comp', name: 'n' }),
+    ).toEqual({ scope: 'group', name: 'n', groupId: 'pgr_comp' })
   })
 })
 

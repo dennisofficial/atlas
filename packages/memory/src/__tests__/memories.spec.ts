@@ -3,7 +3,7 @@ import { beforeEach, describe, expect, it } from 'bun:test'
 import { EMemoryScope } from '@dltech/atlas-core'
 
 import { MemoryInvalidError, MemoryNotFoundError } from '../errors'
-import { PROJECT, USER_A, USER_B, globalNote, memoryOpsOf } from './fixtures'
+import { GROUP, PROJECT, USER_A, USER_B, globalNote, memoryOpsOf } from './fixtures'
 
 describe('memories', () => {
   const database = useTestDatabase()
@@ -59,6 +59,59 @@ describe('memories', () => {
     await expect(
       remove({ userId: USER_A, scope: EMemoryScope.Global, name: 'deflate' }),
     ).rejects.toBeInstanceOf(MemoryNotFoundError)
+  })
+
+  it('stores a group memory under its group and lists it with global rows', async () => {
+    await put(globalNote({ name: 'prefers-bun' }))
+    await put({
+      ...globalNote({ name: 'ships-on-fridays' }),
+      scope: EMemoryScope.Group,
+      groupId: GROUP,
+    })
+    await put({
+      ...globalNote({ name: 'other-group' }),
+      scope: EMemoryScope.Group,
+      groupId: 'pgr_other',
+    })
+    await put({
+      ...globalNote({ name: 'project-fact' }),
+      scope: EMemoryScope.Project,
+      project: PROJECT,
+    })
+
+    const listed = await list({ userId: USER_A, groupId: GROUP, project: PROJECT })
+
+    expect(listed.map((row) => row.name).sort()).toEqual([
+      'prefers-bun',
+      'project-fact',
+      'ships-on-fridays',
+    ])
+    const grouped = listed.find((row) => row.name === 'ships-on-fridays')
+    expect({ groupId: grouped?.groupId, project: grouped?.project, scope: grouped?.scope }).toEqual(
+      {
+        groupId: GROUP,
+        project: null,
+        scope: EMemoryScope.Group,
+      },
+    )
+    expect((await list({ userId: USER_A, groupId: GROUP })).map((row) => row.name).sort()).toEqual([
+      'prefers-bun',
+      'ships-on-fridays',
+    ])
+  })
+
+  it('refuses a group memory without a group and a group memory with a project', async () => {
+    await expect(
+      put({ ...globalNote({ name: 'no-group' }), scope: EMemoryScope.Group }),
+    ).rejects.toBeInstanceOf(MemoryInvalidError)
+    await expect(
+      put({
+        ...globalNote({ name: 'both' }),
+        scope: EMemoryScope.Group,
+        groupId: GROUP,
+        project: PROJECT,
+      }),
+    ).rejects.toBeInstanceOf(MemoryInvalidError)
   })
 
   it('list returns global rows plus the named project, newest first', async () => {

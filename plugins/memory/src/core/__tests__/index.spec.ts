@@ -7,6 +7,7 @@ import { memoryIndexOf } from '..'
 const summary = (overrides: Partial<MemorySummary> = {}): MemorySummary => ({
   scope: 'global',
   project: null,
+  groupId: null,
   name: 'dennis-prefers-bun',
   description: 'The workspace runs on Bun',
   type: 'user',
@@ -33,6 +34,18 @@ describe('memoryIndexOf', () => {
     expect(text).toContain('### Project dennisofficial/atlas')
     expect(text).toContain('- v2-needs-no-v1-imports')
     expect(text.indexOf('### Global')).toBeLessThan(text.indexOf('### Project'))
+  })
+
+  it('renders group entries between global and project', () => {
+    const group = summary({ scope: 'group', groupId: 'pgr_1', name: 'comp-ai-ships-on-fridays' })
+    const text = memoryIndexOf({
+      project: 'dennisofficial/atlas',
+      group: 'Comp AI',
+      memories: [summary(), group],
+    })
+    expect(text).toContain('### Group Comp AI')
+    expect(text.indexOf('### Global')).toBeLessThan(text.indexOf('### Group'))
+    expect(text.indexOf('### Group')).toBeLessThan(text.indexOf('### Project'))
   })
 
   it('says none yet for a scope with no entries', () => {
