@@ -1,27 +1,16 @@
-import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync } from 'node:fs'
+import { mkdtempSync, rmSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 
-import {
-  EWorkspaceStep,
-  workspaceStepsOf,
-  type SpawnFile,
-  type RecordEvent,
-  type WorkspaceStepStatus,
-} from '@dltech/atlas-core'
+import type { SpawnFile } from '@dltech/atlas-core'
 import { describe, expect, it } from 'bun:test'
 import { useTestDatabase } from '@dltech/atlas-db/testing'
 import type { ScriptedModelStep } from '@dltech/atlas-agent/testing'
 
-import { makeFifo, releaseFifo, waitForFile } from '../__tests__/faults/fault-support'
-import {
-  startRig,
-  type FaultRig,
-  type HostKnobs,
-  type HostProcess,
-  type ReadEvent,
-  type RigDaemon,
-} from './fault-rig'
+import { startRig, type FaultRig, type HostKnobs, type HostProcess } from './fault-rig'
+import { contextFor, freshWorkspaceOf, type HandoffContext } from './handoff-context'
+
+export type { HandoffContext } from './handoff-context'
 
 const REDIS_URL = process.env.ATLAS_TEST_REDIS_URL
 
@@ -45,51 +34,13 @@ export const waitUntil = async (args: {
   throw new Error(`timed out waiting for ${args.what}`)
 }
 
-const readAll = async (args: {
-  plane: FaultRig['plane']
-  threadId: string
-  visible: boolean
-}): Promise<ReadEvent[]> => {
-  const page = await args.plane.readEvents({
-    threadId: args.threadId,
-    afterSeq: 0,
-    limit: 1_000,
-    visible: args.visible,
-  })
-  return page.events.map((row) => ({ seq: row.seq, type: row.type, event: row }))
-}
-
-/**
- * What a scenario gets to work with. Files it creates through `path` and `gate` live in the
- * workspace both hosts share, so they survive a handoff the way a file in the pod does.
- */
-export type HandoffContext = {
-  rig: FaultRig
-  sessionId: string
-  threadId: string
-  daemon: RigDaemon
-  workspace: string
-  /** paths the scenario created, by name, so `runs` and the assertions can find them again */
-  paths: Record<string, string>
-  path(name: string): string
-  /** a fifo in the workspace: the work blocks reading it until something writes to it */
-  gate(name: string): string
-  waitFor(name: string, timeoutMs?: number): Promise<void>
-  release(name: string): Promise<void>
-  /** how many lines the file called `name` has, 0 when it does not exist */
-  runCount(name: string): number
-  /** the events a later reader sees (tool calls, assistant text, ...) */
-  events(): Promise<ReadEvent[]>
-  /** every event, including the record-only ones such as `workspace-step` */
-  record(): Promise<ReadEvent[]>
-  steps(): Promise<Partial<Record<EWorkspaceStep, WorkspaceStepStatus>>>
-}
-
 export type HandoffScenario = {
   name: string
   /** the operator message the session starts with */
   prompt?: string
   files?: readonly SpawnFile[] | undefined
+  /** whether the clean drain case runs; a tool blocked inside the host never lets a drain finish */
+  drain?: boolean
   /** whether the workspace is already prepared when the session starts (default true) */
   prepared?: boolean
   /** what the pod runs as the setup script; the work under test when the scenario is a setup */
@@ -99,6 +50,8 @@ export type HandoffScenario = {
   takeOverScripts?(args: { sessionId: string }): Record<string, ScriptedModelStep[]>
   /** begins the work on host A, and waits until it is really in flight */
   start(ctx: HandoffContext): Promise<HostProcess>
+  /** runs once host B is up and before it claims: fault the pod link here so the takeover meets it down */
+  beforeClaim?(ctx: HandoffContext, hostB: HostProcess): Promise<void>
   /** wakes a session that waits for the operator and wants no holder until then */
   wake?(ctx: HandoffContext): Promise<void>
   /** the record still says the work is in flight, after another host took the session over */
@@ -111,55 +64,6 @@ export type HandoffScenario = {
   runs(ctx: HandoffContext): Promise<number>
   /** after the pod itself restarted: the work did not finish, and never ran again */
   interrupted?(ctx: HandoffContext): Promise<void>
-}
-
-const contextFor = (args: {
-  rig: FaultRig
-  sessionId: string
-  threadId: string
-  daemon: RigDaemon
-  workspace: string
-}): HandoffContext => {
-  const paths: Record<string, string> = {}
-  const ctx: HandoffContext = {
-    rig: args.rig,
-    sessionId: args.sessionId,
-    threadId: args.threadId,
-    daemon: args.daemon,
-    workspace: args.workspace,
-    paths,
-    path: (name) => {
-      const path = join(args.workspace, name)
-      paths[name] = path
-      return path
-    },
-    gate: (name) => {
-      const path = ctx.path(name)
-      makeFifo({ path })
-      return path
-    },
-    waitFor: (name, timeoutMs) => {
-      const path = paths[name]
-      if (path === undefined) throw new Error(`the scenario never created ${name}`)
-      return waitForFile({ path, ...(timeoutMs === undefined ? {} : { timeoutMs }) })
-    },
-    release: (name) => {
-      const path = paths[name]
-      if (path === undefined) throw new Error(`the scenario never created ${name}`)
-      return releaseFifo({ path })
-    },
-    runCount: (name) => {
-      const path = paths[name]
-      if (path === undefined || !existsSync(path)) return 0
-      const text = readFileSync(path, 'utf8').trim()
-      return text === '' ? 0 : text.split('\n').length
-    },
-    events: () => readAll({ plane: args.rig.plane, threadId: args.threadId, visible: true }),
-    record: () => readAll({ plane: args.rig.plane, threadId: args.threadId, visible: false }),
-    steps: async () =>
-      workspaceStepsOf((await ctx.record()).map((row) => row.event as RecordEvent)),
-  }
-  return ctx
 }
 
 /**
@@ -183,8 +87,7 @@ export const describeHandoff = (scenario: HandoffScenario): void => {
       root: string
       slug: string
     }): Promise<HandoffContext> => {
-      const workspace = join(args.root, args.slug, 'workspace')
-      mkdirSync(workspace, { recursive: true })
+      const workspace = freshWorkspaceOf({ root: args.root, slug: args.slug })
       const sessionId = `handoff-${args.slug}-${RUN}`
       const threadId = await args.rig.newSession({
         sessionId,
@@ -214,6 +117,7 @@ export const describeHandoff = (scenario: HandoffScenario): void => {
         ...(scenario.setupScript === undefined ? {} : { setupScript: scenario.setupScript }),
         ...(scenario.knobs === undefined ? {} : { knobs: scenario.knobs }),
       })
+      await scenario.beforeClaim?.(ctx, hostB)
       await ctx.rig.claim({ sessionId: ctx.sessionId, label: 'host-b', timeoutMs: 30_000 })
       return hostB
     }
@@ -258,15 +162,19 @@ export const describeHandoff = (scenario: HandoffScenario): void => {
         }
       })
 
-    it('survives host A draining cleanly mid-work', async () => {
-      await ownFault({
-        slug: 'drain',
-        apply: async (_ctx, hostA) => {
-          hostA.kill('SIGTERM')
-          await hostA.exited
-        },
-      })
-    }, 90_000)
+    it.skipIf(scenario.drain === false)(
+      'survives host A draining cleanly mid-work',
+      async () => {
+        await ownFault({
+          slug: 'drain',
+          apply: async (_ctx, hostA) => {
+            hostA.kill('SIGTERM')
+            await hostA.exited
+          },
+        })
+      },
+      90_000,
+    )
 
     it('survives host A being SIGKILLed mid-work', async () => {
       await ownFault({

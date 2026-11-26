@@ -1,5 +1,4 @@
 import { appendFileSync, existsSync, readFileSync, writeFileSync } from 'node:fs'
-import { ESandboxProvider } from '@dltech/atlas-protocol'
 import { singleProviderRegistry } from './sandbox-registry'
 
 import { composeCommands } from '@dltech/atlas-commands'
@@ -23,7 +22,7 @@ import {
 } from '@dltech/atlas-host'
 import { createPgHostPresence } from '../presence/pg-host-presence'
 import { startHostWatch, type HostWatch } from '../presence/pg-host-watch'
-import { LogPort, logFieldsOf } from '@dltech/atlas-observability'
+import { logFieldsOf } from '@dltech/atlas-observability'
 import { TurnFault } from '@dltech/atlas-agent'
 import { ScriptedModel, type ScriptedModelStep } from '@dltech/atlas-agent/testing'
 
@@ -31,8 +30,6 @@ import { createHostBus } from '../bus/host-bus'
 import { startPgWakeListener } from '../bus/pg-wake-listener'
 import { createRedisLiveFrames } from '../bus/redis-live-frames'
 import { createRedisPodCallBus } from '../bus/redis-pod-call-bus'
-import type { ConfigSource } from '../config/agent-host-config'
-import { fakeModelSourceOf } from './model-source'
 import { recordingModelOf } from './model-requests'
 import { routedModelOf, scriptRoutesOf } from './script-routing'
 import { createSessionRuntimeFactory } from '../runtime/session-runtime-factory'
@@ -41,6 +38,8 @@ import { DiskContextContentStore } from './disk-context-content-store'
 import { FixedEndpointSandboxProvider } from './fixed-endpoint-sandbox-provider'
 import { faultedPlane, faultSandbox, hostFaultOf } from './host-faults'
 import { podResizeViewHooksOf } from './rig-pod-resize'
+import { JsonLog, testSource } from './rig-config'
+import { rigPluginsOf } from './gated-tools'
 import type { JobsProjectDispatcher } from '../../_core/ports/job-dispatcher'
 import { podResizeHandlerOf } from '../../_lib/pod-resize/pod-resize-handler'
 
@@ -114,40 +113,6 @@ const tapToolOutput = (liveFrames: ReturnType<typeof createRedisLiveFrames>): vo
     return live(args)
   }
 }
-
-class JsonLog extends LogPort {
-  record(entry: Parameters<LogPort['record']>[0]): void {
-    console.log(JSON.stringify(entry))
-  }
-}
-
-const testSource = (): ConfigSource => ({
-  read: async () => {
-    const model = { configured: false as const, gap: 'scripted model in test' }
-    return {
-      userId: 'user-1',
-      projectId: 'proj-1',
-      model,
-      models: fakeModelSourceOf(model),
-      classifier: { on: false, reason: 'no classifier model is set' },
-      quality: { enabled: false, policies: {} },
-      rotation: { autoRotateAtPercent: 85 },
-      sandbox: {
-        configured: true,
-        provider: ESandboxProvider.Vercel,
-        credentials: { provider: ESandboxProvider.Vercel, token: '', teamId: '', projectId: '' },
-      },
-      workspace: {
-        remoteUrl: null,
-        baseBranch: null,
-        additionalRepos: [],
-        setupScript: process.env.SETUP_SCRIPT ?? '',
-      },
-      skills: [],
-    }
-  },
-  models: async () => fakeModelSourceOf({ configured: false, gap: 'scripted model in test' }),
-})
 
 const noPodResizeDispatcher: JobsProjectDispatcher = {
   dispatch: async () => ({ runId: 'test-host-process' }),
@@ -292,7 +257,7 @@ const main = async (): Promise<void> => {
       launchDirectory: workspace,
       sandboxHome: process.env.SANDBOX_HOME,
       panelHolds: (sessionId) => held?.demandOf().panel.countOf(sessionId) ?? 0,
-      plugins: process.env.FAULT_PLUGINS === '1' ? composedPlugins : undefined,
+      plugins: rigPluginsOf(composedPlugins),
       log,
       pingMs: numberEnv('PING_MS', 10_000),
     }),
