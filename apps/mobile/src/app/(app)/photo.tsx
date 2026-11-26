@@ -4,10 +4,9 @@ import { router, useLocalSearchParams } from 'expo-router'
 import { Share2, X } from 'lucide-react-native'
 import { useCallback } from 'react'
 import { Alert, StyleSheet, View } from 'react-native'
-import { useSafeAreaInsets } from 'react-native-safe-area-context'
 
-import { modalInsetsOf } from '../../layout/posture'
-import { usePosture } from '../../layout/use-posture'
+import { contentInsetsOf } from '../../layout/posture'
+import { usePosture, useWindowInsets } from '../../layout/use-posture'
 import { PhotoActionButton } from '../../thread/photos/photo-action-button'
 import { photoOf } from '../../thread/photos/photo-store'
 import { PhotoTitle } from '../../thread/photos/photo-title'
@@ -17,7 +16,7 @@ import { ZoomablePhoto } from '../../thread/photos/zoomable-photo'
 export default function PhotoScreen() {
   const theme = useTheme()
   const posture = usePosture()
-  const insets = modalInsetsOf({ insets: useSafeAreaInsets(), posture })
+  const insets = contentInsetsOf({ insets: useWindowInsets(), posture })
   const { id } = useLocalSearchParams<{ id?: string }>()
   const photo = photoOf(id)
 
@@ -32,7 +31,9 @@ export default function PhotoScreen() {
   }, [photo])
 
   return (
-    <View style={[styles.root, { paddingRight: insets.right, backgroundColor: theme.sidebar }]}>
+    <View
+      style={[styles.root, { paddingRight: posture.railWidth, backgroundColor: theme.sidebar }]}
+    >
       <View style={[styles.content, { backgroundColor: theme.background }]}>
         {photo === undefined ? (
           <View style={styles.center}>
@@ -47,7 +48,11 @@ export default function PhotoScreen() {
           pointerEvents="box-none"
           style={[
             styles.actions,
-            { top: insets.top + space(2), left: insets.left + space(4), right: space(4) },
+            {
+              top: insets.top + space(2),
+              left: insets.left + space(4),
+              right: insets.right + space(4),
+            },
           ]}
         >
           <PhotoActionButton

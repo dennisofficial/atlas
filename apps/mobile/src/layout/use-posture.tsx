@@ -2,22 +2,31 @@ import { createContext, type ReactNode, useContext, useMemo } from 'react'
 import { useWindowDimensions } from 'react-native'
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
 
-import { postureOf, type TPosture } from './posture'
+import { postureOf, type TInsets, type TPosture } from './posture'
 
-const PostureContext = createContext<TPosture | null>(null)
+type TWindowLayout = { posture: TPosture; insets: TInsets }
 
-const useWindowPosture = (): TPosture => {
+const PostureContext = createContext<TWindowLayout | null>(null)
+
+const useWindowLayout = (): TWindowLayout => {
   const { width, height } = useWindowDimensions()
   const insets = useSafeAreaInsets()
-  return useMemo(() => postureOf({ width, height, insets }), [width, height, insets])
+  return useMemo(
+    () => ({ posture: postureOf({ width, height, insets }), insets }),
+    [width, height, insets],
+  )
 }
 
 export const PostureProvider = ({ children }: { children: ReactNode }) => (
-  <PostureContext.Provider value={useWindowPosture()}>{children}</PostureContext.Provider>
+  <PostureContext.Provider value={useWindowLayout()}>{children}</PostureContext.Provider>
 )
 
-export const usePosture = (): TPosture => {
+const useProvidedLayout = (): TWindowLayout => {
   const provided = useContext(PostureContext)
-  const measured = useWindowPosture()
+  const measured = useWindowLayout()
   return provided ?? measured
 }
+
+export const usePosture = (): TPosture => useProvidedLayout().posture
+
+export const useWindowInsets = (): TInsets => useProvidedLayout().insets
