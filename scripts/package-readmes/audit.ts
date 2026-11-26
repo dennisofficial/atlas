@@ -6,8 +6,6 @@ export type PackageManifest = {
 
 export const README_EXEMPT = [] as const
 
-export const README_MAX_LINES = 150
-
 export const specifierOf = (args: { name: string; subpath: string }): string =>
   args.subpath === '.' ? args.name : `${args.name}/${args.subpath.replace(/^\.\//, '')}`
 
@@ -30,11 +28,6 @@ const entryPointProblems = (args: {
       : [`entry point ${specifier} is not named in backticks`]
   })
 
-const lengthProblems = (readme: string): string[] => {
-  const count = linesOf(readme).length
-  return count > README_MAX_LINES ? [`${count} lines is more than ${README_MAX_LINES}`] : []
-}
-
 export const auditReadme = (args: {
   manifest: PackageManifest
   readme: string | undefined
@@ -47,6 +40,5 @@ export const auditReadme = (args: {
       name: args.manifest.name,
       exports: args.manifest.exports,
     }),
-    ...lengthProblems(args.readme),
   ]
 }
