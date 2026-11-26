@@ -24,6 +24,7 @@ import {
 } from '../tail-follow'
 import type { AgentLinks } from '../session/agent-links'
 import { BootRowView } from './boot-row'
+import { QueuedTurns, type QueuedTurnsProps } from './queued-turns'
 import { ThreadRowView } from './thread-row'
 
 const NEAR_TOP_PX = 400
@@ -64,6 +65,7 @@ export const Transcript = ({
   agentLinks,
   sessionNameOf,
   onOpenAgent,
+  queued,
 }: {
   rows: readonly ThreadRow[]
   working: boolean
@@ -76,6 +78,7 @@ export const Transcript = ({
   agentLinks?: AgentLinks | undefined
   sessionNameOf?: SessionNameOf | undefined
   onOpenAgent?: ((agentId: string) => void) | undefined
+  queued?: QueuedTurnsProps | undefined
 }) => {
   const listRef = useRef<FlatList<ThreadRow>>(null)
   const tail = useRef<TTailFollow>(FOLLOWING_TAIL)
@@ -145,7 +148,23 @@ export const Transcript = ({
       <BootRowView view={boot} now={now} onRetry={onRetryBoot ?? NO_RETRY} />
     )
 
-  if (rows.length === 0 && !working && header === null) {
+  const hasQueued = queued !== undefined && queued.queued.rows.length > 0
+  const footer =
+    !showWorking && !hasQueued ? undefined : (
+      <>
+        {showWorking ? <WorkingFooter /> : null}
+        {queued === undefined ? null : (
+          <QueuedTurns
+            {...queued}
+            threadId={threadId}
+            sessionId={sessionId}
+            sessionNameOf={sessionNameOf}
+          />
+        )}
+      </>
+    )
+
+  if (rows.length === 0 && !working && header === null && !hasQueued) {
     return (
       <View style={styles.empty}>
         <Text size={ETextRole.Sm} weight={EFontWeight.Medium}>
@@ -178,7 +197,7 @@ export const Transcript = ({
       onContentSizeChange={handleContentSizeChange}
       onLayout={handleLayout}
       ListHeaderComponent={header ?? undefined}
-      ListFooterComponent={showWorking ? WorkingFooter : undefined}
+      ListFooterComponent={footer}
     />
   )
 }
