@@ -177,24 +177,20 @@ export async function takeModelStepWithRetry(args: {
     }
 
     for (;;) {
-      const run = (onChunk: ChunkFilter | undefined) =>
-        attemptModelStep({
+      const run = (onChunk: ChunkFilter | undefined) => {
+        const ended = args.pause?.beginModelStep()
+        return attemptModelStep({
           model: args.model,
           tools: args.tools,
           onChunk,
           assembled,
           signal: sleepSignal,
-        })
-      const ended = args.pause?.beginModelStep()
-      const attempt = await (async () => {
-        try {
-          return args.streamer === undefined
-            ? await run(args.onChunk)
-            : await args.streamer.attempt({ filter: args.onChunk, signal: sleepSignal, run })
-        } finally {
-          ended?.()
-        }
-      })()
+        }).finally(() => ended?.())
+      }
+      const attempt =
+        args.streamer === undefined
+          ? await run(args.onChunk)
+          : await args.streamer.attempt({ filter: args.onChunk, signal: sleepSignal, run })
 
       if (attempt.ok) return attempt.stepped
 
