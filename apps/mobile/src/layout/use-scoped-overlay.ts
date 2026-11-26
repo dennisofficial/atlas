@@ -1,12 +1,19 @@
 import { useCallback, useState } from 'react'
 
-import { closedOverlayOf, scopedOverlayOf, type TOverlayScope } from './scoped-overlay'
+import { defaultOverlayOf, scopedOverlayOf, type TOverlayScope } from './scoped-overlay'
 
 export type TScopedOverlayState = { open: boolean; setOpen: (open: boolean) => void }
 
-export const useScopedOverlay = ({ layout, screen }: TOverlayScope): TScopedOverlayState => {
-  const [overlay, setOverlay] = useState(() => closedOverlayOf({ layout, screen }))
-  const current = scopedOverlayOf({ overlay, scope: { layout, screen } })
+export const useScopedOverlay = ({
+  scope,
+  openByDefault,
+}: {
+  scope: TOverlayScope
+  openByDefault: boolean
+}): TScopedOverlayState => {
+  const { layout, screen } = scope
+  const [overlay, setOverlay] = useState(() => defaultOverlayOf({ scope, openByDefault }))
+  const current = scopedOverlayOf({ overlay, scope, openByDefault })
   if (current !== overlay) setOverlay(current)
   const setOpen = useCallback(
     (open: boolean) => setOverlay({ open, scope: { layout, screen } }),

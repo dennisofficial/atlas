@@ -4,7 +4,10 @@ import { PANEL_WIDTH } from '../../layout/pane-layout'
 import { ESessionsListLayout } from '../../layout/posture'
 import { OVERLAY_MIN_WIDTH, OVERLAY_WIDTH_RATIO } from '../sessions-overlay'
 import {
+  drawerDockedOf,
   drawerGeometryOf,
+  drawerOpenByDefaultOf,
+  drawerScopeOf,
   drawerSwipeEnabledOf,
   opensDrawerWithoutSessionOf,
 } from '../drawer-layout'
@@ -72,5 +75,38 @@ describe('drawerSwipeEnabledOf', () => {
     expect(
       drawerSwipeEnabledOf({ geometry: { permanent: true, width: PANEL_WIDTH }, open: false }),
     ).toBe(false)
+  })
+})
+
+describe('drawerOpenByDefaultOf', () => {
+  it('opens the panel by default in landscape and closes the drawer elsewhere', () => {
+    expect(drawerOpenByDefaultOf({ listLayout: ESessionsListLayout.Panel })).toBe(true)
+    expect(drawerOpenByDefaultOf({ listLayout: ESessionsListLayout.Overlay })).toBe(false)
+    expect(drawerOpenByDefaultOf({ listLayout: ESessionsListLayout.Stacked })).toBe(false)
+  })
+})
+
+describe('drawerScopeOf', () => {
+  it('keeps a hidden panel hidden when another session opens', () => {
+    expect(drawerScopeOf({ listLayout: ESessionsListLayout.Panel, selected: 'ses_a' })).toEqual({
+      layout: ESessionsListLayout.Panel,
+      screen: null,
+    })
+  })
+
+  it('scopes the overlay drawer to the open session', () => {
+    expect(drawerScopeOf({ listLayout: ESessionsListLayout.Overlay, selected: 'ses_a' })).toEqual({
+      layout: ESessionsListLayout.Overlay,
+      screen: 'ses_a',
+    })
+  })
+})
+
+describe('drawerDockedOf', () => {
+  it('docks the panel beside the session only while it is open', () => {
+    const panel = { permanent: true, width: PANEL_WIDTH }
+    expect(drawerDockedOf({ geometry: panel, open: true })).toBe(true)
+    expect(drawerDockedOf({ geometry: panel, open: false })).toBe(false)
+    expect(drawerDockedOf({ geometry: { permanent: false, width: 430 }, open: true })).toBe(false)
   })
 })

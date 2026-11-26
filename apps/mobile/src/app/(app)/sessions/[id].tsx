@@ -45,7 +45,7 @@ export default function SessionScreen() {
   const session = useSessionScreen({ sessionId: id, fallbackTitle: title })
   const attachments = useAttachments()
   const model = session.commands.model
-  const { setOpen } = useSessionsDrawer()
+  const { open: drawerOpen, setOpen } = useSessionsDrawer()
 
   useFocusEffect(
     useCallback(() => {
@@ -80,7 +80,9 @@ export default function SessionScreen() {
     [model],
   )
 
-  const showsSessions = sessionHeaderLeadingOf({ posture }).includes(EHeaderLeadingItem.Sessions)
+  const showsSessions = sessionHeaderLeadingOf({ posture, drawerOpen }).includes(
+    EHeaderLeadingItem.Sessions,
+  )
   const sessionsHeaderItem = {
     type: 'custom' as const,
     element: <SessionsButton onPress={handleOpenSessions} />,

@@ -1,15 +1,24 @@
-import { EFontWeight, ETextRole, Text } from '@dltech/atlas-ui-native'
+import {
+  Button,
+  EButtonSize,
+  EButtonVariant,
+  EFontWeight,
+  ETextRole,
+  Text,
+} from '@dltech/atlas-ui-native'
 import { space } from '@dltech/atlas-ui/tokens'
+import { PanelLeft } from 'lucide-react-native'
 import { useState } from 'react'
 import { StyleSheet, View } from 'react-native'
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
 
-import { EControlsPlacement } from '../layout/posture'
+import { EControlsPlacement, ESessionsListLayout } from '../layout/posture'
 import { usePosture } from '../layout/use-posture'
 import { AccountButton } from '../navigation/account-button'
 import { NewSessionButton } from '../navigation/new-session-button'
 import { SearchField } from './search-field'
 import type { ISessionEntry } from './session-groups'
+import { useSessionsDrawer } from './sessions-drawer-state'
 import { SessionsList } from './sessions-list'
 
 export const SessionsDrawerShell = ({
@@ -22,6 +31,8 @@ export const SessionsDrawerShell = ({
   const posture = usePosture()
   const insets = useSafeAreaInsets()
   const [query, setQuery] = useState('')
+  const { setOpen } = useSessionsDrawer()
+  const handleHide = () => setOpen(false)
   return (
     <View style={[styles.content, { paddingTop: insets.top + space(2) }]}>
       <View style={styles.header}>
@@ -36,6 +47,15 @@ export const SessionsDrawerShell = ({
         <View style={styles.actions}>
           {posture.controls === EControlsPlacement.BottomBar ? <AccountButton /> : null}
           <NewSessionButton />
+          {posture.sessionsList === ESessionsListLayout.Panel ? (
+            <Button
+              label="Hide sessions"
+              icon={PanelLeft}
+              variant={EButtonVariant.Ghost}
+              size={EButtonSize.IconLg}
+              onPress={handleHide}
+            />
+          ) : null}
         </View>
       </View>
       <View style={styles.search}>

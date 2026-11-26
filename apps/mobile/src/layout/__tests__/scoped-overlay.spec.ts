@@ -1,53 +1,67 @@
 import { describe, expect, it } from 'bun:test'
 
 import { ESessionsListLayout } from '../posture'
-import { closedOverlayOf, scopedOverlayOf, type TScopedOverlay } from '../scoped-overlay'
+import { defaultOverlayOf, scopedOverlayOf, type TScopedOverlay } from '../scoped-overlay'
 
-const openOn = (layout: ESessionsListLayout, screen: string | null): TScopedOverlay => ({
-  open: true,
-  scope: { layout, screen },
-})
+const overlayOn = ({
+  open,
+  layout,
+  screen,
+}: {
+  open: boolean
+  layout: ESessionsListLayout
+  screen: string | null
+}): TScopedOverlay => ({ open, scope: { layout, screen } })
 
 describe('scopedOverlayOf', () => {
-  it('stays open while the layout and the screen stay the same', () => {
-    const overlay = openOn(ESessionsListLayout.Overlay, 'ses_a')
+  it('keeps the state while the layout and the screen stay the same', () => {
+    const overlay = overlayOn({ open: true, layout: ESessionsListLayout.Overlay, screen: 'ses_a' })
     expect(
-      scopedOverlayOf({ overlay, scope: { layout: ESessionsListLayout.Overlay, screen: 'ses_a' } }),
+      scopedOverlayOf({
+        overlay,
+        scope: { layout: ESessionsListLayout.Overlay, screen: 'ses_a' },
+        openByDefault: false,
+      }),
     ).toBe(overlay)
   })
 
-  it('closes when a Duo turns from landscape back to portrait', () => {
+  it('goes back to closed when a Duo turns from landscape back to portrait', () => {
+    const scope = { layout: ESessionsListLayout.Overlay, screen: 'ses_a' }
     expect(
       scopedOverlayOf({
-        overlay: openOn(ESessionsListLayout.Panel, 'ses_a'),
-        scope: { layout: ESessionsListLayout.Overlay, screen: 'ses_a' },
+        overlay: overlayOn({ open: true, layout: ESessionsListLayout.Panel, screen: null }),
+        scope,
+        openByDefault: false,
       }),
-    ).toEqual(closedOverlayOf({ layout: ESessionsListLayout.Overlay, screen: 'ses_a' }))
+    ).toEqual(defaultOverlayOf({ scope, openByDefault: false }))
   })
 
-  it('closes when the phone unfolds or folds', () => {
+  it('goes back to open when a Duo turns to landscape with the panel hidden earlier', () => {
     expect(
       scopedOverlayOf({
-        overlay: openOn(ESessionsListLayout.Stacked, 'ses_a'),
+        overlay: overlayOn({ open: false, layout: ESessionsListLayout.Overlay, screen: 'ses_a' }),
+        scope: { layout: ESessionsListLayout.Panel, screen: null },
+        openByDefault: true,
+      }).open,
+    ).toBe(true)
+  })
+
+  it('goes back to closed when the phone unfolds or folds', () => {
+    expect(
+      scopedOverlayOf({
+        overlay: overlayOn({ open: true, layout: ESessionsListLayout.Stacked, screen: 'ses_a' }),
         scope: { layout: ESessionsListLayout.Overlay, screen: 'ses_a' },
+        openByDefault: false,
       }).open,
     ).toBe(false)
   })
 
-  it('closes when another session opens, such as a new one after send', () => {
+  it('goes back to closed when another session opens, such as a new one after send', () => {
     expect(
       scopedOverlayOf({
-        overlay: openOn(ESessionsListLayout.Overlay, 'ses_a'),
+        overlay: overlayOn({ open: true, layout: ESessionsListLayout.Overlay, screen: 'ses_a' }),
         scope: { layout: ESessionsListLayout.Overlay, screen: 'ses_new' },
-      }),
-    ).toEqual(closedOverlayOf({ layout: ESessionsListLayout.Overlay, screen: 'ses_new' }))
-  })
-
-  it('closes when the first session opens from the empty sessions screen', () => {
-    expect(
-      scopedOverlayOf({
-        overlay: openOn(ESessionsListLayout.Stacked, null),
-        scope: { layout: ESessionsListLayout.Stacked, screen: 'ses_a' },
+        openByDefault: false,
       }).open,
     ).toBe(false)
   })

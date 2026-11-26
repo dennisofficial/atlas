@@ -7,7 +7,7 @@ import { Drawer } from 'react-native-drawer-layout'
 import { usePosture } from '../layout/use-posture'
 import { applyNavigation } from '../navigation/apply-navigation'
 import { sessionOpenOf } from '../navigation/root-navigation'
-import { drawerGeometryOf, drawerSwipeEnabledOf } from './drawer-layout'
+import { drawerDockedOf, drawerGeometryOf, drawerSwipeEnabledOf } from './drawer-layout'
 import { DRAWER_PAN, tuneDrawerPan } from './drawer-pan'
 import type { ISessionEntry } from './session-groups'
 import { useSelectedSession } from './selected-session'
@@ -22,6 +22,7 @@ export const SessionsDrawer = ({ children }: { children: ReactNode }) => {
   const selected = useSelectedSession()
   const { open, setOpen } = useSessionsDrawer()
   const geometry = drawerGeometryOf({ listLayout: posture.sessionsList, width })
+  const docked = drawerDockedOf({ geometry, open })
 
   const handleOpen = () => setOpen(true)
   const handleClose = () => setOpen(false)
@@ -33,10 +34,10 @@ export const SessionsDrawer = ({ children }: { children: ReactNode }) => {
 
   return (
     <Drawer
-      open={geometry.permanent || open}
+      open={open}
       onOpen={handleOpen}
       onClose={handleClose}
-      drawerType={geometry.permanent ? 'permanent' : 'front'}
+      drawerType={docked ? 'permanent' : 'front'}
       swipeEnabled={drawerSwipeEnabledOf({ geometry, open })}
       swipeEdgeWidth={DRAWER_PAN.edgeWidth}
       swipeMinDistance={DRAWER_PAN.minDistance}
@@ -45,7 +46,7 @@ export const SessionsDrawer = ({ children }: { children: ReactNode }) => {
       drawerStyle={{
         backgroundColor: theme.sidebar,
         borderRightColor: theme.border,
-        borderRightWidth: geometry.permanent ? StyleSheet.hairlineWidth : 0,
+        borderRightWidth: docked ? StyleSheet.hairlineWidth : 0,
         width: geometry.width,
       }}
       renderDrawerContent={() => (

@@ -1,5 +1,6 @@
 import { PANEL_WIDTH } from '../layout/pane-layout'
 import { ESessionsListLayout } from '../layout/posture'
+import type { TOverlayScope } from '../layout/scoped-overlay'
 import { overlayWidthOf } from './sessions-overlay'
 
 export type TDrawerGeometry = { permanent: boolean; width: number }
@@ -32,3 +33,28 @@ export const drawerSwipeEnabledOf = ({
   geometry: TDrawerGeometry
   open: boolean
 }): boolean => !geometry.permanent && !open
+
+export const drawerOpenByDefaultOf = ({
+  listLayout,
+}: {
+  listLayout: ESessionsListLayout
+}): boolean => listLayout === ESessionsListLayout.Panel
+
+export const drawerScopeOf = ({
+  listLayout,
+  selected,
+}: {
+  listLayout: ESessionsListLayout
+  selected: string | null
+}): TOverlayScope => ({
+  layout: listLayout,
+  screen: listLayout === ESessionsListLayout.Panel ? null : selected,
+})
+
+export const drawerDockedOf = ({
+  geometry,
+  open,
+}: {
+  geometry: TDrawerGeometry
+  open: boolean
+}): boolean => geometry.permanent && open
