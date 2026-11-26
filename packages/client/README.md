@@ -40,9 +40,8 @@ The headless client library that web, the TUI and the mobile app share.
 ### Follow a session
 
 - `createStreamConnection({ transport, scheduler, networkSignal?, eventSchema?, knownEventTypes?, views? })`:
-  the `StreamConnection`. `follow({ sessionId, threadId?, log? })` follows one thread, the main one
-  by default; `followSessions()` gives the live list. A closed follow stays warm (the last 8): following
-  the same session again shows its transcript at once and catches up from the head it holds.
+  the `StreamConnection`. `follow({ sessionId, threadId?, log? })` follows one thread (main by default),
+  and a reopen of one of the last 8 closed follows shows it at once; `followSessions()` is the list.
 - `createSessionFollower(args)`: a session's follower, its connection state and snapshot.
   `HYDRATE_TIMEOUT_MS` bounds the first load. `createSessionsFeed({ follow, write })` holds the list.
 - `StreamTransport`, `StreamScheduler`, `StreamNetworkSignal`, `systemStreamScheduler`,
