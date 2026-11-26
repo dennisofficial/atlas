@@ -585,7 +585,8 @@ export class SessionsService {
   }
 
   async wake(args: { userId: string; sessionId: string }): Promise<SessionWakeOutput> {
-    requireLiveSession(await this.requireOwnedSession(args))
+    const session = requireLiveSession(await this.requireOwnedSession(args))
+    await this.plane.clearPodPark({ sessionId: session.podSessionId ?? session.sessionId })
     const { lease, live } = await this.plane.currentLease({ sessionId: args.sessionId })
     if (lease.holderHostId !== null && live) return { state: 'elsewhere' }
     await this.plane.revoke({ sessionId: args.sessionId, wantsHolder: true })

@@ -33,6 +33,8 @@ const rowOf = (overrides: Partial<ControlSessionRow>): ControlSessionRow => ({
   podAppliedGeneration: null,
   podResizeError: null,
   podWaitingSince: null,
+  podParkedAt: null,
+  podParkError: null,
   routineId: null,
   ...overrides,
 })

@@ -1,6 +1,7 @@
 import {
   attachmentSchema,
   EAttachmentStore,
+  EPodPowerPhase,
   ETurnEndedBy,
   ETurnOutcome,
   ESessionStatus,
@@ -340,6 +341,13 @@ export const sessionStatusOutputSchema = z.strictObject({
       diskGb: z.number().int().min(1).optional(),
       phase: z.enum(['steady', 'resizing', 'waiting', 'failed']),
       error: z.string().optional(),
+      power: z
+        .strictObject({
+          phase: z.enum(EPodPowerPhase),
+          since: z.string().optional(),
+          error: z.string().optional(),
+        })
+        .optional(),
       sizing: podSizingOutputSchema.optional(),
     })
     .optional(),

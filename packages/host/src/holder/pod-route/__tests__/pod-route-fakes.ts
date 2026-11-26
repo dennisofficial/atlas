@@ -30,6 +30,7 @@ export type PlaneState = {
   holderHostId: number | null
   wantsHolder: boolean
   live?: boolean | undefined
+  parkedAt?: string | null | undefined
 }
 
 export type PlaneCalls = {
@@ -67,6 +68,9 @@ export const fakePlaneOf = (
         lease: leaseOf(params.sessionId),
         live: state.live ?? state.holderHostId !== null,
       }
+    },
+    async readSession(): Promise<{ podParkedAt: string | null }> {
+      return { podParkedAt: state.parkedAt ?? null }
     },
     async wake(params: { sessionIds: string[] }): Promise<void> {
       calls.wakes.push(params)

@@ -87,8 +87,11 @@ import { sessionDigestsIn } from './postgres-digests'
 import { sessionBucketCountsIn } from './postgres-session-buckets'
 import { podPeersPlacedIn, podSessionsPlacedIn } from './postgres-peers'
 import {
+  clearPodParkIn,
   clearTitleFromIn,
   createSessionIn,
+  failPodParkIn,
+  parkPodIn,
   readNestedChildrenIn,
   readSessionIn,
   setSandboxInstanceIdIn,
@@ -203,6 +206,18 @@ export class PostgresTx implements ControlTx {
 
   async setSandboxStatus(params: Parameters<ControlTx['setSandboxStatus']>[0]) {
     return setSandboxStatusIn({ tx: this.tx, ...params })
+  }
+
+  async parkPod(params: Parameters<ControlTx['parkPod']>[0]) {
+    return parkPodIn({ tx: this.tx, ...params })
+  }
+
+  async failPodPark(params: Parameters<ControlTx['failPodPark']>[0]) {
+    return failPodParkIn({ tx: this.tx, ...params })
+  }
+
+  async clearPodPark(params: Parameters<ControlTx['clearPodPark']>[0]) {
+    return clearPodParkIn({ tx: this.tx, ...params })
   }
 
   async readSession(params: { sessionId: string }): Promise<ControlSessionRow | undefined> {

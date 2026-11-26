@@ -30,6 +30,7 @@ const declaredStateOf = (args: {
     case ESandboxStatus.Failed:
       return { state: EPodState.Stopped, label: 'Failed', ...reasoned }
     case ESandboxStatus.Stopping:
+      return { state: EPodState.Stopped, label: 'Stopping', ...reasoned }
     case ESandboxStatus.Stopped:
     case ESandboxStatus.Deleting:
     case ESandboxStatus.Deleted:

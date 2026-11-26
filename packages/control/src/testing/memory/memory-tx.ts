@@ -92,6 +92,7 @@ import { leasesHeldByIn, writeLeaseIn } from './memory-leases'
 import { createThreadIn, readThreadIn, writeThreadHeadIn } from './memory-threads'
 import { sessionBucketCountsIn, sessionDigestsIn } from './memory-digests'
 import { podPeersPlacedIn, podSessionsPlacedIn } from './memory-peers'
+import { clearPodParkIn, failPodParkIn, parkPodIn } from './memory-pod-park'
 import {
   clearTitleFromIn,
   createSessionIn,
@@ -161,6 +162,25 @@ export class MemoryTx extends MemoryTxViews implements ControlTx {
     if (sessionId === null) return false
     this.pending.push({ sessionId })
     return true
+  }
+
+  async parkPod(params: Parameters<ControlTx['parkPod']>[0]) {
+    const parked = parkPodIn({ state: this.state, ...params })
+    await this.notifyWake(params.sessionId)
+    this.pending.push({ sessionId: params.sessionId })
+    return parked
+  }
+
+  async failPodPark(params: Parameters<ControlTx['failPodPark']>[0]) {
+    const changed = failPodParkIn({ state: this.state, ...params })
+    if (changed) this.pending.push({ sessionId: params.sessionId })
+    return changed
+  }
+
+  async clearPodPark(params: Parameters<ControlTx['clearPodPark']>[0]) {
+    const changed = clearPodParkIn({ state: this.state, ...params })
+    if (changed) this.pending.push({ sessionId: params.sessionId })
+    return changed
   }
 
   async readSession(params: { sessionId: string }): Promise<ControlSessionRow | undefined> {

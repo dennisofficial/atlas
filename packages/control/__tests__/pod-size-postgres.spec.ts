@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'bun:test'
 
+import { EPodPowerPhase } from '@dltech/atlas-core'
 import { useTestDatabase } from '@dltech/atlas-db/testing'
 
 import { ControlPlane } from '../src/control-plane'
@@ -59,6 +60,7 @@ describe('pod size on postgres', () => {
       desiredShape: { vcpus: 2, memoryGb: 4 },
       desiredVcpus: 2,
       phase: 'steady',
+      power: { phase: EPodPowerPhase.Asleep },
       sizing: AGENT37_SIZING,
     })
   })
@@ -83,6 +85,7 @@ describe('pod size on postgres', () => {
       desiredVcpus: 2,
       phase: 'failed',
       error: 'No sandbox to resize',
+      power: { phase: EPodPowerPhase.Asleep },
       sizing: AGENT37_SIZING,
     })
   })
@@ -108,6 +111,7 @@ describe('pod size on postgres', () => {
       desiredShape: { vcpus: 8, memoryGb: 64 },
       desiredVcpus: 8,
       phase: 'resizing',
+      power: { phase: EPodPowerPhase.Asleep },
       sizing: AGENT37_SIZING,
     })
   })
@@ -122,6 +126,7 @@ describe('pod size on postgres', () => {
       shape: { vcpus: 4, memoryGb: null },
       actualVcpus: 4,
       phase: 'steady',
+      power: { phase: EPodPowerPhase.Asleep },
       sizing: AGENT37_SIZING,
     })
   })

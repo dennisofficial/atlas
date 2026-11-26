@@ -28,6 +28,8 @@ export type PodResizeSession = Pick<
   | 'podDesiredMemoryGb'
   | 'podDesiredDiskGb'
   | 'archivedAt'
+  | 'sandboxStatus'
+  | 'podParkedAt'
 >
 
 export type PodPlacedTarget = { sessionId: string; archivedAt: string | null }
@@ -44,6 +46,7 @@ export type PodResizeDeps = PodResizeInterruptDeps & {
   placed(args: { podSessionId: string }): Promise<readonly PodPlacedTarget[]>
   notice(args: { sessionId: string; notice: PodResizeNotice }): Promise<unknown>
   wake(args: { sessionId: string; epoch: number }): Promise<unknown>
+  park(args: { sandboxSessionId: string }): Promise<unknown>
   lease(args: { sessionId: string }): Promise<PodResizeLease>
   recordApplied(args: {
     sessionId: string
@@ -59,6 +62,8 @@ export type PodResizeDeps = PodResizeInterruptDeps & {
 }
 
 export const NO_SANDBOX_TO_RESIZE = 'No sandbox to resize'
+
+const ASLEEP_STATUSES: ReadonlySet<string> = new Set(['sleeping', 'stopped'])
 
 const POD_RESIZE_DURATION_MARGIN_MS = 5 * 60_000
 
@@ -85,6 +90,9 @@ export const runPodResize = async (args: {
     memoryGb: session.podDesiredMemoryGb ?? payload.memoryGb,
   }
   const sandboxSessionId = session.podSessionId ?? session.sessionId
+  // A stopped pod is woken by any exec, so it must be parked again on purpose
+  // (https://www.agent37.com/docs/agents-api/instance-auto-sleep.md).
+  const wasAsleep = session.podParkedAt !== null || ASLEEP_STATUSES.has(session.sandboxStatus ?? '')
   const diskGb = session.podDesiredDiskGb ?? payload.diskGb
   const targets = await deps.placed({ podSessionId: sandboxSessionId })
   const leases = await leasesOf({
@@ -147,6 +155,10 @@ export const runPodResize = async (args: {
     return { outcome: EPodResizeOutcome.Deferred }
   }
   if (session.archivedAt !== null || live(sandboxSessionId)) {
+    return { outcome: EPodResizeOutcome.Applied }
+  }
+  if (wasAsleep) {
+    await deps.park({ sandboxSessionId })
     return { outcome: EPodResizeOutcome.Applied }
   }
   await deps.wake({

@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from 'react'
 
-import { podBusyFactsOf, podResizeBusyOf, type PodBusy } from '@dltech/atlas-core'
+import { EPodPowerPhase, podBusyFactsOf, podResizeBusyOf, type PodBusy } from '@dltech/atlas-core'
 import {
   EPodAction,
   PodSection,
@@ -78,6 +78,14 @@ export type PodSectionView = {
   pendingShape?: PodShape
   resizeWaiting?: true
   resizeError?: string
+  powerPhase?: EPodPowerPhase
+  powerError?: string
+}
+
+const powerStateOf = (phase: EPodPowerPhase | undefined): EPodState | undefined => {
+  if (phase === EPodPowerPhase.Asleep) return EPodState.Parked
+  if (phase === EPodPowerPhase.Starting) return EPodState.Starting
+  return undefined
 }
 
 export const podSectionViewOf = (args: {
@@ -87,8 +95,10 @@ export const podSectionViewOf = (args: {
   sandboxProvider?: SessionStatusOutput['sandboxProvider']
 }): PodSectionView => {
   const { pod, live, sandbox, sandboxProvider } = args
+  const power = pod?.power
   const status = podChipStatusOf({ pod: pod ?? { phase: 'steady' }, live, sandbox })
-  const state = status?.state ?? (live ? EPodState.Running : EPodState.Parked)
+  const state =
+    powerStateOf(power?.phase) ?? status?.state ?? (live ? EPodState.Running : EPodState.Parked)
   const offered = pod?.sizing?.offered ?? [DEFAULT_POD_SHAPE]
   const shape = podShapeOfView(pod) ?? pod?.desiredShape ?? offered[0] ?? DEFAULT_POD_SHAPE
   const pendingShape =
@@ -103,6 +113,8 @@ export const podSectionViewOf = (args: {
     ...(pendingShape === undefined ? {} : { pendingShape }),
     ...(pod?.phase === 'waiting' ? { resizeWaiting: true as const } : {}),
     ...(pod?.error === undefined ? {} : { resizeError: pod.error }),
+    ...(power === undefined ? {} : { powerPhase: power.phase }),
+    ...(power?.error === undefined ? {} : { powerError: power.error }),
   }
 }
 
@@ -141,8 +153,10 @@ const sectionOf = (props: PodPaneSectionProps): PodSectionProps => {
     diskLimitGb: props.diskGb,
     sizeMenuOpen: props.sizeMenuOpen,
     onSizeMenuOpenChange: props.onSizeMenuOpenChange,
-    stopping: props.power.state.phase === 'sleeping',
-    starting: props.power.state.phase === 'waking',
+    stopping:
+      props.power.state.phase === 'sleeping' || props.powerPhase === EPodPowerPhase.Stopping,
+    starting: props.power.state.phase === 'waking' || props.powerPhase === EPodPowerPhase.Starting,
+    powerError: props.powerError,
     message: props.power.message,
     confirmAction: props.power.state.phase === 'confirm' ? EPodAction.Stop : undefined,
     onStart: props.onStart,
@@ -182,7 +196,11 @@ export function SessionPodSection() {
     sandbox: status?.sandbox,
     sandboxProvider: status?.sandboxProvider,
   })
-  const power = usePodPower({ sessionId, declared: declaredPodStateOf(section.state) })
+  const power = usePodPower({
+    sessionId,
+    declared: declaredPodStateOf(section.state),
+    power: section.powerPhase,
+  })
   const running = section.state === EPodState.Running
   const metrics = usePodMetrics({ sessionId, enabled: running })
   const busy = podBusyOfView({ view, status })

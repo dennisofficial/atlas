@@ -136,6 +136,7 @@ export class FakePodResizeDispatcher {
 
 export const setupSessionsService = (
   over: {
+    clock?: () => string
     dispatcher?: FakePodResizeDispatcher
     ops?: PodOps | null
     analytics?: ProductAnalytics | null
@@ -143,7 +144,7 @@ export const setupSessionsService = (
     previews?: RecordingPreviewTeardown | null
   } = {},
 ) => {
-  const store = new InMemoryControlStore({ clock: () => NOW })
+  const store = new InMemoryControlStore({ clock: over.clock ?? (() => NOW) })
   store.markHostPresent(9001)
   const plane = new ControlPlane({ store })
   const registry = new FakeMediaRegistry()

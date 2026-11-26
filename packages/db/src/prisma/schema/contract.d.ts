@@ -23,7 +23,7 @@ import type {
 } from '@prisma/orm-postgres/contract/types';
 
 export type StorageHash =
-  StorageHashBase<'8d7bb4c0a917ecd62f0a95660731171b1ffaf8ed69846ad2993cb1b7261082b0'>;
+  StorageHashBase<'f25064e86faed013784d2529208762579252965c1faf1494f13e290450bef2eb'>;
 export type ExecutionHash =
   ExecutionHashBase<'dcc645688ebf8fba728af7bd88677133c3398047d6f8561e9d75dff312d17728'>;
 export type ProfileHash =
@@ -1083,6 +1083,8 @@ export namespace Models {
     podDesiredDiskGb: FieldOutputTypes['public']['Session']['podDesiredDiskGb'];
     podDesiredMemoryGb: FieldOutputTypes['public']['Session']['podDesiredMemoryGb'];
     podDesiredVcpus: FieldOutputTypes['public']['Session']['podDesiredVcpus'];
+    podParkError: FieldOutputTypes['public']['Session']['podParkError'];
+    podParkedAt: FieldOutputTypes['public']['Session']['podParkedAt'];
     podResizeError: FieldOutputTypes['public']['Session']['podResizeError'];
     podRetiredAt: FieldOutputTypes['public']['Session']['podRetiredAt'];
     podSessionId: FieldOutputTypes['public']['Session']['podSessionId'];
@@ -6740,6 +6742,19 @@ type ContractBase = Omit<
                   readonly dataType: 'pg/int4';
                   readonly codecId: 'pg/int4@1';
                   readonly nullable: true;
+                  readonly many: false;
+                };
+                readonly podParkError: {
+                  readonly dataType: 'pg/text';
+                  readonly codecId: 'pg/text@1';
+                  readonly nullable: true;
+                  readonly many: false;
+                };
+                readonly podParkedAt: {
+                  readonly dataType: 'pg/timestamptz';
+                  readonly codecId: 'pg/timestamptz-date@1';
+                  readonly nullable: true;
+                  readonly typeParams: { readonly precision: 3 };
                   readonly many: false;
                 };
                 readonly podResizeError: {
@@ -12988,6 +13003,18 @@ type ContractBase = Omit<
                 readonly nullable: true;
                 readonly type: { readonly kind: 'scalar'; readonly codecId: 'pg/int4@1' };
               };
+              readonly podParkError: {
+                readonly nullable: true;
+                readonly type: { readonly kind: 'scalar'; readonly codecId: 'pg/text@1' };
+              };
+              readonly podParkedAt: {
+                readonly nullable: true;
+                readonly type: {
+                  readonly kind: 'scalar';
+                  readonly codecId: 'pg/timestamptz-date@1';
+                  readonly typeParams: { readonly precision: 3 };
+                };
+              };
               readonly podResizeError: {
                 readonly nullable: true;
                 readonly type: { readonly kind: 'scalar'; readonly codecId: 'pg/text@1' };
@@ -13227,6 +13254,8 @@ type ContractBase = Omit<
                 readonly podDesiredDiskGb: { readonly column: 'podDesiredDiskGb' };
                 readonly podDesiredMemoryGb: { readonly column: 'podDesiredMemoryGb' };
                 readonly podDesiredVcpus: { readonly column: 'podDesiredVcpus' };
+                readonly podParkError: { readonly column: 'podParkError' };
+                readonly podParkedAt: { readonly column: 'podParkedAt' };
                 readonly podResizeError: { readonly column: 'podResizeError' };
                 readonly podRetiredAt: { readonly column: 'podRetiredAt' };
                 readonly podSessionId: { readonly column: 'podSessionId' };

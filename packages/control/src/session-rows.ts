@@ -31,6 +31,8 @@ export type ControlSessionRow = {
   podAppliedGeneration: number | null
   podResizeError: string | null
   podWaitingSince: string | null
+  podParkedAt: string | null
+  podParkError: string | null
   routineId: string | null
 }
 

@@ -72,6 +72,8 @@ export const toSessionRow = (row: {
   podAppliedGeneration: number | null
   podResizeError: string | null
   podWaitingSince: Date | null
+  podParkedAt: Date | null
+  podParkError: string | null
   routineId: string | null
 }): ControlSessionRow => ({
   sessionId: row.id,
@@ -103,6 +105,8 @@ export const toSessionRow = (row: {
   podAppliedGeneration: row.podAppliedGeneration,
   podResizeError: row.podResizeError,
   podWaitingSince: row.podWaitingSince === null ? null : iso(row.podWaitingSince),
+  podParkedAt: row.podParkedAt === null ? null : iso(row.podParkedAt),
+  podParkError: row.podParkError,
   routineId: row.routineId,
 })
 

@@ -1,4 +1,6 @@
 import { describe, expect, it } from 'bun:test'
+import { EPodPowerPhase } from '@dltech/atlas-core'
+
 import { ControlPlane } from '../src/control-plane'
 import { InMemoryControlStore } from '../src/testing'
 const NOW = '2026-11-19T12:00:00.000Z'
@@ -41,6 +43,7 @@ describe('pod size', () => {
       desiredShape: { vcpus: 4, memoryGb: 8 },
       desiredVcpus: 4,
       phase: 'resizing',
+      power: { phase: EPodPowerPhase.Asleep },
       sizing: AGENT37_SIZING,
     })
 
@@ -49,6 +52,7 @@ describe('pod size', () => {
       desiredShape: { vcpus: 8, memoryGb: 64 },
       desiredVcpus: 8,
       phase: 'resizing',
+      power: { phase: EPodPowerPhase.Asleep },
       sizing: AGENT37_SIZING,
     })
   })
@@ -74,6 +78,7 @@ describe('pod size', () => {
       desiredShape: { vcpus: 4, memoryGb: 16 },
       desiredVcpus: 4,
       phase: 'steady',
+      power: { phase: EPodPowerPhase.Asleep },
       sizing: AGENT37_SIZING,
     })
   })
@@ -95,6 +100,7 @@ describe('pod size', () => {
       desiredShape: { vcpus: 8, memoryGb: 64 },
       desiredVcpus: 8,
       phase: 'resizing',
+      power: { phase: EPodPowerPhase.Asleep },
       sizing: AGENT37_SIZING,
     })
   })
@@ -115,6 +121,7 @@ describe('pod size', () => {
       desiredVcpus: 4,
       phase: 'failed',
       error: 'sandbox refused the resize',
+      power: { phase: EPodPowerPhase.Asleep },
       sizing: AGENT37_SIZING,
     })
 
@@ -162,7 +169,11 @@ describe('pod size', () => {
   it('offers the provider shapes before any resize was ever asked for', async () => {
     const { plane } = await seed()
 
-    expect(await podOf(plane)).toEqual({ phase: 'steady', sizing: AGENT37_SIZING })
+    expect(await podOf(plane)).toEqual({
+      phase: 'steady',
+      power: { phase: EPodPowerPhase.Asleep },
+      sizing: AGENT37_SIZING,
+    })
   })
 
   it('records the disk a pod was created with, without asking for a resize', async () => {
@@ -174,7 +185,12 @@ describe('pod size', () => {
     expect(session?.podDesiredDiskGb).toBe(80)
     expect(session?.podSizeGeneration).toBe(0)
     expect(session?.podResizeError).toBeNull()
-    expect(await podOf(plane)).toEqual({ phase: 'steady', diskGb: 80, sizing: AGENT37_SIZING })
+    expect(await podOf(plane)).toEqual({
+      phase: 'steady',
+      diskGb: 80,
+      power: { phase: EPodPowerPhase.Asleep },
+      sizing: AGENT37_SIZING,
+    })
   })
 
   it('leaves an unknown session alone', async () => {

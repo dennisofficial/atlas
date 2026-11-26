@@ -41,6 +41,7 @@ import {
   waitingInputIdsOf,
 } from './held-inbox'
 import type { HeldSessionDeps } from './held-session-deps'
+import { podParkedOf } from './pod-park'
 import type { SessionRuntime } from './ports'
 import type { SessionRecord } from './record/record-adapter'
 
@@ -158,6 +159,9 @@ export const readHeldAction = async (args: {
   const runningShells = hold.holding
   const plan = resumePlanOf(loopStateOf({ events: resumeEvents }))
   const retryPending = actionable.some((entry) => entry.kind === INBOX_KIND_RETRY)
+  const parked = args.turnRunning
+    ? false
+    : await podParkedOf({ plane: deps.plane, sessionId: deps.sessionId })
   const resumable =
     !stopSettledPromptOf(events) &&
     (repairHeld ? retryPending && plan.kind === EResume.Continue : isResumablePlan(plan))
@@ -168,12 +172,13 @@ export const readHeldAction = async (args: {
       stopPending: actionable.some(isStop),
       messagePending,
       resumable,
+      parked,
       workspace: workspace.state,
       preparedBefore,
       retryPending: workspace.retryPending,
       idleDue: quiet && runningShells === 0 && args.childrenRunning === 0 && !args.setupRunning,
     }),
-    setupInFlight: setupInFlightOf(events),
+    setupInFlight: setupInFlightOf(events) && !parked,
     preparing: args.preparing,
     setupRunning: args.setupRunning,
   })

@@ -22,14 +22,20 @@ function wakingOf(state: EPodState): boolean {
 
 function stateTextOf({
   state,
+  starting,
+  stopping,
   resizing,
   waiting,
 }: {
   state: EPodState
+  starting: boolean
+  stopping: boolean
   resizing: boolean
   waiting: boolean
 }): string {
   if (waiting) return 'Waiting for idle…'
+  if (stopping) return 'Stopping…'
+  if (starting) return 'Starting…'
   return resizing ? 'Resizing…' : STATE_TEXT[state]
 }
 
@@ -114,7 +120,7 @@ export function PodSectionHeader({
           </Tooltip>
         </span>
         <span className="truncate text-[13px] leading-4">
-          {stateTextOf({ state, resizing, waiting })}
+          {stateTextOf({ state, starting, stopping, resizing, waiting })}
         </span>
       </span>
       {sizeControl}

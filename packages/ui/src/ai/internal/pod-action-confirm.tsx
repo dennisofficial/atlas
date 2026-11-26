@@ -25,7 +25,11 @@ export const POD_CONFIRM_LABEL: Record<EPodAction, string> = {
   [EPodAction.Resize]: 'Restart',
 }
 
-export const POD_CONFIRM_BODY = 'The current turn stops and running processes end. Files are kept.'
+export const POD_CONFIRM_BODY: Record<EPodAction, string> = {
+  [EPodAction.Stop]:
+    'The current turn stops. Services and shells pause and continue when the pod starts again. Preview links are down while it sleeps. Files are kept.',
+  [EPodAction.Resize]: 'The current turn stops and running processes end. Files are kept.',
+}
 
 export interface PodActionConfirmProps {
   action: EPodAction
@@ -38,7 +42,7 @@ export function PodActionConfirmBody({ action, onConfirm, onCancel }: PodActionC
     <>
       <AlertDialogHeader>
         <AlertDialogTitle>{POD_CONFIRM_TITLE[action]}</AlertDialogTitle>
-        <AlertDialogDescription>{POD_CONFIRM_BODY}</AlertDialogDescription>
+        <AlertDialogDescription>{POD_CONFIRM_BODY[action]}</AlertDialogDescription>
       </AlertDialogHeader>
       <AlertDialogFooter>
         <AlertDialogCancel onClick={onCancel}>Keep working</AlertDialogCancel>
