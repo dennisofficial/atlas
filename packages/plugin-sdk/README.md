@@ -79,8 +79,7 @@ A `PodSlot` declares:
 the capabilities `control`, `crew`, `messages`, `classifier`, `analytics`, `sessions`, `worktrees`,
 `resources`. `ctx.analytics.capture({event, properties})` sends a product event for the session's
 user; the host adds `session_id` and `thread_id`.
-`replayStableId()` returns an id that repeats when the same call body runs again, for a request to
-correlate with its own replay; it is undefined outside a tool call, so fall back to a local counter.
+`replayStableId()` gives an id that repeats on a replay of the same tool call; outside one it is undefined.
 `ctx.crew` is a `PodCrew`: `spawn` with a `group` wakes the parent once, after every member ends,
 `report({text})` answers the parent, and `say`, `stop`, `list` and `resume` act on one sub-agent.
 `ctx.control` is a `PodControl`: `exposePort({port})`, `settingsVersions()`, `memory`,
