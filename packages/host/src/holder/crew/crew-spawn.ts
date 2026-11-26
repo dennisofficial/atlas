@@ -9,6 +9,8 @@ import { scopeCallId } from '../../calls/call-scope'
 
 export const SPAWN_OP = 'crew.spawn'
 
+const briefKeyOf = (stepKey: string): string => `${stepKey}:brief`
+
 const stableWorktreeOf = (
   worktree: WorktreeEntryInfo | undefined,
 ): Pick<WorktreeEntryInfo, 'path' | 'branch'> | undefined =>
@@ -70,7 +72,10 @@ export class CrewSpawn {
       stepKey: args.stepKey,
     })
     const held = this.room.runs.get(agentId)
-    if (held !== undefined) return held.snapshot()
+    if (held !== undefined) {
+      await held.say({ text: args.args.prompt, clientId: briefKeyOf(args.stepKey) })
+      return held.snapshot()
+    }
     const callId = scopeCallId()
     const run = await ChildRun.open(
       this.openArgsOf({
@@ -79,7 +84,7 @@ export class CrewSpawn {
       }),
     )
     this.room.runs.set(run.agentId, run)
-    await run.say({ text: args.args.prompt, clientId: `${args.stepKey}:brief` })
+    await run.say({ text: args.args.prompt, clientId: briefKeyOf(args.stepKey) })
     await run.continueExisting()
     return run.snapshot()
   }
