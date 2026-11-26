@@ -1,15 +1,26 @@
-export class InFlightSteps {
-  private readonly calls = new Set<string>()
+export type StepEvent =
+  | { kind: 'in-flight'; scopeKey: string; stepKey: string }
+  | { kind: 'settled'; scopeKey: string; stepKey: string; handedOff: boolean }
 
-  mark(args: { callKey: string; step: boolean }): void {
-    if (args.step) {
-      this.calls.add(args.callKey)
+export class InFlightSteps {
+  private readonly byScope = new Map<string, Set<string>>()
+
+  apply(event: StepEvent): void {
+    if (event.kind === 'in-flight') {
+      this.stepsOf(event.scopeKey).add(event.stepKey)
       return
     }
-    this.calls.delete(args.callKey)
+    if (event.handedOff) return
+    this.byScope.get(event.scopeKey)?.delete(event.stepKey)
   }
 
-  detached(callKey: string): boolean {
-    return this.calls.has(callKey)
+  detached(scopeKey: string): boolean {
+    return (this.byScope.get(scopeKey)?.size ?? 0) > 0
+  }
+
+  private stepsOf(scopeKey: string): Set<string> {
+    const held = this.byScope.get(scopeKey) ?? new Set<string>()
+    this.byScope.set(scopeKey, held)
+    return held
   }
 }

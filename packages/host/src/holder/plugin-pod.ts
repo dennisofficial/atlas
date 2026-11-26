@@ -39,6 +39,7 @@ import { heldMessagesOf } from './pod-messages'
 import { modelFellBackDraft } from './crew/model-fell-back'
 import type { RoleModelChoice, SessionRuntime } from './ports'
 import type { SessionRecord } from './record/record-adapter'
+import { replayStableId } from '../calls/call-scope'
 import type { InFlightSteps } from '../calls/step-detach'
 
 export class ComposedPodRegistry extends ToolRegistry {
@@ -205,8 +206,9 @@ export const pluginPodContextOf = (args: {
       },
       bootId: () => runtime.remoteCalls.bootId(),
       ack: (key) => runtime.remoteCalls.ack({ key }),
-      ...(args.steps === undefined ? {} : { detached: (plan) => args.steps?.mark(plan) }),
+      ...(args.steps === undefined ? {} : { onStep: (event) => args.steps?.apply(event) }),
     }),
+    replayStableId,
     live: (frame) => fireLive({ bus: deps.bus, key: deps.sessionId, frame }),
     onDaemonEvent: (listener) => {
       const off = runtime.remoteCalls.onEvent(listener)

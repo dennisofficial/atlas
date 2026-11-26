@@ -4,23 +4,14 @@ export const attachCallSignal = (args: {
   call: Pending
   signal: AbortSignal
   isDetached(): boolean
-  isLinkReady(): boolean
   sendCancel(): void
-  settleInterrupted(): void
+  settleStopped(): void
 }): void => {
   const onAbort = (): void => {
     if (args.isDetached()) return
     args.call.controller.abort()
-    if (args.call.sent) {
-      args.sendCancel()
-      return
-    }
-    if (args.call.awaitingAnswer || args.call.waiting) {
-      args.sendCancel()
-      args.settleInterrupted()
-      return
-    }
-    if (!args.isLinkReady()) args.settleInterrupted()
+    if (args.call.sent) args.sendCancel()
+    args.settleStopped()
   }
   args.signal.addEventListener('abort', onAbort, { once: true })
   args.call.detach = () => args.signal.removeEventListener('abort', onAbort)

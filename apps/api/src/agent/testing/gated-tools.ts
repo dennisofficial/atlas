@@ -9,6 +9,7 @@ import {
 import type { ComposedPlugins } from '@dltech/atlas-plugin-sdk'
 import type { ZodType } from 'zod'
 
+import { faultLoadResource } from './fault-resources'
 import { faultToolsOf } from './fault-tools'
 
 export type ToolGate = {
@@ -84,8 +85,9 @@ export const riggedPluginsOf = (args: {
   plugins: ComposedPlugins
   gate: ToolGate | undefined
   faultTools: boolean
+  faultResources: boolean
 }): ComposedPlugins => {
-  if (args.gate === undefined && !args.faultTools) return args.plugins
+  if (args.gate === undefined && !args.faultTools && !args.faultResources) return args.plugins
   const { plugins, gate } = args
   return {
     ...plugins,
@@ -97,6 +99,7 @@ export const riggedPluginsOf = (args: {
           : gatedToolsOf({ gate, tools: plugins.pod.tools(ctx) })),
         ...(args.faultTools ? faultToolsOf(ctx) : []),
       ],
+      resources: [...plugins.pod.resources, ...(args.faultResources ? [faultLoadResource()] : [])],
     },
   }
 }
@@ -107,5 +110,6 @@ export const rigPluginsOf = (plugins: ComposedPlugins): ComposedPlugins | undefi
         plugins,
         gate: toolGateOf(process.env.PLUGIN_TOOL_GATE),
         faultTools: process.env.FAULT_TOOLS === '1',
+        faultResources: process.env.FAULT_RESOURCES === '1',
       })
     : undefined

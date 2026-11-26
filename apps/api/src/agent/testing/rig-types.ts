@@ -30,6 +30,7 @@ export type HostKnobs = {
   fault?: EHostFault
   pluginToolGate?: ToolGate
   faultTools?: boolean
+  faultResources?: boolean
   plugins?: boolean
   modelRequestsFile?: string
   contextMirrorDir?: string

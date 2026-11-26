@@ -238,6 +238,7 @@ export class RemoteCallsState {
   }
 
   private settleError(call: Pending, error: Error): void {
+    if (!call.ready) return
     this.settle(
       call,
       failedResult({ op: call.op.op, code: ECallFailure.Internal, message: error.message }),

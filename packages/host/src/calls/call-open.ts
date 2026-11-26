@@ -5,7 +5,7 @@ import { abandonCall, attachCallSignal } from './call-signal'
 import { scopeDetachOnHandoff } from './call-scope'
 import { callLostAcrossBoot, type DaemonAnswer } from './errors'
 import type { ReadyReply } from './ready-gate'
-import { interruptedResult, type Pending, type Waiter } from './remote-calls-frames'
+import { cancelledResult, type Pending, type Waiter } from './remote-calls-frames'
 import { resizeInterruptedResult } from './restart-interrupt'
 
 export type OpenCallArgs = {
@@ -46,7 +46,7 @@ export type CallLane = {
   schedulePing(): void
 }
 
-export const openCall = async (args: {
+export const openCall = (args: {
   lane: CallLane
   request: OpenCallArgs
   dispatchedBootId: string | undefined
@@ -72,6 +72,7 @@ export const openCall = async (args: {
     delivered: 0,
     sent: false,
     armed: false,
+    ready: false,
     done: false,
     awaitingAnswer: false,
     waiting: false,
@@ -85,22 +86,35 @@ export const openCall = async (args: {
       call,
       signal: request.signal,
       isDetached: () => lane.detached(),
-      isLinkReady: () => lane.linkReady(),
       sendCancel: () => lane.sendCancel(call),
-      settleInterrupted: () => lane.settle(call, interruptedResult(call.op.op)),
+      settleStopped: () => lane.settle(call, cancelledResult(call)),
     })
   }
+  void driveCall({ lane, call, request, dispatchedBootId: args.dispatchedBootId }).catch(
+    () => undefined,
+  )
+  return outcome
+}
+
+const driveCall = async (args: {
+  lane: CallLane
+  call: Pending
+  request: OpenCallArgs
+  dispatchedBootId: string | undefined
+}): Promise<void> => {
+  const { lane, call, request } = args
   try {
     await lane.ready(call.controller.signal)
   } catch (error) {
     abandonCall({ call, pending: lane.pending, error: error as Error })
-    throw error
+    return
   }
-  if (call.done) return outcome
+  if (call.done) return
+  call.ready = true
   call.dispatchBootId = args.dispatchedBootId
   if (request.attachOnly === true) {
     await attachRecordedCall({ lane, call })
-    return outcome
+    return
   }
   if (
     needsDecision({
@@ -111,7 +125,7 @@ export const openCall = async (args: {
     })
   ) {
     await decideCall({ lane, call, dispatchedBootId: args.dispatchedBootId })
-    return outcome
+    return
   }
   const resize = lane.resizeReason()
   if (
@@ -120,11 +134,10 @@ export const openCall = async (args: {
     args.dispatchedBootId === lane.bootId()
   ) {
     lane.settle(call, resizeInterruptedResult({ op: call.op.op, reason: resize }))
-    return outcome
+    return
   }
   call.armed = true
   if (lane.linkReady()) lane.sendRun(call)
-  return outcome
 }
 
 const needsDecision = (args: {

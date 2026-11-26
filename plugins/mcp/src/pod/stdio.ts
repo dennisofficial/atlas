@@ -157,7 +157,7 @@ export class StdioClient implements McpTransportClient {
   private async request(payload: { method: string; params?: unknown }): Promise<unknown> {
     if (this.closed) throw new McpTransportError('the transport is closed')
     if (this.exitError !== null) throw this.exitError
-    const id = String(this.nextId++)
+    const id = this.args.ctx.replayStableId?.() ?? String(this.nextId++)
     const settled = new Promise<unknown>((resolve, reject) => {
       this.pending.set(id, { resolve, reject })
     })

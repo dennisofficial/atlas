@@ -1,6 +1,6 @@
 import type { CallLane } from './call-open'
 import { actionForAnswer, needsRun } from './errors'
-import { interruptedResult, type Pending } from './remote-calls-frames'
+import { cancelledResult, interruptedResult, type Pending } from './remote-calls-frames'
 
 export const decideCall = async (args: {
   lane: CallLane
@@ -58,6 +58,6 @@ export const attachRecordedCall = async (args: {
 
 const settleAborted = (args: { lane: CallLane; call: Pending }): boolean => {
   if (!args.call.controller.signal.aborted) return false
-  args.lane.settle(args.call, interruptedResult(args.call.op.op))
+  args.lane.settle(args.call, cancelledResult(args.call))
   return true
 }

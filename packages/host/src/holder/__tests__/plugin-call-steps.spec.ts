@@ -3,7 +3,8 @@ import { describe, expect, it } from 'bun:test'
 import { ECallFailure, type CallOp, type CallResult } from '@dltech/atlas-protocol'
 
 import { runInCallScope } from '../../calls/call-scope'
-import { failedResult } from '../../calls/remote-calls-frames'
+import { failedResult, handedOffResult } from '../../calls/remote-calls-frames'
+import { InFlightSteps } from '../../calls/step-detach'
 import { pluginCallOf, type PluginSteps } from '../plugin-call'
 import type { RecordedStep, StepRecord } from '../record/call-steps'
 
@@ -132,5 +133,42 @@ describe('pluginCallOf step identity', () => {
 
     expect(harness.invoked[0]?.key).toMatch(/^host-/)
     expect(harness.recorded).toHaveLength(0)
+  })
+})
+
+const stopStep = { op: 'services.stop', serviceId: 'api' } as const
+
+const detachRigOf = (args: { handedOffKeys: readonly string[] }) => {
+  const steps = new InFlightSteps()
+  const call = pluginCallOf({
+    invoke: async (request) =>
+      args.handedOffKeys.includes(request.key)
+        ? handedOffResult({ op: request.op, delivered: 0 })
+        : resultOf(request.op),
+    steps: { recorded: () => [], record: async () => undefined },
+    bootId: () => 'boot-a',
+    onStep: (event) => steps.apply(event),
+  })
+  return { call, steps }
+}
+
+describe('pluginCallOf detach on a handoff', () => {
+  it('detaches a call whose step the handoff settled, with a concurrent read in flight', async () => {
+    const harness = detachRigOf({ handedOffKeys: ['call-1.0'] })
+    await inScope(async () => {
+      await Promise.all([harness.call(stopStep), harness.call({ op: 'readFile', path: '/w/a' })])
+    })
+
+    expect(harness.steps.detached('call-1')).toBe(true)
+  })
+
+  it('does not detach a call whose step finished before the handoff', async () => {
+    const harness = detachRigOf({ handedOffKeys: [] })
+    await inScope(async () => {
+      await harness.call(stopStep)
+      await harness.call({ op: 'readFile', path: '/w/a' })
+    })
+
+    expect(harness.steps.detached('call-1')).toBe(false)
   })
 })

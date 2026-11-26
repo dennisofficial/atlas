@@ -14,6 +14,8 @@ import {
   scopeRecordedSteps,
 } from '../calls/call-scope'
 import { isReadOnlyOp } from '../calls/errors'
+import { wasHandedOff } from '../calls/remote-calls-frames'
+import type { StepEvent } from '../calls/step-detach'
 import { stepDigestOf } from '../calls/step-digest'
 import { POD_WAIT_INTERRUPTED, type WorkspaceGate } from '../calls/workspace-gate'
 import type { RecordedStep, StepRecord } from './record/call-steps'
@@ -29,6 +31,7 @@ type PlannedCall = {
   bootId?: string | undefined
   read: boolean
   step: boolean
+  scopeKey?: string | undefined
 }
 
 const ackRead = (args: Parameters<typeof pluginCallOf>[0], key: string): void => {
@@ -52,7 +55,7 @@ export const pluginCallOf = (args: {
   steps?: PluginSteps | undefined
   bootId?: (() => string | undefined) | undefined
   ack?: ((key: string) => Promise<unknown>) | undefined
-  detached?: ((plan: { callKey: string; step: boolean }) => void) | undefined
+  onStep?: ((event: StepEvent) => void) | undefined
 }): PluginPodContext['call'] => {
   const withEnv = async (op: CallOp): Promise<CallOp> => {
     if (op.op !== 'exec' || args.env === undefined) return op
@@ -81,10 +84,7 @@ export const pluginCallOf = (args: {
   const planOf = async (op: CallOp): Promise<PlannedCall> => {
     const scope = scopeKey()
     if (scope === undefined || args.steps === undefined) return freshCallOf(op)
-    if (isReadOnlyOp(op.op)) {
-      args.detached?.({ callKey: scope, step: false })
-      return freshCallOf(op)
-    }
+    if (isReadOnlyOp(op.op)) return freshCallOf(op)
     const recorded: readonly RecordedStep[] =
       scopeRecordedSteps() ?? (await args.steps.recorded(scope))
     rememberRecordedSteps(recorded)
@@ -98,7 +98,7 @@ export const pluginCallOf = (args: {
       nextSlot: scopeNextSlot(),
     })
     claimStepSlot({ key: plan.key, index: plan.index })
-    args.detached?.({ callKey: scope, step: true })
+    args.onStep?.({ kind: 'in-flight', scopeKey: scope, stepKey: plan.key })
     if (plan.kind === 'append') {
       await args.steps.record({
         key: plan.key,
@@ -106,7 +106,7 @@ export const pluginCallOf = (args: {
         digest,
         ...(args.bootId?.() === undefined ? {} : { bootId: args.bootId() }),
       })
-      return { key: plan.key, replayed: false, read: false, step: true }
+      return { key: plan.key, replayed: false, read: false, step: true, scopeKey: scope }
     }
     const step = recorded.find((fact) => fact.key === plan.key)
     const bootId = step?.bootId ?? scopeDispatchedBootId()
@@ -116,22 +116,36 @@ export const pluginCallOf = (args: {
       ...(bootId === undefined ? {} : { bootId }),
       read: false,
       step: true,
+      scopeKey: scope,
     }
   }
   return async (op, options) => {
     const refused = await gateOf(op, options?.signal)
     if (refused !== null) return refused
     const planned = await planOf(op)
-    const result = await args.invoke({
-      key: planned.key,
-      op: await withEnv(op),
-      signal: options?.signal,
-      onOutput: options?.onOutput,
-      detachOnHandoff: planned.step,
-      ...(planned.replayed ? { replayed: true } : {}),
-      ...(planned.bootId === undefined ? {} : { dispatchedBootId: planned.bootId }),
-    })
-    if (planned.read) ackRead(args, planned.key)
-    return result
+    let handedOff = false
+    try {
+      const result = await args.invoke({
+        key: planned.key,
+        op: await withEnv(op),
+        signal: options?.signal,
+        onOutput: options?.onOutput,
+        detachOnHandoff: planned.step,
+        ...(planned.replayed ? { replayed: true } : {}),
+        ...(planned.bootId === undefined ? {} : { dispatchedBootId: planned.bootId }),
+      })
+      handedOff = wasHandedOff(result)
+      return result
+    } finally {
+      if (planned.read) ackRead(args, planned.key)
+      if (planned.step && planned.scopeKey !== undefined) {
+        args.onStep?.({
+          kind: 'settled',
+          scopeKey: planned.scopeKey,
+          stepKey: planned.key,
+          handedOff,
+        })
+      }
+    }
   }
 }

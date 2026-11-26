@@ -51,6 +51,7 @@ export const hostEnv = (args: {
     ...(args.firstChunkFile === undefined ? {} : { FIRST_CHUNK_FILE: args.firstChunkFile }),
     ...(knobs?.plugins === true ? { FAULT_PLUGINS: '1' } : {}),
     ...(knobs?.faultTools === true ? { FAULT_TOOLS: '1' } : {}),
+    ...(knobs?.faultResources === true ? { FAULT_RESOURCES: '1' } : {}),
     ...(knobs?.pluginToolGate === undefined
       ? {}
       : { PLUGIN_TOOL_GATE: JSON.stringify(knobs.pluginToolGate) }),

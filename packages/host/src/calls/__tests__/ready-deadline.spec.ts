@@ -58,7 +58,7 @@ describe('the daemon ready wait', () => {
 })
 
 describe('Stop on a call that was never sent', () => {
-  it('settles the call as interrupted while the daemon is still not ready', async () => {
+  it('settles the call as cancelled while the daemon is still not ready', async () => {
     const calls = openSilent(5_000)
     const controller = new AbortController()
     const started = Date.now()
@@ -71,7 +71,7 @@ describe('Stop on a call that was never sent', () => {
     const result = await outcome
     expect(result.status).toBe(ECallStatus.Failed)
     if (result.status === ECallStatus.Failed) {
-      expect(result.error.code).toBe(ECallFailure.Interrupted)
+      expect(result.error.code).toBe(ECallFailure.Cancelled)
     }
     expect(Date.now() - started).toBeLessThan(1000)
     calls.close()

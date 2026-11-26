@@ -158,6 +158,8 @@ export type PluginPodContext = {
     op: CallOp,
     options?: { signal?: AbortSignal; onOutput?(bytes: Uint8Array): void },
   ): Promise<CallResult>
+  /** An id that repeats when the same call body runs again, so a replayed request can be correlated. */
+  replayStableId?(): string | undefined
   live(frame: LiveFrame): void
   onDaemonEvent(listener: (frame: DaemonEventFrame) => void): () => void
   log(message: string): void
