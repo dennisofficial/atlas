@@ -1,12 +1,11 @@
 import { radius, space } from '@dltech/atlas-ui/tokens'
 import { useTheme, withAlpha } from '@dltech/atlas-ui-native'
 import { Image } from 'expo-image'
-import { useState } from 'react'
 import { Pressable, StyleSheet, View } from 'react-native'
 
 import type { ImagesRow } from '../rows'
 import { pictureBoxOf } from '../tool-pictures'
-import { PhotoViewer } from './photo-viewer'
+import { openPhoto } from '../photos/open-photo'
 import { useMediaUrls } from './use-media-urls'
 
 export const ImagesRowView = ({
@@ -18,7 +17,6 @@ export const ImagesRowView = ({
 }) => {
   const theme = useTheme()
   const urls = useMediaUrls({ sessionId, hashes: row.images.map((image) => image.hash) })
-  const [opened, setOpened] = useState<string | undefined>(undefined)
 
   return (
     <View style={styles.stack}>
@@ -31,7 +29,9 @@ export const ImagesRowView = ({
             accessibilityRole="button"
             accessibilityLabel={`Open ${image.alt}`}
             disabled={uri === undefined}
-            onPress={() => setOpened(uri)}
+            onPress={() => {
+              if (uri !== undefined) openPhoto({ uri, name: image.alt })
+            }}
             style={[
               styles.frame,
               box,
@@ -49,7 +49,6 @@ export const ImagesRowView = ({
           </Pressable>
         )
       })}
-      <PhotoViewer uri={opened} onClose={() => setOpened(undefined)} />
     </View>
   )
 }

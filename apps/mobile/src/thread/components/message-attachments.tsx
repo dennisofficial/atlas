@@ -3,12 +3,11 @@ import { ETextRole, ETextTone, Text, useTheme, withAlpha } from '@dltech/atlas-u
 import { radius, space } from '@dltech/atlas-ui/tokens'
 import { Image } from 'expo-image'
 import { FileText } from 'lucide-react-native'
-import { useState } from 'react'
 import { Pressable, StyleSheet, View } from 'react-native'
 
 import { type AttachmentView, viewsOf } from '../attachment-views'
 import { describeBytes } from '../composer/attachment-plan'
-import { PhotoViewer } from './photo-viewer'
+import { openPhoto } from '../photos/open-photo'
 import { useAttachmentSources } from './use-attachment-sources'
 
 const THUMB = 104
@@ -49,7 +48,6 @@ export const MessageAttachments = ({
 }) => {
   const sources = useAttachmentSources({ threadId, sessionId, attachments })
   const views = viewsOf({ attachments, sources })
-  const [opened, setOpened] = useState<AttachmentView | null>(null)
 
   if (views.length === 0) return null
   const images = views.filter((view) => view.image && view.uri !== undefined)
@@ -64,7 +62,9 @@ export const MessageAttachments = ({
               key={view.key}
               accessibilityRole="button"
               accessibilityLabel={`Open ${view.name}`}
-              onPress={() => setOpened(view)}
+              onPress={() => {
+                if (view.uri !== undefined) openPhoto({ uri: view.uri, name: view.name })
+              }}
             >
               <Image
                 source={{ uri: view.uri }}
@@ -83,7 +83,6 @@ export const MessageAttachments = ({
           ))}
         </View>
       )}
-      <PhotoViewer uri={opened?.uri} onClose={() => setOpened(null)} />
     </View>
   )
 }

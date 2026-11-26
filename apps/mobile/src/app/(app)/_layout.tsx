@@ -74,6 +74,14 @@ const AppStack = () => {
         }}
       />
       <Stack.Screen
+        name="photo"
+        options={{
+          title: 'Photo',
+          presentation: 'fullScreenModal',
+          ...pushedHeaderOptions,
+        }}
+      />
+      <Stack.Screen
         name="settings"
         options={{ title: 'Settings', ...pushedHeaderOptions, ...settingsRootOptions }}
       />
