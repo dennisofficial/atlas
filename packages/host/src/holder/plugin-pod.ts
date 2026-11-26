@@ -35,6 +35,7 @@ import { heldMessagesOf } from './pod-messages'
 import type { RoleModelChoice, SessionRuntime } from './ports'
 import type { SessionRecord } from './record/record-adapter'
 import { recordStep, recordedStepsOf } from './record/call-steps'
+import { hostStepOf } from './record/host-step'
 import type { InFlightSteps } from '../calls/step-detach'
 
 const teammateModelOf =
@@ -42,12 +43,20 @@ const teammateModelOf =
   () =>
     runtime.choiceFor({ role: { agentType: TEAMMATE_AGENT_TYPE }, root: runtime.modelChoice })
 
+const fellBackAlready = (args: { record: SessionRecord; agentId: ThreadId }): boolean =>
+  args.record
+    .eventCache()
+    .eventsAfter(0)
+    .some((event) => event.type === 'model-fell-back' && event.agentId === args.agentId)
+
 const teammateFallbackOf = (args: {
   runtime: SessionRuntime
   append: (drafts: readonly EventDraft[]) => Promise<void>
+  fellBackAlready: (agentId: ThreadId) => boolean
 }): Pick<Parameters<typeof podSessionsOf>[0], 'onFallback'> => ({
   onFallback: async ({ agentId, model }) => {
     if (model.unavailable === undefined) return
+    if (args.fellBackAlready(agentId)) return
     await args.append([
       modelFellBackDraft({
         runtime: args.runtime,
@@ -102,6 +111,14 @@ export const pluginPodContextOf = (args: {
   notify?: ((event: EventBody, options: { key: string }) => Promise<void>) | undefined
 }): PluginPodContext => {
   const { deps, runtime, record, threadId } = args
+  const step = async (request: { op: string; input: object }) =>
+    await hostStepOf({
+      record,
+      threadId,
+      runId: () => deps.ids.nextRunId(),
+      op: request.op,
+      input: request.input,
+    })
   const append = async (drafts: readonly EventDraft[]): Promise<void> => {
     await record.append({ threadId, runId: deps.ids.nextRunId(), drafts })
   }
@@ -128,8 +145,14 @@ export const pluginPodContextOf = (args: {
     sessions: podSessionsOf({
       plane: deps.plane,
       sessionId: deps.sessionId,
+      threadId,
+      step,
       model: teammateModelOf(runtime),
-      ...teammateFallbackOf({ runtime, append }),
+      ...teammateFallbackOf({
+        runtime,
+        append,
+        fellBackAlready: (agentId) => fellBackAlready({ record, agentId }),
+      }),
       parkArchived: deps.parkArchived,
     }),
     worktrees: worktreesOf({

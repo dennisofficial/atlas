@@ -1,10 +1,11 @@
 import { describe, expect, it } from 'bun:test'
 
-import { EEffort } from '@dltech/atlas-core'
+import { EEffort, toThreadId } from '@dltech/atlas-core'
 import { ControlPlane } from '@dltech/atlas-control'
 import { InMemoryControlStore } from '@dltech/atlas-control/testing'
 
 import { podSessionsOf } from '../plugin-sessions'
+import type { HostStepPort } from '../record/host-step'
 
 const T0 = '2026-11-09T10:00:00.000Z'
 const SPAWNER = {
@@ -32,7 +33,9 @@ const LATER_TEAMMATE_MODEL = {
   fast: false,
 }
 
-const rig = async () => {
+const UUID_V4 = /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/
+
+const rig = async (options: { step?: HostStepPort; threadId?: string } = {}) => {
   const plane = new ControlPlane({
     store: new InMemoryControlStore({ clock: () => T0 }),
     clock: () => T0,
@@ -44,6 +47,8 @@ const rig = async () => {
       plane,
       sessionId: SPAWNER.sessionId,
       model: () => TEAMMATE_MODEL,
+      ...(options.step === undefined ? {} : { step: options.step }),
+      ...(options.threadId === undefined ? {} : { threadId: toThreadId(options.threadId) }),
     }),
   }
 }
@@ -112,12 +117,43 @@ describe('podSessionsOf', () => {
     })
   })
 
-  it('mints a different session every time', async () => {
+  it('mints a different session every time without a call scope', async () => {
     const { sessions } = await rig()
     const first = await sessions.spawn({})
     const second = await sessions.spawn({})
     expect(first.sessionId).not.toBe(second.sessionId)
     expect(first.mainThreadId).not.toBe(second.mainThreadId)
+  })
+
+  it('derives one session, and its thread, from the step key', async () => {
+    const requests: { op: string; input: object }[] = []
+    const step: HostStepPort = async (request) => {
+      requests.push(request)
+      return { key: 'host.1.sessions.spawn.h0', replayed: true }
+    }
+    const { plane, sessions } = await rig({ step, threadId: 't1' })
+    const first = await sessions.spawn({ title: 'the peer', brief: 'read the port' })
+    const second = await sessions.spawn({ title: 'the peer', brief: 'read the port' })
+    expect(second).toEqual(first)
+    expect(first.sessionId).toMatch(UUID_V4)
+    expect(first.mainThreadId).toMatch(UUID_V4)
+    expect(first.mainThreadId).not.toBe(first.sessionId)
+    expect(requests[0]).toMatchObject({
+      op: 'sessions.spawn',
+      input: { title: 'the peer', brief: 'read the port' },
+    })
+    expect(await inboxOf(plane, first.sessionId)).toHaveLength(1)
+  })
+
+  it('derives a session of its own for each step key', async () => {
+    let key = 'host.1.sessions.spawn.h0'
+    const step: HostStepPort = async () => ({ key, replayed: false })
+    const { sessions } = await rig({ step, threadId: 't1' })
+    const first = await sessions.spawn({})
+    key = 'host.1.sessions.spawn.h1'
+    const second = await sessions.spawn({})
+    expect(second.sessionId).not.toBe(first.sessionId)
+    expect(second.mainThreadId).not.toBe(first.mainThreadId)
   })
 
   it('lists only the sessions nested under this one as teammates', async () => {

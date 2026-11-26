@@ -14,6 +14,8 @@ import type { SessionRecord } from './record-adapter'
 
 export type HostStep = { key: string; replayed: boolean }
 
+export type HostStepPort = (args: { op: string; input: object }) => Promise<HostStep | undefined>
+
 export const hostStepOf = async (args: {
   record: Pick<SessionRecord, 'append' | 'eventCache'>
   threadId: ThreadId
