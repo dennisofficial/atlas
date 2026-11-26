@@ -10,7 +10,7 @@ import {
 import { queuedRowsOf, type QueuedRow } from './queued-rows'
 import type { StagedSend } from './staged-send'
 
-export type QueuedDockState = {
+export type QueuedTranscript = {
   rows: QueuedRow[]
   blocking: BlockingCommand | undefined
 }
@@ -21,15 +21,15 @@ export const QUEUED_LABEL = 'Queued'
 
 export const QUEUED_ROW_OPACITY = 0.5
 
-export const queuedLabelOf = (dock: Pick<QueuedDockState, 'blocking'>): string =>
-  dock.blocking === undefined ? QUEUED_LABEL : dock.blocking.copy.queued
+export const queuedLabelOf = (queued: Pick<QueuedTranscript, 'blocking'>): string =>
+  queued.blocking === undefined ? QUEUED_LABEL : queued.blocking.copy.queued
 
-export const queuedDockOf = (args: {
+export const queuedTranscriptOf = (args: {
   snapshot: Pick<SessionSnapshot, 'pending' | 'events' | 'status'>
   staged: readonly StagedSend[]
   now: number
   hiddenInboxIds?: ReadonlySet<number> | undefined
-}): QueuedDockState => {
+}): QueuedTranscript => {
   const placement = stagedPlacementOf({
     staged: args.staged,
     events: args.snapshot.events,

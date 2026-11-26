@@ -6,6 +6,8 @@ export type ToolPictureView = {
   alt: string
   width: number
   height: number
+  mediaType: string
+  size: number
 }
 
 export const TOOL_PICTURE_MAX_HEIGHT = 320
@@ -23,6 +25,8 @@ export const picturesIn = (run: ToolRun): ToolPictureView[] =>
         alt: fileNameOf(read.path),
         width: call.image.media.width,
         height: call.image.media.height,
+        mediaType: call.image.media.mediaType,
+        size: call.image.media.size,
       },
     ]
   })

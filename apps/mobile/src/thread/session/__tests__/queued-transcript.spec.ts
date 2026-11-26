@@ -21,7 +21,12 @@ import {
   type ThreadRow,
 } from '../../rows'
 import { entryFolds, eventSchema } from '../registered-plugins'
-import { QUEUED_LABEL, QUEUED_ROW_OPACITY, queuedDockOf, queuedLabelOf } from '../queued-dock'
+import {
+  QUEUED_LABEL,
+  QUEUED_ROW_OPACITY,
+  queuedTranscriptOf,
+  queuedLabelOf,
+} from '../queued-transcript'
 import type { QueuedRow } from '../queued-rows'
 import type { StagedSend } from '../staged-send'
 
@@ -98,12 +103,12 @@ const blocking: SessionSnapshot['status'] = {
   commands: [SUMMARISE],
 }
 
-const dockOf = (args: {
+const queuedOf = (args: {
   pending: PendingInputsState
   staged: readonly StagedSend[]
   status: SessionSnapshot['status']
 }) =>
-  queuedDockOf({
+  queuedTranscriptOf({
     snapshot: { pending: args.pending, events: [], status: args.status },
     staged: args.staged,
     now: NOW,
@@ -126,15 +131,15 @@ const deliveredRowOf = (event: unknown): ThreadRow | undefined => {
   return rowsOf({ entries: model.entries, working: false, now: NOW }).at(-1)
 }
 
-describe('queuedDockOf', () => {
+describe('queuedTranscriptOf', () => {
   it('lists server-queued inputs in inbox order, then the ones this phone staged', () => {
-    const dock = dockOf({ pending, staged: STAGED, status: working })
-    expect(dock.rows.map((row) => row.id)).toEqual(['web-1', 'queued-6', 'queued-5', 'phone-1'])
+    const queued = queuedOf({ pending, staged: STAGED, status: working })
+    expect(queued.rows.map((row) => row.id)).toEqual(['web-1', 'queued-6', 'queued-5', 'phone-1'])
   })
 
   it('derives every queued row through the transcript pipeline', () => {
-    const dock = dockOf({ pending, staged: STAGED, status: working })
-    expect(dock.rows.map((row) => row.row.kind)).toEqual([
+    const queued = queuedOf({ pending, staged: STAGED, status: working })
+    expect(queued.rows.map((row) => row.row.kind)).toEqual([
       ERowKind.Message,
       ERowKind.Message,
       ERowKind.Notice,
@@ -147,8 +152,8 @@ describe('queuedDockOf', () => {
   })
 
   it('derives a queued peer message to the row a delivered one becomes', () => {
-    const dock = dockOf({ pending, staged: [], status: working })
-    const row = queuedRowOf(dock.rows, 'queued-6')
+    const queued = queuedOf({ pending, staged: [], status: working })
+    const row = queuedRowOf(queued.rows, 'queued-6')
     const delivered = deliveredRowOf({
       ...envelope(6),
       type: 'user-said',
@@ -167,63 +172,63 @@ describe('queuedDockOf', () => {
   })
 
   it('derives a queued operator message to the user row with the queued label', () => {
-    const dock = dockOf({ pending, staged: [], status: blocking })
-    const row = queuedRowOf(dock.rows, 'web-1')
+    const queued = queuedOf({ pending, staged: [], status: blocking })
+    const row = queuedRowOf(queued.rows, 'web-1')
     expect(row.author).toBe(EMessageAuthor.You)
     expect(row.text).toBe('from the laptop')
-    expect(queuedLabelOf(dock)).toBe('Waits for the summary')
+    expect(queuedLabelOf(queued)).toBe('Waits for the summary')
   })
 
   it('offers Edit and Remove for an operator message only', () => {
-    const dock = dockOf({ pending, staged: STAGED, status: working })
-    const withdrawOf = (id: string) => dock.rows.find((row) => row.id === id)?.withdrawInboxId
+    const queued = queuedOf({ pending, staged: STAGED, status: working })
+    const withdrawOf = (id: string) => queued.rows.find((row) => row.id === id)?.withdrawInboxId
     expect(withdrawOf('web-1')).toBe(4)
     expect(withdrawOf('queued-6')).toBeUndefined()
     expect(withdrawOf('phone-1')).toBeUndefined()
   })
 
   it('drops the row of a message the operator is withdrawing', () => {
-    const dock = queuedDockOf({
+    const queued = queuedTranscriptOf({
       snapshot: { pending, events: [], status: working },
       staged: STAGED,
       now: NOW,
       hiddenInboxIds: new Set([4]),
     })
-    expect(dock.rows.map((row) => row.id)).toEqual(['queued-6', 'queued-5', 'phone-1'])
+    expect(queued.rows.map((row) => row.id)).toEqual(['queued-6', 'queued-5', 'phone-1'])
   })
 
   it('derives a queued notice to the notice row', () => {
-    const dock = dockOf({
+    const queued = queuedOf({
       pending: { pending: [pending.pending[2]!] },
       staged: [],
       status: working,
     })
-    expect(dock.rows.map((row) => row.row.kind)).toEqual([ERowKind.Notice])
+    expect(queued.rows.map((row) => row.row.kind)).toEqual([ERowKind.Notice])
   })
 
   it('leaves a staged message to the transcript while the agent is idle', () => {
-    const dock = dockOf({ pending: { pending: [] }, staged: STAGED, status: undefined })
-    expect(dock.rows).toEqual([])
+    const queued = queuedOf({ pending: { pending: [] }, staged: STAGED, status: undefined })
+    expect(queued.rows).toEqual([])
   })
 
   it('shows a staged message as the one it will become', () => {
-    const dock = dockOf({ pending: { pending: [] }, staged: STAGED, status: working })
-    expect(queuedRowOf(dock.rows, 'phone-1')).toMatchObject({
+    const queued = queuedOf({ pending: { pending: [] }, staged: STAGED, status: working })
+    expect(queuedRowOf(queued.rows, 'phone-1')).toMatchObject({
       author: EMessageAuthor.You,
       text: 'from the phone',
     })
   })
 
   it('reads the blocking command off the status', () => {
-    const dock = dockOf({ pending: { pending: [] }, staged: [], status: blocking })
-    expect(dock.blocking?.name).toBe('summarise')
+    const queued = queuedOf({ pending: { pending: [] }, staged: [], status: blocking })
+    expect(queued.blocking?.name).toBe('summarise')
   })
 })
 
 describe('queuedLabelOf', () => {
   it('says what a queued message waits for while a command holds the turn', () => {
-    const dock = dockOf({ pending, staged: STAGED, status: blocking })
-    expect(queuedLabelOf(dock)).toBe('Waits for the summary')
+    const queued = queuedOf({ pending, staged: STAGED, status: blocking })
+    expect(queuedLabelOf(queued)).toBe('Waits for the summary')
   })
 
   it('keeps the generic label when nothing blocks', () => {
