@@ -28,3 +28,16 @@ export const zoomRectOf = (args: { point: Point; viewport: Size; zoomScale: numb
 
 export const shouldDismiss = (args: { pullY: number; zoomScale: number }): boolean =>
   !isZoomed(args.zoomScale) && args.pullY <= -DISMISS_PULL
+
+export const zoomedInBy = (args: { previousScale: number; nextScale: number }): boolean =>
+  !isZoomed(args.previousScale) && isZoomed(args.nextScale)
+
+export enum EPhotoChromeEvent {
+  Tap = 'tap',
+  ZoomedIn = 'zoomed-in',
+}
+
+export const chromeVisibleAfter = (args: {
+  visible: boolean
+  event: EPhotoChromeEvent
+}): boolean => (args.event === EPhotoChromeEvent.Tap ? !args.visible : false)

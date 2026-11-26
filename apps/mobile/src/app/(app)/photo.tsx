@@ -1,12 +1,14 @@
 import { ETextRole, ETextTone, Text, useTheme } from '@dltech/atlas-ui-native'
 import { space } from '@dltech/atlas-ui/tokens'
 import { router, Stack, useLocalSearchParams } from 'expo-router'
-import { useCallback } from 'react'
+import { StatusBar } from 'expo-status-bar'
+import { useCallback, useState } from 'react'
 import { Alert, StyleSheet, useWindowDimensions, View } from 'react-native'
 import { SafeAreaProvider, useSafeAreaInsets } from 'react-native-safe-area-context'
 
 import { postureOf } from '../../layout/posture'
 import { photoHeaderOptionsOf } from '../../thread/photos/photo-header-options'
+import { chromeVisibleAfter, EPhotoChromeEvent } from '../../thread/photos/photo-zoom'
 import { photoOf } from '../../thread/photos/photo-store'
 import { sharePhoto } from '../../thread/photos/share-photo'
 import { ZoomablePhoto } from '../../thread/photos/zoomable-photo'
@@ -20,6 +22,14 @@ const PhotoViewer = () => {
   const photo = photoOf(id)
 
   const handleClose = useCallback(() => router.back(), [])
+  const [chromeVisible, setChromeVisible] = useState(true)
+  const handleChrome = useCallback(
+    (event: EPhotoChromeEvent) =>
+      setChromeVisible((visible) => chromeVisibleAfter({ visible, event })),
+    [],
+  )
+  const handleTap = useCallback(() => handleChrome(EPhotoChromeEvent.Tap), [handleChrome])
+  const handleZoomIn = useCallback(() => handleChrome(EPhotoChromeEvent.ZoomedIn), [handleChrome])
   const handleShare = useCallback(async () => {
     if (photo === undefined) return
     try {
@@ -36,6 +46,7 @@ const PhotoViewer = () => {
       <Stack.Screen
         options={photoHeaderOptionsOf({
           photo,
+          visible: chromeVisible,
           posture,
           windowWidth: width,
           tint: theme.foreground,
@@ -43,6 +54,7 @@ const PhotoViewer = () => {
           onShare: handleShare,
         })}
       />
+      <StatusBar hidden={!chromeVisible} animated hideTransitionAnimation="fade" />
       <View style={[styles.content, { backgroundColor: theme.background }]}>
         {photo === undefined ? (
           <View style={styles.center}>
@@ -51,7 +63,13 @@ const PhotoViewer = () => {
             </Text>
           </View>
         ) : (
-          <ZoomablePhoto uri={photo.uri} name={photo.name} onDismiss={handleClose} />
+          <ZoomablePhoto
+            uri={photo.uri}
+            name={photo.name}
+            onDismiss={handleClose}
+            onTap={handleTap}
+            onZoomIn={handleZoomIn}
+          />
         )}
       </View>
     </View>

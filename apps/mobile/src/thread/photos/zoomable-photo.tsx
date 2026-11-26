@@ -1,6 +1,6 @@
 import { Image } from 'expo-image'
 import { useRef, useState } from 'react'
-import { GestureDetector, useTapGesture } from 'react-native-gesture-handler'
+import { GestureDetector, useExclusiveGestures, useTapGesture } from 'react-native-gesture-handler'
 import {
   type LayoutChangeEvent,
   type NativeScrollEvent,
@@ -17,6 +17,7 @@ import {
   MAX_ZOOM_SCALE,
   type Size,
   shouldDismiss,
+  zoomedInBy,
   zoomRectOf,
 } from './photo-zoom'
 
@@ -24,10 +25,14 @@ export const ZoomablePhoto = ({
   uri,
   name,
   onDismiss,
+  onTap,
+  onZoomIn,
 }: {
   uri: string
   name: string
   onDismiss: () => void
+  onTap: () => void
+  onZoomIn: () => void
 }) => {
   const scrollRef = useRef<ScrollViewInstance>(null)
   const zoomScale = useRef(1)
@@ -39,7 +44,10 @@ export const ZoomablePhoto = ({
   }
 
   const handleScroll = (event: NativeSyntheticEvent<NativeScrollEvent>) => {
-    zoomScale.current = event.nativeEvent.zoomScale ?? 1
+    const nextScale = event.nativeEvent.zoomScale ?? 1
+    const previousScale = zoomScale.current
+    zoomScale.current = nextScale
+    if (zoomedInBy({ previousScale, nextScale })) onZoomIn()
   }
 
   const handleScrollEndDrag = (event: NativeSyntheticEvent<NativeScrollEvent>) => {
@@ -61,6 +69,8 @@ export const ZoomablePhoto = ({
     runOnJS: true,
     onActivate: (event) => handleDoubleTap({ x: event.x, y: event.y }),
   })
+  const singleTap = useTapGesture({ runOnJS: true, onActivate: onTap })
+  const taps = useExclusiveGestures(doubleTap, singleTap)
 
   return (
     <ScrollView
@@ -81,12 +91,12 @@ export const ZoomablePhoto = ({
       onScrollEndDrag={handleScrollEndDrag}
     >
       {viewport === undefined ? null : (
-        <GestureDetector gesture={doubleTap}>
+        <GestureDetector gesture={taps}>
           <View
             accessible
             accessibilityRole="image"
             accessibilityLabel={name}
-            accessibilityHint="Pinch or double-tap to zoom. Swipe down to close."
+            accessibilityHint="Tap to show or hide the controls. Pinch or double-tap to zoom. Swipe down to close."
             style={viewport}
           >
             <Image source={{ uri }} contentFit="contain" style={styles.fill} />
