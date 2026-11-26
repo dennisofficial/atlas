@@ -102,6 +102,53 @@ describe('an http client with a token provider', () => {
     }
   })
 
+  it('shares one refresh between parallel calls that are both unauthorized', async () => {
+    const fetched = stubFetch((request) => {
+      if (request.body['method'] !== 'tools/call') return handshake(request)
+      return request.headers['authorization'] === 'Bearer token-2'
+        ? json({ jsonrpc: '2.0', id: request.body['id'], result: { content: [] } })
+        : new Response('no', { status: 401 })
+    })
+    let release = (): void => undefined
+    const gate = new Promise<void>((resolve) => {
+      release = resolve
+    })
+    let asked = 0
+    const client = new HttpClient({
+      serverId: 'posthog',
+      transport: { kind: 'http', url: SERVER_URL },
+      token: async () => {
+        asked += 1
+        if (asked === 1) return granted('token-1')
+        await gate
+        return granted('token-2')
+      },
+    })
+    try {
+      await client.connect()
+      const calls = Promise.all([
+        client.callTool({ name: 'query', input: {} }),
+        client.callTool({ name: 'query', input: {} }),
+      ])
+      await new Promise((resolve) => setTimeout(resolve, 0))
+      expect(asked).toBe(2)
+      release()
+      expect(await calls).toEqual([{ content: [] }, { content: [] }])
+      expect(asked).toBe(2)
+      expect(
+        fetched
+          .posts()
+          .filter(
+            (request) =>
+              request.body['method'] === 'tools/call' &&
+              request.headers['authorization'] === 'Bearer token-2',
+          ),
+      ).toHaveLength(2)
+    } finally {
+      fetched.restore()
+    }
+  })
+
   it('asks for the token once while no 401 arrives', async () => {
     const fetched = stubFetch(handshake)
     try {

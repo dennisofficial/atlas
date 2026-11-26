@@ -43,6 +43,7 @@ export class HttpClient implements McpTransportClient {
   private sessionId: string | undefined
   private nextId = 1
   private held: { token: string | undefined } | undefined
+  private refreshing: Promise<string | undefined> | undefined
 
   constructor(
     private readonly args: {
@@ -83,11 +84,29 @@ export class HttpClient implements McpTransportClient {
     this.sessionId = undefined
   }
 
-  private async tokenOf(args: { refresh: boolean }): Promise<string | undefined> {
-    if (args.refresh) this.held = undefined
+  private async tokenOf(): Promise<string | undefined> {
     const held = this.held
     if (held !== undefined) return held.token
-    const token = await this.args.token()
+    return await this.sourceToken()
+  }
+
+  private async sourceToken(): Promise<string | undefined> {
+    return this.takeOf(await this.args.token())
+  }
+
+  private refreshOf(args: { stale: string | undefined }): Promise<string | undefined> {
+    const running = this.refreshing
+    if (running !== undefined) return running
+    const held = this.held
+    if (held !== undefined && held.token !== args.stale) return Promise.resolve(held.token)
+    const started = this.sourceToken()
+    this.refreshing = started
+    return started.finally(() => {
+      this.refreshing = undefined
+    })
+  }
+
+  private takeOf(token: McpToken): string | undefined {
     if (token.kind === EMcpToken.Unavailable) throw this.unauthorizedOf()
     const taken = { token: token.kind === EMcpToken.Granted ? token.accessToken : undefined }
     this.held = taken
@@ -130,9 +149,10 @@ export class HttpClient implements McpTransportClient {
   }
 
   private async post(payload: unknown): Promise<unknown> {
-    const response = await this.send({ payload, token: await this.tokenOf({ refresh: false }) })
+    const token = await this.tokenOf()
+    const response = await this.send({ payload, token })
     if (response.status !== 401) return await this.readOf(response)
-    const retried = await this.send({ payload, token: await this.tokenOf({ refresh: true }) })
+    const retried = await this.send({ payload, token: await this.refreshOf({ stale: token }) })
     if (retried.status === 401) throw this.unauthorizedOf()
     return await this.readOf(retried)
   }
