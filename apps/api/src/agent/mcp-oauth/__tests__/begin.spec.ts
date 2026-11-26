@@ -3,7 +3,7 @@ import { createHash } from 'node:crypto'
 import { useTestDatabase } from '@dltech/atlas-db/testing'
 import { afterEach, describe, expect, it } from 'bun:test'
 
-import { seedOwner } from '../../config/__tests__/config-reader.fixture'
+import { seedGroup, seedOwner } from '../../config/__tests__/config-reader.fixture'
 import { mcpOauthGatewayOf } from '../gateway'
 import type { McpOauthBegin } from '../types'
 import {
@@ -192,6 +192,27 @@ describe('begin', () => {
     const pending = await db.orm.public.McpOauthPending.all()
     expect(pending[0]?.mcpServerId).toBe(row?.id ?? '')
     expect(pending[0]?.serverUrl).toBe(SERVER_URL)
+  })
+
+  it('finds a group server by the group it belongs to', async () => {
+    const { db } = testDb()
+    await seedOwner(db)
+    await seedGroup(db)
+    await seedCloudServer({ db, name: 'posthog', scope: { groupId: 'grp-1' } })
+    stubFetch(discoveryFetch())
+
+    const result = await gatewayOver(db).begin({
+      userId: 'user-1',
+      groupId: 'grp-1',
+      source: 'cloud',
+      name: 'posthog',
+      url: SERVER_URL,
+      returnTarget: RETURN_TARGET,
+    })
+
+    expect(beginUrlOf(result).origin).toBe(AUTH_ORIGIN)
+    const pending = await db.orm.public.McpOauthPending.all()
+    expect(pending[0]?.mcpServerId).toBe('srv-posthog')
   })
 })
 

@@ -261,4 +261,100 @@ describe('CloudConfigTool', () => {
     expect(fake.secrets.size).toBe(0)
     expect(textOf(await invoke(tool, { kind: 'secret', action: 'list' }))).toBe('No secret names.')
   })
+
+  it('moves a project secret and file to another grant without a value', async () => {
+    const fake = fakeCloudConfig()
+    const tool = toolFor(fake)
+    await invoke(tool, { kind: 'grant', action: 'set', name: 'Scratch' })
+    await invoke(tool, { kind: 'grant', action: 'set', name: 'PlanetScale' })
+    await invoke(tool, {
+      kind: 'secret',
+      action: 'set',
+      name: 'TOKEN',
+      value: 'x',
+      grant: 'Scratch',
+    })
+    await invoke(tool, {
+      kind: 'file',
+      action: 'set',
+      path: '.env.keys',
+      contents: 'x',
+      grant: 'Scratch',
+    })
+
+    const movedSecret = await invoke(tool, {
+      kind: 'secret',
+      action: 'set',
+      name: 'TOKEN',
+      grant: 'PlanetScale',
+    })
+    expect(textOf(movedSecret)).toBe('Moved secret TOKEN to grant PlanetScale.')
+    expect(fake.secrets.get('TOKEN')).toEqual({ value: 'x', grant: 'PlanetScale' })
+
+    const movedFile = await invoke(tool, {
+      kind: 'file',
+      action: 'set',
+      path: '.env.keys',
+      grant: 'PlanetScale',
+    })
+    expect(textOf(movedFile)).toBe('Moved file mount .env.keys to grant PlanetScale.')
+    expect(fake.mounts.get('.env.keys')).toEqual({
+      contents: 'x',
+      mode: 0o600,
+      grant: 'PlanetScale',
+    })
+  })
+
+  it('still demands the value when a set names no grant', async () => {
+    const tool = toolFor()
+
+    const secret = await invoke(tool, { kind: 'secret', action: 'set', name: 'TOKEN' })
+    expect(secret).toEqual({ ok: false, reason: 'value is required for this action' })
+
+    const file = await invoke(tool, { kind: 'file', action: 'set', path: '.env.keys' })
+    expect(file).toEqual({ ok: false, reason: 'contents is required for this action' })
+  })
+
+  it('refuses to move a member that does not exist', async () => {
+    const tool = toolFor()
+    await invoke(tool, { kind: 'grant', action: 'set', name: 'PlanetScale' })
+
+    expect(
+      await invoke(tool, { kind: 'secret', action: 'set', name: 'TOKEN', grant: 'PlanetScale' }),
+    ).toEqual({ ok: false, reason: 'there is no secret "TOKEN"' })
+    expect(
+      await invoke(tool, { kind: 'file', action: 'set', path: '.env.keys', grant: 'PlanetScale' }),
+    ).toEqual({ ok: false, reason: 'there is no file mount ".env.keys"' })
+  })
+
+  it('moves a group secret through the project group client', async () => {
+    const personal = fakePersonalConfig()
+    const group = fakePersonalConfig()
+    const tool = new CloudConfigTool({
+      personal: personal.client,
+      group: { ...group.client, scope: EAccessScope.Group },
+    })
+    await invoke(tool, { scope: 'group', kind: 'grant', action: 'set', name: 'Scratch' })
+    await invoke(tool, { scope: 'group', kind: 'grant', action: 'set', name: 'PlanetScale' })
+    await invoke(tool, {
+      scope: 'group',
+      kind: 'secret',
+      action: 'set',
+      name: 'TOKEN',
+      value: 'x',
+      grant: 'Scratch',
+    })
+
+    const moved = await invoke(tool, {
+      scope: 'group',
+      kind: 'secret',
+      action: 'set',
+      name: 'TOKEN',
+      grant: 'PlanetScale',
+    })
+
+    expect(textOf(moved)).toBe('Moved secret TOKEN to grant PlanetScale.')
+    expect(group.state.secrets.get('TOKEN')).toEqual({ value: 'x', grant: 'PlanetScale' })
+    expect(personal.state.secrets.size).toBe(0)
+  })
 })

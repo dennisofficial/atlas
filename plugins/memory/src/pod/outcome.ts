@@ -9,8 +9,7 @@ export const memoryRefusal = (error: unknown): ToolOutcome => ({
   reason: messageOf(error),
 })
 
-export const scopeLabelOf = (scope: MemoryScope): string =>
-  scope === 'global' ? 'global' : 'project'
+export const scopeLabelOf = (scope: MemoryScope): string => scope
 
 export const addressLabelOf = (address: MemoryAddress): string =>
   `${scopeLabelOf(address.scope)} memory "${address.name}"`

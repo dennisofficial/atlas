@@ -11,6 +11,12 @@ const PATH = '.atlas/ATLAS.md'
 
 export type InstructionsPort = {
   personal(sessionId: string): Promise<string | null>
+  group(sessionId: string): Promise<string | null>
+}
+
+const liveTextOf = (content: string | null | undefined): string | null => {
+  if (content === null || content === undefined) return null
+  return content.trim() === '' ? null : content
 }
 
 const personalOf = async (args: { db: Db; sessionId: string }): Promise<string | null> => {
@@ -28,6 +34,20 @@ const personalOf = async (args: { db: Db; sessionId: string }): Promise<string |
   return text.trim() === '' ? null : text
 }
 
+const groupOf = async (args: { db: Db; sessionId: string }): Promise<string | null> => {
+  const session = await args.db.orm.public.Session.first({ id: args.sessionId })
+  if (session === null || session === undefined) return null
+  if (session.projectId === null) return null
+  const project = await args.db.orm.public.Project.where({ id: session.projectId })
+    .select('groupId')
+    .first()
+  if (project?.groupId === null || project?.groupId === undefined) return null
+  const instruction = await args.db.orm.public.GroupInstruction.first({
+    groupId: project.groupId,
+  })
+  return liveTextOf(instruction?.content)
+}
+
 export const instructionsPort = (args: { db?: Db | undefined } = {}): InstructionsPort => {
   let kept: Db | undefined = args.db
 
@@ -40,5 +60,8 @@ export const instructionsPort = (args: { db?: Db | undefined } = {}): Instructio
     return kept
   }
 
-  return { personal: async (sessionId) => await personalOf({ db: database(), sessionId }) }
+  return {
+    personal: async (sessionId) => await personalOf({ db: database(), sessionId }),
+    group: async (sessionId) => await groupOf({ db: database(), sessionId }),
+  }
 }

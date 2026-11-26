@@ -8,8 +8,11 @@ const KIND: Record<EMemoryType, MemoryKind> = {
   [EMemoryType.Reference]: 'reference',
 }
 
-export const scopeOf = (scope: EMemoryScope): MemoryScope =>
-  scope === EMemoryScope.Global ? 'global' : 'project'
+export const scopeOf = (scope: EMemoryScope): MemoryScope => {
+  if (scope === EMemoryScope.Global) return 'global'
+  if (scope === EMemoryScope.Group) return 'group'
+  return 'project'
+}
 
 export const addressOf = (args: { scope: EMemoryScope; name: string }): MemoryAddress => ({
   scope: scopeOf(args.scope),

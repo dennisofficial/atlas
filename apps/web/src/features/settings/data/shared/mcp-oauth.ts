@@ -12,7 +12,27 @@ import {
 import { isDesktopHost } from '@/features/desktop/desktop-attributes'
 
 import { ELinkReturnKind, type LinkReturn } from '../personal/link-return'
+import type { McpSignInScreen } from './mcp-signin-request'
 import { relativeTimeOf } from './relative-time'
+
+export type McpOauthScope =
+  | { readonly kind: 'user' }
+  | { readonly kind: 'project'; readonly projectId: string }
+  | { readonly kind: 'group'; readonly groupId: string }
+
+export const mcpOauthServersInputOf = (
+  scope: McpOauthScope,
+): { projectId?: string; groupId?: string } => {
+  if (scope.kind === 'project') return { projectId: scope.projectId }
+  if (scope.kind === 'group') return { groupId: scope.groupId }
+  return {}
+}
+
+export const mcpOauthScreenOf = (scope: McpOauthScope): McpSignInScreen => {
+  if (scope.kind === 'project') return { kind: 'settings', scope: 'project', id: scope.projectId }
+  if (scope.kind === 'group') return { kind: 'settings', scope: 'group', id: scope.groupId }
+  return { kind: 'settings', scope: 'user' }
+}
 
 export enum EMcpAuthState {
   SignedIn = 'signed-in',

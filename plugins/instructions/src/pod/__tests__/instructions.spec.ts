@@ -2,7 +2,7 @@ import { describe, expect, it } from 'bun:test'
 
 import { EContextSlot } from '@dltech/atlas-core'
 
-import { PERSONAL_HEADER, projectHeader } from '..'
+import { GROUP_HEADER, PERSONAL_HEADER, projectHeader } from '..'
 import {
   type FakeNode,
   fakeDaemon,
@@ -48,6 +48,42 @@ describe('the instructions plugin', () => {
       `${PERSONAL_HEADER}\n\nbe brief`,
       `${projectHeader('/repo/AGENTS.md')}\n\nroot rules`,
       `${projectHeader('/repo/apps/AGENTS.md')}\n\napp rules`,
+    ])
+  })
+
+  it('puts the group block between the personal block and AGENTS.md', async () => {
+    const daemon = fakeDaemon(
+      repo({
+        '/repo/AGENTS.md': file('root rules'),
+        '/repo/apps': { kind: 'dir' },
+        '/repo/apps/AGENTS.md': file('app rules'),
+      }),
+    )
+    const blocks = await turn({
+      ctx: daemon.ctx,
+      options: personal('be brief', 'the group ships on Fridays'),
+      projectDirectory: '/repo/apps',
+    })
+
+    expect(blocks).toEqual([
+      `${PERSONAL_HEADER}\n\nbe brief`,
+      `${GROUP_HEADER}\n\nthe group ships on Fridays`,
+      `${projectHeader('/repo/AGENTS.md')}\n\nroot rules`,
+      `${projectHeader('/repo/apps/AGENTS.md')}\n\napp rules`,
+    ])
+  })
+
+  it('drops the group block when the group has no instructions', async () => {
+    const daemon = fakeDaemon(repo({ '/repo/AGENTS.md': file('root rules') }))
+    const blocks = await turn({
+      ctx: daemon.ctx,
+      options: personal('be brief', null),
+      projectDirectory: '/repo',
+    })
+
+    expect(blocks).toEqual([
+      `${PERSONAL_HEADER}\n\nbe brief`,
+      `${projectHeader('/repo/AGENTS.md')}\n\nroot rules`,
     ])
   })
 
@@ -276,6 +312,7 @@ describe('the instructions plugin', () => {
         reads += 1
         return 'be brief'
       },
+      group: async () => null,
     }
 
     await turn({ ctx: daemon.ctx, options, projectDirectory: '/repo' })
@@ -298,6 +335,9 @@ describe('the instructions plugin', () => {
       ctx: daemon.ctx,
       options: {
         personal: async () => {
+          throw new Error('cloud is down')
+        },
+        group: async () => {
           throw new Error('cloud is down')
         },
       },

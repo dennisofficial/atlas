@@ -1,13 +1,13 @@
 # @dltech/atlas-plugin-memory
 
-Gives a thread named memory entries that live in Atlas Cloud, and puts the memory index into the system prompt. The `memory` tool writes, reads, edits and deletes an entry in the global scope or the project scope.
+Gives a thread named memory entries that live in Atlas Cloud, and puts the memory index into the system prompt. The `memory` tool writes, reads, edits and deletes an entry in the global, group or project scope.
 
 ## Owns
 
 - The `memory` tool and its four actions: `write`, `read`, `edit` and `delete`.
 - The `memory-index` resource and the `memory-index` hook that adds the index to each step.
 - The `memory-reconcile` notice that tells the model when the index grows too large.
-- `memoryIndexOf({ project, memories })`: the text of the index, grouped by scope.
+- `memoryIndexOf({ project, group, memories })`: the text of the index, grouped by scope.
 
 ## Does not own
 
@@ -28,7 +28,7 @@ Gives a thread named memory entries that live in Atlas Cloud, and puts the memor
 
 ### Read the index
 
-- `memoryIndexOf({ project, memories })`: the index text. It lists the global entries first, then the project entries, and writes `(none yet)` for an empty scope.
+- `memoryIndexOf({ project, group, memories })`: the index text. It lists the global entries first, then the group entries, then the project entries, and writes `(none yet)` for an empty scope.
 
 ### Use the tool
 
@@ -39,13 +39,13 @@ Gives a thread named memory entries that live in Atlas Cloud, and puts the memor
 
 ### Pod tier (`memoryPod`)
 
-| Kind       | Name                        | What it adds                                                                      |
-| ---------- | --------------------------- | --------------------------------------------------------------------------------- |
-| Tool       | `memory`                    | `write`, `read`, `edit` and `delete` on one entry in the global or project scope. |
-| Hook       | `memory-index` (beforeStep) | Adds the index to the system prompt once a load is recorded, and nothing before.  |
-| Resource   | `memory-index`              | The rendered index text for this session.                                         |
-| Prompt     | `memory.instructions`       | Describes the four kinds of memory and the rules for each.                        |
-| Child deny | `memory`                    | A sub-agent cannot call the tool.                                                 |
+| Kind       | Name                        | What it adds                                                                             |
+| ---------- | --------------------------- | ---------------------------------------------------------------------------------------- |
+| Tool       | `memory`                    | `write`, `read`, `edit` and `delete` on one entry in the global, group or project scope. |
+| Hook       | `memory-index` (beforeStep) | Adds the index to the system prompt once a load is recorded, and nothing before.         |
+| Resource   | `memory-index`              | The rendered index text for this session.                                                |
+| Prompt     | `memory.instructions`       | Describes the four kinds of memory and the rules for each.                               |
+| Child deny | `memory`                    | A sub-agent cannot call the tool.                                                        |
 
 A write can also return a system notice of kind `memory-reconcile`. The notice names the entries that need a rewrite, so the index stays small.
 

@@ -63,6 +63,11 @@ export const mcpReturnScreenSchema = z.union([
     scope: z.literal('project'),
     id: z.string().min(1),
   }),
+  z.strictObject({
+    kind: z.literal('settings'),
+    scope: z.literal('group'),
+    id: z.string().min(1),
+  }),
 ])
 export type McpReturnScreen = z.infer<typeof mcpReturnScreenSchema>
 
@@ -94,6 +99,7 @@ export type McpServerGrantRow = {
   id: string
   userId: string | null
   projectId: string | null
+  groupId: string | null
   name: string
   source: string
   sealedSpec: string | null
@@ -137,6 +143,7 @@ export type McpOauthGrant =
 export type McpOauthServerRef = {
   userId: string
   projectId?: string | undefined
+  groupId?: string | undefined
   source: McpServerSource
   name: string
   url: string

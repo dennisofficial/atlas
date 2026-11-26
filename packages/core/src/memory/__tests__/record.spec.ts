@@ -12,6 +12,7 @@ import { EMemoryScope, EMemoryType } from '../vocabulary'
 const summary = {
   scope: EMemoryScope.Project,
   project: 'acme/widgets',
+  groupId: null,
   name: 'deflate',
   description: 'about deflate',
   type: EMemoryType.Reference,
@@ -43,6 +44,19 @@ describe('memory record', () => {
     expect(
       memorySummarySchema.parse({ ...summary, scope: EMemoryScope.Global, project: null }).project,
     ).toBeNull()
+  })
+
+  it('accepts a group memory keyed by its group', () => {
+    const parsed = memorySummarySchema.parse({
+      ...summary,
+      scope: EMemoryScope.Group,
+      project: null,
+      groupId: 'pgr_1',
+    })
+    expect({ scope: parsed.scope, groupId: parsed.groupId }).toEqual({
+      scope: EMemoryScope.Group,
+      groupId: 'pgr_1',
+    })
   })
 
   it('refuses an unknown scope, an unknown kind and a fractional revision', () => {

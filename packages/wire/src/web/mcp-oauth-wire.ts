@@ -56,6 +56,11 @@ export const mcpOauthScreenSchema = z.union([
     scope: z.literal('project'),
     id: z.string().min(1),
   }),
+  z.strictObject({
+    kind: z.literal('settings'),
+    scope: z.literal('group'),
+    id: z.string().min(1),
+  }),
 ])
 export type McpOauthScreen = z.infer<typeof mcpOauthScreenSchema>
 
@@ -80,6 +85,7 @@ export type McpOauthBeginResult = z.infer<typeof mcpOauthBeginResultSchema>
 
 export const mcpOauthServersInputSchema = z.strictObject({
   projectId: z.string().min(1).optional(),
+  groupId: z.string().min(1).optional(),
 })
 export type McpOauthServersInput = z.infer<typeof mcpOauthServersInputSchema>
 

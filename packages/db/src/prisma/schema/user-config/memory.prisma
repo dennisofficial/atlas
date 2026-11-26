@@ -4,6 +4,7 @@ model Memory {
   userId      String
   scope       String
   project     String               @default("")
+  groupId     String               @default("")
   name        String
   description String
   type        String
@@ -11,8 +12,9 @@ model Memory {
   revision    Int                  @default(1)
   createdAt   TimestamptzJsDate(3) @default(now())
   updatedAt   TimestamptzJsDate(3) @onCreate(now()) @onUpdate(now())
-  user        User                 @relation(fields: [userId], references: [id], onDelete: Cascade, onUpdate: Cascade, index: "Memory_userId_scope_project_name_key")
+  user        User                 @relation(fields: [userId], references: [id], onDelete: Cascade, onUpdate: Cascade, index: "Memory_userId_scope_groupId_project_name_key")
 
-  @@unique([userId, scope, project, name], map: "Memory_userId_scope_project_name_key")
+  @@unique([userId, scope, groupId, project, name], map: "Memory_userId_scope_groupId_project_name_key")
   @@index([userId, project], map: "Memory_userId_project_idx")
+  @@index([userId, groupId], map: "Memory_userId_groupId_idx")
 }

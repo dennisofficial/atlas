@@ -1,4 +1,5 @@
 import {
+  BookOpenTextIcon,
   BoxIcon,
   LayoutDashboardIcon,
   LockKeyholeIcon,
@@ -9,6 +10,7 @@ import {
 
 export enum EGroupSettingsSection {
   Overview = 'overview',
+  Instructions = 'instructions',
   Sandbox = 'sandbox',
   Access = 'access',
   Skills = 'skills',
@@ -23,6 +25,7 @@ export type GroupNavItem = {
 
 export const GROUP_NAV: readonly GroupNavItem[] = [
   { section: EGroupSettingsSection.Overview, label: 'Overview', icon: LayoutDashboardIcon },
+  { section: EGroupSettingsSection.Instructions, label: 'Instructions', icon: BookOpenTextIcon },
   { section: EGroupSettingsSection.Sandbox, label: 'Sandbox', icon: BoxIcon },
   { section: EGroupSettingsSection.Access, label: 'Access', icon: LockKeyholeIcon },
   { section: EGroupSettingsSection.Skills, label: 'Skills', icon: SparklesIcon },

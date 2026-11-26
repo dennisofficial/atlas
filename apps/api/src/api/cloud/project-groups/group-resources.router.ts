@@ -2,6 +2,8 @@ import {
   groupFileMountKeySchema,
   groupFileMountSetSchema,
   groupIdInputSchema,
+  groupInstructionSaveSchema,
+  groupInstructionSchema,
   groupSecretKeySchema,
   groupSecretSetSchema,
   groupSettingsPatchSchema,
@@ -14,6 +16,8 @@ import {
   type GroupFileMountKey,
   type GroupFileMountSetInput,
   type GroupIdInput,
+  type GroupInstruction,
+  type GroupInstructionSave,
   type GroupSecretKey,
   type GroupSecretSet,
   type GroupSettingsPatch,
@@ -28,6 +32,7 @@ import { Ctx, Input, Mutation, Query, Router, UseMiddlewares } from 'nestjs-trpc
 import { z } from 'zod'
 import { assertFreshSession } from '../../../_module/session/fresh-session'
 import { SessionMiddleware, type SessionTrpcCtx } from '../../../_module/session/session.middleware'
+import { GroupInstructionsService } from './group-instructions.service'
 import { GroupResourcesService } from './group-resources.service'
 import { GroupSettingsService } from './group-settings.service'
 
@@ -37,6 +42,7 @@ export class GroupResourcesRouter {
   constructor(
     private readonly resources: GroupResourcesService,
     private readonly settings: GroupSettingsService,
+    private readonly groupInstructions: GroupInstructionsService,
   ) {}
 
   @Query({ input: groupIdInputSchema, output: projectSecretListSchema })
@@ -118,6 +124,22 @@ export class GroupResourcesRouter {
     @Ctx() ctx: SessionTrpcCtx,
   ): Promise<void> {
     await this.settings.patch({ userId: ctx.auth.userId, ...input })
+  }
+
+  @Query({ input: groupIdInputSchema, output: groupInstructionSchema })
+  async instructions(
+    @Input() input: GroupIdInput,
+    @Ctx() ctx: SessionTrpcCtx,
+  ): Promise<GroupInstruction> {
+    return this.groupInstructions.read({ userId: ctx.auth.userId, ...input })
+  }
+
+  @Mutation({ input: groupInstructionSaveSchema, output: z.void() })
+  async saveInstructions(
+    @Input() input: GroupInstructionSave,
+    @Ctx() ctx: SessionTrpcCtx,
+  ): Promise<void> {
+    await this.groupInstructions.save({ userId: ctx.auth.userId, ...input })
   }
 
   @Query({ input: groupIdInputSchema, output: layeredSettingsSchema })

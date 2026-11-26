@@ -1,6 +1,6 @@
 'use client'
 
-import { useCallback, useEffect, useState } from 'react'
+import { useCallback, useEffect, useMemo, useState } from 'react'
 import { toast } from 'sonner'
 
 import type { McpOauthServer } from '@dltech/atlas-wire/web'
@@ -9,8 +9,16 @@ import { isDesktopHost } from '@/features/desktop/desktop-attributes'
 import { api, cloudCall } from '@/lib/api-client'
 import { EQueryState, useCloudQuery } from '@/lib/use-cloud-query'
 
-import { beginMcpSignIn } from './mcp-signin-request'
-import { authStateOf, cloudServerOf, repoServersOf, EMcpAuthState } from './mcp-oauth'
+import { beginMcpSignIn, type McpSignInScreen } from './mcp-signin-request'
+import {
+  authStateOf,
+  cloudServerOf,
+  repoServersOf,
+  EMcpAuthState,
+  mcpOauthScreenOf,
+  mcpOauthServersInputOf,
+  type McpOauthScope,
+} from './mcp-oauth'
 import { runAction } from './run-action'
 
 export type McpOauth = {
@@ -29,17 +37,34 @@ type LoadedServers = { servers: McpOauthServer[]; now: number }
 
 const EMPTY: LoadedServers = { servers: [], now: 0 }
 
-async function loadServers(projectId: string | undefined): Promise<LoadedServers> {
-  const result = await cloudCall(
-    api.mcpOauth.servers.query(projectId === undefined ? {} : { projectId }),
-  )
+type ScopedRequest = {
+  key: string
+  input: { projectId?: string; groupId?: string }
+  screen: McpSignInScreen
+}
+
+const scopeIdOf = (scope: McpOauthScope): string =>
+  scope.kind === 'project' ? scope.projectId : scope.kind === 'group' ? scope.groupId : 'personal'
+
+async function loadServers(input: ScopedRequest['input']): Promise<LoadedServers> {
+  const result = await cloudCall(api.mcpOauth.servers.query(input))
   return { servers: result.servers, now: Date.now() }
 }
 
-export function useMcpOauth({ projectId }: { projectId?: string } = {}): McpOauth {
+export function useMcpOauth(scope: McpOauthScope = { kind: 'user' }): McpOauth {
+  const kind = scope.kind
+  const id = scopeIdOf(scope)
+  const { key, input, screen } = useMemo<ScopedRequest>(
+    () => ({
+      key: `${kind}:${id}`,
+      input: mcpOauthServersInputOf(scope),
+      screen: mcpOauthScreenOf(scope),
+    }),
+    [kind, id],
+  )
   const query = useCloudQuery({
-    key: `mcp-oauth:${projectId ?? 'personal'}`,
-    load: () => loadServers(projectId),
+    key: `mcp-oauth:${key}`,
+    load: () => loadServers(input),
   })
   const { reload } = query
   const [busyId, setBusyId] = useState<string | null>(null)
@@ -60,10 +85,7 @@ export function useMcpOauth({ projectId }: { projectId?: string } = {}): McpOaut
           const result = await beginMcpSignIn({
             serverId,
             surface: desktop ? 'desktop' : 'web',
-            screen:
-              projectId === undefined
-                ? { kind: 'settings', scope: 'user' }
-                : { kind: 'settings', scope: 'project', id: projectId },
+            screen,
           })
           if (result.ok && desktop) {
             window.open(result.url, '_blank', 'noopener')
@@ -80,7 +102,7 @@ export function useMcpOauth({ projectId }: { projectId?: string } = {}): McpOaut
         if (!redirecting) setBusyId(null)
       })
     },
-    [projectId],
+    [screen],
   )
 
   const signOut = useCallback(

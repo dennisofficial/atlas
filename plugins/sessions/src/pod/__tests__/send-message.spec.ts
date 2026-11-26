@@ -54,7 +54,7 @@ const rig = (messages: PodMessages = EMPTY_MESSAGES) => {
       routines: EMPTY_ROUTINES,
       subscriptions: EMPTY_SUBSCRIPTIONS,
       memory: {
-        list: async () => ({ project: null, memories: [] }),
+        list: async () => ({ project: null, group: null, memories: [] }),
         read: async () => null,
         write: async () => {
           throw new Error('this rig writes no memory')

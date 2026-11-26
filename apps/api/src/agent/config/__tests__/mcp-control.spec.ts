@@ -3,9 +3,9 @@ import { useTestDatabase } from '@dltech/atlas-db/testing'
 import { EMcpToken } from '@dltech/atlas-plugin-sdk'
 import { describe, expect, it } from 'bun:test'
 
-import type { McpOauthGateway } from '../../mcp-oauth'
+import type { McpOauthGateway, McpOauthServerRef } from '../../mcp-oauth'
 import { mcpControlOf, offlineMacLink } from '../mcp-control'
-import { cipher, sealed, seedOwner } from './config-reader.fixture'
+import { cipher, sealed, seedGroup, seedOwner } from './config-reader.fixture'
 
 const testDb = useTestDatabase()
 
@@ -192,6 +192,38 @@ describe('mcpControl token', () => {
         url: 'https://mcp.paper.design/mcp',
       }),
     ).toEqual({ kind: EMcpToken.Unavailable, reason: 'the connection dropped' })
+  })
+
+  it('refreshes a group grant with the group of the session project', async () => {
+    const { db } = testDb()
+    await seedOwner(db)
+    await seedGroup(db)
+    await db.orm.public.McpServer.create({
+      id: 'srv-group',
+      name: 'paper',
+      source: 'cloud',
+      sealedSpec: sealed({
+        name: 'paper',
+        transport: { kind: 'http', url: 'https://mcp.paper.design/mcp' },
+      }),
+      groupId: 'grp-1',
+      oauthStatus: 'active',
+      oauthServerUrl: 'https://mcp.paper.design/mcp',
+      oauthSealed: sealed({ tokens: { accessToken: 'at-1', expiresAt: PAST } }),
+    })
+    const calls: McpOauthServerRef[] = []
+
+    const token = await tokenOf({
+      db,
+      gateway: gatewayOf(async (args) => {
+        calls.push(args)
+        return { ok: true, accessToken: 'at-2', expiresAt: null }
+      }),
+      url: 'https://mcp.paper.design/mcp',
+    })
+
+    expect(token).toEqual({ kind: EMcpToken.Granted, accessToken: 'at-2' })
+    expect(calls[0]).toMatchObject({ groupId: 'grp-1', projectId: 'proj-1', name: 'paper' })
   })
 })
 

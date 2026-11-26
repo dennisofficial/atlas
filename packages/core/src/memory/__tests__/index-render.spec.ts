@@ -85,6 +85,33 @@ describe('renderMemoryIndex', () => {
     ).toBe(true)
   })
 
+  it('lists the group scope between global and project', () => {
+    const text = renderMemoryIndex({
+      global: [{ name: 'prefers-bun', description: 'Uses bun everywhere' }],
+      group: {
+        key: 'Comp AI',
+        entries: [{ name: 'ship-on-fridays', description: 'Comp AI ships on Fridays' }],
+      },
+      project: {
+        key: 'org/repo',
+        entries: [{ name: 'deploy-flow', description: 'How deploys run' }],
+      },
+    })
+
+    expect(text).toBe(
+      [
+        '### Global',
+        '- prefers-bun — Uses bun everywhere',
+        '',
+        '### Group Comp AI',
+        '- ship-on-fridays — Comp AI ships on Fridays',
+        '',
+        '### Project org/repo',
+        '- deploy-flow — How deploys run',
+      ].join('\n'),
+    )
+  })
+
   it('keeps every project line when a large global scope fills the rest', () => {
     const text = renderMemoryIndex({
       global: linesOf({ prefix: 'g', count: 300 }),
@@ -100,23 +127,31 @@ describe('fairIndexShares', () => {
   it.each([
     [
       { global: 10, project: 20 },
-      { global: 10, project: 20 },
+      { global: 10, group: 0, project: 20 },
     ],
     [
       { global: 300, project: 10 },
-      { global: 240, project: 10 },
+      { global: 240, group: 0, project: 10 },
     ],
     [
       { global: 10, project: 300 },
-      { global: 10, project: 240 },
+      { global: 10, group: 0, project: 240 },
     ],
     [
       { global: 300, project: 300 },
-      { global: 125, project: 125 },
+      { global: 125, group: 0, project: 125 },
     ],
     [
       { global: 120, project: 130 },
-      { global: 120, project: 130 },
+      { global: 120, group: 0, project: 130 },
+    ],
+    [
+      { global: 300, group: 300, project: 300 },
+      { global: 125, group: 63, project: 62 },
+    ],
+    [
+      { global: 10, group: 300, project: 300 },
+      { global: 10, group: 120, project: 120 },
     ],
   ])('splits %o as %o', (counts, shares) => {
     expect(fairIndexShares({ ...counts, cap: 250 })).toEqual(shares)

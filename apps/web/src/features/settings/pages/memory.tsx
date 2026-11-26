@@ -51,20 +51,26 @@ function matches({ entry, query, type }: { entry: MemoryEntry; query: string; ty
 }
 
 function scopeHint(group: MemoryScopeGroup) {
-  return group.scope === EMemoryScope.Global
-    ? 'Loaded in every thread, on every project.'
-    : `Loaded alongside global memories in threads on ${group.project}.`
+  if (group.scope === EMemoryScope.Global) return 'Loaded in every thread, on every project.'
+  if (group.scope === EMemoryScope.Group) {
+    return `Loaded alongside global memories in threads on every project in the ${memoryGroupLabel(group)} group.`
+  }
+  return `Loaded alongside global and group memories in threads on ${group.project}.`
 }
 
 function clearDescription(group: MemoryScopeGroup) {
-  return group.scope === EMemoryScope.Global
-    ? 'Deletes every global memory. Project memories are not touched.'
-    : `Deletes every memory for ${group.project}. Global memories and other projects are not touched.`
+  if (group.scope === EMemoryScope.Global) {
+    return 'Deletes every global memory. Group and project memories are not touched.'
+  }
+  if (group.scope === EMemoryScope.Group) {
+    return `Deletes every memory of the ${memoryGroupLabel(group)} group. Global memories and other scopes are not touched.`
+  }
+  return `Deletes every memory for ${group.project}. Global and group memories are not touched.`
 }
 
 const PAGE_TITLE = 'Memory'
 const PAGE_DESCRIPTION =
-  'Notes the agent keeps across conversations. Global memories apply everywhere; project memories apply only in that repository.'
+  'Notes the agent keeps across conversations. Global memories apply everywhere, group memories to every project in a group, and project memories only in that repository.'
 
 export function MemoryPage() {
   const memory = useMemoryGroups()
@@ -98,6 +104,8 @@ function MemoryContent({ groups, memory }: { groups: MemoryScopeGroup[]; memory:
       id: '',
       scope: EMemoryScope.Global,
       project: null,
+      groupId: null,
+      name: null,
       memories: [],
     },
     summary: openEntry,

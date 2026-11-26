@@ -285,13 +285,15 @@ function McpScopePage({ scope, auth }: { scope: SettingsScope; auth: McpOauth | 
   )
 }
 
-function ProjectMcpPage({ projectId }: { projectId: string }) {
-  const auth = useMcpOauth({ projectId })
-  return <McpScopePage scope={{ kind: 'project', projectId }} auth={auth} />
+function ScopedMcpPage({ scope }: { scope: SettingsScope }) {
+  const auth = useMcpOauth(
+    scope.kind === 'group'
+      ? { kind: 'group', groupId: scope.groupId }
+      : { kind: 'project', projectId: scope.projectId },
+  )
+  return <McpScopePage scope={scope} auth={auth} />
 }
 
 export function McpPage() {
-  const scope = useSettingsScope()
-  if (scope.kind === 'group') return <McpScopePage scope={scope} auth={null} />
-  return <ProjectMcpPage projectId={scope.projectId} />
+  return <ScopedMcpPage scope={useSettingsScope()} />
 }

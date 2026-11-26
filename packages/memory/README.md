@@ -7,8 +7,8 @@ plugin's tools and the web settings page both call it, so a memory has one rule 
 
 - The read and write of a `Memory` row in Postgres.
 - The revision counter. Every write bumps it, and every edit checks it.
-- The `global` and `project` scopes, and the four kinds: `user`, `feedback`, `project` and
-  `reference`.
+- The `global`, `group` and `project` scopes, and the four kinds: `user`, `feedback`, `project`
+  and `reference`.
 - The errors that a caller maps to a status: invalid, not found, stale revision, edit refused.
 
 ## Does not own
@@ -28,10 +28,10 @@ plugin's tools and the web settings page both call it, so a memory has one rule 
 
 ### Read
 
-- `listMemories({ db, userId, project })`: the summaries of the global memories, plus the project
-  memories when the caller supplies `project`. Newest first.
+- `listMemories({ db, userId, project, groupId })`: the summaries of the global memories, plus the
+  memories of the group the caller names, plus the memories of the project it names. Newest first.
 - `listAllMemories({ db, userId })`: the summaries of every memory of the user, newest first.
-- `getMemory({ db, userId, scope, project, name })`: the entry, with its body. It throws
+- `getMemory({ db, userId, scope, project, groupId, name })`: the entry, with its body. It throws
   `MemoryNotFoundError` when the memory does not exist.
 
 ### Write
@@ -46,10 +46,10 @@ plugin's tools and the web settings page both call it, so a memory has one rule 
 
 ### Name a memory
 
-- `MemoryKey`: `{ userId, scope, project?, name }`. A `project`-scope key needs a `project`. A
-  `global` key has none.
-- `MemoryScope`, `MemoryKind`: `'global' | 'project'` and `'user' | 'feedback' | 'project' |
-  'reference'`.
+- `MemoryKey`: `{ userId, scope, project?, groupId?, name }`. A `project`-scope key needs a
+  `project`, a `group`-scope key needs a `groupId`, and a `global` key has neither.
+- `MemoryScope`, `MemoryKind`: `'global' | 'group' | 'project'` and `'user' | 'feedback' |
+  'project' | 'reference'`.
 
 ### Report a failure
 
@@ -86,8 +86,8 @@ await editMemory({
 ## Rules
 
 - Read the memory again after a `MemoryStaleRevisionError`. Never retry the same revision.
-- Give `project` for a `project`-scope key, and leave it out for a `global` key. A wrong pair throws
-  `MemoryInvalidError`.
+- Give `groupId` for a `group`-scope key, `project` for a `project`-scope key, and neither for a
+  `global` key. A wrong pair throws `MemoryInvalidError`.
 - Keep the body below the limit `MAX_MEMORY_BODY_CHARS`. The edit path checks it.
 
 ## See also

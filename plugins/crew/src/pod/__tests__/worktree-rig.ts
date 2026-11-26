@@ -157,7 +157,7 @@ export const rig = (
         throw new Error('this rig exposes no port')
       },
       memory: {
-        list: async () => ({ project: null, memories: [] }),
+        list: async () => ({ project: null, group: null, memories: [] }),
         read: async () => null,
         write: async () => {
           throw new Error('this rig writes no memory')

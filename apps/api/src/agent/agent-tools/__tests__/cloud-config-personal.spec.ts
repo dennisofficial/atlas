@@ -86,4 +86,47 @@ describe('CloudConfigTool personal scope', () => {
     const personal = await invoke(tool, { kind: 'setting', action: 'list', scope: 'personal' })
     expect(textOf(personal)).toBe('No settings.')
   })
+
+  it('moves a personal secret and file to another grant without a value', async () => {
+    const personal = fakePersonalConfig()
+    const tool = personalTool(personal)
+    await invoke(tool, { kind: 'grant', action: 'set', name: 'Scratch', scope: 'personal' })
+    await invoke(tool, { kind: 'grant', action: 'set', name: 'PlanetScale', scope: 'personal' })
+    await invoke(tool, {
+      kind: 'secret',
+      action: 'set',
+      name: 'TOKEN',
+      value: 'x',
+      grant: 'Scratch',
+      scope: 'personal',
+    })
+    await invoke(tool, {
+      kind: 'file',
+      action: 'set',
+      path: '~/.config/atlas.env',
+      contents: 'x',
+      grant: 'Scratch',
+      scope: 'personal',
+    })
+
+    const movedSecret = await invoke(tool, {
+      kind: 'secret',
+      action: 'set',
+      name: 'TOKEN',
+      grant: 'PlanetScale',
+      scope: 'personal',
+    })
+    expect(textOf(movedSecret)).toBe('Moved secret TOKEN to grant PlanetScale.')
+    expect(personal.state.secrets.get('TOKEN')).toEqual({ value: 'x', grant: 'PlanetScale' })
+
+    const movedFile = await invoke(tool, {
+      kind: 'file',
+      action: 'set',
+      path: '~/.config/atlas.env',
+      grant: 'PlanetScale',
+      scope: 'personal',
+    })
+    expect(textOf(movedFile)).toBe('Moved file mount ~/.config/atlas.env to grant PlanetScale.')
+    expect(personal.state.mounts.get('~/.config/atlas.env')?.grant).toBe('PlanetScale')
+  })
 })

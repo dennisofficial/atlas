@@ -13,6 +13,7 @@ model ProjectGroup {
   settings     GroupSetting[]
   skills       Skill[]
   mcpServers   McpServer[]
+  instruction  GroupInstruction?
 
   @@unique([userId, name], map: "ProjectGroup_userId_name_key")
 }

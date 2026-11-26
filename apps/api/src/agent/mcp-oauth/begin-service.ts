@@ -45,15 +45,14 @@ export class McpOauthBeginService {
       const owner = await store.projectOwner({ projectId: body.screen.id })
       if (owner !== input.userId) return refused(403, 'project')
     }
+    if (body.screen.kind === 'settings' && body.screen.scope === 'group') {
+      const owner = await store.groupOwner({ groupId: body.screen.id })
+      if (owner !== input.userId) return refused(403, 'group')
+    }
 
     const row = await store.find({ id: body.serverId })
     if (row === null) return refused(404, 'server')
-    const owned =
-      row.userId === null
-        ? row.projectId !== null &&
-          (await store.projectOwner({ projectId: row.projectId })) === input.userId
-        : row.userId === input.userId
-    if (!owned) return refused(403, 'server')
+    if (!(await store.ownsRow({ row, userId: input.userId }))) return refused(403, 'server')
     if (row.source !== 'cloud' && row.source !== 'repo') return refused(422, 'source')
 
     let serverUrl: string | undefined
@@ -67,6 +66,7 @@ export class McpOauthBeginService {
     const begun = await this.args.gateway.begin({
       userId: input.userId,
       ...(row.projectId === null ? {} : { projectId: row.projectId }),
+      ...(row.groupId === null ? {} : { groupId: row.groupId }),
       source: row.source,
       name: row.name,
       url: serverUrl,

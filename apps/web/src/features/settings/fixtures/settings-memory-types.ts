@@ -15,6 +15,8 @@ export type MemoryScopeGroup = {
   id: string
   scope: EMemoryScope
   project: string | null
+  groupId: string | null
+  name: string | null
   memories: MemoryEntry[]
 }
 

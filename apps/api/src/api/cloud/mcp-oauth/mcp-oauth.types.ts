@@ -21,6 +21,7 @@ export interface ServerGrantRow {
   id: string
   userId: string | null
   projectId: string | null
+  groupId: string | null
   name: string
   source: EMcpServerSource
   sealedSpec: string | null
@@ -58,22 +59,26 @@ export abstract class McpOauthStore {
   abstract findServer(args: { id: string }): Promise<ServerGrantRow | null>
   abstract listServers(args: {
     userId?: string | undefined
+    groupId?: string | undefined
     projectId?: string | undefined
   }): Promise<ServerGrantRow[]>
   abstract findByName(args: {
     userId?: string | undefined
+    groupId?: string | undefined
     projectId?: string | undefined
     source: EMcpServerSource
     name: string
   }): Promise<ServerGrantRow | null>
   abstract touchRepoServer(args: {
     userId?: string | undefined
+    groupId?: string | undefined
     projectId?: string | undefined
     name: string
     url: string
     now: Date
   }): Promise<ServerGrantRow>
   abstract projectOwner(args: { projectId: string }): Promise<string | null>
+  abstract groupOwner(args: { groupId: string }): Promise<string | null>
   abstract writeGrant(args: { id: string; serverUrl: string; sealed: string }): Promise<void>
   abstract claim(args: {
     id: string

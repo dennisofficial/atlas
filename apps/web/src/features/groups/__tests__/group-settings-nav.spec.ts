@@ -2,12 +2,18 @@ import { describe, expect, it } from 'bun:test'
 
 import { EProjectSettingsSection } from '@/features/project-settings/project-settings-nav'
 
-import { GROUP_NAV, groupSectionOfPath, hrefOfGroupSection } from '../group-settings-nav'
+import {
+  EGroupSettingsSection,
+  GROUP_NAV,
+  groupSectionOfPath,
+  hrefOfGroupSection,
+} from '../group-settings-nav'
 
 describe('group settings nav', () => {
   it('offers every inheritable section and no project-only one', () => {
     expect(GROUP_NAV.map((item) => item.section)).toEqual([
       EProjectSettingsSection.Overview,
+      EGroupSettingsSection.Instructions,
       EProjectSettingsSection.Sandbox,
       EProjectSettingsSection.Access,
       EProjectSettingsSection.Skills,
@@ -20,6 +26,9 @@ describe('group settings nav', () => {
 
   it('resolves a section from a group settings path', () => {
     expect(groupSectionOfPath('/groups/grp-1/settings/access')).toBe(EProjectSettingsSection.Access)
+    expect(groupSectionOfPath('/groups/grp-1/settings/instructions')).toBe(
+      EGroupSettingsSection.Instructions,
+    )
     expect(groupSectionOfPath('/groups/grp-1/settings')).toBeNull()
     expect(groupSectionOfPath('/projects/prj-1/settings/access')).toBeNull()
   })

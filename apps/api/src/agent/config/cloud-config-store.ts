@@ -49,9 +49,11 @@ export type CloudConfigClient = {
   removeSetting(key: string): Promise<boolean>
   listSecrets(): Promise<readonly SecretEntry[]>
   setSecret(args: SecretWrite): Promise<void>
+  moveSecret(args: { name: string; grant: string }): Promise<boolean>
   removeSecret(name: string): Promise<boolean>
   listFileMounts(): Promise<readonly FileMountView[]>
   setFileMount(args: FileMountWrite): Promise<void>
+  moveFileMount(args: { path: string; grant: string }): Promise<boolean>
   removeFileMount(path: string): Promise<boolean>
   listGrants(): Promise<readonly GrantView[]>
   readGrant(name: string): Promise<GrantView | null>

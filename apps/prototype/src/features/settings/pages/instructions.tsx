@@ -32,12 +32,17 @@ function CharCount({ length }: { length: number }) {
   )
 }
 
+const DEFAULT_DESCRIPTION =
+  "Loaded into every thread, before the project's ATLAS.md, AGENTS.md and CLAUDE.md."
+
 export function InstructionsPage({
   saved: initialSaved = GLOBAL_INSTRUCTIONS_RICH,
   initial = initialSaved,
+  description = DEFAULT_DESCRIPTION,
 }: {
   saved?: string
   initial?: string
+  description?: string
 }) {
   const [saved, setSaved] = useState(initialSaved)
   const [value, setValue] = useState(initial)
@@ -79,9 +84,7 @@ export function InstructionsPage({
             </Button>
           </div>
         </div>
-        <p className="text-sm text-muted-foreground">
-          Loaded into every thread, before the project's ATLAS.md, AGENTS.md and CLAUDE.md.
-        </p>
+        <p className="text-sm text-muted-foreground">{description}</p>
       </header>
       <MarkdownEditor
         variant={EMarkdownEditorVariant.Document}

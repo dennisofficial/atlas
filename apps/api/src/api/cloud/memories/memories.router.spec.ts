@@ -134,6 +134,27 @@ describe('MemoriesRouter', () => {
     })
   })
 
+  it('keeps group memories apart and lists them only when the group is named', async () => {
+    const groupNote = { ...NOTE, scope: 'group', groupId: 'pgr_comp', name: 'group-fact' }
+    const otherGroup = { ...NOTE, scope: 'group', groupId: 'pgr_other', name: 'other-fact' }
+    await put('session-a', groupNote).expect(200)
+    await put('session-a', otherGroup).expect(200)
+
+    const without = await query('memories.list', 'session-a', {}).expect(200)
+    const withGroup = await query('memories.list', 'session-a', { groupId: 'pgr_comp' }).expect(200)
+
+    expect(without.body.result.data.memories).toEqual([])
+    expect(withGroup.body.result.data.memories).toMatchObject([
+      { name: 'group-fact', project: null, groupId: 'pgr_comp', scope: 'group' },
+    ])
+  })
+
+  it('refuses a group memory whose key names no group', async () => {
+    const reply = await put('session-a', { ...NOTE, scope: 'group' }).expect(400)
+
+    expect(reply.body.error.data.details.message).toContain('needs a group')
+  })
+
   it('listAll is session-only, no-store, and spans every scope and project of the caller newest first', async () => {
     const orphanProject = {
       ...NOTE,

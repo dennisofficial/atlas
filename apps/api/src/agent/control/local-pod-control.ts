@@ -59,11 +59,29 @@ const projectFor = (args: {
   project: string | null
   name: string
 }): string | undefined => {
-  if (args.scope === 'global') return undefined
+  if (args.scope !== 'project') return undefined
   if (args.project === null) {
     throw new Error('this session has no GitHub repository, so only global memory is available')
   }
   return args.project
+}
+
+const groupFor = (args: { scope: MemoryScope; groupId: string | null }): string | undefined => {
+  if (args.scope !== 'group') return undefined
+  if (args.groupId === null) {
+    throw new Error(
+      'this session has no project group, so only global and project memory is available',
+    )
+  }
+  return args.groupId
+}
+
+const groupNameOf = async (args: { db: Db; groupId: string | null }): Promise<string | null> => {
+  if (args.groupId === null) return null
+  const group = await args.db.orm.public.ProjectGroup.where({ id: args.groupId })
+    .select('name')
+    .first()
+  return group?.name ?? null
 }
 
 const sessionOfThreadOf = async (args: {
@@ -102,7 +120,12 @@ export const localPodControlOf = (args: {
     name: string
   }): Promise<{
     userId: string
-    key: { scope: MemoryScope; project: string | undefined; name: string }
+    key: {
+      scope: MemoryScope
+      project: string | undefined
+      groupId: string | undefined
+      name: string
+    }
   }> => {
     const owner = await ownerOf(call.threadId)
     return {
@@ -114,6 +137,7 @@ export const localPodControlOf = (args: {
           project: owner.project,
           name: call.name,
         }),
+        groupId: groupFor({ scope: call.scope, groupId: owner.groupId }),
         name: call.name,
       },
     }
@@ -250,12 +274,16 @@ export const localPodControlOf = (args: {
       list: async ({ threadId }) => {
         const owner = await ownerOf(threadId)
         try {
-          const memories = await listMemories({
-            db: args.db,
-            userId: owner.userId,
-            project: owner.project ?? undefined,
-          })
-          return { project: owner.project, memories }
+          const [group, memories] = await Promise.all([
+            groupNameOf({ db: args.db, groupId: owner.groupId }),
+            listMemories({
+              db: args.db,
+              userId: owner.userId,
+              project: owner.project ?? undefined,
+              groupId: owner.groupId ?? undefined,
+            }),
+          ])
+          return { project: owner.project, group, memories }
         } catch (failure) {
           return refused(failure)
         }

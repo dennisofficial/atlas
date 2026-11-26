@@ -97,7 +97,7 @@ export const seedCloudServer = async (args: {
   db: Db
   name: string
   url?: string
-  scope?: { userId: string } | { projectId: string }
+  scope?: { userId: string } | { groupId: string } | { projectId: string }
   sealedSpec?: string
 }): Promise<void> => {
   await args.db.orm.public.McpServer.create({
