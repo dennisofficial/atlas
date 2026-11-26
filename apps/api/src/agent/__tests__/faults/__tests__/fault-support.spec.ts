@@ -4,7 +4,14 @@ import { join } from 'node:path'
 
 import { describe, expect, it } from 'bun:test'
 
-import { callJournalOf, makeFifo, releaseFifo, waitForCallDone } from '../fault-support'
+import {
+  callJournalOf,
+  makeFifo,
+  PORT_BAND,
+  portBandOf,
+  releaseFifo,
+  waitForCallDone,
+} from '../fault-support'
 
 const journalOf = (args: {
   daemonHome: string
@@ -87,4 +94,24 @@ describe('waitForCallDone', () => {
       rmSync(dir, { recursive: true, force: true })
     }
   }, 10_000)
+})
+
+describe('portBandOf', () => {
+  it('keeps each spec inside its own band, so no two specs want the same port', () => {
+    const bands = Object.values(PORT_BAND).map(([base, width]) => ({ base, end: base + width }))
+    for (const [index, band] of bands.entries()) {
+      for (const other of bands.slice(index + 1)) {
+        expect(band.end <= other.base || other.end <= band.base).toBe(true)
+      }
+    }
+  })
+
+  it('lands inside the band it was asked for', () => {
+    for (const [base, width] of Object.values(PORT_BAND)) {
+      const port = portBandOf([base, width])
+      expect(port).toBeGreaterThanOrEqual(base)
+      expect(port).toBeLessThan(base + width)
+      expect(port).toBeLessThan(65_535)
+    }
+  })
 })

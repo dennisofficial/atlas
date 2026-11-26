@@ -13,6 +13,20 @@ import type { CallOp, CallResult } from '@dltech/atlas-protocol'
 import { RIG_SECRET } from '../../testing/rig-host-env'
 import type { FaultRig, ReadEvent } from '../../testing/fault-rig'
 
+export const PORT_BAND = {
+  service: [42_000, 1_000],
+  serviceId: [43_000, 1_000],
+  cleanDrainRecord: [44_000, 1_000],
+  podOutage: [45_000, 1_000],
+  declaredDb: [46_500, 400],
+  declaredApi: [46_900, 400],
+  pluginEarlyKill: [47_600, 200],
+} as const satisfies Record<string, readonly [number, number]>
+
+/** a spec takes its own band, so two specs in one bun process never pick the same port */
+export const portBandOf = (band: readonly [number, number]): number =>
+  band[0] + (process.pid % band[1])
+
 export const makeFifo = (args: { path: string }): void => {
   const result = spawnSync('mkfifo', [args.path])
   if (result.status !== 0) {

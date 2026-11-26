@@ -8,11 +8,11 @@ import { useTestDatabase } from '@dltech/atlas-db/testing'
 
 import { startRig, type FaultRig, type ReadEvent } from '../../testing/fault-rig'
 import { waitUntil } from '../../testing/handoff-suite'
-import { callIdOf, makeFifo, waitForFile } from './fault-support'
+import { callIdOf, makeFifo, PORT_BAND, portBandOf, waitForFile } from './fault-support'
 
 const REDIS_URL = process.env.ATLAS_TEST_REDIS_URL
 const CALL_ID = 'c1'
-const PORT = 42_000 + (process.pid % 1_000)
+const PORT = portBandOf(PORT_BAND.cleanDrainRecord)
 const SERVICE = 'a-gated-service'
 
 const rowsOf = async (args: { rig: FaultRig; threadId: string }): Promise<ReadEvent[]> => {

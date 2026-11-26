@@ -6,6 +6,7 @@ import { expect } from 'bun:test'
 import type { HostProcess, ReadEvent } from '../../testing/fault-rig'
 import {
   describeHandoff,
+  POD_EFFECT_WAIT_MS,
   waitUntil,
   type HandoffContext,
   type HandoffScenario,
@@ -131,6 +132,7 @@ const scenarioOf = (args: {
     await waitUntil({
       what: 'the MCP call to report the real answer',
       check: async () => (await resultsOf(ctx)).length === 1,
+      timeoutMs: POD_EFFECT_WAIT_MS,
     })
     const results = await resultsOf(ctx)
     expect(results.filter(interruptedOf)).toHaveLength(0)
@@ -148,7 +150,7 @@ const scenarioOf = (args: {
     await waitUntil({
       what: 'the interrupted MCP result',
       check: async () => (await resultsOf(ctx)).length === 1,
-      timeoutMs: 60_000,
+      timeoutMs: POD_EFFECT_WAIT_MS,
     })
     const results = await resultsOf(ctx)
     expect(results.filter(interruptedOf)).toHaveLength(1)

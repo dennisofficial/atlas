@@ -5,13 +5,18 @@ import { expect } from 'bun:test'
 
 import { ECallStatus, EServiceRunStatus } from '@dltech/atlas-protocol'
 
-import { callIdOf, podCall } from './fault-support'
-import { describeHandoff, waitUntil, type HandoffContext } from '../../testing/handoff-suite'
+import { callIdOf, PORT_BAND, podCall, portBandOf } from './fault-support'
+import {
+  describeHandoff,
+  POD_EFFECT_WAIT_MS,
+  waitUntil,
+  type HandoffContext,
+} from '../../testing/handoff-suite'
 import type { HostProcess } from '../../testing/fault-rig'
 
 const CALL_ID = 'c1'
-const DB_PORT = 46_500 + (process.pid % 400)
-const API_PORT = DB_PORT + 400
+const DB_PORT = portBandOf(PORT_BAND.declaredDb)
+const API_PORT = portBandOf(PORT_BAND.declaredApi)
 
 type StartedRow = { name?: string; serviceId: string }
 
@@ -119,6 +124,7 @@ describeHandoff({
     await waitUntil({
       what: 'the declared start to report its real result',
       check: async () => (await resultsOf(ctx)).length === 1,
+      timeoutMs: POD_EFFECT_WAIT_MS,
     })
     const result = await resultOf(ctx)
     expect(result.interrupted).toBeUndefined()

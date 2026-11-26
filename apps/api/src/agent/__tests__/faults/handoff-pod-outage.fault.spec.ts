@@ -12,10 +12,16 @@ import {
   serviceStartCallOf,
   startedIdsOf,
 } from './handoff-service-support'
-import { describeHandoff, waitUntil, type HandoffContext } from '../../testing/handoff-suite'
+import { PORT_BAND, portBandOf } from './fault-support'
+import {
+  describeHandoff,
+  POD_EFFECT_WAIT_MS,
+  waitUntil,
+  type HandoffContext,
+} from '../../testing/handoff-suite'
 import type { HostProcess } from '../../testing/fault-rig'
 
-const PORT = 45_000 + (process.pid % 1_000)
+const PORT = portBandOf(PORT_BAND.podOutage)
 const SERVICE = 'a-listener-behind-an-outage'
 const OUTAGE_MS = 4_000
 const KNOBS = { plugins: true, pingMs: 500 }
@@ -88,6 +94,7 @@ describeHandoff({
     await waitUntil({
       what: 'the service call to report its real result',
       check: async () => (await resultsOf(ctx)).length === 1,
+      timeoutMs: POD_EFFECT_WAIT_MS,
     })
     const results = await resultsOf(ctx)
     expect(results.filter(interruptedOf)).toHaveLength(0)
@@ -109,6 +116,7 @@ describeHandoff({
           (service) =>
             service.serviceId === serviceId && service.status === EServiceRunStatus.Ready,
         ),
+      timeoutMs: POD_EFFECT_WAIT_MS,
     })
   },
 

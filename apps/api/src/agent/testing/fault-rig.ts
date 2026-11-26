@@ -12,7 +12,7 @@ import { controlEventSchema } from '../registered-plugins'
 import { createRedisLiveFrames } from '../bus/redis-live-frames'
 import { seedSession, type NewSessionArgs } from './rig-seed'
 import type { HostKnobs, HostProcess, PanelBeats, ReadEvent } from './rig-types'
-import { startDaemon, type RigDaemon } from './rig-daemon'
+import { killProcessesUnder, startDaemon, type RigDaemon } from './rig-daemon'
 import { collectLines } from './rig-process'
 import { hostEnv, RIG_SECRET } from './rig-host-env'
 import { proxiedDatabaseUrl, startOwnDaemonProxy } from './rig-proxies'
@@ -207,6 +207,9 @@ export const startRig = async (args: {
       // a second host that takes the session over sees the same workspace the first one used
       const workspace = sharedWorkspace ?? join(dir, 'workspace')
       mkdirSync(workspace, { recursive: true })
+      closers.push(async () => {
+        killProcessesUnder(workspace)
+      })
       const scriptFile = join(dir, 'scripts.json')
       writeFileSync(scriptFile, JSON.stringify(scripts))
       let ownProxy: FaultProxy | undefined
