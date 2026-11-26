@@ -60,6 +60,10 @@
       "model": "DiagramRepair",
       "namespace": "public"
     },
+    "EffectReceipt": {
+      "model": "EffectReceipt",
+      "namespace": "public"
+    },
     "Event": {
       "model": "Event",
       "namespace": "public"
@@ -1922,6 +1926,60 @@
               },
               "namespaceId": "public",
               "table": "DiagramRepair"
+            }
+          },
+          "EffectReceipt": {
+            "fields": {
+              "createdAt": {
+                "nullable": false,
+                "type": {
+                  "codecId": "pg/timestamptz-date@1",
+                  "kind": "scalar",
+                  "typeParams": {
+                    "precision": 3
+                  }
+                }
+              },
+              "result": {
+                "nullable": true,
+                "type": {
+                  "codecId": "pg/jsonb@1",
+                  "kind": "scalar"
+                }
+              },
+              "stepKey": {
+                "nullable": false,
+                "type": {
+                  "codecId": "pg/text@1",
+                  "kind": "scalar"
+                }
+              },
+              "threadId": {
+                "nullable": false,
+                "type": {
+                  "codecId": "pg/text@1",
+                  "kind": "scalar"
+                }
+              }
+            },
+            "relations": {},
+            "storage": {
+              "fields": {
+                "createdAt": {
+                  "column": "createdAt"
+                },
+                "result": {
+                  "column": "result"
+                },
+                "stepKey": {
+                  "column": "stepKey"
+                },
+                "threadId": {
+                  "column": "threadId"
+                }
+              },
+              "namespaceId": "public",
+              "table": "EffectReceipt"
             }
           },
           "Event": {
@@ -12119,6 +12177,47 @@
               },
               "uniques": []
             },
+            "EffectReceipt": {
+              "columns": {
+                "createdAt": {
+                  "codecId": "pg/timestamptz-date@1",
+                  "dataType": "pg/timestamptz",
+                  "default": {
+                    "expression": "now()",
+                    "kind": "function"
+                  },
+                  "nullable": false,
+                  "typeParams": {
+                    "precision": 3
+                  }
+                },
+                "result": {
+                  "codecId": "pg/jsonb@1",
+                  "dataType": "pg/jsonb",
+                  "nullable": true
+                },
+                "stepKey": {
+                  "codecId": "pg/text@1",
+                  "dataType": "pg/text",
+                  "nullable": false
+                },
+                "threadId": {
+                  "codecId": "pg/text@1",
+                  "dataType": "pg/text",
+                  "nullable": false
+                }
+              },
+              "foreignKeys": [],
+              "indexes": [],
+              "primaryKey": {
+                "columns": [
+                  "threadId",
+                  "stepKey"
+                ],
+                "name": "EffectReceipt_pkey"
+              },
+              "uniques": []
+            },
             "Event": {
               "columns": {
                 "at": {
@@ -18930,7 +19029,7 @@
         "kind": "postgres-schema"
       }
     },
-    "storageHash": "a1f6bd3f6d5954509850c76a50edbf8fed7bbc538a59236914fccf34eb806f5b"
+    "storageHash": "c779b18d69fd0e645aa1ed3e4d552bf07119a0f8e3425748b58e06b81715798b"
   },
   "execution": {
     "executionHash": "0e6f989bb6c7c489039e329d87ab4c7469f87c12c726c4dcf40ed6296bf343c1",

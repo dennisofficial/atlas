@@ -13,6 +13,13 @@ export {
   type Tx,
 } from './client'
 export { isRetryableConnectionLoss, retryOnConnectionLoss } from './connection-retry'
+export {
+  claimEffectReceiptIn,
+  completeEffectReceiptIn,
+  onceByStep,
+  type EffectReceiptClaim,
+  type EffectReceiptKey,
+} from './effect-receipts'
 export { databaseErrorCode, isNoRows, isUniqueViolation, violatedConstraint } from './errors'
 export {
   createPool,

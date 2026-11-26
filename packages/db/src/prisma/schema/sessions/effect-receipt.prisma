@@ -1,0 +1,9 @@
+// use prisma-8
+model EffectReceipt {
+  threadId  String
+  stepKey   String
+  result    Jsonb?
+  createdAt TimestamptzJsDate(3) @default(now())
+
+  @@id([threadId, stepKey], map: "EffectReceipt_pkey")
+}

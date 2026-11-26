@@ -23,7 +23,7 @@ import type {
 } from '@prisma/orm-postgres/contract/types';
 
 export type StorageHash =
-  StorageHashBase<'a1f6bd3f6d5954509850c76a50edbf8fed7bbc538a59236914fccf34eb806f5b'>;
+  StorageHashBase<'c779b18d69fd0e645aa1ed3e4d552bf07119a0f8e3425748b58e06b81715798b'>;
 export type ExecutionHash =
   ExecutionHashBase<'0e6f989bb6c7c489039e329d87ab4c7469f87c12c726c4dcf40ed6296bf343c1'>;
 export type ProfileHash =
@@ -472,6 +472,13 @@ export namespace Models {
     sourceHash: FieldOutputTypes['public']['DiagramRepair']['sourceHash'];
     session: public_Session;
     readonly [RelationKeys]?: 'session';
+  };
+  export type public_EffectReceipt = {
+    createdAt: FieldOutputTypes['public']['EffectReceipt']['createdAt'];
+    result: FieldOutputTypes['public']['EffectReceipt']['result'];
+    stepKey: FieldOutputTypes['public']['EffectReceipt']['stepKey'];
+    threadId: FieldOutputTypes['public']['EffectReceipt']['threadId'];
+    readonly [RelationKeys]?: never;
   };
   export type public_Event = {
     at: FieldOutputTypes['public']['Event']['at'];
@@ -1435,6 +1442,7 @@ export declare const models: {
     CredentialAvailability: Models.public_CredentialAvailability;
     DeviceCode: Models.public_DeviceCode;
     DiagramRepair: Models.public_DiagramRepair;
+    EffectReceipt: Models.public_EffectReceipt;
     Event: Models.public_Event;
     GithubAppInstallation: Models.public_GithubAppInstallation;
     GithubAppNoticeDismissal: Models.public_GithubAppNoticeDismissal;
@@ -2627,6 +2635,43 @@ type ContractBase = Omit<
                   };
                 },
               ];
+            };
+            readonly EffectReceipt: {
+              columns: {
+                readonly createdAt: {
+                  readonly dataType: 'pg/timestamptz';
+                  readonly codecId: 'pg/timestamptz-date@1';
+                  readonly nullable: false;
+                  readonly default: { readonly kind: 'function'; readonly expression: 'now()' };
+                  readonly typeParams: { readonly precision: 3 };
+                  readonly many: false;
+                };
+                readonly result: {
+                  readonly dataType: 'pg/jsonb';
+                  readonly codecId: 'pg/jsonb@1';
+                  readonly nullable: true;
+                  readonly many: false;
+                };
+                readonly stepKey: {
+                  readonly dataType: 'pg/text';
+                  readonly codecId: 'pg/text@1';
+                  readonly nullable: false;
+                  readonly many: false;
+                };
+                readonly threadId: {
+                  readonly dataType: 'pg/text';
+                  readonly codecId: 'pg/text@1';
+                  readonly nullable: false;
+                  readonly many: false;
+                };
+              };
+              primaryKey: {
+                readonly columns: readonly ['threadId', 'stepKey'];
+                readonly name: 'EffectReceipt_pkey';
+              };
+              uniques: readonly [];
+              indexes: readonly [];
+              foreignKeys: readonly [];
             };
             readonly Event: {
               columns: {
@@ -8372,6 +8417,10 @@ type ContractBase = Omit<
       readonly namespace: 'public' & NamespaceId;
       readonly model: 'DiagramRepair';
     };
+    readonly EffectReceipt: {
+      readonly namespace: 'public' & NamespaceId;
+      readonly model: 'EffectReceipt';
+    };
     readonly Event: { readonly namespace: 'public' & NamespaceId; readonly model: 'Event' };
     readonly GithubAppInstallation: {
       readonly namespace: 'public' & NamespaceId;
@@ -9532,6 +9581,41 @@ type ContractBase = Omit<
                 readonly sessionId: { readonly column: 'sessionId' };
                 readonly source: { readonly column: 'source' };
                 readonly sourceHash: { readonly column: 'sourceHash' };
+              };
+            };
+          };
+          readonly EffectReceipt: {
+            readonly fields: {
+              readonly createdAt: {
+                readonly nullable: false;
+                readonly type: {
+                  readonly kind: 'scalar';
+                  readonly codecId: 'pg/timestamptz-date@1';
+                  readonly typeParams: { readonly precision: 3 };
+                };
+              };
+              readonly result: {
+                readonly nullable: true;
+                readonly type: { readonly kind: 'scalar'; readonly codecId: 'pg/jsonb@1' };
+              };
+              readonly stepKey: {
+                readonly nullable: false;
+                readonly type: { readonly kind: 'scalar'; readonly codecId: 'pg/text@1' };
+              };
+              readonly threadId: {
+                readonly nullable: false;
+                readonly type: { readonly kind: 'scalar'; readonly codecId: 'pg/text@1' };
+              };
+            };
+            readonly relations: Record<string, never>;
+            readonly storage: {
+              readonly table: 'EffectReceipt';
+              readonly namespaceId: 'public';
+              readonly fields: {
+                readonly createdAt: { readonly column: 'createdAt' };
+                readonly result: { readonly column: 'result' };
+                readonly stepKey: { readonly column: 'stepKey' };
+                readonly threadId: { readonly column: 'threadId' };
               };
             };
           };
