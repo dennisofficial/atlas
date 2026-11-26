@@ -1,6 +1,6 @@
 import { randomUUID } from 'node:crypto'
 
-import { EMessageOrigin } from '@dltech/atlas-core'
+import { EMessageOrigin, type JsonValue } from '@dltech/atlas-core'
 import {
   INBOX_KIND_MESSAGE,
   type Routine,
@@ -22,6 +22,7 @@ import {
 import type { ControlPlane } from './control-plane'
 import type { EffectReceiptKey } from './port'
 import type { RoutinePatch } from './routine-crud'
+import { replayedMaybeRoutineOf, replayedSessionOf } from './routine-receipts'
 import type { RoutineRow, RoutineRunRow as ControlRoutineRunRow } from './routine-rows'
 
 export const MINIMUM_ROUTINE_GAP_MINUTES = 5
@@ -48,6 +49,7 @@ export type RoutinePlane = Pick<
   | 'listRoutineRuns'
   | 'listRoutines'
   | 'readRoutine'
+  | 'readEffectReceipt'
   | 'updateRoutine'
 >
 
@@ -130,6 +132,16 @@ const routineIn = async (args: RoutinesFor & { routineId: string }): Promise<Rou
   return row
 }
 
+const replayedOf = async <T>(args: {
+  plane: RoutinePlane
+  receipt: EffectReceiptKey | undefined
+  decode: (result: JsonValue) => T
+}): Promise<T | undefined> => {
+  if (args.receipt === undefined) return undefined
+  const result = await args.plane.readEffectReceipt(args.receipt)
+  return result === undefined ? undefined : args.decode(result)
+}
+
 export const routineListOf = async (scope: RoutinesFor): Promise<RoutineListOutput> => {
   const rows = await scope.plane.listRoutines({ userId: scope.userId, projectId: scope.projectId })
   return { routines: rows.map(routineOf) }
@@ -171,6 +183,12 @@ export const routineCreateOf = async (
 export const routineUpdateOf = async (
   args: RoutinesFor & { input: RoutineUpdateInput; receipt?: EffectReceiptKey | undefined },
 ): Promise<Routine> => {
+  const replayed = await replayedOf({
+    plane: args.plane,
+    receipt: args.receipt,
+    decode: replayedMaybeRoutineOf,
+  })
+  if (replayed !== undefined) return routineOf(replayed)
   const row = await routineIn({ ...args, routineId: args.input.routineId })
   const cron = args.input.cron ?? row.cron
   const timezone = args.input.timezone ?? row.timezone
@@ -232,6 +250,12 @@ export const routineRunsOf = async (
 export const routineRunNowOf = async (
   args: RoutinesFor & { routineId: string; receipt?: EffectReceiptKey | undefined },
 ): Promise<RoutineRunOutput> => {
+  const replayed = await replayedOf({
+    plane: args.plane,
+    receipt: args.receipt,
+    decode: replayedSessionOf,
+  })
+  if (replayed !== undefined) return { sessionId: replayed.sessionId }
   const row = await routineIn({ ...args, routineId: args.routineId })
   const sessionId = randomUUID()
   const created = await args.plane.createSessionWithMessage({

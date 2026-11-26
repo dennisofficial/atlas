@@ -60,6 +60,7 @@ const fakePlane = (rows: readonly RoutineRow[] = []) => {
       return true
     },
     listRoutineRuns: async () => [],
+    readEffectReceipt: async () => undefined,
     listRoutines: async ({ userId, projectId }) =>
       [...routines.values()].filter(
         (row) => row.userId === userId && (projectId === undefined || row.projectId === projectId),

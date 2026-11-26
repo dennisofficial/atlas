@@ -1,6 +1,7 @@
 import {
   claimEffectReceiptIn,
   completeEffectReceiptIn,
+  readEffectReceiptIn,
   retryOnConnectionLoss,
   type Db,
   type Tx,
@@ -738,6 +739,11 @@ export class PostgresTx implements ControlTx {
     const claim = await claimEffectReceiptIn({ tx: this.tx, ...params })
     if (claim.kind === 'claimed') return { kind: 'claimed' }
     return { kind: 'replayed', result: jsonValueSchema.parse(claim.result) }
+  }
+
+  async readEffectReceipt(params: EffectReceiptKey): Promise<JsonValue | undefined> {
+    const result = await readEffectReceiptIn({ tx: this.tx, ...params })
+    return result === null || result === undefined ? undefined : jsonValueSchema.parse(result)
   }
 
   async completeEffectReceipt(params: EffectReceiptKey & { result: JsonValue }): Promise<void> {

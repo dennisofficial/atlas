@@ -20,6 +20,13 @@ export const claimEffectReceiptIn = (
   return { kind: 'replayed', result: entry.result }
 }
 
+export const readEffectReceiptIn = (
+  params: EffectReceiptKey & { state: State },
+): JsonValue | undefined => {
+  const entry = params.state.effectReceipts.get(receiptKeyOf(params))
+  return entry === undefined || entry === 'claimed' ? undefined : entry.result
+}
+
 export const completeEffectReceiptIn = (
   params: EffectReceiptKey & { state: State; result: JsonValue },
 ): void => {

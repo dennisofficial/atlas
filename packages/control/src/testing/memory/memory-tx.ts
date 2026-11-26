@@ -58,7 +58,11 @@ import {
   readRoutineIn,
   updateRoutineIn,
 } from './memory-routines'
-import { claimEffectReceiptIn, completeEffectReceiptIn } from './memory-receipts'
+import {
+  claimEffectReceiptIn,
+  completeEffectReceiptIn,
+  readEffectReceiptIn,
+} from './memory-receipts'
 import { subscriptionLeaseKey, trackingTargetKey } from './memory-state'
 import {
   deleteSubscriptionRowIfEndedBeforeIn,
@@ -620,6 +624,10 @@ export class MemoryTx extends MemoryTxViews implements ControlTx {
 
   async claimEffectReceipt(params: EffectReceiptKey): Promise<EffectReceiptClaim> {
     return claimEffectReceiptIn({ state: this.state, ...params })
+  }
+
+  async readEffectReceipt(params: EffectReceiptKey): Promise<JsonValue | undefined> {
+    return readEffectReceiptIn({ state: this.state, ...params })
   }
 
   async completeEffectReceipt(params: EffectReceiptKey & { result: JsonValue }): Promise<void> {

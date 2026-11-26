@@ -45,6 +45,13 @@ export const completeEffectReceiptIn = async (
   if (changed !== 1) throw new Error(`effect receipt ${params.stepKey} is missing`)
 }
 
+export const readEffectReceiptIn = async (
+  params: EffectReceiptKey & { tx: Tx },
+): Promise<EffectReceiptResult | undefined> => {
+  const row = await receiptIn(params)
+  return row === null || row.result === null ? undefined : row.result
+}
+
 export const onceByStep = async <T>(params: {
   db: Db
   threadId: string
