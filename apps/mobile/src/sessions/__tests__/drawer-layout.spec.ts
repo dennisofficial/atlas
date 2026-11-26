@@ -6,6 +6,7 @@ import { OVERLAY_MIN_WIDTH, OVERLAY_WIDTH_RATIO } from '../sessions-overlay'
 import {
   drawerDockedOf,
   drawerGeometryOf,
+  drawerHidableOf,
   drawerOpenByDefaultOf,
   drawerScopeOf,
   drawerSwipeEnabledOf,
@@ -59,22 +60,42 @@ describe('opensDrawerWithoutSessionOf', () => {
 })
 
 describe('drawerSwipeEnabledOf', () => {
+  const drawer = { permanent: false, width: 430 }
+
   it('opens by swipe while the drawer is closed', () => {
-    expect(drawerSwipeEnabledOf({ geometry: { permanent: false, width: 430 }, open: false })).toBe(
-      true,
-    )
+    expect(drawerSwipeEnabledOf({ geometry: drawer, open: false, hidable: false })).toBe(true)
   })
 
-  it('leaves a left swipe on an open drawer to the session rows', () => {
-    expect(drawerSwipeEnabledOf({ geometry: { permanent: false, width: 430 }, open: true })).toBe(
-      false,
-    )
+  it('closes by swipe over an open session', () => {
+    expect(drawerSwipeEnabledOf({ geometry: drawer, open: true, hidable: true })).toBe(true)
+  })
+
+  it('keeps the list in place when no session sits behind it', () => {
+    expect(drawerSwipeEnabledOf({ geometry: drawer, open: true, hidable: false })).toBe(false)
   })
 
   it('never swipes a permanent panel', () => {
     expect(
-      drawerSwipeEnabledOf({ geometry: { permanent: true, width: PANEL_WIDTH }, open: false }),
+      drawerSwipeEnabledOf({
+        geometry: { permanent: true, width: PANEL_WIDTH },
+        open: false,
+        hidable: true,
+      }),
     ).toBe(false)
+  })
+})
+
+describe('drawerHidableOf', () => {
+  it('hides the iPhone list only when a session sits behind it', () => {
+    expect(drawerHidableOf({ listLayout: ESessionsListLayout.Stacked, selected: 'ses_a' })).toBe(
+      true,
+    )
+    expect(drawerHidableOf({ listLayout: ESessionsListLayout.Stacked, selected: null })).toBe(false)
+  })
+
+  it('always hides the overlay and the panel', () => {
+    expect(drawerHidableOf({ listLayout: ESessionsListLayout.Overlay, selected: null })).toBe(true)
+    expect(drawerHidableOf({ listLayout: ESessionsListLayout.Panel, selected: null })).toBe(true)
   })
 })
 

@@ -11,7 +11,6 @@ import {
   type SearchBarCommands,
 } from 'react-native-screens'
 
-import { ESessionsListLayout } from '../layout/posture'
 import { usePosture } from '../layout/use-posture'
 import { AccountButton } from '../navigation/account-button'
 import {
@@ -20,6 +19,7 @@ import {
   showsAccountViewOf,
   usesNativeSearchOf,
 } from './drawer-header-items'
+import { drawerHidableOf } from './drawer-layout'
 import {
   emptyDrawerSearchOf,
   searchClearedOf,
@@ -53,7 +53,7 @@ const DrawerScreen = ({ activeId, onOpen }: TDrawerScreenProps) => {
   const nativeSearch = usesNativeSearchOf({ listLayout: posture.sessionsList })
   const showsAccount = showsAccountViewOf({ controls: posture.controls })
   const { setOpen } = useSessionsDrawer()
-  const hidable = posture.sessionsList === ESessionsListLayout.Panel
+  const hidable = drawerHidableOf({ listLayout: posture.sessionsList, selected: activeId })
 
   const handleNewSession = () => router.push('/new')
   const handleSearchFocus = () => setSearch(searchFocusedOf)
