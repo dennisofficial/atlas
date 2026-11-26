@@ -21,9 +21,7 @@ import {
   View,
 } from 'react-native'
 import { useAuth } from '../../../auth/auth-provider'
-import { EffortSelect, FastToggle } from '../../../composer/model-controls'
 import { ModelSheet } from '../../../composer/model-picker'
-import { ModelTrigger } from '../../../composer/model-trigger'
 import { KeyboardDock } from '../../../layout/keyboard-dock'
 import { transcriptInsetOf } from '../../../layout/transcript-inset'
 import { useKeyboard } from '../../../layout/use-keyboard'
@@ -48,6 +46,7 @@ import { SessionSkeleton } from '../../../thread/components/session-skeleton'
 import { Transcript } from '../../../thread/components/transcript'
 import { selectedSessionStore } from '../../../sessions/selected-session'
 import { useSessionsDrawer } from '../../../sessions/sessions-drawer-state'
+import { SessionModelControls } from '../../../thread/session/session-model-controls'
 import { useSessionScreen } from '../../../thread/session/use-session-screen'
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
 
@@ -95,22 +94,6 @@ export default function SessionScreen() {
   )
 
   const handleOpenModel = session.commands.clientActions[EClientAction.ModelPicker]
-
-  const handleEffort = useCallback(
-    (effort: string) => {
-      if (model.selection === null) return
-      model.onSelect({ ...model.selection, effort })
-    },
-    [model],
-  )
-
-  const handleFast = useCallback(
-    (fast: boolean) => {
-      if (model.selection === null) return
-      model.onSelect({ ...model.selection, fast })
-    },
-    [model],
-  )
 
   const showsSessions = sessionHeaderLeadingOf({ posture, drawerOpen }).includes(
     EHeaderLeadingItem.Sessions,
@@ -248,22 +231,7 @@ export default function SessionScreen() {
                     </View>
                   }
                 >
-                  <ModelTrigger
-                    models={model.models}
-                    selection={model.selection}
-                    pinnedRef={model.pinnedRef}
-                    onPress={handleOpenModel}
-                  />
-                  {model.selection === null ? null : (
-                    <>
-                      {model.selection.model.efforts.length === 0 ? null : (
-                        <EffortSelect selection={model.selection} onChange={handleEffort} />
-                      )}
-                      {model.selection.model.fast ? (
-                        <FastToggle selection={model.selection} onToggle={handleFast} />
-                      ) : null}
-                    </>
-                  )}
+                  <SessionModelControls model={model} onOpenModel={handleOpenModel} />
                 </Composer>
               </View>
               <CommandListSheet
