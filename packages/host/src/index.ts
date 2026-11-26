@@ -99,12 +99,16 @@ export { changeCheckoutId, changeRepoOf } from './holder/changes/identity'
 export { fingerprintOf } from './holder/changes/fingerprint'
 export { InboxIntake, INBOX_KIND_STOP } from './holder/inbox-intake'
 export {
-  oweStoppedCalls,
+  oweChildStoppedCalls,
+  oweOwnStoppedTurn,
   payStopDebts,
+  stoppedScopesOf,
   wireStopDebts,
   type StopDebtCalls,
   type StopDebtPorts,
   type StopDebtRecord,
+  type StopDebtSource,
+  type StopDebtTarget,
 } from './holder/stop-debts'
 export {
   LeaseLostError,

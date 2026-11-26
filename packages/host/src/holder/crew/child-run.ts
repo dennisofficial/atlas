@@ -19,6 +19,7 @@ import { logFieldsOf } from '@dltech/atlas-observability'
 import type { PodCrew, SubagentSaid, SubagentSnapshot } from '@dltech/atlas-plugin-sdk'
 
 import type { RoleModelChoice } from '../ports'
+import { oweChildStoppedCalls } from '../stop-debts'
 import type { LeaseLostError, SessionRecord } from '../record/record-adapter'
 import { childInboxOf, type ChildInbox } from './child-inbox'
 import { inboxInputOf, type CrewSender } from './child-message'
@@ -221,6 +222,12 @@ export class ChildRun {
   stop(by: EKilledBy): SubagentSnapshot {
     this.stopping = true
     this.killedBy = by
+    void oweChildStoppedCalls({
+      child: this.record,
+      parent: this.args.parentRecord,
+      runId: () => this.args.deps.ids.nextRunId(),
+      ...(this.args.deps.log === undefined ? {} : { log: this.args.deps.log }),
+    })
     this.abort?.abort('agent_stop')
     return this.snapshot()
   }

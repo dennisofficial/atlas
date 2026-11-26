@@ -12,12 +12,7 @@ import {
 } from '@dltech/atlas-core'
 import { EDaemonCapability, type CallOp } from '@dltech/atlas-protocol'
 
-import {
-  oweStoppedCalls,
-  wireStopDebts,
-  type FactDraft,
-  type StopDebtRecord,
-} from '../../holder/stop-debts'
+import { wireStopDebts, type FactDraft, type StopDebtRecord } from '../../holder/stop-debts'
 import { fakePod, openCallsOn, until } from './fake-pod'
 
 const THREAD = toThreadId('thread-1')
@@ -79,7 +74,11 @@ const stopWhileRunning = async (args: {
   await until(() => args.pod.daemon.running.has('s.0'))
   args.pod.drop()
   first.close()
-  await oweStoppedCalls({ record: args.record, runId: () => toRunId('run-1') })
+  await args.record.append({
+    threadId: THREAD,
+    runId: toRunId('run-1'),
+    drafts: [{ type: 'fact-recorded', key: 'stop-owed:s', kind: 'stop-owed' }],
+  })
 }
 
 const settle = async (): Promise<void> => {

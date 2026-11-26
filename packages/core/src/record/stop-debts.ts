@@ -8,36 +8,42 @@ export const stopOwedKeyOf = (scope: string): string => `${STOP_OWED_KIND}:${sco
 
 export const stopPaidKeyOf = (scope: string): string => `${STOP_PAID_KIND}:${scope}`
 
+export type StopDebtMark = {
+  kind: 'owed' | 'paid' | 'dispatched'
+  scope: string
+}
+
 const scopeIn = (args: { key: string; kind: string }): string | undefined => {
   const prefix = `${args.kind}:`
   return args.key.startsWith(prefix) ? args.key.slice(prefix.length) : undefined
 }
 
-const owedScopeIn = (fact: FactRecord): string | undefined =>
-  fact.kind === STOP_OWED_KIND ? scopeIn({ key: fact.key, kind: fact.kind }) : undefined
+export const stopDebtMarkOf = (fact: FactRecord): StopDebtMark | undefined => {
+  if (fact.type !== 'fact-recorded') return undefined
+  if (fact.kind !== STOP_OWED_KIND && fact.kind !== STOP_PAID_KIND) return undefined
+  const scope = scopeIn({ key: fact.key, kind: fact.kind })
+  if (scope === undefined) return undefined
+  return { kind: fact.kind === STOP_OWED_KIND ? 'owed' : 'paid', scope }
+}
 
-const paidScopeIn = (fact: FactRecord): string | undefined =>
-  fact.kind === STOP_PAID_KIND ? scopeIn({ key: fact.key, kind: fact.kind }) : undefined
-
-const settledIndexesOf = (facts: readonly FactRecord[]): Map<string, number> => {
+const latestIndexesOf = (args: {
+  marks: readonly StopDebtMark[]
+  kind: StopDebtMark['kind']
+}): Map<string, number> => {
   const indexes = new Map<string, number>()
-  facts.forEach((fact, index) => {
-    if (fact.type !== 'fact-recorded') return
-    const scope = paidScopeIn(fact)
-    if (scope !== undefined) indexes.set(scope, index)
+  args.marks.forEach((mark, index) => {
+    if (mark.kind === args.kind) indexes.set(mark.scope, index)
   })
   return indexes
 }
 
-export const owedStopScopesOf = (facts: readonly FactRecord[]): readonly string[] => {
-  const paid = settledIndexesOf(facts)
-  const owed = new Map<string, number>()
-  facts.forEach((fact, index) => {
-    if (fact.type !== 'fact-recorded') return
-    const scope = owedScopeIn(fact)
-    if (scope !== undefined) owed.set(scope, index)
-  })
+export const owedStopScopesOf = (marks: readonly StopDebtMark[]): readonly string[] => {
+  const owed = latestIndexesOf({ marks, kind: 'owed' })
+  const paid = latestIndexesOf({ marks, kind: 'paid' })
+  const dispatched = latestIndexesOf({ marks, kind: 'dispatched' })
   return [...owed]
-    .filter(([scope, index]) => index > (paid.get(scope) ?? -1))
+    .filter(
+      ([scope, index]) => index > (paid.get(scope) ?? -1) && index > (dispatched.get(scope) ?? -1),
+    )
     .map(([scope]) => scope)
 }

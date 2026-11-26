@@ -117,6 +117,7 @@ export class CallLedger {
         return { ok: true }
       },
     })
+    this.scopes.trackArrival({ key: args.key, done: outcome })
     return outcome.finally(() => this.arrivals.leave(args.key))
   }
 
@@ -248,7 +249,7 @@ export class CallLedger {
     }
     if (call.abort.signal.aborted) {
       const message = `${args.key} was cancelled before it started`
-      void call.persist(call.failure(ECallFailure.Cancelled, message), (result) =>
+      await call.persist(call.failure(ECallFailure.Cancelled, message), (result) =>
         this.settle({ key: args.key, call, result }),
       )
       return { ok: true }

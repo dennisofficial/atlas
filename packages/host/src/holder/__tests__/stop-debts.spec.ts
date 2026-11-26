@@ -10,6 +10,8 @@ import {
   toThreadId,
   type LogHead,
   type RecordEventBody,
+  type RunId,
+  type ThreadId,
 } from '@dltech/atlas-core'
 import { EDaemonCapability } from '@dltech/atlas-protocol'
 
@@ -17,20 +19,28 @@ import { scopeKeyOf } from '../../calls/call-scope'
 import type { ScopeCancelled } from '../../calls/remote-calls'
 import { RecordCache } from '../record/record-cache'
 import {
-  oweStoppedCalls,
+  oweChildStoppedCalls,
   payStopDebts,
   watchStopDebts,
   type FactDraft,
   type StopDebtCalls,
   type StopDebtPorts,
   type StopDebtRecord,
+  type StopDebtSource,
 } from '../stop-debts'
 
 const SESSION = 'session-1'
 const THREAD = toThreadId('thread-1')
+const CHILD = toThreadId('thread-2')
 const AT = '2026-11-26T12:00:00.000Z'
 const SCOPE_OPEN = scopeKeyOf({ runId: 'run-1', callId: 'call-open' })
-const SCOPE_DONE = scopeKeyOf({ runId: 'run-1', callId: 'call-done' })
+const SCOPE_CHILD = scopeKeyOf({ runId: 'run-1', callId: 'call-child' })
+
+type MemoryRecord = StopDebtRecord &
+  StopDebtSource & {
+    appends: FactDraft[][]
+    enqueue(bodies: readonly RecordEventBody[]): Promise<void>
+  }
 
 const openThread = async (): Promise<{ plane: ControlPlane; epoch: number }> => {
   const plane = new ControlPlane({ store: new InMemoryControlStore({ clock: () => AT }) })
@@ -40,6 +50,7 @@ const openThread = async (): Promise<{ plane: ControlPlane; epoch: number }> => 
     projectId: 'project-1',
     mainThreadId: THREAD,
   })
+  await plane.createThread({ threadId: CHILD, sessionId: SESSION })
   const { epoch } = await plane.grant({ sessionId: SESSION, hostId: 1 })
   return { plane, epoch }
 }
@@ -47,49 +58,110 @@ const openThread = async (): Promise<{ plane: ControlPlane; epoch: number }> => 
 const appendTo = async (args: {
   plane: ControlPlane
   epoch: number
+  threadId: ThreadId
   bodies: readonly RecordEventBody[]
+  runId?: RunId | undefined
 }): Promise<void> => {
-  const from: LogHead = await args.plane.head({ threadId: THREAD })
+  const from: LogHead = await args.plane.head({ threadId: args.threadId })
   const events = chainEvents({
-    threadId: THREAD,
-    runId: toRunId('run-1'),
+    threadId: args.threadId,
+    runId: args.runId ?? toRunId('run-1'),
     epoch: args.epoch,
     at: AT,
     bodies: args.bodies,
     from,
   })
-  const outcome = await args.plane.append({ threadId: THREAD, epoch: args.epoch, events })
+  const outcome = await args.plane.append({
+    threadId: args.threadId,
+    epoch: args.epoch,
+    events,
+  })
   if (!outcome.ok) throw new Error(`append refused: ${JSON.stringify(outcome.refusal)}`)
 }
 
-const openCall: RecordEventBody = {
-  type: 'tool-dispatched',
-  callId: toCallId('call-open'),
-  name: 'bash',
+const owedFact = (scope: string): FactDraft => ({
+  type: 'fact-recorded',
+  key: `stop-owed:${scope}`,
+  kind: 'stop-owed',
+})
+
+const openCall = (callId: string): readonly RecordEventBody[] => [
+  { type: 'tool-called', callId: toCallId(callId), name: 'bash', input: {}, ordinal: 0 },
+  { type: 'tool-dispatched', callId: toCallId(callId), name: 'bash' },
+]
+
+type Gate = {
+  hold(): void
+  release(): void
+  reached(): boolean
+  untilReleased(): Promise<void>
 }
 
-const doneCall: readonly RecordEventBody[] = [
-  { type: 'tool-dispatched', callId: toCallId('call-done'), name: 'bash' },
-  { type: 'tool-result', callId: toCallId('call-done'), name: 'bash', output: 'ok' },
-]
+const gateOf = (): Gate => {
+  let held = false
+  let arrived = false
+  const waiting: (() => void)[] = []
+  return {
+    hold: () => {
+      held = true
+      arrived = false
+    },
+    release: () => {
+      held = false
+      for (const resolve of waiting.splice(0)) resolve()
+    },
+    reached: () => arrived,
+    untilReleased: async () => {
+      if (!held) return
+      arrived = true
+      await new Promise<void>((resolve) => waiting.push(resolve))
+    },
+  }
+}
 
 const recordOf = async (args: {
   plane: ControlPlane
   epoch: number
-}): Promise<{ record: StopDebtRecord; appends: FactDraft[][] }> => {
-  let cache = await RecordCache.load({ plane: args.plane, threadId: THREAD })
+  threadId: ThreadId
+  gate?: Gate | undefined
+}): Promise<MemoryRecord> => {
+  let cache = await RecordCache.load({ plane: args.plane, threadId: args.threadId })
   const appends: FactDraft[][] = []
+  let tail: Promise<void> = Promise.resolve()
+  const queue = <T>(work: () => Promise<T>): Promise<T> => {
+    const run = tail.then(work)
+    tail = run.then(
+      () => undefined,
+      () => undefined,
+    )
+    return run
+  }
+  const enqueue = (next: {
+    bodies: readonly RecordEventBody[]
+    runId: RunId
+    threadId: ThreadId
+  }): Promise<void> =>
+    queue(async () => {
+      await gate?.untilReleased()
+      await appendTo({
+        plane: args.plane,
+        epoch: args.epoch,
+        threadId: next.threadId,
+        bodies: next.bodies,
+        runId: next.runId,
+      })
+      cache = await RecordCache.load({ plane: args.plane, threadId: args.threadId })
+    })
+  const gate = args.gate
   return {
+    threadId: args.threadId,
     appends,
-    record: {
-      threadId: THREAD,
-      eventCache: () => cache,
-      append: async ({ drafts }) => {
-        appends.push([...drafts])
-        await appendTo({ plane: args.plane, epoch: args.epoch, bodies: drafts })
-        cache = await RecordCache.load({ plane: args.plane, threadId: THREAD })
-        return []
-      },
+    queue,
+    eventCache: () => cache,
+    enqueue: (bodies) => enqueue({ bodies, runId: toRunId('run-1'), threadId: args.threadId }),
+    append: ({ threadId, runId, drafts }) => {
+      appends.push([...drafts])
+      return enqueue({ bodies: drafts, runId, threadId })
     },
   }
 }
@@ -124,38 +196,25 @@ const portsOf = (args: { record: StopDebtRecord; calls: StopDebtCalls }): StopDe
 
 const CAN = [EDaemonCapability.CancelScope]
 
-const recordedKinds = (record: StopDebtRecord): readonly string[] =>
+const factKeysOf = (record: StopDebtRecord): readonly string[] =>
   record
     .eventCache()
     .eventsAfter(0)
-    .flatMap((event) => (event.type === 'fact-recorded' ? [event.kind] : []))
+    .flatMap((event) => (event.type === 'fact-recorded' ? [event.key] : []))
 
 const until = async (ready: () => boolean): Promise<void> => {
-  for (let attempt = 0; attempt < 100; attempt += 1) {
+  for (let attempt = 0; attempt < 500; attempt += 1) {
     if (ready()) return
-    await new Promise((resolve) => setTimeout(resolve, 0))
+    await new Promise((resolve) => setTimeout(resolve, 1))
   }
   throw new Error('the record never caught up with the append')
 }
 
-describe('stop debts of a stopped call', () => {
-  it('owes the scope of every call dispatched and never answered', async () => {
-    const { plane, epoch } = await openThread()
-    await appendTo({ plane, epoch, bodies: [openCall, ...doneCall] })
-    const { record, appends } = await recordOf({ plane, epoch })
-
-    await oweStoppedCalls({ record, runId: () => toRunId('run-2') })
-
-    expect(appends.flat().map((draft) => draft.key)).toEqual([`stop-owed:${SCOPE_OPEN}`])
-    expect(appends.flat().every((draft) => draft.kind === 'stop-owed')).toBe(true)
-    expect(SCOPE_OPEN).not.toBe(SCOPE_DONE)
-  })
-
+describe('stop debts of a stopped turn', () => {
   it('sends cancel-scope for each scope still owed', async () => {
     const { plane, epoch } = await openThread()
-    await appendTo({ plane, epoch, bodies: [openCall] })
-    const { record } = await recordOf({ plane, epoch })
-    await oweStoppedCalls({ record, runId: () => toRunId('run-2') })
+    await appendTo({ plane, epoch, threadId: THREAD, bodies: [owedFact(SCOPE_OPEN)] })
+    const record = await recordOf({ plane, epoch, threadId: THREAD })
     const { calls, sent } = callsOf(CAN)
 
     payStopDebts(portsOf({ record, calls }))
@@ -165,9 +224,8 @@ describe('stop debts of a stopped call', () => {
 
   it('sends nothing when the daemon cannot cancel a scope', async () => {
     const { plane, epoch } = await openThread()
-    await appendTo({ plane, epoch, bodies: [openCall] })
-    const { record } = await recordOf({ plane, epoch })
-    await oweStoppedCalls({ record, runId: () => toRunId('run-2') })
+    await appendTo({ plane, epoch, threadId: THREAD, bodies: [owedFact(SCOPE_OPEN)] })
+    const record = await recordOf({ plane, epoch, threadId: THREAD })
     const { calls, sent } = callsOf([EDaemonCapability.ExecDeadline])
 
     payStopDebts(portsOf({ record, calls }))
@@ -177,33 +235,33 @@ describe('stop debts of a stopped call', () => {
 
   it('retires the debt when the daemon confirms the scope, so the next holder sends nothing', async () => {
     const { plane, epoch } = await openThread()
-    await appendTo({ plane, epoch, bodies: [openCall] })
-    const { record, appends } = await recordOf({ plane, epoch })
-    await oweStoppedCalls({ record, runId: () => toRunId('run-2') })
+    await appendTo({ plane, epoch, threadId: THREAD, bodies: [owedFact(SCOPE_OPEN)] })
+    const record = await recordOf({ plane, epoch, threadId: THREAD })
     const { calls, sent, confirm } = callsOf(CAN)
     const ports = portsOf({ record, calls })
     watchStopDebts(ports)
 
     payStopDebts(ports)
     confirm([SCOPE_OPEN])
-    await until(() => recordedKinds(record).includes('stop-paid'))
+    await until(() => factKeysOf(record).includes(`stop-paid:${SCOPE_OPEN}`))
     payStopDebts(ports)
 
-    expect(appends.flat().map((draft) => draft.key)).toEqual([
-      `stop-owed:${SCOPE_OPEN}`,
-      `stop-paid:${SCOPE_OPEN}`,
-    ])
+    expect(record.appends.flat().map((draft) => draft.key)).toEqual([`stop-paid:${SCOPE_OPEN}`])
     expect(sent).toEqual([SCOPE_OPEN])
   })
 
   it('still pays the debt after a summary hid the events around it', async () => {
     const { plane, epoch } = await openThread()
-    await appendTo({ plane, epoch, bodies: [openCall] })
-    const { record } = await recordOf({ plane, epoch })
-    await oweStoppedCalls({ record, runId: () => toRunId('run-2') })
     await appendTo({
       plane,
       epoch,
+      threadId: THREAD,
+      bodies: [owedFact(SCOPE_OPEN)],
+    })
+    await appendTo({
+      plane,
+      epoch,
+      threadId: THREAD,
       bodies: [
         {
           type: 'history-summarised',
@@ -214,11 +272,67 @@ describe('stop debts of a stopped call', () => {
         },
       ],
     })
-    const { record: reloaded } = await recordOf({ plane, epoch })
+    const record = await recordOf({ plane, epoch, threadId: THREAD })
     const { calls, sent } = callsOf(CAN)
 
-    payStopDebts(portsOf({ record: reloaded, calls }))
+    payStopDebts(portsOf({ record, calls }))
 
     expect(sent).toEqual([SCOPE_OPEN])
+  })
+
+  it('drops a debt that a later dispatch of the same call id re-used', async () => {
+    const { plane, epoch } = await openThread()
+    await appendTo({
+      plane,
+      epoch,
+      threadId: THREAD,
+      bodies: [owedFact(SCOPE_OPEN), ...openCall('call-open')],
+    })
+    const record = await recordOf({ plane, epoch, threadId: THREAD })
+    const { calls, sent } = callsOf(CAN)
+
+    payStopDebts(portsOf({ record, calls }))
+
+    expect(sent).toEqual([])
+  })
+})
+
+describe('stop debts of a stopped child run', () => {
+  it("owes the child's open call scopes in the parent record", async () => {
+    const { plane, epoch } = await openThread()
+    await appendTo({
+      plane,
+      epoch,
+      threadId: CHILD,
+      bodies: openCall('call-child'),
+    })
+    const child = await recordOf({ plane, epoch, threadId: CHILD })
+    const parent = await recordOf({ plane, epoch, threadId: THREAD })
+
+    await oweChildStoppedCalls({
+      child,
+      parent,
+      runId: () => toRunId('run-2'),
+    })
+
+    expect(parent.appends.flat().map((draft) => draft.key)).toEqual([`stop-owed:${SCOPE_CHILD}`])
+    const { calls, sent } = callsOf(CAN)
+    payStopDebts(portsOf({ record: parent, calls }))
+    expect(sent).toEqual([SCOPE_CHILD])
+  })
+
+  it('owes a child dispatch that was still committing when the child stopped', async () => {
+    const { plane, epoch } = await openThread()
+    const gate = gateOf()
+    const child = await recordOf({ plane, epoch, threadId: CHILD, gate })
+    const parent = await recordOf({ plane, epoch, threadId: THREAD })
+    gate.hold()
+    const appending = child.enqueue(openCall('call-child'))
+    await until(() => gate.reached())
+    const owed = oweChildStoppedCalls({ child, parent, runId: () => toRunId('run-2') })
+    gate.release()
+    await Promise.all([appending, owed])
+
+    expect(parent.appends.flat().map((draft) => draft.key)).toEqual([`stop-owed:${SCOPE_CHILD}`])
   })
 })

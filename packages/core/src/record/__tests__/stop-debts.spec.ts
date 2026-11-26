@@ -5,20 +5,42 @@ import {
   STOP_OWED_KIND,
   STOP_PAID_KIND,
   owedStopScopesOf,
+  stopDebtMarkOf,
   stopOwedKeyOf,
   stopPaidKeyOf,
+  type StopDebtMark,
 } from '../stop-debts'
 
-const owed = (scope: string): FactRecord => ({
+const owedFact = (scope: string): FactRecord => ({
   type: 'fact-recorded',
   key: stopOwedKeyOf(scope),
   kind: STOP_OWED_KIND,
 })
 
-const paid = (scope: string): FactRecord => ({
+const paidFact = (scope: string): FactRecord => ({
   type: 'fact-recorded',
   key: stopPaidKeyOf(scope),
   kind: STOP_PAID_KIND,
+})
+
+const owed = (scope: string): StopDebtMark => ({ kind: 'owed', scope })
+
+const paid = (scope: string): StopDebtMark => ({ kind: 'paid', scope })
+
+const dispatched = (scope: string): StopDebtMark => ({ kind: 'dispatched', scope })
+
+describe('stopDebtMarkOf', () => {
+  it('marks the stop-owed and stop-paid facts and nothing else', () => {
+    const placement: FactRecord = {
+      type: 'fact-recorded',
+      key: 'upload-placement:file-1',
+      kind: 'upload-placement',
+    }
+
+    expect(stopDebtMarkOf(owedFact('call-a'))).toEqual({ kind: 'owed', scope: 'call-a' })
+    expect(stopDebtMarkOf(paidFact('call-a'))).toEqual({ kind: 'paid', scope: 'call-a' })
+    expect(stopDebtMarkOf(placement)).toBeUndefined()
+  })
 })
 
 describe('owedStopScopesOf', () => {
@@ -42,12 +64,21 @@ describe('owedStopScopesOf', () => {
     expect(owedStopScopesOf([owed('call-a'), paid('call-a'), owed('call-a')])).toEqual(['call-a'])
   })
 
-  it('ignores facts of other kinds, even ones whose key carries a colon', () => {
-    const placement: FactRecord = {
-      type: 'fact-recorded',
-      key: 'upload-placement:file-1',
-      kind: 'upload-placement',
-    }
-    expect(owedStopScopesOf([placement])).toEqual([])
+  it('keeps the debt when the dispatch that ran it came before the stop', () => {
+    expect(owedStopScopesOf([dispatched('call-a'), owed('call-a')])).toEqual(['call-a'])
+  })
+
+  it('drops a debt that a later dispatch of the same scope re-uses', () => {
+    expect(owedStopScopesOf([owed('call-a'), dispatched('call-a')])).toEqual([])
+  })
+
+  it('drops only the re-dispatched scope', () => {
+    expect(owedStopScopesOf([owed('call-a'), owed('call-b'), dispatched('call-b')])).toEqual([
+      'call-a',
+    ])
+  })
+
+  it('reports nothing when no stop was ever owed', () => {
+    expect(owedStopScopesOf([])).toEqual([])
   })
 })

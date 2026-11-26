@@ -85,8 +85,9 @@ only what it can rebuild or drop.
   so the event holds a `MediaPart`; one the store does not take becomes `[picture not kept: …]`.
 - `LeaseLostError`, `RecordCorruptionError`: the two failures a record raises.
 - `InboxIntake`, `INBOX_KIND_STOP`: turn the inbox into the agent's input.
-- `oweStoppedCalls`, `payStopDebts`, `wireStopDebts`: record the pod work a stopped turn left behind,
-  and cancel it from whichever holder reaches the daemon next.
+- `oweOwnStoppedTurn`, `oweChildStoppedCalls`, `payStopDebts`, `wireStopDebts`, `stoppedScopesOf`:
+  record the pod work a stopped turn or a stopped child left behind, in the record append tail, and
+  cancel it from whichever holder reaches the daemon next.
 
 ### Stream and observe
 

@@ -25,11 +25,14 @@ import { spillForAppend } from './record-spill'
 import { abortErrorOf, abortedOnHandoff, toRecordBody, type AppendBody } from './append-drafts'
 import { RecordCorruptionError } from './append-drafts'
 import { ackRecordedDaemonResults, prepareDraft } from './record-commit'
+import { stoppedScopesOf, stopOwedDraftOf } from '../stop-debts'
 
 export { LeaseLostError, RecordCorruptionError }
 export type { AppendBody }
 
 export const BLOB_SPILL_BYTES = 256 * 1024
+
+const noop = (): void => undefined
 
 const STEP_EVENT_TYPES: ReadonlySet<string> = new Set(['assistant-said', 'tool-called'])
 
@@ -172,6 +175,20 @@ export class SessionRecord implements AgentRecordPort, ModelContextPort {
     return this.tail
   }
 
+  queue<T>(work: () => Promise<T>): Promise<T> {
+    const run = this.tail.then(work)
+    this.tail = run.then(noop, noop)
+    return run
+  }
+
+  oweStoppedTurn(args: { threadId: ThreadId; runId(): RunId }): Promise<void> {
+    return this.queue(async () => {
+      const scopes = stoppedScopesOf(this.cache.loopState())
+      if (scopes.length === 0) return
+      await this.appendSerial({ ...args, runId: args.runId(), drafts: scopes.map(stopOwedDraftOf) })
+    })
+  }
+
   private async gatedAppend(args: AppendArgs): Promise<Event[]> {
     if (!args.drafts.some((draft) => this.isDaemonDispatch(draft))) {
       return (await this.enqueue(args)) ?? []
@@ -192,12 +209,7 @@ export class SessionRecord implements AgentRecordPort, ModelContextPort {
   }
 
   private enqueue(args: AppendArgs): Promise<Event[] | undefined> {
-    const run = this.tail.then(() => this.appendSerial(args))
-    this.tail = run.then(
-      () => undefined,
-      () => undefined,
-    )
-    return run
+    return this.queue(() => this.appendSerial(args))
   }
 
   private resizeHeld(): boolean {

@@ -24,6 +24,13 @@ const scopeCancelledOf = async (session: DaemonSession): Promise<readonly string
   return frame.cancelled
 }
 
+const resultArrived = (args: { session: DaemonSession; key: string }): boolean =>
+  args.session.frames().some((frame) => frame.kind === 'result' && frame.key === args.key)
+
+const cancelOne = (args: { session: DaemonSession; key: string }): void => {
+  args.session.send({ kind: 'cancel', key: args.key, epoch: EPOCH })
+}
+
 export const describeCancelScopeConformance = (target: DaemonConformanceTarget): void => {
   describe(`cancel-scope conformance (${target.name})`, () => {
     it('cancels every running call under the scope and leaves another scope running', () =>
@@ -33,7 +40,7 @@ export const describeCancelScopeConformance = (target: DaemonConformanceTarget):
           const session = await connectAt({ handle })
           sendRun({ session, key: 's.0', op: shell('sleep 30') })
           sendRun({ session, key: 's.1', op: shell('sleep 30') })
-          sendRun({ session, key: 't.0', op: shell('echo other') })
+          sendRun({ session, key: 't.0', op: shell('sleep 30') })
           await replyOf({ session, key: 's.0' })
           await replyOf({ session, key: 's.1' })
           await replyOf({ session, key: 't.0' })
@@ -48,9 +55,38 @@ export const describeCancelScopeConformance = (target: DaemonConformanceTarget):
           expect(
             okValue({ result: await resultOf({ session, key: 's.1' }), op: 'exec' }).outcome,
           ).toBe(EExecOutcome.Cancelled)
+          expect(resultArrived({ session, key: 't.0' })).toBe(false)
+          cancelOne({ session, key: 't.0' })
           expect(
             okValue({ result: await resultOf({ session, key: 't.0' }), op: 'exec' }).outcome,
-          ).toBe(EExecOutcome.Exited)
+          ).toBe(EExecOutcome.Cancelled)
+        },
+      }))
+
+    it('takes every step key of the scope and no key that only starts with its text', () =>
+      withDaemon({
+        target,
+        body: async (handle) => {
+          const session = await connectAt({ handle })
+          const steps = ['c1.0', 'c1.read.0123abcd', 'c1.no-step.deadbeef']
+          for (const key of [...steps, 'c1.0.0']) {
+            sendRun({ session, key, op: shell('sleep 30') })
+            await replyOf({ session, key })
+          }
+
+          session.send({ kind: 'cancel-scope', scope: 'c1', epoch: EPOCH })
+          const cancelled = await scopeCancelledOf(session)
+
+          expect([...cancelled].sort()).toEqual([...steps].sort())
+          for (const key of steps)
+            expect(okValue({ result: await resultOf({ session, key }), op: 'exec' }).outcome).toBe(
+              EExecOutcome.Cancelled,
+            )
+          expect(resultArrived({ session, key: 'c1.0.0' })).toBe(false)
+          cancelOne({ session, key: 'c1.0.0' })
+          expect(
+            okValue({ result: await resultOf({ session, key: 'c1.0.0' }), op: 'exec' }).outcome,
+          ).toBe(EExecOutcome.Cancelled)
         },
       }))
 
