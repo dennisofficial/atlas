@@ -5,6 +5,7 @@ import { drainWantsHolder, type DrainSnapshot } from '../held-session-decision'
 
 const idle: DrainSnapshot = {
   turn: 'idle',
+  parked: false,
   childrenRunning: false,
   shellsOpen: false,
   resumable: false,
@@ -53,6 +54,41 @@ const cases: { name: string; snapshot: DrainSnapshot; wantsHolder: boolean }[] =
   {
     name: 'a failed workspace with a newer message asks for a holder',
     snapshot: { ...idle, workspace: EWorkspaceState.Failed, retryPending: true },
+    wantsHolder: true,
+  },
+  {
+    name: 'a parked idle session hands the holder back',
+    snapshot: { ...idle, parked: true },
+    wantsHolder: false,
+  },
+  {
+    name: 'a parked session hands the holder back with an open background shell',
+    snapshot: { ...idle, parked: true, shellsOpen: true },
+    wantsHolder: false,
+  },
+  {
+    name: 'a parked session hands the holder back with a running child',
+    snapshot: { ...idle, parked: true, childrenRunning: true },
+    wantsHolder: false,
+  },
+  {
+    name: 'a parked session hands the holder back with a resumable thread',
+    snapshot: { ...idle, parked: true, resumable: true },
+    wantsHolder: false,
+  },
+  {
+    name: 'a parked session hands the holder back before its workspace is prepared',
+    snapshot: { ...idle, parked: true, workspace: EWorkspaceState.Unprepared },
+    wantsHolder: false,
+  },
+  {
+    name: 'a parked session keeps the holder for a running turn',
+    snapshot: { ...idle, parked: true, turn: 'running' },
+    wantsHolder: true,
+  },
+  {
+    name: 'a parked session asks for a holder again for an actionable inbox entry',
+    snapshot: { ...idle, parked: true, messagePending: true },
     wantsHolder: true,
   },
   {

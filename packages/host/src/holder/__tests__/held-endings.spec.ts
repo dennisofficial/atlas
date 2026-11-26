@@ -73,6 +73,7 @@ const depsOf = (entries: readonly InboxEntry[]): HeldSessionDeps =>
     sessionId: 'session-1',
     plane: {
       readInbox: async () => entries,
+      readSession: async () => ({ podParkedAt: null }),
       endTerminals: async () => 0,
     } as unknown as ControlPlane,
     timers: { now: () => 0 },

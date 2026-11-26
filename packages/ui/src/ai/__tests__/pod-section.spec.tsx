@@ -91,6 +91,26 @@ describe('pod section header', () => {
     expect(html).toContain('aria-label="Resizing pod"')
   })
 
+  it('reads stopping or starting instead of the state the provider last declared', () => {
+    const stopping = htmlOf({ stopping: true })
+    expect(stopping).toContain('Stopping…')
+    expect(stopping).not.toContain('>Running<')
+    const starting = htmlOf({ starting: true })
+    expect(starting).toContain('Starting…')
+    expect(starting).not.toContain('>Running<')
+  })
+
+  it('keeps the stop ahead of a start and of a resize', () => {
+    const html = htmlOf({
+      stopping: true,
+      starting: true,
+      pendingShape: { vcpus: 8, memoryGb: 64 },
+    })
+    expect(html).toContain('Stopping…')
+    expect(html).not.toContain('Starting…')
+    expect(html).not.toContain('Resizing…')
+  })
+
   it('offers an outlined square to stop and a play triangle to start, both unfilled', () => {
     const running = htmlOf()
     expect(running).toContain('lucide-square')
@@ -125,6 +145,14 @@ describe('pod section header', () => {
       '<p class="text-xs text-muted-foreground">The pod did not report running. Try again.</p>',
     )
     expect(htmlOf()).not.toContain('Try again.')
+  })
+
+  it('says why the pod did not stop and keeps the button ready to stop it again', () => {
+    const html = htmlOf({ powerError: 'The agent turn did not stop within 2 minutes.' })
+    expect(html).toContain('Could not stop the pod. The agent turn did not stop within 2 minutes.')
+    expect(html).toContain('text-destructive')
+    expect(html).toContain('aria-label="Stop pod"')
+    expect(html).not.toContain('aria-label="Stopping pod"')
   })
 })
 
@@ -424,16 +452,19 @@ describe('pod resize waiting', () => {
 })
 
 describe('pod action confirm', () => {
-  it('asks before stopping and keeps the reason short', () => {
+  it('asks before stopping and says what a stop keeps', () => {
     expect(POD_CONFIRM_TITLE[EPodAction.Stop]).toBe('Stop the pod?')
-    expect(POD_CONFIRM_BODY).toBe(
-      'The current turn stops and running processes end. Files are kept.',
+    expect(POD_CONFIRM_BODY[EPodAction.Stop]).toBe(
+      'The current turn stops. Services and shells pause and continue when the pod starts again. Preview links are down while it sleeps. Files are kept.',
     )
     expect(POD_CONFIRM_LABEL[EPodAction.Stop]).toBe('Stop')
   })
 
-  it('asks before restarting for a resize', () => {
+  it('asks before restarting for a resize and says a resize ends processes', () => {
     expect(POD_CONFIRM_TITLE[EPodAction.Resize]).toBe('Restart the pod?')
+    expect(POD_CONFIRM_BODY[EPodAction.Resize]).toBe(
+      'The current turn stops and running processes end. Files are kept.',
+    )
     expect(POD_CONFIRM_LABEL[EPodAction.Resize]).toBe('Restart')
   })
 })

@@ -3,7 +3,7 @@ import { afterAll, afterEach, beforeAll, describe, expect, it, mock } from 'bun:
 import { act, useState } from 'react'
 import { renderToStaticMarkup } from 'react-dom/server'
 
-import { ESessionStatus } from '@dltech/atlas-core'
+import { EPodPowerPhase, ESessionStatus } from '@dltech/atlas-core'
 import { EPodState, ResizeDeclinedError } from '@dltech/atlas-ui/ai/pod-status-chip'
 import { ESandboxProvider, ESandboxStatus } from '@dltech/atlas-protocol'
 
@@ -238,6 +238,40 @@ describe('podSectionViewOf', () => {
 
     expect(view?.shape).toEqual({ vcpus: 4, memoryGb: 8 })
   })
+
+  it('carries the power phase the server records', () => {
+    const stopping = podSectionViewOf({
+      pod: { phase: 'steady', power: { phase: EPodPowerPhase.Stopping } },
+      live: true,
+      sandbox: { status: ESandboxStatus.Running, at: '2026-11-21T10:00:00.000Z' },
+    })
+    expect(stopping.powerPhase).toBe(EPodPowerPhase.Stopping)
+    expect(stopping.state).toBe(EPodState.Running)
+    const starting = podSectionViewOf({
+      pod: { phase: 'steady', power: { phase: EPodPowerPhase.Starting } },
+      live: false,
+      sandbox: { status: ESandboxStatus.Sleeping, at: '2026-11-21T10:00:00.000Z' },
+    })
+    expect(starting.powerPhase).toBe(EPodPowerPhase.Starting)
+    expect(starting.state).toBe(EPodState.Starting)
+  })
+
+  it('parks a pod the server reports asleep and carries the error of a failed stop', () => {
+    const asleep = podSectionViewOf({
+      pod: { phase: 'steady', power: { phase: EPodPowerPhase.Asleep } },
+      live: true,
+      sandbox: { status: ESandboxStatus.Stopped, at: '2026-11-21T10:00:00.000Z' },
+    })
+    expect(asleep.state).toBe(EPodState.Parked)
+    const failed = podSectionViewOf({
+      pod: {
+        phase: 'steady',
+        power: { phase: EPodPowerPhase.Failed, error: 'Another host kept the session.' },
+      },
+      live: true,
+    })
+    expect(failed.powerError).toBe('Another host kept the session.')
+  })
 })
 
 describe('PodPaneSection', () => {
@@ -345,6 +379,39 @@ describe('PodPaneSection', () => {
     const html = renderToStaticMarkup(sectionOf({ power: powerOf('sleeping') }))
     expect(html).toContain('aria-label="Stopping pod"')
     expect(html).toContain('disabled')
+  })
+
+  it('reads Stopping… while the server stops the pod', () => {
+    const html = renderToStaticMarkup(sectionOf({ powerPhase: EPodPowerPhase.Stopping }))
+    expect(html).toContain('Stopping…')
+    expect(html).toContain('aria-label="Stopping pod"')
+  })
+
+  it('reads Starting… while the server starts the pod', () => {
+    const html = renderToStaticMarkup(sectionOf({ powerPhase: EPodPowerPhase.Starting }))
+    expect(html).toContain('Starting…')
+    expect(html).toContain('aria-label="Starting pod"')
+  })
+
+  it('shows why the stop failed and lets the operator stop the pod again', () => {
+    const html = renderToStaticMarkup(
+      sectionOf({
+        powerPhase: EPodPowerPhase.Failed,
+        powerError: 'Another host kept the session.',
+      }),
+    )
+    expect(html).toContain('Could not stop the pod. Another host kept the session.')
+    expect(html).toContain('aria-label="Stop pod"')
+    expect(html).not.toContain('aria-label="Stopping pod"')
+  })
+
+  it('sends the stop straight from the panel without asking first', async () => {
+    const onStop = mock(() => undefined)
+    const unmount = await mount(sectionOf({ onStop }))
+    await click(document.body.querySelector('button[aria-label="Stop pod"]'))
+    expect(onStop).toHaveBeenCalledTimes(1)
+    expect(document.body.textContent).not.toContain('Stop the pod?')
+    await unmount()
   })
 })
 

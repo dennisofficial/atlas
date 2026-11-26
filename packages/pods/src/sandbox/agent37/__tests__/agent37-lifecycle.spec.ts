@@ -151,6 +151,16 @@ describe('sleepAgent37Instance', () => {
     expect(updates).toEqual([])
   })
 
+  it('does nothing for an instance the platform already stopped', async () => {
+    const { get } = statusesOf(['stopped'])
+    const { client, slept, updates } = clientOf({ get })
+
+    await sleepAgent37Instance({ client, id: 'inst-1' })
+
+    expect(slept).toEqual([])
+    expect(updates).toEqual([])
+  })
+
   it('treats an instance that vanished as already asleep', async () => {
     const get: Agent37Client['get'] = async () => {
       throw new Agent37Error({ status: 404, code: 'not_found', retryable: false })

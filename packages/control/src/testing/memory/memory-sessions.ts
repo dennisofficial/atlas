@@ -280,6 +280,8 @@ export const createSessionIn = (params: {
     podAppliedGeneration: null,
     podResizeError: null,
     podWaitingSince: null,
+    podParkedAt: null,
+    podParkError: null,
     routineId: params.routineId ?? null,
   })
   state.leases.set(params.sessionId, {

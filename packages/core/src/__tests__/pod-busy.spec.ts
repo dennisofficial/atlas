@@ -1,6 +1,12 @@
 import { describe, expect, it } from 'bun:test'
 
-import { podBusyFactsOf, podBusyOf, podResizeBusyOf, type PodBusyFacts } from '../pod/pod-busy'
+import {
+  podBusyFactsOf,
+  podBusyOf,
+  podResizeBusyOf,
+  podStopBusyOf,
+  type PodBusyFacts,
+} from '../pod/pod-busy'
 import { ESessionStatus } from '../record/views/status-types'
 
 const factsOf = (over: Partial<PodBusyFacts> = {}): PodBusyFacts => ({
@@ -131,5 +137,34 @@ describe('podBusyFactsOf', () => {
     expect(
       podBusyFactsOf({ state: ESessionStatus.Idle, shellsRunning: 2, servicesRunning: 1 }),
     ).toEqual(factsOf({ shellsRunning: 2, servicesRunning: 1 }))
+  })
+})
+
+describe('podStopBusyOf', () => {
+  it('lets a stop sleep a pod under shells, services and a bash command', () => {
+    expect(
+      podStopBusyOf(factsOf({ shellsRunning: 2, servicesRunning: 3, bashRunning: true })),
+    ).toEqual({ busy: false, running: [] })
+  })
+
+  it('names a running setup script', () => {
+    expect(podStopBusyOf(factsOf({ setupRunning: true }))).toEqual({
+      busy: true,
+      running: ['Setup script'],
+    })
+  })
+
+  it('holds a stop for a turn in flight', () => {
+    expect(podStopBusyOf(factsOf({ turnInFlight: true }))).toEqual({
+      busy: true,
+      running: ['Agent turn'],
+    })
+  })
+
+  it('names the setup script and the turn together', () => {
+    expect(podStopBusyOf(factsOf({ setupRunning: true, turnInFlight: true })).running).toEqual([
+      'Setup script',
+      'Agent turn',
+    ])
   })
 })

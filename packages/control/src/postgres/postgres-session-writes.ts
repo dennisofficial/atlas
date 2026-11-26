@@ -1,7 +1,7 @@
 import type { Tx } from '@dltech/atlas-db'
 
 import type { ControlSessionRow } from '../port'
-import { announceIn } from './postgres-notify'
+import { announceIn, notifyWakeIn } from './postgres-notify'
 import { lockPodRetireOfSessionIn } from './postgres-pod-retire-lock'
 import { toSessionRow } from './postgres-rows'
 
@@ -337,4 +337,49 @@ export const takeSessionPodWaitIn = async (params: {
     podWaitingSince: new Date(params.since),
   }).updateAndCount({ podWaitingSince: null })
   return changed === 1
+}
+
+export const parkPodIn = async (params: {
+  tx: Tx
+  sessionId: string
+  at: string
+}): Promise<{ parkedAt: string }> => {
+  const changed = await params.tx.orm.public.Session.where({
+    id: params.sessionId,
+  }).updateAndCount({ podParkedAt: new Date(params.at), podParkError: null })
+  if (changed !== 1) throw new Error(`unknown session ${params.sessionId}`)
+  await notifyWakeIn({ tx: params.tx, sessionId: params.sessionId })
+  await announceIn({ tx: params.tx, change: { sessionId: params.sessionId } })
+  return { parkedAt: params.at }
+}
+
+export const failPodParkIn = async (params: {
+  tx: Tx
+  sessionId: string
+  parkedAt: string
+  error: string
+}): Promise<boolean> => {
+  const changed = await params.tx.orm.public.Session.where({
+    id: params.sessionId,
+    podParkedAt: new Date(params.parkedAt),
+  }).updateAndCount({ podParkError: params.error })
+  if (changed !== 1) return false
+  await announceIn({ tx: params.tx, change: { sessionId: params.sessionId } })
+  return true
+}
+
+export const clearPodParkIn = async (params: { tx: Tx; sessionId: string }): Promise<boolean> => {
+  const rows = await params.tx.query(
+    params.tx.raw.sql`UPDATE "public"."Session"
+      SET "podParkedAt" = NULL,
+        "podParkError" = NULL
+      WHERE "id" = ${params.sessionId}
+        AND ("podParkedAt" IS NOT NULL OR "podParkError" IS NOT NULL)
+      RETURNING "id"`
+      .returnsRow({ id: 'pg/text@1' })
+      .build(),
+  )
+  if (rows.length === 0) return false
+  await announceIn({ tx: params.tx, change: { sessionId: params.sessionId } })
+  return true
 }

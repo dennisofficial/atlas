@@ -172,6 +172,14 @@ export const Stopped: Story = { args: { state: EPodState.Stopped } }
 
 export const Starting: Story = { args: { state: EPodState.Starting } }
 
+export const StartingUp: Story = { args: { starting: true } }
+
+export const Stopping: Story = { args: { stopping: true } }
+
+export const StopFailed: Story = {
+  args: { powerError: 'The agent turn did not stop within 2 minutes.' },
+}
+
 export const StopConfirm: Story = { args: { confirmAction: EPodAction.Stop } }
 
 export const SizeMenuOpenAgent37: Story = { args: { defaultSizeMenuOpen: true } }

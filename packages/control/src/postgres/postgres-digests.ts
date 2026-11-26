@@ -67,7 +67,8 @@ export const sessionDigestsIn = async (
         s."podSessionId", s."podDesiredVcpus", s."podDesiredMemoryGb", s."podDesiredDiskGb",
         s."podSizeGeneration",
         s."podActualVcpus", s."podActualMemoryGb",
-        s."podAppliedGeneration", s."podResizeError", s."podWaitingSince", s."routineId", s."readSeq",
+        s."podAppliedGeneration", s."podResizeError", s."podWaitingSince",
+        s."podParkedAt", s."podParkError", s."routineId", s."readSeq",
         (SELECT e."at" FROM "public"."Event" e
           WHERE e."threadId" = s."mainThreadId" ORDER BY e."seq" DESC LIMIT 1) AS "lastEventAt",
         COALESCE((SELECT MAX(e."seq") FROM "public"."Event" e
@@ -134,6 +135,8 @@ export const sessionDigestsIn = async (
         podAppliedGeneration: { codecId: 'pg/int4@1', nullable: true },
         podResizeError: { codecId: 'pg/text@1', nullable: true },
         podWaitingSince: { codecId: 'pg/timestamptz-date@1', nullable: true },
+        podParkedAt: { codecId: 'pg/timestamptz-date@1', nullable: true },
+        podParkError: { codecId: 'pg/text@1', nullable: true },
         routineId: { codecId: 'pg/text@1', nullable: true },
         readSeq: { codecId: 'pg/int4@1', nullable: true },
         lastEventAt: { codecId: 'pg/timestamptz-date@1', nullable: true },
@@ -179,6 +182,8 @@ export const sessionDigestsIn = async (
     podAppliedGeneration: row.podAppliedGeneration,
     podResizeError: row.podResizeError,
     podWaitingSince: row.podWaitingSince === null ? null : iso(row.podWaitingSince),
+    podParkedAt: row.podParkedAt === null ? null : iso(row.podParkedAt),
+    podParkError: row.podParkError,
     routineId: row.routineId,
     readSeq: row.readSeq,
     lastEventAt: row.lastEventAt === null ? null : iso(row.lastEventAt),

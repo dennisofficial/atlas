@@ -1,28 +1,18 @@
 import { afterAll, beforeAll, describe, expect, it, mock } from 'bun:test'
-import { act, createElement } from 'react'
-
-import type { SessionWakeInput, SessionWakeOutput } from '@dltech/atlas-protocol'
+import { act } from 'react'
 
 import { registerDom, unregisterDom } from '@/lib/__tests__/happy-dom-globals'
 import { CloudApiError } from '@/lib/cloud-api'
 
 import {
-  isPodTurnRunning,
-  nextPodPower,
-  POD_TURN_RUNNING,
-  POD_WAKE_FAILURE,
-  podPowerSettled,
-  usePodPower,
-  type PodDeclaredState,
-  type PodPower,
-} from './use-pod-power'
-
-const turnRunning = (): CloudApiError =>
-  new CloudApiError({
-    message: 'the pod is busy: Agent turn',
-    status: 409,
-    code: POD_TURN_RUNNING,
-  })
+  ELSEWHERE,
+  mountPodPower,
+  settlePromises,
+  turnRunning,
+  wait,
+  WOKEN,
+} from './__tests__/use-pod-power-fixture'
+import { isPodTurnRunning, nextPodPower, POD_WAKE_FAILURE, podPowerSettled } from './use-pod-power'
 
 describe('isPodTurnRunning', () => {
   it('reads the refusal atlas sends when the pod is working', () => {
@@ -104,62 +94,6 @@ beforeAll(() => {
 afterAll(async () => {
   await unregisterDom()
 })
-
-const WOKEN: SessionWakeOutput = { state: 'waking' }
-const ELSEWHERE: SessionWakeOutput = { state: 'elsewhere' }
-
-const mountPodPower = async (args: {
-  declared?: PodDeclaredState | undefined
-  wake: (input: SessionWakeInput) => Promise<SessionWakeOutput>
-  wakeDeadlineMs?: number | undefined
-}) => {
-  const { createRoot } = await import('react-dom/client')
-  const host = document.createElement('div')
-  document.body.append(host)
-  const root = createRoot(host)
-  const handle: { power: PodPower | undefined } = { power: undefined }
-
-  const Probe = (props: { declared?: PodDeclaredState | undefined }) => {
-    const power = usePodPower({
-      sessionId: 'session-1',
-      declared: props.declared,
-      wake: args.wake,
-      ...(args.wakeDeadlineMs === undefined ? {} : { wakeDeadlineMs: args.wakeDeadlineMs }),
-    })
-    handle.power = power
-    return createElement('p', null, power.state.phase)
-  }
-
-  const render = async (declared?: PodDeclaredState) => {
-    await act(async () => root.render(createElement(Probe, { declared })))
-  }
-
-  await render(args.declared)
-
-  return {
-    power: () => {
-      if (handle.power === undefined) throw new Error('the pod power probe did not render')
-      return handle.power
-    },
-    render,
-    unmount: async () => {
-      await act(async () => root.unmount())
-      host.remove()
-    },
-  }
-}
-
-const settlePromises = async () => {
-  await act(async () => {
-    await Promise.resolve()
-  })
-}
-
-const wait = async (ms: number) => {
-  await act(async () => {
-    await new Promise((resolve) => setTimeout(resolve, ms))
-  })
-}
 
 describe('usePodPower wake', () => {
   it('shows the pod starting at once and clears once it reports itself running', async () => {

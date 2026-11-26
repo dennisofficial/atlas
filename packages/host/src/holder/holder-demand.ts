@@ -4,6 +4,7 @@ import { logFieldsOf, type LogPort } from '@dltech/atlas-observability'
 import { HeldWaits, type HeldWait } from './held-waits'
 import { PANEL_HOLD_TTL_MS, PanelDemand } from './panel-demand'
 import type { HostBus, HostTimers } from './ports'
+import { podParkedOf } from './pod-park'
 import { TerminalDemand } from './terminal-demand'
 
 const requestHolderFor = async (args: {
@@ -14,6 +15,7 @@ const requestHolderFor = async (args: {
   if (args.holds(args.sessionId)) return true
   const current = await args.plane.currentLease({ sessionId: args.sessionId })
   if (current.lease.holderHostId !== null && current.live) return false
+  if (await podParkedOf({ plane: args.plane, sessionId: args.sessionId })) return false
   if (current.lease.wantsHolder) {
     await args.plane.wake({ sessionIds: [args.sessionId] })
     return true

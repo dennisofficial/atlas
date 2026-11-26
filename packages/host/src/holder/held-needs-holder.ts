@@ -29,6 +29,7 @@ import {
 import { childrenAtWorkOf } from './crew/child-reads'
 import { spawnedChildrenOf } from './crew/open-children'
 import type { HeldSessionDeps } from './held-session-deps'
+import { podParkedOf } from './pod-park'
 import type { SessionRecord } from './record/record-adapter'
 
 export const outcomeCommandPending = async (args: {
@@ -49,11 +50,14 @@ export const drainNeedsHolder = async (args: {
 }): Promise<boolean> => {
   const cache = args.record?.eventCache()
   try {
+    const parked = args.turnRunning
+      ? false
+      : await podParkedOf({ plane: args.deps.plane, sessionId: args.deps.sessionId })
     const entries = (await readFullInbox(args.deps)).filter((entry) =>
       understandsCommand(args.deps, entry),
     )
     const events = cache?.eventsAfter(0) ?? []
-    if (setupInFlightOf(events)) return true
+    if (!parked && setupInFlightOf(events)) return true
     const logIds = logPendingInputIdsOf(events)
     const workspace = workspaceStateFrom({
       record: cache?.bookkeeping().workspace() ?? NO_WORKSPACE_RECORD,
@@ -70,6 +74,7 @@ export const drainNeedsHolder = async (args: {
     const noticeIds = new Set(repairHeld ? logPendingNoticeIdsOf(events) : [])
     return drainWantsHolder({
       turn: args.turnRunning ? 'running' : 'idle',
+      parked,
       childrenRunning:
         (await childrenAtWorkOf({
           plane: args.deps.plane,

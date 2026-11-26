@@ -9,6 +9,7 @@ const factsOf = (overrides: Partial<PodReachFacts>): PodReachFacts => ({
   holderHostId: null,
   holderLive: false,
   wantsHolder: false,
+  parked: false,
   ...overrides,
 })
 
@@ -51,6 +52,14 @@ describe('podReachStepOf', () => {
     expect(podReachStepOf(factsOf({ holderHostId: 2, holderLive: true, wantsHolder: true }))).toBe(
       EPodReachStep.Forward,
     )
+  })
+
+  it('parks a parked session nobody holds instead of waking it', () => {
+    expect(podReachStepOf(factsOf({ parked: true, wantsHolder: true }))).toBe(EPodReachStep.Parked)
+  })
+
+  it('parks a parked session nobody wants instead of revoking it', () => {
+    expect(podReachStepOf(factsOf({ parked: true }))).toBe(EPodReachStep.Parked)
   })
 
   it('does not treat an unknown host id as the live holder', () => {

@@ -328,6 +328,9 @@ export interface ControlTx {
     reason?: string | undefined
     at: string
   }): Promise<boolean>
+  parkPod(params: { sessionId: string; at: string }): Promise<{ parkedAt: string }>
+  failPodPark(params: { sessionId: string; parkedAt: string; error: string }): Promise<boolean>
+  clearPodPark(params: { sessionId: string }): Promise<boolean>
   readSession(params: { sessionId: string }): Promise<ControlSessionRow | undefined>
   readNestedChildren(params: { sessionId: string }): Promise<ControlSessionRow[]>
   lockSession(sessionId: string): Promise<ControlSessionRow | undefined>
