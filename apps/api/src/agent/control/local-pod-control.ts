@@ -1,4 +1,4 @@
-import type { Db } from '@dltech/atlas-db'
+import type { Db, EffectReceiptKey } from '@dltech/atlas-db'
 import { ESubscriptionActor, ESubscriptionEnd } from '@dltech/atlas-core'
 import {
   RoutineInvalidError,
@@ -99,6 +99,12 @@ const sessionOfThreadOf = async (args: {
   return { sessionId: thread.sessionId }
 }
 
+const receiptOf = (call: {
+  threadId: string
+  stepKey?: string | undefined
+}): EffectReceiptKey | undefined =>
+  call.stepKey === undefined ? undefined : { threadId: call.threadId, stepKey: call.stepKey }
+
 const routineScopeOf = (owner: ThreadOwner): { userId: string; projectId: string } => {
   if (owner.projectId === null) throw new Error(NOT_IN_A_PROJECT)
   return { userId: owner.userId, projectId: owner.projectId }
@@ -176,38 +182,54 @@ export const localPodControlOf = (args: {
           return routineRefused(failure)
         }
       },
-      create: async ({ threadId, ...input }) => {
+      create: async ({ threadId, stepKey, ...input }) => {
         const scope = routineScopeOf(await ownerOf(threadId))
         try {
           return await routineCreateOf({
             plane: args.plane,
             userId: scope.userId,
+            receipt: receiptOf({ threadId, stepKey }),
             input: { ...input, projectId: scope.projectId },
           })
         } catch (failure) {
           return routineRefused(failure)
         }
       },
-      update: async ({ threadId, ...input }) => {
+      update: async ({ threadId, stepKey, ...input }) => {
         const scope = routineScopeOf(await ownerOf(threadId))
         try {
-          return await routineUpdateOf({ plane: args.plane, ...scope, input })
+          return await routineUpdateOf({
+            plane: args.plane,
+            ...scope,
+            receipt: receiptOf({ threadId, stepKey }),
+            input,
+          })
         } catch (failure) {
           return routineRefused(failure)
         }
       },
-      remove: async ({ threadId, routineId }) => {
+      remove: async ({ threadId, stepKey, routineId }) => {
         const scope = routineScopeOf(await ownerOf(threadId))
         try {
-          return await routineRemoveOf({ plane: args.plane, ...scope, routineId })
+          return await routineRemoveOf({
+            plane: args.plane,
+            ...scope,
+            routineId,
+            receipt: receiptOf({ threadId, stepKey }),
+          })
         } catch (failure) {
           return routineRefused(failure)
         }
       },
-      run: async ({ threadId, routineId }) => {
+      run: async ({ threadId, stepKey, routineId }) => {
         const scope = routineScopeOf(await ownerOf(threadId))
         try {
-          return await routineRunNowOf({ plane: args.plane, ...scope, routineId })
+          return await routineRunNowOf({
+            plane: args.plane,
+            ...scope,
+            routineId,
+            receipt: receiptOf({ threadId, stepKey }),
+          })
         } catch (failure) {
           return routineRefused(failure)
         }
@@ -314,6 +336,7 @@ export const localPodControlOf = (args: {
       },
       edit: async (call) => {
         const { userId, key } = await addressOf(call)
+        const step = receiptOf(call)
         try {
           return await editMemory({
             db: args.db,
@@ -322,6 +345,7 @@ export const localPodControlOf = (args: {
             old: call.old,
             replacement: call.new,
             revision: call.revision,
+            ...(step === undefined ? {} : { step }),
           })
         } catch (failure) {
           return refused(failure)

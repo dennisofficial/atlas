@@ -1,6 +1,9 @@
 import type { Db, Tx } from './client'
+import type { Row } from './row'
 
 export type EffectReceiptKey = { threadId: string; stepKey: string }
+
+export type EffectReceiptResult = Row<'EffectReceipt'>['result']
 
 export type EffectReceiptClaim = { kind: 'claimed' } | { kind: 'replayed'; result: unknown }
 
@@ -33,7 +36,7 @@ export const claimEffectReceiptIn = async (
 }
 
 export const completeEffectReceiptIn = async (
-  params: EffectReceiptKey & { tx: Tx; result: unknown },
+  params: EffectReceiptKey & { tx: Tx; result: EffectReceiptResult },
 ): Promise<void> => {
   const changed = await params.tx.orm.public.EffectReceipt.where({
     threadId: params.threadId,
@@ -47,7 +50,7 @@ export const onceByStep = async <T>(params: {
   threadId: string
   stepKey: string
   decode: (result: unknown) => T
-  encode: (value: T) => unknown
+  encode: (value: T) => EffectReceiptResult
   run: (tx: Tx) => Promise<T>
 }): Promise<T> =>
   await params.db.transaction(async (tx) => {

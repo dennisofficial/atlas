@@ -12,6 +12,7 @@ import {
   definePlugin,
   EMPTY_CONTROL,
   EMPTY_POD,
+  type MemorySummary,
   type PluginPodContext,
 } from '@dltech/atlas-plugin-sdk'
 import { z } from 'zod'
@@ -299,5 +300,145 @@ describe('podControlOf wiring', () => {
     const control = podControlOf({ client, threadId: toThreadId('thr_holder') })
     await control.exposePort({ port: 1 })
     expect(client.exposePort).toHaveBeenCalledWith({ threadId: 'thr_holder', port: 1 })
+  })
+})
+
+describe('a keyed host effect', () => {
+  const routine = {
+    routineId: 'rt_1',
+    projectId: 'prj_1',
+    name: 'standup',
+    prompt: 'post the standup',
+    cron: '0 9 * * 1-5',
+    timezone: 'Europe/London',
+    enabled: true,
+    model: null,
+    effort: null,
+    fast: null,
+    nextRunAt: '2026-11-27T09:00:00.000Z',
+    lastRunAt: null,
+    lastSessionId: null,
+    createdAt: '2026-11-26T09:00:00.000Z',
+    updatedAt: '2026-11-26T09:00:00.000Z',
+  }
+  const summary: MemorySummary = {
+    scope: 'global',
+    project: null,
+    groupId: null,
+    name: 'deflate',
+    description: 'about deflate',
+    type: 'reference',
+    revision: 2,
+    updatedAt: '2026-11-26T09:00:00.000Z',
+  }
+
+  it('hands the step key the port recorded to the routine create', async () => {
+    const calls: unknown[] = []
+    const steps: unknown[] = []
+    const client: PodControlClient = {
+      ...recordingClient(),
+      routines: {
+        ...routinesStub,
+        create: async (args) => {
+          calls.push(args)
+          return routine
+        },
+      },
+    }
+    const control = podControlOf({
+      client,
+      threadId: THREAD_ID,
+      step: async (call) => {
+        steps.push(call)
+        return { key: `call-1.${call.op}`, replayed: false }
+      },
+    })
+
+    await control.routines.create({
+      name: 'standup',
+      prompt: 'post the standup',
+      cron: '0 9 * * 1-5',
+      timezone: 'Europe/London',
+    })
+
+    expect(steps).toEqual([
+      {
+        op: 'routines.create',
+        input: {
+          name: 'standup',
+          prompt: 'post the standup',
+          cron: '0 9 * * 1-5',
+          timezone: 'Europe/London',
+        },
+      },
+    ])
+    expect(calls).toEqual([
+      {
+        threadId: THREAD,
+        stepKey: 'call-1.routines.create',
+        name: 'standup',
+        prompt: 'post the standup',
+        cron: '0 9 * * 1-5',
+        timezone: 'Europe/London',
+      },
+    ])
+  })
+
+  it('hands the step key to a memory edit', async () => {
+    const calls: unknown[] = []
+    const client: PodControlClient = {
+      ...recordingClient(),
+      memory: {
+        ...memoryStub,
+        edit: async (args) => {
+          calls.push(args)
+          return summary
+        },
+      },
+    }
+    const control = podControlOf({
+      client,
+      threadId: THREAD_ID,
+      step: async (call) => ({ key: `call-1.${call.op}`, replayed: false }),
+    })
+
+    await control.memory.edit({
+      scope: 'global',
+      name: 'deflate',
+      old: 'a',
+      new: 'b',
+      revision: 1,
+    })
+
+    expect(calls).toEqual([
+      {
+        threadId: THREAD,
+        stepKey: 'call-1.memory.edit',
+        scope: 'global',
+        name: 'deflate',
+        old: 'a',
+        new: 'b',
+        revision: 1,
+      },
+    ])
+  })
+
+  it('sends no step key when the holder records no steps', async () => {
+    const calls: unknown[] = []
+    const client: PodControlClient = {
+      ...recordingClient(),
+      routines: {
+        ...routinesStub,
+        remove: async (args) => {
+          calls.push(args)
+          return { removed: true }
+        },
+      },
+    }
+    const control = podControlOf({ client, threadId: THREAD_ID })
+
+    await control.routines.remove({ routineId: 'rt_1' })
+
+    expect(calls).toEqual([{ threadId: THREAD, routineId: 'rt_1' }])
   })
 })

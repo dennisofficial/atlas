@@ -1,4 +1,11 @@
-import { isUniqueViolation, type Db, type Row, type Tx } from '@dltech/atlas-db'
+import {
+  isUniqueViolation,
+  onceByStep,
+  type Db,
+  type EffectReceiptKey,
+  type Row,
+  type Tx,
+} from '@dltech/atlas-db'
 import {
   MAX_MEMORY_BODY_CHARS,
   MEMORY_EDIT_AMBIGUOUS_CODE,
@@ -184,48 +191,81 @@ export async function putMemory(
   return toSummary(row)
 }
 
+const editIn = async (
+  args: {
+    old: string
+    replacement: string
+    revision: number
+  } & { tx: Tx; key: StoredKey },
+): Promise<MemorySummary> => {
+  const row = await firstOf({ handle: args.tx, key: args.key })
+  if (row === null) throw new MemoryNotFoundError()
+  if (row.revision !== args.revision) {
+    throw new MemoryStaleRevisionError({ expected: args.revision, current: row.revision })
+  }
+  const matches = matchStartsOf({ text: row.body, needle: args.old })
+  if (matches.first < 0) {
+    throw new MemoryEditRefusedError({
+      message: 'the text to replace does not occur in the memory',
+      code: MEMORY_EDIT_NO_MATCH_CODE,
+    })
+  }
+  if (matches.another) {
+    throw new MemoryEditRefusedError({
+      message: 'the text to replace occurs more than once; include more surrounding text',
+      code: MEMORY_EDIT_AMBIGUOUS_CODE,
+    })
+  }
+  const body = replaceOnce({ text: row.body, old: args.old, replacement: args.replacement })
+  if (body.length > MAX_MEMORY_BODY_CHARS) {
+    throw new MemoryInvalidError(`a memory body is at most ${MAX_MEMORY_BODY_CHARS} characters`)
+  }
+  const updated = await args.tx.query(
+    guardedBodyStatement({
+      handle: args.tx,
+      id: row.id,
+      userId: args.key.userId,
+      revision: row.revision,
+      body,
+    }),
+  )
+  const fresh = await firstOf({ handle: args.tx, key: args.key })
+  if (fresh === null) throw new MemoryNotFoundError()
+  if (updated.length === 0) {
+    throw new MemoryStaleRevisionError({ expected: args.revision, current: fresh.revision })
+  }
+  return toSummary(fresh)
+}
+
 export async function editMemory(
-  args: { db: Db } & MemoryKey & { old: string; replacement: string; revision: number },
+  args: { db: Db } & MemoryKey & {
+      old: string
+      replacement: string
+      revision: number
+      step?: EffectReceiptKey | undefined
+    },
 ): Promise<MemorySummary> {
   const key = storedKeyOf(args)
-  return args.db.transaction(async (tx) => {
-    const row = await firstOf({ handle: tx, key })
-    if (row === null) throw new MemoryNotFoundError()
-    if (row.revision !== args.revision) {
-      throw new MemoryStaleRevisionError({ expected: args.revision, current: row.revision })
-    }
-    const matches = matchStartsOf({ text: row.body, needle: args.old })
-    if (matches.first < 0) {
-      throw new MemoryEditRefusedError({
-        message: 'the text to replace does not occur in the memory',
-        code: MEMORY_EDIT_NO_MATCH_CODE,
-      })
-    }
-    if (matches.another) {
-      throw new MemoryEditRefusedError({
-        message: 'the text to replace occurs more than once; include more surrounding text',
-        code: MEMORY_EDIT_AMBIGUOUS_CODE,
-      })
-    }
-    const body = replaceOnce({ text: row.body, old: args.old, replacement: args.replacement })
-    if (body.length > MAX_MEMORY_BODY_CHARS) {
-      throw new MemoryInvalidError(`a memory body is at most ${MAX_MEMORY_BODY_CHARS} characters`)
-    }
-    const updated = await tx.query(
-      guardedBodyStatement({
-        handle: tx,
-        id: row.id,
-        userId: key.userId,
-        revision: row.revision,
-        body,
-      }),
+  const step = args.step
+  if (step === undefined) {
+    return await args.db.transaction(async (tx) =>
+      editIn({ tx, key, old: args.old, replacement: args.replacement, revision: args.revision }),
     )
-    const fresh = await firstOf({ handle: tx, key })
-    if (fresh === null) throw new MemoryNotFoundError()
-    if (updated.length === 0) {
-      throw new MemoryStaleRevisionError({ expected: args.revision, current: fresh.revision })
-    }
-    return toSummary(fresh)
+  }
+  return await onceByStep({
+    db: args.db,
+    threadId: step.threadId,
+    stepKey: step.stepKey,
+    decode: (result) => memorySummarySchema.parse(result),
+    encode: (summary) => summary,
+    run: async (tx) =>
+      await editIn({
+        tx,
+        key,
+        old: args.old,
+        replacement: args.replacement,
+        revision: args.revision,
+      }),
   })
 }
 

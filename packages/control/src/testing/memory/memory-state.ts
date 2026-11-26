@@ -1,4 +1,4 @@
-import type { InboxEntry, Lease } from '@dltech/atlas-core'
+import type { InboxEntry, JsonValue, Lease } from '@dltech/atlas-core'
 
 import { subscriptionSubjectKey } from '../../port'
 import type { ChangeBlobState } from './memory-changes'
@@ -37,6 +37,8 @@ export const sessionRowOf = (row: SessionRow): ControlSessionRow => {
   return { ...session }
 }
 
+export type EffectReceiptEntry = { result: JsonValue } | 'claimed'
+
 export type State = {
   sessions: Map<string, SessionRow>
   threads: Map<string, ThreadRow>
@@ -59,6 +61,7 @@ export type State = {
   trackingTargets: Map<string, TrackingTarget>
   routines: Map<string, RoutineRow>
   routineRuns: InsertRoutineRunParams[]
+  effectReceipts: Map<string, EffectReceiptEntry>
 }
 
 const PREPARE_HISTORY_TYPES: ReadonlySet<string> = new Set([
@@ -93,6 +96,7 @@ export const emptyState = (): State => ({
   trackingTargets: new Map(),
   routines: new Map(),
   routineRuns: [],
+  effectReceipts: new Map(),
 })
 
 export const cloneState = (state: State): State => ({
@@ -128,6 +132,7 @@ export const cloneState = (state: State): State => ({
   trackingTargets: new Map([...state.trackingTargets].map(([key, value]) => [key, { ...value }])),
   routines: new Map([...state.routines].map(([key, value]) => [key, { ...value }])),
   routineRuns: state.routineRuns.map((run) => ({ ...run })),
+  effectReceipts: new Map(state.effectReceipts),
 })
 
 export const hasPrepareHistory = (log: readonly StoredEvent[]): boolean =>

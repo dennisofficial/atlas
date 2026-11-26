@@ -27,6 +27,7 @@ import { deferredListingHook } from './deferred-listing'
 import { withDiscoveryTools } from './discovery'
 import type { HeldSessionDeps } from './held-session-deps'
 import { recordStep, recordedStepsOf } from './record/call-steps'
+import { hostStepOf } from './record/host-step'
 import { fireLive } from './ports'
 import { MirrorPlanHook } from './plan-mirror'
 import { pluginCallOf } from './plugin-call'
@@ -164,6 +165,8 @@ export const pluginPodContextOf = (args: {
     control: podControlOf({
       client: deps.control,
       threadId,
+      step: async (call) =>
+        await hostStepOf({ record, threadId, runId: () => deps.ids.nextRunId(), ...call }),
       ...(deps.mcp === undefined ? {} : { mcp: deps.mcp(deps.sessionId) }),
     }),
     crew: args.crew,

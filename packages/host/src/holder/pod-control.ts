@@ -20,6 +20,7 @@ import type {
   PodSubscriptionLease,
   PodSubscriptions,
 } from '@dltech/atlas-plugin-sdk'
+import type { HostStep } from './record/host-step'
 import type {
   Routine,
   RoutineRemoveOutput,
@@ -28,7 +29,9 @@ import type {
   SessionSubscription,
 } from '@dltech/atlas-protocol'
 
-type Called = { threadId: string; signal?: AbortSignal | undefined }
+type Called = { threadId: string; signal?: AbortSignal | undefined; stepKey?: string | undefined }
+
+export type HostStepPort = (call: { op: string; input: object }) => Promise<HostStep | undefined>
 
 export type PodControlClient = {
   exposePort(args: {
@@ -89,9 +92,20 @@ export type PodControlClient = {
 
 const unreachable = (): Error => new Error('this session cannot reach the control plane')
 
+const stepKeyOf = async (args: {
+  step: HostStepPort | undefined
+  op: string
+  input: object
+}): Promise<{ stepKey?: string | undefined }> => {
+  if (args.step === undefined) return {}
+  const found = await args.step({ op: args.op, input: args.input })
+  return found === undefined ? {} : { stepKey: found.key }
+}
+
 const routinesOf = (args: {
   client: PodControlClient | undefined
   threadId: ThreadId
+  step: HostStepPort | undefined
 }): PodRoutines => ({
   list: async () => {
     if (args.client === undefined) throw unreachable()
@@ -103,19 +117,35 @@ const routinesOf = (args: {
   },
   create: async (input) => {
     if (args.client === undefined) throw unreachable()
-    return await args.client.routines.create({ threadId: args.threadId, ...input })
+    return await args.client.routines.create({
+      threadId: args.threadId,
+      ...(await stepKeyOf({ step: args.step, op: 'routines.create', input })),
+      ...input,
+    })
   },
   update: async (input) => {
     if (args.client === undefined) throw unreachable()
-    return await args.client.routines.update({ threadId: args.threadId, ...input })
+    return await args.client.routines.update({
+      threadId: args.threadId,
+      ...(await stepKeyOf({ step: args.step, op: 'routines.update', input })),
+      ...input,
+    })
   },
   remove: async ({ routineId }) => {
     if (args.client === undefined) throw unreachable()
-    return await args.client.routines.remove({ threadId: args.threadId, routineId })
+    return await args.client.routines.remove({
+      threadId: args.threadId,
+      ...(await stepKeyOf({ step: args.step, op: 'routines.remove', input: { routineId } })),
+      routineId,
+    })
   },
   run: async ({ routineId }) => {
     if (args.client === undefined) throw unreachable()
-    return await args.client.routines.run({ threadId: args.threadId, routineId })
+    return await args.client.routines.run({
+      threadId: args.threadId,
+      ...(await stepKeyOf({ step: args.step, op: 'routines.run', input: { routineId } })),
+      routineId,
+    })
   },
 })
 
@@ -141,6 +171,7 @@ export const podControlOf = (args: {
   client: PodControlClient | undefined
   threadId: ThreadId
   mcp?: PodMcpControl | undefined
+  step?: HostStepPort | undefined
 }): PodControl => ({
   exposePort: async ({ port }) => {
     if (args.client === undefined) throw unreachable()
@@ -156,7 +187,7 @@ export const podControlOf = (args: {
     return await args.client.settingsVersions({ threadId: args.threadId })
   },
   mcp: args.mcp ?? EMPTY_MCP_CONTROL,
-  routines: routinesOf({ client: args.client, threadId: args.threadId }),
+  routines: routinesOf({ client: args.client, threadId: args.threadId, step: args.step }),
   subscriptions: subscriptionsOf({ client: args.client, threadId: args.threadId }),
   gateway: {
     apiKey: async () => {
@@ -183,7 +214,11 @@ export const podControlOf = (args: {
     },
     edit: async (edit) => {
       if (args.client === undefined) throw unreachable()
-      return await args.client.memory.edit({ threadId: args.threadId, ...edit })
+      return await args.client.memory.edit({
+        threadId: args.threadId,
+        ...(await stepKeyOf({ step: args.step, op: 'memory.edit', input: edit })),
+        ...edit,
+      })
     },
     delete: async (address) => {
       if (args.client === undefined) throw unreachable()
