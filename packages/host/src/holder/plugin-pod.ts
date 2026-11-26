@@ -1,16 +1,14 @@
-import { HookChain, ToolRegistry, type HookChainArgs } from '@dltech/atlas-agent'
+import { HookChain, ToolRegistry } from '@dltech/atlas-agent'
 import {
   EModelFallbackReason,
-  INBOX_KIND_EVENT,
   TEAMMATE_AGENT_TYPE,
-  inboxEventPayloadOf,
   projectDirectoryOfState,
   type EventBody,
   type EventDraft,
-  type ThreadId,
-  type ToolDeclaration,
-  type ToolDefinition,
+  type PluginEventBody,
+  type RecordBody,
   type RecordEvent,
+  type ThreadId,
 } from '@dltech/atlas-core'
 import {
   mergeHooks,
@@ -23,72 +21,44 @@ import {
 } from '@dltech/atlas-plugin-sdk'
 
 import { worktreesOf } from './checkouts'
-import { deferredListingHook } from './deferred-listing'
+import { ComposedPodRegistry } from './composed-registry'
+import { modelFellBackDraft } from './crew/model-fell-back'
 import { withDiscoveryTools } from './discovery'
 import type { HeldSessionDeps } from './held-session-deps'
-import { recordStep, recordedStepsOf } from './record/call-steps'
 import { fireLive } from './ports'
-import { MirrorPlanHook } from './plan-mirror'
 import { pluginCallOf } from './plugin-call'
+import { hostHooksOf, pluginHooksOf, resourceSyncOf } from './plugin-hooks'
 import { podControlOf } from './pod-control'
-import { pluginResourcesClosedHook, pluginResourcesHook, reloadResource } from './plugin-resources'
-import { ResourceSync } from './plugin-resource-sync'
+import { reloadResource } from './plugin-resources'
 import { analyticsOf, threadKindOf } from './pod-analytics'
+import { postNoticeToSession } from './pod-notice'
 import { podSessionsOf } from './plugin-sessions'
 import { heldMessagesOf } from './pod-messages'
-import { modelFellBackDraft } from './crew/model-fell-back'
 import type { RoleModelChoice, SessionRuntime } from './ports'
 import type { SessionRecord } from './record/record-adapter'
+import { recordStep, recordedStepsOf } from './record/call-steps'
+import { hostStepOf } from './record/host-step'
 import type { InFlightSteps } from '../calls/step-detach'
-
-export class ComposedPodRegistry extends ToolRegistry {
-  private readonly taken: ReadonlySet<string>
-  private settled = false
-
-  constructor(
-    private readonly base: ToolRegistry,
-    private readonly toolsOf: () => readonly ToolDefinition[],
-    private readonly log: (message: string) => void = () => {},
-  ) {
-    super()
-    this.taken = new Set(base.declarations().map((declaration) => declaration.name))
-    this.extras()
-  }
-
-  declarations(): readonly ToolDeclaration[] {
-    return [...this.base.declarations(), ...this.extras().values()]
-  }
-
-  find(name: string): ToolDefinition | undefined {
-    return this.extras().get(name) ?? this.base.find(name)
-  }
-
-  private extras(): ReadonlyMap<string, ToolDefinition> {
-    const byName = new Map<string, ToolDefinition>()
-    for (const tool of this.toolsOf()) {
-      if (!byName.has(tool.name) && !this.taken.has(tool.name)) {
-        byName.set(tool.name, tool)
-        continue
-      }
-      if (!this.settled) throw new Error(`two tools are registered as "${tool.name}"`)
-      this.log(`dropped a duplicate tool "${tool.name}"`)
-    }
-    this.settled = true
-    return byName
-  }
-}
 
 const teammateModelOf =
   (runtime: SessionRuntime): (() => RoleModelChoice) =>
   () =>
     runtime.choiceFor({ role: { agentType: TEAMMATE_AGENT_TYPE }, root: runtime.modelChoice })
 
+const fellBackAlready = (args: { record: SessionRecord; agentId: ThreadId }): boolean =>
+  args.record
+    .eventCache()
+    .eventsAfter(0)
+    .some((event) => event.type === 'model-fell-back' && event.agentId === args.agentId)
+
 const teammateFallbackOf = (args: {
   runtime: SessionRuntime
   append: (drafts: readonly EventDraft[]) => Promise<void>
+  fellBackAlready: (agentId: ThreadId) => boolean
 }): Pick<Parameters<typeof podSessionsOf>[0], 'onFallback'> => ({
   onFallback: async ({ agentId, model }) => {
     if (model.unavailable === undefined) return
+    if (args.fellBackAlready(agentId)) return
     await args.append([
       modelFellBackDraft({
         runtime: args.runtime,
@@ -126,17 +96,7 @@ const podResourcesOf = (args: {
   }
 }
 
-const postNoticeToSession = async (args: {
-  deps: HeldSessionDeps
-  event: EventBody
-  key: string
-}): Promise<void> => {
-  await args.deps.plane.post({
-    sessionId: args.deps.sessionId,
-    kind: INBOX_KIND_EVENT,
-    payload: inboxEventPayloadOf({ event: args.event, clientId: args.key }),
-  })
-}
+type PodDraft = EventDraft | RecordBody | PluginEventBody
 
 export const resolvedEventsOf = (record: SessionRecord): readonly RecordEvent[] => {
   const cache = record.eventCache()
@@ -155,8 +115,21 @@ export const pluginPodContextOf = (args: {
   notify?: ((event: EventBody, options: { key: string }) => Promise<void>) | undefined
 }): PluginPodContext => {
   const { deps, runtime, record, threadId } = args
-  const append = async (drafts: readonly EventDraft[]): Promise<void> => {
-    await record.append({ threadId, runId: deps.ids.nextRunId(), drafts })
+  const step = async (request: { op: string; input: object }) =>
+    await hostStepOf({
+      record,
+      threadId,
+      runId: () => deps.ids.nextRunId(),
+      op: request.op,
+      input: request.input,
+    })
+  const append = async (drafts: readonly PodDraft[]): Promise<void> => {
+    const bookkeeping = record.eventCache().bookkeeping()
+    const fresh = drafts.filter(
+      (draft) => draft.type !== 'fact-recorded' || !bookkeeping.fact(draft.key).found,
+    )
+    if (fresh.length === 0) return
+    await record.append({ threadId, runId: deps.ids.nextRunId(), drafts: fresh })
   }
   const ctx: PluginPodContext = {
     sessionId: deps.sessionId,
@@ -167,7 +140,12 @@ export const pluginPodContextOf = (args: {
       ...(deps.mcp === undefined ? {} : { mcp: deps.mcp(deps.sessionId) }),
     }),
     crew: args.crew,
-    messages: heldMessagesOf({ deps, crew: args.crew, selfAgentId: args.selfAgentId }),
+    messages: heldMessagesOf({
+      deps,
+      crew: args.crew,
+      step,
+      ...(args.selfAgentId === undefined ? {} : { selfAgentId: args.selfAgentId }),
+    }),
     classifier: {
       status: () => runtime.classifierStatus,
       classify: (args) => runtime.classifier.classify(args),
@@ -181,8 +159,14 @@ export const pluginPodContextOf = (args: {
     sessions: podSessionsOf({
       plane: deps.plane,
       sessionId: deps.sessionId,
+      threadId,
+      step,
       model: teammateModelOf(runtime),
-      ...teammateFallbackOf({ runtime, append }),
+      ...teammateFallbackOf({
+        runtime,
+        append,
+        fellBackAlready: (agentId) => fellBackAlready({ record, agentId }),
+      }),
       parkArchived: deps.parkArchived,
     }),
     worktrees: worktreesOf({
@@ -238,38 +222,6 @@ const composedToolsOf = (args: {
   )
 }
 
-export const resourceSyncOf = (args: {
-  runtime: SessionRuntime
-  ctx: PluginPodContext
-  record: SessionRecord
-  signal: AbortSignal
-  shared?: (() => readonly RecordEvent[]) | undefined
-}): ResourceSync | undefined => {
-  const resources = args.runtime.plugins?.pod.resources ?? []
-  if (resources.length === 0) return undefined
-  const sync: ResourceSync = new ResourceSync({
-    ctx: args.ctx,
-    resources,
-    directory: () =>
-      projectDirectoryOfState({
-        state: args.record.eventCache().loopState(),
-        launchDirectory: args.runtime.launchDirectory,
-      }),
-    trace: args.runtime.trace,
-    shared: args.shared,
-    podReady: () =>
-      (args.runtime.workspaceGate?.settled ?? 'prepared') === 'prepared' &&
-      args.runtime.remoteCalls.linked(),
-    reconnect: (listener) =>
-      args.runtime.remoteCalls.onReady((hello) => {
-        listener({ restart: hello.restart })
-      }),
-    signal: args.signal,
-  })
-  sync.start()
-  return sync
-}
-
 export const watchDaemonReady = (args: {
   onReady: SessionRuntime['remoteCalls']['onReady']
   bootId: () => string | undefined
@@ -287,42 +239,6 @@ export const watchDaemonReady = (args: {
   args.signal.addEventListener('abort', offReady, { once: true })
   const booted = args.bootId()
   if (booted !== undefined) announce({ bootId: booted, restart: false })
-}
-
-export const hostHooksOf = (args: {
-  declarations: () => readonly ToolDeclaration[]
-}): HookChainArgs => ({
-  beforeStep: [deferredListingHook({ declarations: args.declarations })],
-  afterTool: [new MirrorPlanHook()],
-})
-
-export const pluginHooksOf = (args: {
-  runtime: SessionRuntime
-  ctx: PluginPodContext
-  declarations: () => readonly ToolDeclaration[]
-  sync?: ResourceSync | undefined
-}): HookChain => {
-  const { plugins, hooks: session } = args.runtime
-  const host = hostHooksOf({ declarations: args.declarations })
-  if (plugins === undefined) {
-    const merged = mergeHooks([host, session ?? {}])
-    return new HookChain({
-      ...merged,
-      ...(args.runtime.trace === undefined ? {} : { trace: args.runtime.trace }),
-    })
-  }
-
-  const plugin = plugins.pod.hooks(args.ctx)
-  const resources = args.sync === undefined ? [] : [pluginResourcesHook({ sync: args.sync })]
-  const closed = args.sync === undefined ? [] : [pluginResourcesClosedHook({ sync: args.sync })]
-  const merged = mergeHooks([host, session ?? {}, plugin])
-  return new HookChain({
-    ...merged,
-    beforeTurn: [...resources, ...(merged.beforeTurn ?? [])],
-    afterTurn: [...closed, ...(merged.afterTurn ?? [])],
-    trace: args.runtime.trace,
-    onMishap: (mishap) => args.ctx.log(`hook ${mishap.label} ${mishap.kind}: ${mishap.detail}`),
-  })
 }
 
 export type PluginPod = {

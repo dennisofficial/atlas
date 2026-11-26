@@ -4,7 +4,7 @@ import { ToolRegistry, InMemoryToolRegistry } from '@dltech/atlas-agent'
 import { EToolEffect, ToolDefinition, type ToolOutcome } from '@dltech/atlas-core'
 import { z } from 'zod'
 
-import { ComposedPodRegistry } from '../plugin-pod'
+import { ComposedPodRegistry } from '../composed-registry'
 
 class ProbeTool extends ToolDefinition {
   readonly description = 'probe'

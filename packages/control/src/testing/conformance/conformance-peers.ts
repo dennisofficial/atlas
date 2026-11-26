@@ -5,6 +5,7 @@ import { EMessageOrigin, inboxEventOf, toThreadId } from '@dltech/atlas-core'
 import { DEFAULT_SANDBOX_PROVIDER } from '@dltech/atlas-protocol'
 
 import { ControlPlane } from '../../control-plane'
+import { spawnBriefClientIdOf } from '../../peer-sessions'
 import type { ConformanceParams } from './conformance'
 import { freshHosts } from './conformance-fresh-hosts'
 import { createSessionParams, PROJECT, SESSION, THREAD, T0, USER } from './support'
@@ -70,6 +71,7 @@ export function describeControlPlanePeers(params: ConformanceParams): void {
       expect(JSON.parse(inbox[0]?.payload ?? '{}')).toEqual({
         text: 'Take the parser.',
         via: EMessageOrigin.PeerAgent,
+        clientId: spawnBriefClientIdOf('peer-1'),
       })
     })
 
