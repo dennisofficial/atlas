@@ -20,6 +20,7 @@ import {
   useWindowDimensions,
   View,
 } from 'react-native'
+import { useAuth } from '../../../auth/auth-provider'
 import { EffortSelect, FastToggle } from '../../../composer/model-controls'
 import { ModelSheet } from '../../../composer/model-picker'
 import { ModelTrigger } from '../../../composer/model-trigger'
@@ -34,9 +35,11 @@ import { SessionsButton } from '../../../navigation/sessions-button'
 import { CommandListSheet } from '../../../thread/composer/command-list-sheet'
 import { Composer } from '../../../thread/composer/composer'
 import { ContextReading } from '../../../thread/composer/context-reading'
+import { PlanUsage } from '../../../thread/composer/plan-usage'
 import { StaleCard } from '../../../thread/composer/stale-card'
 import { BlockingStrip } from '../../../thread/components/blocking-strip'
 import { useAttachments } from '../../../thread/composer/use-attachments'
+import { usePlanUsage } from '../../../thread/composer/use-plan-usage'
 import { OperatorRequestDock } from '../../../thread/components/operator-request-card'
 import { QueuedDock } from '../../../thread/components/queued-dock'
 import { SessionTitle } from '../../../thread/components/session-title'
@@ -55,7 +58,9 @@ export default function SessionScreen() {
   const { id, title } = useLocalSearchParams<{ id: string; title?: string }>()
   const session = useSessionScreen({ sessionId: id, fallbackTitle: title })
   const attachments = useAttachments()
+  const { api } = useAuth()
   const model = session.commands.model
+  const usage = usePlanUsage({ api, modelRef: model.pinnedRef, working: session.working })
   const { open: drawerOpen, setOpen } = useSessionsDrawer()
   const insets = useSafeAreaInsets()
   const keyboardInset = useKeyboard().inset
@@ -236,7 +241,12 @@ export default function SessionScreen() {
                   refusal={session.notice}
                   entries={session.commands.entries}
                   clientActions={session.commands.clientActions}
-                  trailing={<ContextReading context={session.context} />}
+                  trailing={
+                    <View style={styles.trailing}>
+                      <PlanUsage report={usage} />
+                      <ContextReading context={session.context} />
+                    </View>
+                  }
                 >
                   <ModelTrigger
                     models={model.models}
@@ -305,5 +315,10 @@ const styles = StyleSheet.create({
   },
   state: {
     flexShrink: 1,
+  },
+  trailing: {
+    alignItems: 'center',
+    flexDirection: 'row',
+    gap: space(1.5),
   },
 })

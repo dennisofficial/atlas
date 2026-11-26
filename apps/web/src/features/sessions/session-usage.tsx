@@ -2,13 +2,14 @@
 
 import {
   DEFAULT_WARN_PERCENT,
-  EAuthProvider,
   EUsageWindow,
   formatCountdown,
   formatUtilization,
   meterBand,
-  parseRef,
   shownWindowsOf,
+  usageProviderOf,
+  WINDOW_LONG,
+  WINDOW_SHORT,
 } from '@dltech/atlas-core'
 import type { SessionModelChoice, UsageReportDto, UsageWindowDto } from '@dltech/atlas-protocol'
 import { Button } from '@dltech/atlas-ui/components/button'
@@ -23,24 +24,6 @@ import { METER_TONE } from '@/lib/usage-tone'
 import { useTurnEndCount } from '@/features/threads/data/use-git-changes'
 
 import { useAccountUsage } from './data/use-account-usage'
-
-const PROVIDER_OF_ID: Record<string, EAuthProvider> = {
-  anthropic: EAuthProvider.Anthropic,
-  openai: EAuthProvider.OpenAI,
-  openrouter: EAuthProvider.OpenRouter,
-  inference: EAuthProvider.Inference,
-  gateway: EAuthProvider.Gateway,
-  typesafe: EAuthProvider.Typesafe,
-}
-
-export const usageProviderOf = (
-  choice: SessionModelChoice | null | undefined,
-): EAuthProvider | null => {
-  const providerId =
-    choice === null || choice === undefined ? undefined : parseRef(choice.ref)?.providerId
-  if (providerId === undefined) return null
-  return PROVIDER_OF_ID[providerId] ?? null
-}
 
 function WindowReading(args: {
   short: string
@@ -74,16 +57,6 @@ function WindowLine(args: {
       </span>
     </span>
   )
-}
-
-const WINDOW_SHORT: Record<EUsageWindow, string> = {
-  [EUsageWindow.FiveHour]: '5h',
-  [EUsageWindow.SevenDay]: '7d',
-}
-
-const WINDOW_LONG: Record<EUsageWindow, string> = {
-  [EUsageWindow.FiveHour]: '5-hour',
-  [EUsageWindow.SevenDay]: '7-day',
 }
 
 const labelOf = (args: { report: UsageReportDto; shown: readonly EUsageWindow[] }): string =>
