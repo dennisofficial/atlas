@@ -1,6 +1,6 @@
 import { Image } from 'expo-image'
-import { useRef, useState } from 'react'
-import { GestureDetector, useExclusiveGestures, useTapGesture } from 'react-native-gesture-handler'
+import { useEffect, useRef, useState } from 'react'
+import { GestureDetector, useTapGesture } from 'react-native-gesture-handler'
 import {
   type LayoutChangeEvent,
   type NativeScrollEvent,
@@ -14,6 +14,7 @@ import {
 
 import {
   DOUBLE_TAP_MAX_DELAY_MS,
+  isDoubleTap,
   MAX_ZOOM_SCALE,
   type Size,
   shouldDismiss,
@@ -63,14 +64,36 @@ export const ZoomablePhoto = ({
     })
   }
 
-  const doubleTap = useTapGesture({
-    numberOfTaps: 2,
-    maxDelay: DOUBLE_TAP_MAX_DELAY_MS,
+  const lastTapAt = useRef<number | undefined>(undefined)
+  const pendingTap = useRef<ReturnType<typeof setTimeout> | undefined>(undefined)
+
+  const cancelPendingTap = () => {
+    if (pendingTap.current !== undefined) clearTimeout(pendingTap.current)
+    pendingTap.current = undefined
+  }
+
+  useEffect(() => cancelPendingTap, [])
+
+  const handleTap = (point: { x: number; y: number }) => {
+    const at = Date.now()
+    if (isDoubleTap({ previousAt: lastTapAt.current, at })) {
+      lastTapAt.current = undefined
+      cancelPendingTap()
+      handleDoubleTap(point)
+      return
+    }
+    lastTapAt.current = at
+    cancelPendingTap()
+    pendingTap.current = setTimeout(() => {
+      pendingTap.current = undefined
+      onTap()
+    }, DOUBLE_TAP_MAX_DELAY_MS)
+  }
+
+  const taps = useTapGesture({
     runOnJS: true,
-    onActivate: (event) => handleDoubleTap({ x: event.x, y: event.y }),
+    onActivate: (event) => handleTap({ x: event.x, y: event.y }),
   })
-  const singleTap = useTapGesture({ runOnJS: true, onActivate: onTap })
-  const taps = useExclusiveGestures(doubleTap, singleTap)
 
   return (
     <ScrollView

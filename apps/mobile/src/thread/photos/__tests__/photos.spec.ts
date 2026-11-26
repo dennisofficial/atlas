@@ -10,8 +10,10 @@ import {
 import {
   chromeVisibleAfter,
   DISMISS_PULL,
+  DOUBLE_TAP_MAX_DELAY_MS,
   DOUBLE_TAP_SCALE,
   EPhotoChromeEvent,
+  isDoubleTap,
   shouldDismiss,
   zoomedInBy,
   zoomRectOf,
@@ -92,5 +94,16 @@ describe('chromeVisibleAfter', () => {
   it('hides the controls when the photo zooms in', () => {
     expect(chromeVisibleAfter({ visible: true, event: EPhotoChromeEvent.ZoomedIn })).toBe(false)
     expect(chromeVisibleAfter({ visible: false, event: EPhotoChromeEvent.ZoomedIn })).toBe(false)
+  })
+})
+
+describe('isDoubleTap', () => {
+  it('counts a second tap inside the window', () => {
+    expect(isDoubleTap({ previousAt: 1_000, at: 1_000 + DOUBLE_TAP_MAX_DELAY_MS })).toBe(true)
+  })
+
+  it('does not count a first tap or a slow second tap', () => {
+    expect(isDoubleTap({ previousAt: undefined, at: 1_000 })).toBe(false)
+    expect(isDoubleTap({ previousAt: 1_000, at: 1_001 + DOUBLE_TAP_MAX_DELAY_MS })).toBe(false)
   })
 })
