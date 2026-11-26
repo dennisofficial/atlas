@@ -1,5 +1,5 @@
 import { spawnSync } from 'node:child_process'
-import { mkdirSync, mkdtempSync, rmSync } from 'node:fs'
+import { existsSync, mkdirSync, mkdtempSync, readdirSync, readlinkSync, rmSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 
@@ -49,8 +49,32 @@ const waitForListening = async (child: DaemonChild): Promise<{ port: number; boo
   throw new Error(`daemon did not start: ${seen}${stderr}`)
 }
 
-const killOrphans = (home: string): void => {
-  spawnSync('pkill', ['-9', '-f', home])
+const pidsWithCwd = (root: string): number[] => {
+  if (!existsSync('/proc')) return []
+  const pids: number[] = []
+  for (const entry of readdirSync('/proc')) {
+    if (!/^\d+$/.test(entry)) continue
+    const pid = Number(entry)
+    if (pid === process.pid) continue
+    try {
+      const cwd = readlinkSync(`/proc/${entry}/cwd`)
+      if (cwd === root || cwd.startsWith(`${root}/`)) pids.push(pid)
+    } catch {
+      // the process exited, or belongs to another user
+    }
+  }
+  return pids
+}
+
+export const killProcessesUnder = (root: string): void => {
+  spawnSync('pkill', ['-9', '-f', root])
+  for (const pid of pidsWithCwd(root)) {
+    try {
+      process.kill(pid, 'SIGKILL')
+    } catch {
+      // the process exited between the scan and the kill
+    }
+  }
 }
 
 const killChild = async (child: DaemonChild, signal: 'SIGTERM' | 'SIGKILL'): Promise<void> => {
@@ -129,7 +153,7 @@ export const startDaemon = async (args: {
     const current = child
     child = undefined
     if (current !== undefined) await killChild(current, 'SIGTERM')
-    killOrphans(home)
+    killProcessesUnder(home)
     await proxy?.stop()
     rmSync(home, { recursive: true, force: true })
   }
@@ -176,7 +200,7 @@ export const startDaemon = async (args: {
       const current = child
       child = undefined
       if (current !== undefined) await killChild(current, 'SIGKILL')
-      killOrphans(home)
+      killProcessesUnder(home)
       if (!keepHome) {
         rmSync(home, { recursive: true, force: true })
         mkdirSync(home, { recursive: true })
@@ -189,7 +213,7 @@ export const startDaemon = async (args: {
       const current = child
       child = undefined
       if (current !== undefined) await killChild(current, 'SIGKILL')
-      killOrphans(home)
+      killProcessesUnder(home)
       const previous = proxy
       proxy = undefined
       await previous?.stop()

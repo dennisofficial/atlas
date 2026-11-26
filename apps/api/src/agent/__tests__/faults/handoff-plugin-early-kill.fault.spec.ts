@@ -13,12 +13,13 @@ import {
   resultsOf,
   serviceStartCallOf,
 } from './handoff-service-support'
+import { PORT_BAND, portBandOf } from './fault-support'
 import { startRig } from '../../testing/fault-rig'
 import { contextFor, freshWorkspaceOf } from '../../testing/handoff-context'
 import { waitUntil } from '../../testing/handoff-suite'
 
 const REDIS_URL = process.env.ATLAS_TEST_REDIS_URL
-const PORT = 47_600 + (process.pid % 200)
+const PORT = portBandOf(PORT_BAND.pluginEarlyKill)
 const RUN = `${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 6)}`
 
 describe.skipIf(REDIS_URL === undefined)(

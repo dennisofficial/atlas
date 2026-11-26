@@ -13,10 +13,11 @@ import {
   startedIdsOf,
   stopInPod,
 } from './handoff-service-support'
-import { describeHandoff, waitUntil } from '../../testing/handoff-suite'
+import { PORT_BAND, portBandOf } from './fault-support'
+import { describeHandoff, POD_EFFECT_WAIT_MS, waitUntil } from '../../testing/handoff-suite'
 import type { HostProcess } from '../../testing/fault-rig'
 
-const PORT = 43_000 + (process.pid % 1_000)
+const PORT = portBandOf(PORT_BAND.serviceId)
 const SERVICE = 'a-listener-killed-mid-start'
 
 describeHandoff({
@@ -73,6 +74,7 @@ describeHandoff({
     await waitUntil({
       what: 'the service call to report its result',
       check: async () => (await resultsOf(ctx)).length === 1,
+      timeoutMs: POD_EFFECT_WAIT_MS,
     })
     const results = await resultsOf(ctx)
     expect(results.filter(interruptedOf)).toHaveLength(0)
@@ -97,6 +99,7 @@ describeHandoff({
           (service) =>
             service.serviceId === serviceId && service.status === EServiceRunStatus.Stopped,
         ),
+      timeoutMs: POD_EFFECT_WAIT_MS,
     })
   },
 

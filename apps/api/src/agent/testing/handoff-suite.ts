@@ -17,6 +17,11 @@ const REDIS_URL = process.env.ATLAS_TEST_REDIS_URL
 
 const RUN = `${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 6)}`
 
+/** longer than the pod's own budget for an effect it runs (60 s), so a slow pod start is not read as a hang */
+export const POD_EFFECT_WAIT_MS = 90_000
+
+const SCENARIO_TIMEOUT_MS = 2 * POD_EFFECT_WAIT_MS
+
 const sleep = (ms: number): Promise<void> =>
   new Promise((resolve) => {
     setTimeout(resolve, ms)
@@ -174,18 +179,22 @@ export const describeHandoff = (scenario: HandoffScenario): void => {
           },
         })
       },
-      90_000,
+      SCENARIO_TIMEOUT_MS,
     )
 
-    it('survives host A being SIGKILLed mid-work', async () => {
-      await ownFault({
-        slug: 'sigkill',
-        apply: async (_ctx, hostA) => {
-          hostA.kill('SIGKILL')
-          await hostA.exited
-        },
-      })
-    }, 90_000)
+    it(
+      'survives host A being SIGKILLed mid-work',
+      async () => {
+        await ownFault({
+          slug: 'sigkill',
+          apply: async (_ctx, hostA) => {
+            hostA.kill('SIGKILL')
+            await hostA.exited
+          },
+        })
+      },
+      SCENARIO_TIMEOUT_MS,
+    )
 
     it.skipIf(scenario.interrupted === undefined)(
       'reports the work interrupted, and never reruns it, when the pod restarts mid-work',
@@ -208,7 +217,7 @@ export const describeHandoff = (scenario: HandoffScenario): void => {
             )
           }
         }),
-      90_000,
+      SCENARIO_TIMEOUT_MS,
     )
   })
 }
