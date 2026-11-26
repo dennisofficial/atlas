@@ -44,6 +44,7 @@ export class RemoteCalls {
   private readonly closeListeners = new Set<(reason: RemoteCloseReason) => void>()
   private readonly readyListeners = new Set<(hello: RemoteHello) => void>()
   private readonly log: LogPort | undefined
+  onPodOp: (() => void) | undefined
 
   constructor(args: RemoteCallsArgs) {
     this.log = args.log
@@ -163,6 +164,7 @@ export class RemoteCalls {
     dispatchedBootId?: string | undefined
     attachOnly?: boolean | undefined
   }): Promise<CallResult> {
+    this.onPodOp?.()
     return this.state.invoke(args)
   }
 

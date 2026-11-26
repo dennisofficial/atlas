@@ -208,6 +208,7 @@ export class HeldSession {
       },
     })
     this.record = record
+    runtime.remoteCalls.onPodOp = () => this.turns.work.releaseToPod()
     reconcileResizeGate({ record, runtime })
     if (this.lifetimeAbort.signal.aborted) return record.fence()
     if (this.draining) record.markDraining()
