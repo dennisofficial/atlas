@@ -29,7 +29,6 @@ import { StaleCard } from '../../../thread/composer/stale-card'
 import { BlockingStrip } from '../../../thread/components/blocking-strip'
 import { useAttachments } from '../../../thread/composer/use-attachments'
 import { OperatorRequestDock } from '../../../thread/components/operator-request-card'
-import { QueuedDock } from '../../../thread/components/queued-dock'
 import { SessionTitle } from '../../../thread/components/session-title'
 import { StartFailedCard } from '../../../thread/components/start-failed-card'
 import { SessionSkeleton } from '../../../thread/components/session-skeleton'
@@ -50,6 +49,15 @@ export default function SessionScreen() {
   const transcriptRows = useMemo(
     () => [...session.rows, ...session.stagedRows],
     [session.rows, session.stagedRows],
+  )
+
+  const queuedTurns = useMemo(
+    () => ({
+      queued: session.queued,
+      onEdit: session.withdrawEdit,
+      onRemove: session.withdrawRemove,
+    }),
+    [session.queued, session.withdrawEdit, session.withdrawRemove],
   )
 
   useFocusEffect(
@@ -144,6 +152,7 @@ export default function SessionScreen() {
               agentLinks={session.agentLinks}
               sessionNameOf={session.sessionNameOf}
               onOpenAgent={handleOpenAgent}
+              queued={queuedTurns}
             />
             {session.failure === null || session.startFailure !== undefined ? null : (
               <View style={styles.failure}>
@@ -184,14 +193,6 @@ export default function SessionScreen() {
               {session.startFailure === undefined ? null : (
                 <StartFailedCard reason={session.startFailure.reason} onRetry={session.retry} />
               )}
-              <QueuedDock
-                dock={session.queued}
-                threadId={id}
-                sessionId={id}
-                sessionNameOf={session.sessionNameOf}
-                onEdit={session.withdrawEdit}
-                onRemove={session.withdrawRemove}
-              />
               {session.blocking === undefined ? null : (
                 <BlockingStrip command={session.blocking} now={session.now} />
               )}
