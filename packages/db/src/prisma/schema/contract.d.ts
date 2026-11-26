@@ -23,7 +23,7 @@ import type {
 } from '@prisma/orm-postgres/contract/types';
 
 export type StorageHash =
-  StorageHashBase<'682b49388e4e1247af1b52d9cc6a6d082ff410b7332e8da6a8a03c52fb702ee4'>;
+  StorageHashBase<'a1f6bd3f6d5954509850c76a50edbf8fed7bbc538a59236914fccf34eb806f5b'>;
 export type ExecutionHash =
   ExecutionHashBase<'0e6f989bb6c7c489039e329d87ab4c7469f87c12c726c4dcf40ed6296bf343c1'>;
 export type ProfileHash =
@@ -3629,6 +3629,12 @@ type ContractBase = Omit<
               uniques: readonly [];
               indexes: readonly [
                 {
+                  readonly name: 'GithubPrState_baseBranch_state_idx_75f326d8';
+                  readonly prefix: 'GithubPrState_baseBranch_state_idx';
+                  readonly columns: readonly ['baseBranch', 'state'];
+                  readonly unique: false;
+                },
+                {
                   readonly name: 'GithubPrState_headRepoFullName_headBranch_idx_ce47a3ad';
                   readonly prefix: 'GithubPrState_headRepoFullName_headBranch_idx';
                   readonly columns: readonly ['headRepoFullName', 'headBranch'];
@@ -4754,7 +4760,14 @@ type ContractBase = Omit<
               };
               primaryKey: { readonly columns: readonly ['sessionId'] };
               uniques: readonly [];
-              indexes: readonly [];
+              indexes: readonly [
+                {
+                  readonly name: 'Lease_holderHostId_sessionId_idx_68a338dc';
+                  readonly prefix: 'Lease_holderHostId_sessionId_idx';
+                  readonly columns: readonly ['holderHostId', 'sessionId'];
+                  readonly unique: false;
+                },
+              ];
               foreignKeys: readonly [
                 {
                   readonly source: {
@@ -6591,6 +6604,12 @@ type ContractBase = Omit<
               uniques: readonly [];
               indexes: readonly [
                 {
+                  readonly name: 'SandboxRun_sandboxInstanceId_startedAt_idx_8bf7e1f3';
+                  readonly prefix: 'SandboxRun_sandboxInstanceId_startedAt_idx';
+                  readonly columns: readonly ['sandboxInstanceId', 'startedAt'];
+                  readonly unique: false;
+                },
+                {
                   readonly name: 'V2SandboxRun_sessionId_startedAt_idx_e70936f3';
                   readonly columns: readonly ['sessionId', 'startedAt'];
                   readonly unique: false;
@@ -6961,6 +6980,13 @@ type ContractBase = Omit<
               primaryKey: { readonly columns: readonly ['id'] };
               uniques: readonly [];
               indexes: readonly [
+                {
+                  readonly name: 'Session_live_createdAt_id_f55f07d2';
+                  readonly prefix: 'Session_live_createdAt_id';
+                  readonly columns: readonly ['createdAt', 'id'];
+                  readonly where: '("archivedAt" IS NULL)';
+                  readonly unique: false;
+                },
                 {
                   readonly name: 'V2Session_mainThreadId_idx_60785a54';
                   readonly columns: readonly ['mainThreadId'];

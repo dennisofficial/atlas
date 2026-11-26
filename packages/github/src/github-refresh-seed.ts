@@ -19,7 +19,9 @@ const storedLiveUntil = async (userIds: readonly string[]): Promise<Map<string, 
   if (userIds.length === 0) return new Map()
   const rows = await db.orm.public.GithubTrackingTarget.where((target) =>
     target.userId.in([...userIds]),
-  ).all()
+  )
+    .select('userId', 'kind', 'repoFullName', 'branch', 'prNumber', 'liveUntil')
+    .all()
   return new Map(rows.map((row) => [keyId(row), row.liveUntil.getTime()]))
 }
 

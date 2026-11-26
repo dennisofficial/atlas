@@ -7,4 +7,6 @@ model Lease {
   attempts     Int      @default(0)
   retryAfter   TimestamptzJsDate(3)?
   session      Session @relation(fields: [sessionId], references: [id], onDelete: Cascade, onUpdate: Cascade)
+
+  @@index([holderHostId, sessionId])
 }
