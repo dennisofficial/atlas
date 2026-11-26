@@ -1,14 +1,20 @@
 import { describe, expect, it } from 'bun:test'
 
+import { ECrashedCall } from '@dltech/atlas-agent'
 import {
+  EToolEffect,
+  toCallId,
   toRunId,
   toThreadId,
   type EventDraft,
+  type PendingCall,
   type RecordEvent,
   type RecordEventBody,
 } from '@dltech/atlas-core'
 
-import { runInCallScope } from '../../calls/call-scope'
+import { runInCallScope, scopeKeyOf } from '../../calls/call-scope'
+import { crashSettleOf } from '../crash-settle'
+import type { SessionRuntime } from '../ports'
 import { hostStepOf } from '../record/host-step'
 import { RecordBookkeeping } from '../record/record-bookkeeping'
 import type { SessionRecord } from '../record/record-adapter'
@@ -90,5 +96,39 @@ describe('hostStepOf', () => {
       { key: `${CALL}.0`, replayed: true },
       { key: `${CALL}.1`, replayed: true },
     ])
+  })
+})
+
+describe('hostStepOf with crash recovery', () => {
+  const CALL_ID = '11111111-1111-4111-8111-111111111111'
+  const pendingCall = (name: string): PendingCall => ({
+    callId: toCallId(CALL_ID),
+    name,
+    input: {},
+    ordinal: 0,
+    runId: toRunId('22222222-2222-4222-8222-222222222222'),
+    threadId: THREAD,
+  })
+  const runtime = {
+    daemonTools: new Set<string>(),
+    effectOf: () => EToolEffect.Write,
+  } as unknown as SessionRuntime
+
+  it('lets the next holder replay a host-effect call instead of interrupting it', async () => {
+    const { record } = recordOf()
+    await runInCallScope({
+      scopeKey: scopeKeyOf({ runId: pendingCall('agent_spawn').runId, callId: CALL_ID }),
+      body: () => stepOf({ record, op: 'crew.spawn' }),
+    })
+    expect(crashSettleOf({ runtime, record, call: pendingCall('agent_spawn') })).toBe(
+      ECrashedCall.Hold,
+    )
+  })
+
+  it('still interrupts a host-effect call that crashed before its step was recorded', () => {
+    const { record } = recordOf()
+    expect(crashSettleOf({ runtime, record, call: pendingCall('agent_spawn') })).toBe(
+      ECrashedCall.Interrupt,
+    )
   })
 })
