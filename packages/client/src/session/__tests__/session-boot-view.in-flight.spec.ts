@@ -12,7 +12,7 @@ import {
 import type { SessionSnapshot } from '../../stream'
 import { EBootStepState } from '@dltech/atlas-wire/web'
 
-import { sessionBootViewOf } from '../session-boot-view'
+import { bootViewAt, sessionBootViewOf } from '../session-boot-view'
 
 const eventsOf = (bodies: RecordEventBody[]) =>
   chainEvents({
@@ -98,5 +98,14 @@ describe('sessionBootViewOf while the record shows the boot in flight', () => {
       status: statusOf(ESessionStatus.Idle),
     })
     expect(view?.steps[2]?.state).toBe(EBootStepState.Error)
+  })
+})
+
+describe('bootViewAt', () => {
+  it('ticks a running start to now and leaves a settled one alone', () => {
+    const running = { steps: [], state: EBootStepState.Running, startedAtMs: 1_000 }
+    expect(bootViewAt({ view: running, now: 3_500 }).elapsedMs).toBe(2_500)
+    const settled = { steps: [], state: EBootStepState.Done, elapsedMs: 4_200 }
+    expect(bootViewAt({ view: settled, now: 9_999 })).toBe(settled)
   })
 })

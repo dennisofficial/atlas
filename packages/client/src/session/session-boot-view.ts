@@ -267,3 +267,8 @@ export const sessionBootViewOf = (args: {
     ...(state === EBootStepState.Running && first !== undefined ? { startedAtMs: first } : {}),
   }
 }
+
+export const bootViewAt = (args: { view: BootView; now: number }): BootView =>
+  args.view.startedAtMs === undefined
+    ? args.view
+    : { ...args.view, elapsedMs: Math.max(0, args.now - args.view.startedAtMs) }
