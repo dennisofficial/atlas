@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'bun:test'
 
-import { auditReadme, README_MAX_LINES, specifierOf, type PackageManifest } from '../audit'
+import { auditReadme, specifierOf, type PackageManifest } from '../audit'
 
 const manifest = (args: { name: string; exports: readonly string[] }): PackageManifest => ({
   dir: `packages/${args.name}`,
@@ -58,17 +58,8 @@ describe('auditReadme', () => {
     expect(problems).toEqual(['entry point @x/one/pod is not named in backticks'])
   })
 
-  it('reports a README over the line limit', () => {
-    const body = Array.from({ length: README_MAX_LINES }, (_, index) => `line ${index}`)
-    const problems = auditReadme({
-      manifest: manifest({ name: '@x/one', exports: ['.'] }),
-      readme: readmeOf(['# @x/one', 'Import `@x/one`.', ...body]),
-    })
-    expect(problems).toEqual([`${README_MAX_LINES + 2} lines is more than ${README_MAX_LINES}`])
-  })
-
-  it('accepts a README at the line limit', () => {
-    const body = Array.from({ length: README_MAX_LINES - 2 }, (_, index) => `line ${index}`)
+  it('accepts a README of any length', () => {
+    const body = Array.from({ length: 500 }, (_, index) => `line ${index}`)
     expect(
       auditReadme({
         manifest: manifest({ name: '@x/one', exports: ['.'] }),

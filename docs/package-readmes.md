@@ -10,8 +10,8 @@ A README and an `AGENTS.md` have different jobs:
 - `AGENTS.md` is for a contributor. It gives the rules for a change inside the package.
 
 `bun scripts/check-package-readmes.ts` runs in `bun run lint`. It fails when a README is missing,
-when its first line is not `# <package name>`, when it does not name each entry point, or when it
-has more than 150 lines. A daily routine compares each README with the code and corrects drift.
+when its first line is not `# <package name>`, or when it does not name each entry point. A daily
+routine compares each README with the code, corrects drift and removes bloat.
 
 ## Scope
 
@@ -31,8 +31,8 @@ change is one of these:
 ## Template
 
 Use these sections in this order. Omit a section that has no content. Write the package name
-exactly as `package.json` `name` gives it. Keep the README below 100 lines when possible. The
-limit is 150 lines.
+exactly as `package.json` `name` gives it. A README has no line limit. Its length comes from the
+public surface, not from a target.
 
 ````md
 # @dltech/atlas-<name>
@@ -87,6 +87,20 @@ Rules for the content:
 - Make each claim true for the code on `main`. Do not describe a plan.
 - Use the names from `CONTEXT.md`: a session, a thread, a sub-agent, a teammate.
 - Put the reasons in `docs/` and link to them. A README gives the what and the how.
+
+## Keep it lean
+
+Each line must help a consumer use the package. Remove a line that does not. These lines are bloat:
+- An internal helper, a private type or a file path that a consumer cannot import.
+- A reason, a history or a pull request number. Put the reason in `docs/` and link to it.
+- A claim that a name or a type signature already makes. Write the behavior that the name hides.
+- The same fact in two sections. State it once, in the section that owns it.
+- A full list of every enum member, option or field. Name the ones that change what a consumer
+  does, and point to the type for the rest.
+- A usage example for each function. Give one example of the main path.
+
+When a fact is a long reference, such as a protocol, a schema table or a state machine, put it in
+`docs/` and link to it.
 
 ## Write in Simplified Technical English
 
