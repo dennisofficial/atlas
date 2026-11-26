@@ -58,7 +58,7 @@ export default function SessionsIndexScreen() {
                 ]
               : [],
           unstable_headerRightItems: () =>
-            Platform.OS === 'ios' ? [newSessionHeaderItemOf()] : [],
+            Platform.OS === 'ios' && showsSessions ? [newSessionHeaderItemOf()] : [],
           headerLeft:
             showsSessions && Platform.OS !== 'ios'
               ? () => (
@@ -71,7 +71,8 @@ export default function SessionsIndexScreen() {
                   />
                 )
               : undefined,
-          headerRight: Platform.OS === 'ios' ? undefined : () => <NewSessionButton />,
+          headerRight:
+            Platform.OS === 'ios' || !showsSessions ? undefined : () => <NewSessionButton />,
         }}
       />
       <Image source={mark} style={styles.mark} contentFit="contain" accessibilityLabel="Atlas" />
