@@ -8,8 +8,8 @@ records that no row owns. The API's preview path and the `preview-reconcile` tri
 
 - `PreviewTunnels`: the row-keeping side. It reserves the tunnel row and a route row for each
   exposed port, and it seals the tunnel token with a caller-supplied cipher.
-- `PreviewTunnelClaims`: the claim on a pod's `PreviewTunnel` row. One process at a time creates a
-  pod's tunnel, and every other caller waits for it and reads the tunnel it sealed.
+- `claimPreviewTunnel`, `releasePreviewTunnelClaim`, `EPreviewClaim`: the claim on a pod's
+  `PreviewTunnel` row. One process at a time creates a pod's tunnel.
 - `CloudflareTunnelClient`: the Cloudflare API calls, with an injectable `fetch`.
 - `preview-reconciler.ts`: the one pass that makes Cloudflare match the rows, and the orphan
   sweep.
@@ -38,8 +38,8 @@ records that no row owns. The API's preview path and the `preview-reconcile` tri
 - `new PreviewTunnels({ db, cipher, domain, cloudflare, livePeersOf? })`: builds the service.
   `livePeersOf(podSessionId)` counts the pod's live sessions and defaults to `async () => 0`.
 - `expose({ podSessionId, threadId, userId, port })`: returns `{ url, tunnelToken }`. The first
-  call for a pod inserts a `Pending` row, claims the row, creates the tunnel outside any
-  transaction, seals its token and moves the row to `Ready`. A call that arrives while that seal
+  call for a pod inserts a `Pending` row, claims the row to `Creating`, creates the tunnel outside
+  any transaction, seals its token and moves the row to `Ready`. A call that arrives while that seal
   runs waits for the same seal and makes no second Cloudflare call. A second process waits for the
   claim of the first, and throws `PreviewTunnelClaimedError` when the claim outlasts its wait. A
   `Deleting` row comes back as `Pending` with its sealed token cleared, so the token is read from
@@ -88,13 +88,16 @@ database transaction.
 
 ### Name the row state
 
-- `EPreviewTunnelState`: `Pending`, `Ready`, `Deleting`. The column is a plain `String`, so the
-  union lives here rather than in the Prisma schema.
+- `EPreviewTunnelState`: `Pending`, `Creating`, `Ready`, `Deleting`. The column is a plain
+  `String`, so the union lives here rather than in the Prisma schema.
 
 ### Seal the token
 
 - `PreviewSecretCipher`: `{ encrypt(plain), decrypt(blob) }`. The caller supplies it, so this
   package holds no key.
+- `sealPreviewTunnel({ deps, podSessionId, previewTunnelId, seal })`: creates or adopts the tunnel
+  under the claim. `EPreviewSeal.Reuse` answers a seal that the row holds. `EPreviewSeal.Verify`
+  calls Cloudflare. The outcome carries the token, or it is `{ kind: 'claimed-elsewhere' }`.
 
 ### Report a failure
 

@@ -133,6 +133,9 @@ const outcome = await runner.say({ threadId, text: 'What changed?' })
   `normalizeFailure`. `TurnDeps` requires them.
 - Do not read the filesystem or the network here. Add a port to `TurnDeps` instead.
 - Do not write to the log directly. Every draft goes through `AgentRecordPort`.
+- An adapter for `AgentRecordPort` overrides `factsOfKind({threadId, kind})` and
+  `appendFacts({threadId, runId, facts})`. The loop keeps where it placed each attached file in them,
+  and the base class keeps none.
 
 ## See also
 

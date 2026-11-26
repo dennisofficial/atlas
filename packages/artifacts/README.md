@@ -78,13 +78,14 @@ route resolution and the file selection. The API and the serving worker agree th
 ### Name an artifact
 
 - `isSubdomain`, `assertSubdomain`: the check and the checked value.
-- `subdomainOfBytes(bytes)`, `subdomainOfLabel(label)`: a subdomain from random bytes or from a
-  label.
+- `subdomainOfBytes(bytes)`, `subdomainOfLabel(label)`: a subdomain from random bytes, or the
+  normalized label, or `null` when the label is not a subdomain.
 - `subdomainSchema`, `SUBDOMAIN_PATTERN`, `SUBDOMAIN_LENGTH`: the format.
 
 ### Link a project folder to an artifact
 
-- `linkedSubdomainOf(raw)`: the `subdomain` field of a parsed `artifact.json`, or `null`.
+- `linkedSubdomainOf(raw)`: the `subdomain` field of a parsed `artifact.json`, or `null` when the
+  file has no such field. It throws `ArtifactSpecError` when the field is not a subdomain.
 - `linkedSpecText(args)`: the spec text with the `subdomain` field set.
 
 ### Walk a project folder (node entry point)
