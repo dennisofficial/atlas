@@ -56,7 +56,7 @@ describe('effect receipts', () => {
       },
     }
 
-    expect(onceByStep(failing)).rejects.toThrow('the effect did not finish')
+    await expect(onceByStep(failing)).rejects.toThrow('the effect did not finish')
     expect(await db.orm.public.EffectReceipt.all()).toEqual([])
     expect(await db.orm.public.User.all()).toEqual([])
 
