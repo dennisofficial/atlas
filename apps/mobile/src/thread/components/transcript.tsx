@@ -1,9 +1,11 @@
 import type { BootView } from '@dltech/atlas-client/session'
 import { space } from '@dltech/atlas-ui/tokens'
-import { EFontWeight, ETextRole, ETextTone, Text, useTheme, Spinner } from '@dltech/atlas-ui-native'
-import { useCallback, useEffect, useMemo, useRef } from 'react'
+import { EFontWeight, ETextRole, ETextTone, Spinner, Text, useTheme } from '@dltech/atlas-ui-native'
+import { type ReactElement, useCallback, useEffect, useMemo, useRef } from 'react'
+import { useSafeAreaInsets } from 'react-native-safe-area-context'
 import {
   FlatList,
+  Platform,
   type ListRenderItem,
   type NativeScrollEvent,
   type LayoutChangeEvent,
@@ -13,6 +15,7 @@ import {
 } from 'react-native'
 
 import { EMessageAuthor, ERowKind, type SessionNameOf, type ThreadRow } from '../rows'
+import { listBottomPaddingOf, nativeBottomInsetOf } from '../../layout/transcript-inset'
 import { useKeyboard } from '../../layout/use-keyboard'
 import {
   EScrollSignal,
@@ -55,9 +58,21 @@ const WorkingFooter = () => {
   )
 }
 
+const EmptyTranscript = () => (
+  <View style={styles.empty}>
+    <Text size={ETextRole.Sm} weight={EFontWeight.Medium}>
+      Nothing here yet
+    </Text>
+    <Text size={ETextRole.Xs} tone={ETextTone.Muted}>
+      Send a message to start.
+    </Text>
+  </View>
+)
+
 export const Transcript = ({
   rows,
   working,
+  placeholder,
   now,
   boot,
   onRetryBoot,
@@ -73,6 +88,7 @@ export const Transcript = ({
 }: {
   rows: readonly ThreadRow[]
   working: boolean
+  placeholder?: ReactElement | undefined
   now: number
   boot?: BootView | null
   onRetryBoot?: () => void
@@ -91,13 +107,15 @@ export const Transcript = ({
   const measured = useRef<TTailPin>(UNMEASURED)
   const loadingOlder = useRef(false)
   const keyboardVisible = useKeyboard().inset > 0
-  const insets = useMemo(
-    () => ({
-      content: [styles.content, { paddingBottom: space(2) + bottomInset }],
-      indicator: { bottom: bottomInset },
-    }),
-    [bottomInset],
-  )
+  const safeArea = useSafeAreaInsets()
+  const nativeBottom = nativeBottomInsetOf({ platform: Platform.OS, safeBottom: safeArea.bottom })
+  const insets = useMemo(() => {
+    const padding = listBottomPaddingOf({ clearance: bottomInset, nativeBottom })
+    return {
+      content: [styles.content, { paddingBottom: space(2) + padding }],
+      indicator: { bottom: padding },
+    }
+  }, [bottomInset, nativeBottom])
   const showWorking = working && !isStreamingMessage(rows.at(-1)) && !hasRunningWork(rows)
   const renderRow = useCallback<ListRenderItem<ThreadRow>>(
     ({ item }) => (
@@ -117,7 +135,7 @@ export const Transcript = ({
 
   const pinToTail = () => {
     if (!tail.current.following) return
-    const offset = pinOffsetOf(measured.current)
+    const offset = pinOffsetOf({ ...measured.current, nativeBottom })
     if (offset === undefined) return
     measured.current = { ...measured.current, offset }
     listRef.current?.scrollToOffset({ offset, animated: false })
@@ -183,18 +201,9 @@ export const Transcript = ({
       </>
     )
 
-  if (rows.length === 0 && !working && header === null && !hasQueued && !waiting) {
-    return (
-      <View style={styles.empty}>
-        <Text size={ETextRole.Sm} weight={EFontWeight.Medium}>
-          Nothing here yet
-        </Text>
-        <Text size={ETextRole.Xs} tone={ETextTone.Muted}>
-          Send a message to start.
-        </Text>
-      </View>
-    )
-  }
+  const emptyView =
+    placeholder ??
+    (working || header !== null || hasQueued || waiting ? undefined : <EmptyTranscript />)
 
   return (
     <FlatList
@@ -203,6 +212,8 @@ export const Transcript = ({
       keyExtractor={keyOf}
       scrollsToTop={false}
       renderItem={renderRow}
+      contentInsetAdjustmentBehavior="automatic"
+      scrollToOverflowEnabled
       contentContainerStyle={insets.content}
       scrollIndicatorInsets={insets.indicator}
       keyboardDismissMode="interactive"
@@ -217,6 +228,7 @@ export const Transcript = ({
       onContentSizeChange={handleContentSizeChange}
       onLayout={handleLayout}
       ListHeaderComponent={header ?? undefined}
+      ListEmptyComponent={emptyView}
       ListFooterComponent={footer}
     />
   )

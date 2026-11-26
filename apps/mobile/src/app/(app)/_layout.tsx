@@ -6,6 +6,7 @@ import { useAuth } from '../../auth/auth-provider'
 import { RailContentFrame } from '../../layout/rail-content-frame'
 import { PostureProvider, usePosture } from '../../layout/use-posture'
 import { AppControls } from '../../navigation/app-controls'
+import { barHeaderOptionsOf, usesGlassHeader } from '../../navigation/glass-header'
 import { tabHeaderOptionsOf } from '../../navigation/header-options'
 import { ESettingsPlacement, settingsPlacementOf } from '../../navigation/root-navigation'
 import { InAppNoticesProvider } from '../../notifications/in-app-notices-provider'
@@ -38,8 +39,11 @@ const AppStack = () => {
       : {}
   const pushedHeaderOptions = {
     headerBackButtonDisplayMode: 'minimal' as const,
-    headerStyle: { backgroundColor: theme.background },
-    headerTintColor: theme.foreground,
+    ...barHeaderOptionsOf({
+      glass: usesGlassHeader(),
+      background: theme.background,
+      foreground: theme.foreground,
+    }),
   }
   return (
     <Stack screenOptions={{ contentStyle: { backgroundColor: theme.background } }}>
@@ -53,8 +57,11 @@ const AppStack = () => {
           title: 'New session',
           presentation: 'modal',
           headerLeft: () => <CancelButton />,
-          headerStyle: { backgroundColor: theme.background },
-          headerTintColor: theme.foreground,
+          ...barHeaderOptionsOf({
+            glass: usesGlassHeader(),
+            background: theme.background,
+            foreground: theme.foreground,
+          }),
         }}
       />
       <Stack.Screen
@@ -75,6 +82,11 @@ const AppStack = () => {
           title: 'Diagram',
           presentation: 'fullScreenModal',
           ...pushedHeaderOptions,
+          ...barHeaderOptionsOf({
+            glass: false,
+            background: theme.background,
+            foreground: theme.foreground,
+          }),
         }}
       />
       <Stack.Screen

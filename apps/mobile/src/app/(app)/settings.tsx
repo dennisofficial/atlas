@@ -42,7 +42,11 @@ export default function SettingsScreen() {
   const testFailed = testNotification.state.result === ETestResult.Failed
 
   return (
-    <ScrollView style={{ backgroundColor: theme.background }} contentContainerStyle={styles.scroll}>
+    <ScrollView
+      contentInsetAdjustmentBehavior="automatic"
+      style={{ backgroundColor: theme.background }}
+      contentContainerStyle={styles.scroll}
+    >
       <Section title="Account">
         <Row label="Email" value={user?.email ?? 'Unknown account'} />
         {user?.name !== undefined ? <Row label="Name" value={user.name} /> : null}

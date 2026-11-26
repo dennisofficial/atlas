@@ -112,16 +112,32 @@ describe('tailFollowAfter', () => {
 
 describe('pinning the transcript to its tail', () => {
   it('scrolls to the exact bottom of the measured content', () => {
-    expect(pinOffsetOf({ offset: 700, contentHeight: 2000, viewportHeight: 800 })).toBe(1200)
+    expect(
+      pinOffsetOf({ offset: 700, contentHeight: 2000, viewportHeight: 800, nativeBottom: 0 }),
+    ).toBe(1200)
   })
 
   it('leaves a transcript that already sits at its bottom alone', () => {
     expect(
-      pinOffsetOf({ offset: 1200.4, contentHeight: 2000, viewportHeight: 800 }),
+      pinOffsetOf({ offset: 1200.4, contentHeight: 2000, viewportHeight: 800, nativeBottom: 0 }),
     ).toBeUndefined()
   })
 
+  it('leaves a short transcript where the system rests it below a glass bar', () => {
+    expect(
+      pinOffsetOf({ offset: -116, contentHeight: 500, viewportHeight: 800, nativeBottom: 0 }),
+    ).toBeUndefined()
+  })
+
+  it('scrolls past the home indicator inset the system adds below the content', () => {
+    expect(
+      pinOffsetOf({ offset: 700, contentHeight: 2000, viewportHeight: 800, nativeBottom: 34 }),
+    ).toBe(1234)
+  })
+
   it('stays at the top while the content is shorter than the viewport', () => {
-    expect(pinOffsetOf({ offset: 0, contentHeight: 500, viewportHeight: 800 })).toBeUndefined()
+    expect(
+      pinOffsetOf({ offset: 0, contentHeight: 500, viewportHeight: 800, nativeBottom: 0 }),
+    ).toBeUndefined()
   })
 })

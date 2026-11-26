@@ -1,10 +1,12 @@
 import { useTheme } from '@dltech/atlas-ui-native'
 import { Stack } from 'expo-router'
 
+import { barHeaderOptionsOf, usesGlassHeader } from '../../../navigation/glass-header'
 import { SessionsDrawer } from '../../../sessions/sessions-drawer'
 
 const SessionsStack = () => {
   const theme = useTheme()
+  const glass = usesGlassHeader()
   return (
     <Stack
       screenOptions={{
@@ -18,16 +20,18 @@ const SessionsStack = () => {
         options={{
           title: '',
           headerShadowVisible: false,
-          headerStyle: { backgroundColor: theme.sidebar },
-          headerTintColor: theme.foreground,
+          ...barHeaderOptionsOf({ glass, background: theme.sidebar, foreground: theme.foreground }),
         }}
       />
       <Stack.Screen
         name="[id]"
         options={{
           title: '',
-          headerStyle: { backgroundColor: theme.background },
-          headerTintColor: theme.foreground,
+          ...barHeaderOptionsOf({
+            glass,
+            background: theme.background,
+            foreground: theme.foreground,
+          }),
         }}
       />
     </Stack>

@@ -93,7 +93,9 @@ const placedOf = ({
   return placed
 }
 
-const workOf = (summary: SessionSummary): SessionWork => {
+export const sessionWorkOf = (
+  summary: Pick<SessionSummary, 'pullRequest' | 'primaryBranch'>,
+): SessionWork => {
   const pullRequest = summary.pullRequest
   if (pullRequest !== null && pullRequest !== undefined) {
     return { kind: EWorkKind.PullRequest, pullRequest }
@@ -126,7 +128,7 @@ const entryOf = ({
       lastAssistantSeq: summary.lastAssistantSeq ?? 0,
       readSeq: summary.readSeq ?? null,
     }),
-    work: workOf(summary),
+    work: sessionWorkOf(summary),
     children: children.map((child) => entryOf({ node: child, projectName })),
   }
 }

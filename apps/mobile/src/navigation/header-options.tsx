@@ -9,17 +9,13 @@ import { AccountButton } from './account-button'
 import { EHeaderLeadingItem, leadingTitleWidthOf, tabHeaderLeadingOf } from './header-leading'
 import { NewSessionButton } from './new-session-button'
 
+export const LEAD_GAP = 10
+
 export const TabHeaderTitle = ({ title }: { title: string }) => (
   <Text size={ETextRole.Base} weight={EFontWeight.Semibold} numberOfLines={1}>
     {title}
   </Text>
 )
-
-const accountHeaderItemOf = (): NativeStackHeaderItem => ({
-  type: 'custom',
-  element: <AccountButton />,
-  hidesSharedBackground: false,
-})
 
 export const newSessionHeaderItemOf = (): NativeStackHeaderItem => ({
   type: 'button',
@@ -31,6 +27,7 @@ export const newSessionHeaderItemOf = (): NativeStackHeaderItem => ({
 
 export const leadingHeaderOptionsOf = ({
   leading = [],
+  lead,
   title,
   glassTitle = false,
   titleButtons,
@@ -38,21 +35,25 @@ export const leadingHeaderOptionsOf = ({
   posture,
 }: {
   leading?: NativeStackHeaderItem[]
+  lead?: ReactNode
   title: ReactNode
   glassTitle?: boolean
   titleButtons: number
   windowWidth: number
   posture: TPosture
 }): NativeStackNavigationOptions => {
+  const iosLead = Platform.OS === 'ios' ? lead : undefined
   const titleElement = (
     <View
       style={[
         styles.title,
         glassTitle ? styles.glassTitle : null,
+        glassTitle && iosLead !== undefined ? styles.glassTitleWithLead : null,
         { maxWidth: leadingTitleWidthOf({ windowWidth, posture, buttons: titleButtons }) },
       ]}
     >
-      {title}
+      {iosLead}
+      <View style={styles.titleText}>{title}</View>
     </View>
   )
   return {
@@ -78,10 +79,10 @@ export const tabHeaderOptionsOf = ({
   return {
     title,
     ...leadingHeaderOptionsOf({
-      leading: showsAccount ? [accountHeaderItemOf()] : [],
+      lead: showsAccount ? <AccountButton /> : undefined,
       title: <TabHeaderTitle title={title} />,
       glassTitle: true,
-      titleButtons: leading.length + 1,
+      titleButtons: 1,
       windowWidth,
       posture,
     }),
@@ -93,9 +94,18 @@ export const tabHeaderOptionsOf = ({
 
 const styles = StyleSheet.create({
   title: {
+    alignItems: 'center',
+    flexDirection: 'row',
+    flexShrink: 1,
+    gap: LEAD_GAP,
+  },
+  titleText: {
     flexShrink: 1,
   },
   glassTitle: {
     paddingHorizontal: 12,
+  },
+  glassTitleWithLead: {
+    paddingLeft: 4,
   },
 })

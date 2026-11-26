@@ -48,6 +48,9 @@ import { useSessionsDrawer } from '../../../sessions/sessions-drawer-state'
 import { SessionModelControls } from '../../../thread/session/session-model-controls'
 import { useSessionScreen } from '../../../thread/session/use-session-screen'
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
+import type { ThreadRow } from '../../../thread/rows'
+
+const NO_ROWS: readonly ThreadRow[] = []
 
 export default function SessionScreen() {
   const theme = useTheme()
@@ -106,11 +109,15 @@ export default function SessionScreen() {
   const showsSessions = sessionHeaderLeadingOf({ posture, drawerOpen }).includes(
     EHeaderLeadingItem.Sessions,
   )
-  const sessionsHeaderItem = {
-    type: 'custom' as const,
-    element: <SessionsButton onPress={handleOpenSessions} />,
-    hidesSharedBackground: false,
-  }
+  const placeholder = session.loaded ? undefined : session.failedToLoad ? (
+    <View style={styles.center}>
+      <Text size={ETextRole.Sm} tone={ETextTone.Destructive}>
+        This session could not be loaded.
+      </Text>
+    </View>
+  ) : (
+    <SessionSkeleton />
+  )
 
   return (
     <View style={[styles.screen, { backgroundColor: theme.background }]}>
@@ -118,9 +125,10 @@ export default function SessionScreen() {
         options={{
           title: session.header.title,
           ...leadingHeaderOptionsOf({
-            leading: showsSessions ? [sessionsHeaderItem] : [],
+            lead: showsSessions ? <SessionsButton onPress={handleOpenSessions} /> : undefined,
             title: <SessionTitle header={session.header} />,
-            titleButtons: showsSessions ? 2 : 1,
+            glassTitle: true,
+            titleButtons: 0,
             windowWidth,
             posture,
           }),
@@ -140,110 +148,101 @@ export default function SessionScreen() {
         }}
       />
       <View style={styles.content}>
-        {session.loaded || session.failedToLoad ? null : <SessionSkeleton />}
-        {session.failedToLoad ? (
-          <View style={styles.center}>
-            <Text size={ETextRole.Sm} tone={ETextTone.Destructive}>
-              This session could not be loaded.
-            </Text>
-          </View>
-        ) : null}
+        <Transcript
+          rows={session.loaded ? transcriptRows : NO_ROWS}
+          working={session.loaded && session.turnRunning}
+          placeholder={placeholder}
+          now={session.now}
+          boot={session.loaded ? session.boot : null}
+          onRetryBoot={() => void session.retry()}
+          threadId={id}
+          sessionId={id}
+          onLoadOlder={session.loadOlder}
+          agentLinks={session.agentLinks}
+          sessionNameOf={session.sessionNameOf}
+          onOpenAgent={handleOpenAgent}
+          bottomInset={bottomInset}
+          queued={session.loaded ? queuedTurns : undefined}
+          background={session.loaded ? session.background : undefined}
+        />
         {session.loaded ? (
-          <>
-            <Transcript
-              rows={transcriptRows}
-              working={session.turnRunning}
-              now={session.now}
-              boot={session.boot}
-              onRetryBoot={() => void session.retry()}
-              threadId={id}
-              sessionId={id}
-              onLoadOlder={session.loadOlder}
-              agentLinks={session.agentLinks}
-              sessionNameOf={session.sessionNameOf}
-              onOpenAgent={handleOpenAgent}
-              bottomInset={bottomInset}
-              queued={queuedTurns}
-              background={session.background}
-            />
-            <KeyboardDock overlay>
-              <View onLayout={handleDockLayout}>
-                {session.failure === null || session.startFailure !== undefined ? null : (
-                  <View style={styles.operator}>
-                    <GlassSurface style={styles.failure}>
-                      <Text
-                        size={ETextRole.Xs}
-                        tone={ETextTone.Destructive}
-                        style={styles.failureText}
-                      >
-                        {session.failure}
-                      </Text>
-                      <Button
-                        label="Retry"
-                        size={EButtonSize.Sm}
-                        variant={EButtonVariant.Outline}
-                        onPress={() => void session.retry()}
-                      />
-                    </GlassSurface>
-                  </View>
-                )}
-                <OperatorRequestDock operator={session.operator} />
-                {session.stale ? (
-                  <View style={styles.operator}>
-                    <StaleCard />
-                  </View>
-                ) : null}
-                {session.stateLine === null ? null : (
-                  <View style={styles.stateRow}>
-                    {session.catchingUp ? <Spinner color={theme.mutedForeground} /> : null}
-                    <Text size={ETextRole.Xs} tone={ETextTone.Muted} style={styles.state}>
-                      {session.stateLine}
+          <KeyboardDock overlay>
+            <View onLayout={handleDockLayout}>
+              {session.failure === null || session.startFailure !== undefined ? null : (
+                <View style={styles.operator}>
+                  <GlassSurface style={styles.failure}>
+                    <Text
+                      size={ETextRole.Xs}
+                      tone={ETextTone.Destructive}
+                      style={styles.failureText}
+                    >
+                      {session.failure}
                     </Text>
-                    {session.canReconnect ? (
-                      <Button
-                        label="Reconnect"
-                        size={EButtonSize.Sm}
-                        variant={EButtonVariant.Ghost}
-                        onPress={session.reconnect}
-                      />
-                    ) : null}
-                  </View>
-                )}
-                {session.startFailure === undefined ? null : (
-                  <StartFailedCard reason={session.startFailure.reason} onRetry={session.retry} />
-                )}
-                {session.blocking === undefined ? null : (
-                  <BlockingStrip command={session.blocking} now={session.now} />
-                )}
-                <Composer
-                  working={session.working}
-                  joined={session.blocking !== undefined}
-                  attachments={attachments}
-                  onSend={session.send}
-                  onStop={session.stop}
-                  restored={session.restored}
-                  draftSessionId={id}
-                  refusal={session.notice}
-                  entries={session.commands.entries}
-                  clientActions={session.commands.clientActions}
-                  trailing={
-                    <View style={styles.trailing}>
-                      <PlanUsage report={usage} />
-                      <ContextReading context={session.context} />
-                    </View>
-                  }
-                >
-                  <SessionModelControls model={model} onOpenModel={handleOpenModel} />
-                </Composer>
-              </View>
-              <CommandListSheet
-                open={session.commands.commandList.open}
-                onClose={session.commands.commandList.onClose}
+                    <Button
+                      label="Retry"
+                      size={EButtonSize.Sm}
+                      variant={EButtonVariant.Outline}
+                      onPress={() => void session.retry()}
+                    />
+                  </GlassSurface>
+                </View>
+              )}
+              <OperatorRequestDock operator={session.operator} />
+              {session.stale ? (
+                <View style={styles.operator}>
+                  <StaleCard />
+                </View>
+              ) : null}
+              {session.stateLine === null ? null : (
+                <View style={styles.stateRow}>
+                  {session.catchingUp ? <Spinner color={theme.mutedForeground} /> : null}
+                  <Text size={ETextRole.Xs} tone={ETextTone.Muted} style={styles.state}>
+                    {session.stateLine}
+                  </Text>
+                  {session.canReconnect ? (
+                    <Button
+                      label="Reconnect"
+                      size={EButtonSize.Sm}
+                      variant={EButtonVariant.Ghost}
+                      onPress={session.reconnect}
+                    />
+                  ) : null}
+                </View>
+              )}
+              {session.startFailure === undefined ? null : (
+                <StartFailedCard reason={session.startFailure.reason} onRetry={session.retry} />
+              )}
+              {session.blocking === undefined ? null : (
+                <BlockingStrip command={session.blocking} now={session.now} />
+              )}
+              <Composer
+                working={session.working}
+                joined={session.blocking !== undefined}
+                attachments={attachments}
+                onSend={session.send}
+                onStop={session.stop}
+                restored={session.restored}
+                draftSessionId={id}
+                refusal={session.notice}
                 entries={session.commands.entries}
-              />
-              <ModelSheet {...session.commands.model} />
-            </KeyboardDock>
-          </>
+                clientActions={session.commands.clientActions}
+                trailing={
+                  <View style={styles.trailing}>
+                    <PlanUsage report={usage} />
+                    <ContextReading context={session.context} />
+                  </View>
+                }
+              >
+                <SessionModelControls model={model} onOpenModel={handleOpenModel} />
+              </Composer>
+            </View>
+            <CommandListSheet
+              open={session.commands.commandList.open}
+              onClose={session.commands.commandList.onClose}
+              entries={session.commands.entries}
+            />
+            <ModelSheet {...session.commands.model} />
+          </KeyboardDock>
         ) : null}
       </View>
     </View>

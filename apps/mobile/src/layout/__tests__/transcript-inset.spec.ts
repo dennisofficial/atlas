@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'bun:test'
 
-import { transcriptInsetOf } from '../transcript-inset'
+import { listBottomPaddingOf, nativeBottomInsetOf, transcriptInsetOf } from '../transcript-inset'
 
 describe('transcriptInsetOf', () => {
   it('clears the dock and the home indicator while the keyboard is down', () => {
@@ -17,5 +17,17 @@ describe('transcriptInsetOf', () => {
 
   it('counts only the safe area before the dock has been measured', () => {
     expect(transcriptInsetOf({ dockHeight: 0, keyboardInset: 0, safeBottom: 34 })).toBe(34)
+  })
+})
+
+describe('listBottomPaddingOf', () => {
+  it('leaves the home indicator to the inset iOS adds', () => {
+    const nativeBottom = nativeBottomInsetOf({ platform: 'ios', safeBottom: 34 })
+    expect(listBottomPaddingOf({ clearance: 154, nativeBottom })).toBe(120)
+  })
+
+  it('pads the whole clearance where the platform adds no inset', () => {
+    const nativeBottom = nativeBottomInsetOf({ platform: 'web', safeBottom: 34 })
+    expect(listBottomPaddingOf({ clearance: 154, nativeBottom })).toBe(154)
   })
 })

@@ -16,7 +16,7 @@ import { EControlsPlacement } from '../layout/posture'
 import { usePosture } from '../layout/use-posture'
 import { AccountButton } from '../navigation/account-button'
 import { NewSessionButton } from '../navigation/new-session-button'
-import { drawerHidableOf } from './drawer-layout'
+import { showsHideSessionsButtonOf } from './drawer-layout'
 import { SearchField } from './search-field'
 import type { ISessionEntry } from './session-groups'
 import { useSessionsDrawer } from './sessions-drawer-state'
@@ -48,7 +48,7 @@ export const SessionsDrawerShell = ({
         <View style={styles.actions}>
           {posture.controls === EControlsPlacement.BottomBar ? <AccountButton /> : null}
           <NewSessionButton />
-          {drawerHidableOf({ listLayout: posture.sessionsList, selected: activeId }) ? (
+          {showsHideSessionsButtonOf({ listLayout: posture.sessionsList }) ? (
             <Button
               label="Hide sessions"
               icon={PanelLeft}

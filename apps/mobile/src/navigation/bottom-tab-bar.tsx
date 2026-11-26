@@ -15,7 +15,7 @@ export const BottomTabBar = () => {
     <View style={[styles.root, { bottom: insets.bottom + BOTTOM_GAP }]} pointerEvents="box-none">
       <GlassSurface style={styles.bar}>
         {APP_TABS.map((item) => (
-          <TabButton key={item.tab} item={item} active={item.tab === active} showLabel />
+          <TabButton key={item.tab} item={item} active={item.tab === active} />
         ))}
       </GlassSurface>
     </View>
@@ -32,7 +32,9 @@ const styles = StyleSheet.create({
   bar: {
     borderRadius: 28,
     flexDirection: 'row',
-    height: 56,
+    alignItems: 'center',
+    gap: 4,
+    height: 52,
     paddingHorizontal: 4,
   },
 })
