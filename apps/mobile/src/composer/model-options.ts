@@ -1,4 +1,5 @@
 import { outputPriceLabel } from '@dltech/atlas-core'
+import { defaultModelId } from '@dltech/atlas-models'
 import { brandOfProvider, type EBrand } from '@dltech/atlas-ui/brand'
 import type { ModelsResponse } from '@dltech/atlas-wire/web'
 
@@ -140,6 +141,21 @@ export const personalModelLabelOf = ({
   models: readonly IModelOption[]
   personalId: string
 }): string | null => models.find((model) => model.id === personalId)?.label ?? null
+
+export const defaultModelIdOf = ({
+  models,
+  personalId,
+}: {
+  models: readonly IModelOption[]
+  personalId: string
+}): string | null =>
+  defaultModelId({
+    offered: models.map((model) => ({ id: model.id, reachable: true })),
+    personalId,
+  }) ?? null
+
+export const knownEffortOf = (name: string): string | null =>
+  EFFORT_LADDER.find((effort) => effort === name) ?? null
 
 export const searchModelsOf = ({
   models,

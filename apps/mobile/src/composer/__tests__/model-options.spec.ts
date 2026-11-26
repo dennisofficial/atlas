@@ -4,7 +4,9 @@ import { describe, expect, it } from 'bun:test'
 
 import {
   NO_MODEL_LABEL,
+  defaultModelIdOf,
   effortLabelOf,
+  knownEffortOf,
   modelGroupsOf,
   modelOptionsOf,
   modelTriggerLabelOf,
@@ -208,6 +210,30 @@ describe('pinned models', () => {
   it('toggles a pin on and off', () => {
     expect(togglePinnedModel({ pinned: ['a'], id: 'b' })).toEqual(['a', 'b'])
     expect(togglePinnedModel({ pinned: ['a', 'b'], id: 'a' })).toEqual(['b'])
+  })
+})
+
+describe('defaultModelIdOf', () => {
+  const models = modelOptionsOf(response)
+
+  it('preselects the personal default model', () => {
+    expect(defaultModelIdOf({ models, personalId: 'gpt-5' })).toBe('gpt-5')
+  })
+
+  it('falls back to the first model when the default is unset or gone', () => {
+    expect(defaultModelIdOf({ models, personalId: '' })).toBe('claude-opus-4')
+    expect(defaultModelIdOf({ models, personalId: 'gone/model' })).toBe('claude-opus-4')
+  })
+
+  it('has nothing to preselect without models', () => {
+    expect(defaultModelIdOf({ models: [], personalId: 'gpt-5' })).toBeNull()
+  })
+})
+
+describe('knownEffortOf', () => {
+  it('keeps a ladder effort and drops anything else', () => {
+    expect(knownEffortOf('high')).toBe('high')
+    expect(knownEffortOf('')).toBeNull()
   })
 })
 
