@@ -133,9 +133,9 @@ describe('draining while a plugin tool waits on a capability call', () => {
     rig.clock.advance(DRAIN_STREAM_ABORT_CAP_MS)
     await draining
 
-    expect(resultsOf(await eventsIn({ rig, threadId: THREAD_ID }))).toEqual([])
-
     held.release()
     await rig.flush()
+
+    expect(resultsOf(await eventsIn({ rig, threadId: THREAD_ID }))).toEqual([])
   }, 20_000)
 })
