@@ -54,4 +54,5 @@ model Session {
   @@index([userId, createdAt], map: "V2Session_userId_createdAt_idx_f726f04a")
   @@index([sandboxInstanceId], map: "V2Session_sandboxInstanceId_idx_c3850fdd")
   @@index([spawnedBySessionId, nested], map: "V2Session_spawnedBySessionId_nested_idx_c61c238d")
+  @@index([createdAt, id], where: sql`("archivedAt" IS NULL)`, name: "Session_live_createdAt_id")
 }

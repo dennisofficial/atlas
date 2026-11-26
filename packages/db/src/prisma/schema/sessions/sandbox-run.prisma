@@ -19,4 +19,5 @@ model SandboxRun {
 
   @@index([sessionId, startedAt], map: "V2SandboxRun_sessionId_startedAt_idx_e70936f3")
   @@index([userId, startedAt], map: "V2SandboxRun_userId_startedAt_idx_91bd1466")
+  @@index([sandboxInstanceId, startedAt])
 }

@@ -13241,6 +13241,15 @@
               "indexes": [
                 {
                   "columns": [
+                    "baseBranch",
+                    "state"
+                  ],
+                  "name": "GithubPrState_baseBranch_state_idx_75f326d8",
+                  "prefix": "GithubPrState_baseBranch_state_idx",
+                  "unique": false
+                },
+                {
+                  "columns": [
                     "headRepoFullName",
                     "headBranch"
                   ],
@@ -14643,7 +14652,17 @@
                   }
                 }
               ],
-              "indexes": [],
+              "indexes": [
+                {
+                  "columns": [
+                    "holderHostId",
+                    "sessionId"
+                  ],
+                  "name": "Lease_holderHostId_sessionId_idx_68a338dc",
+                  "prefix": "Lease_holderHostId_sessionId_idx",
+                  "unique": false
+                }
+              ],
               "primaryKey": {
                 "columns": [
                   "sessionId"
@@ -16855,6 +16874,15 @@
               "indexes": [
                 {
                   "columns": [
+                    "sandboxInstanceId",
+                    "startedAt"
+                  ],
+                  "name": "SandboxRun_sandboxInstanceId_startedAt_idx_8bf7e1f3",
+                  "prefix": "SandboxRun_sandboxInstanceId_startedAt_idx",
+                  "unique": false
+                },
+                {
+                  "columns": [
                     "sessionId",
                     "startedAt"
                   ],
@@ -17228,6 +17256,16 @@
               },
               "foreignKeys": [],
               "indexes": [
+                {
+                  "columns": [
+                    "createdAt",
+                    "id"
+                  ],
+                  "name": "Session_live_createdAt_id_f55f07d2",
+                  "prefix": "Session_live_createdAt_id",
+                  "unique": false,
+                  "where": "(\"archivedAt\" IS NULL)"
+                },
                 {
                   "columns": [
                     "mainThreadId"
@@ -18892,7 +18930,7 @@
         "kind": "postgres-schema"
       }
     },
-    "storageHash": "682b49388e4e1247af1b52d9cc6a6d082ff410b7332e8da6a8a03c52fb702ee4"
+    "storageHash": "a1f6bd3f6d5954509850c76a50edbf8fed7bbc538a59236914fccf34eb806f5b"
   },
   "execution": {
     "executionHash": "0e6f989bb6c7c489039e329d87ab4c7469f87c12c726c4dcf40ed6296bf343c1",
