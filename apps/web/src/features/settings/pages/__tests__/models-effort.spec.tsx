@@ -15,7 +15,7 @@ registerDom()
 Object.assign(globalThis, { IS_REACT_ACT_ENVIRONMENT: true })
 
 const { ModelsEditor } = await import('../models-effort')
-const { settingsValuesOf, modelPickerOf, saveNothing, GPT_5 } = await import(
+const { settingsValuesOf, modelPickerOf, saveNothing, GPT_5_6 } = await import(
   '../../fixtures/settings-models-story'
 )
 const { EProviderId } = await import('../../fixtures/settings-agent')
@@ -82,10 +82,10 @@ describe('ModelsEditor', () => {
   })
 
   it('names the stale model and its provider in the alert, and warns on the owning row only', async () => {
-    await editorOn(ANTHROPIC_ONLY, { 'model.id': GPT_5 })
+    await editorOn(ANTHROPIC_ONLY, { 'model.id': GPT_5_6 })
     const text = bodyText()
     expect(text).toContain("can't run: Codex Plan isn't connected")
-    expect(text).toContain('GPT-5')
+    expect(text).toContain('GPT-5.6')
     expect(document.querySelectorAll('[data-slot="model-trigger"]').length).toBeGreaterThan(1)
     expect(triggerWarnings()).toHaveLength(1)
     const triggers = [...document.body.querySelectorAll('[data-slot="model-trigger"]')]
@@ -93,7 +93,7 @@ describe('ModelsEditor', () => {
   })
 
   it('says a stale non-main role runs on the main agent model instead of stopping', async () => {
-    await editorOn(ANTHROPIC_ONLY, { 'agents.type.builder': GPT_5 })
+    await editorOn(ANTHROPIC_ONLY, { 'agents.type.builder': GPT_5_6 })
     const text = bodyText()
     expect(text).toContain("builder is running on the main agent's model")
     expect(text).toContain("Codex Plan isn't connected, so builder uses the main agent's model")
