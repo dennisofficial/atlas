@@ -164,7 +164,7 @@ export class RemoteCallsState {
     this.args.releaseResize()
     this.answers.refuseAll()
     for (const call of [...this.pending.values()]) {
-      if (call.done) continue
+      if (call.done || call.detachOnHandoff !== true) continue
       this.settle(call, handedOffResult(call))
     }
   }

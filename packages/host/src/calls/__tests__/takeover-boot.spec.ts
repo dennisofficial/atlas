@@ -68,7 +68,10 @@ describe('a takeover onto a new daemon boot', () => {
     await calls.ready()
     expect(calls.bootId()).not.toBe(OLD_BOOT)
 
-    const scoped = new ScopedToolDispatcher(new TakenOverExec(new DaemonProcessPort({ calls })))
+    const scoped = new ScopedToolDispatcher({
+      inner: new TakenOverExec(new DaemonProcessPort({ calls })),
+      daemonTools: new Set(['bash']),
+    })
     const drafts = await scoped.dispatch(dispatchArgs(call('bash')))
 
     const result = drafts.find((draft) => draft.type === 'tool-result')

@@ -162,6 +162,7 @@ export class RemoteCalls {
     onOutput?: ((bytes: Uint8Array) => void) | undefined
     dispatchedBootId?: string | undefined
     attachOnly?: boolean | undefined
+    detachOnHandoff?: boolean | undefined
   }): Promise<CallResult> {
     return this.state.invoke(args)
   }

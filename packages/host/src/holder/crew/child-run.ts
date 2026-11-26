@@ -37,7 +37,8 @@ import {
 import { childRunnerOf } from './child-runner'
 import { ChildTranscript } from './child-transcript'
 import { GroupRunState } from './group-run-state'
-import { driveLifecycle, settledWithin, type DriveArgs } from './child-turns'
+import { drainChildTurn } from './child-drain'
+import { driveLifecycle, type DriveArgs } from './child-turns'
 import { lastSeqOf } from './child-reports'
 import {
   adoptRecordOf,
@@ -213,26 +214,19 @@ export class ChildRun {
   pause(): Promise<void> {
     this.handingOff = true
     this.pauseSignal.pause()
-    this.pausing ??= this.settleOrAbort()
+    this.pausing ??= drainChildTurn({
+      timers: this.args.deps.timers,
+      drainCapMs: this.args.deps.drainCapMs,
+      agentId: this.agentId,
+      pause: this.pauseSignal,
+      done: this.done,
+      log: this.args.deps.log,
+    })
     return this.pausing
   }
 
   handoff(): void {
     this.handingOff = true
-    this.abort?.abort('handoff')
-  }
-
-  private async settleOrAbort(): Promise<void> {
-    const settled = await settledWithin({
-      timers: this.args.deps.timers,
-      ms: this.args.deps.drainCapMs,
-      done: this.done,
-    })
-    if (settled) return
-    this.args.deps.log?.warn({
-      source: 'holder.drain',
-      message: `sub-agent ${this.agentId} ran in flight for ${this.args.deps.drainCapMs}ms, past the drain cap; aborting it for the hand-off`,
-    })
     this.abort?.abort('handoff')
   }
 

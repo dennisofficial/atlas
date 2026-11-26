@@ -10,7 +10,6 @@ import { InMemoryToolRegistry } from '../tools/registry'
 
 export class FakeTool extends ToolDefinition {
   readonly description = 'fake tool'
-  readonly effect = EToolEffect.Read
   readonly inputSchema = z.unknown()
   readonly invocations: ToolInvocation[] = []
 
@@ -18,6 +17,7 @@ export class FakeTool extends ToolDefinition {
     readonly name: string,
     private readonly answer: string,
     private readonly onInvoke?: () => void,
+    readonly effect: EToolEffect = EToolEffect.Read,
   ) {
     super()
   }

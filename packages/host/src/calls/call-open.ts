@@ -2,6 +2,7 @@ import type { CallOp, CallResult } from '@dltech/atlas-protocol'
 
 import type { Answers } from './answers'
 import { abandonCall, attachCallSignal } from './call-signal'
+import { scopeDetachOnHandoff } from './call-scope'
 import { actionForAnswer, callLostAcrossBoot, needsRun } from './errors'
 import type { ReadyReply } from './ready-gate'
 import { interruptedResult, type Pending, type Waiter } from './remote-calls-frames'
@@ -14,6 +15,7 @@ export type OpenCallArgs = {
   onOutput?: ((bytes: Uint8Array) => void) | undefined
   dispatchedBootId?: string | undefined
   attachOnly?: boolean | undefined
+  detachOnHandoff?: boolean | undefined
 }
 
 export type CallLane = {
@@ -68,6 +70,7 @@ export const openCall = async (args: {
     armed: false,
     done: false,
     awaitingAnswer: false,
+    detachOnHandoff: request.detachOnHandoff ?? scopeDetachOnHandoff(),
   }
   if (!lane.detached()) call.waiters.push(waiter)
   lane.pending.set(request.key, call)

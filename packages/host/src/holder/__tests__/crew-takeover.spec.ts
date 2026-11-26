@@ -18,7 +18,7 @@ import {
 import { ScriptedModel, type ScriptedModelStep } from '@dltech/atlas-agent/testing'
 import { z } from 'zod'
 
-import { DRAIN_IN_FLIGHT_CAP_MS } from '../drain-cap'
+import { DRAIN_IN_FLIGHT_CAP_MS, DRAIN_STREAM_ABORT_CAP_MS } from '../drain-cap'
 import { flushUntil, makeRig, seedSession, SESSION, THREAD_ID } from './holder-rig'
 
 const CHILD_BRIEF = 'TAKEOVER-BRIEF take the long way'
@@ -195,6 +195,8 @@ const drainPastCap = async (rig: Awaited<ReturnType<typeof makeRig>>): Promise<v
   const draining = rig.holder.drain()
   await rig.flush()
   rig.clock.advance(DRAIN_IN_FLIGHT_CAP_MS)
+  await rig.flush()
+  rig.clock.advance(DRAIN_STREAM_ABORT_CAP_MS)
   await draining
 }
 

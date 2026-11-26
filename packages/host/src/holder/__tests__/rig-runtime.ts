@@ -207,6 +207,7 @@ export const makeRuntimeFactory = (args: {
       return running
     }
     const modelOfCalls: RoleModelChoice[] = []
+    const tools = fakeToolRegistry([new BashTool(calls, gate), ...(args.hostTools ?? [])])
     const placedContextFiles: SpawnFile[][] = []
     const runtime: RigRuntime = {
       placedContextFiles,
@@ -223,10 +224,10 @@ export const makeRuntimeFactory = (args: {
       },
       choiceFor: (request) => request.root ?? RIG_MODEL_CHOICE,
       modelLabelOf: (ref) => refKey(ref),
-      tools: fakeToolRegistry([new BashTool(calls, gate), ...(args.hostTools ?? [])]),
+      tools,
       daemonTools: new Set(['bash']),
       ackedScopes,
-      effectOf: () => EToolEffect.Read,
+      effectOf: (name) => tools.find(name)?.effect ?? EToolEffect.Destructive,
       assembly: defaultPipeline({
         prompt: () => EMPTY_PROMPT,
         launchDirectory: '/w',

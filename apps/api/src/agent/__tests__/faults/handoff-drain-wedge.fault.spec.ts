@@ -1,6 +1,6 @@
 import { expect } from 'bun:test'
 
-import { DRAIN_DETACH_CAP_MS } from '@dltech/atlas-host'
+import { DRAIN_STREAM_ABORT_CAP_MS } from '@dltech/atlas-host'
 
 import type { HostKnobs, HostProcess, ReadEvent } from '../../testing/fault-rig'
 import { EHostFault } from '../../testing/host-faults'
@@ -91,7 +91,9 @@ describeHandoff({
 
   async inFlight(ctx) {
     const signalledForMs = timedHosts.get(ctx.sessionId)?.signalledForMs()
-    expect(signalledForMs).toBeLessThanOrEqual(DRAIN_CAP_MS + DRAIN_DETACH_CAP_MS + EXIT_MARGIN_MS)
+    expect(signalledForMs).toBeLessThanOrEqual(
+      DRAIN_CAP_MS + DRAIN_STREAM_ABORT_CAP_MS + EXIT_MARGIN_MS,
+    )
   },
 
   async release(): Promise<void> {},

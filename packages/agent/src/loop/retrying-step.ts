@@ -8,6 +8,7 @@ import {
   type Assembled,
   type ChunkFilter,
   type ModelPort,
+  type ModelStepResult,
   type NormalizedProviderFailure,
   type RetryPolicy,
   type ToolDeclaration,
@@ -22,6 +23,7 @@ import type { NormalizeFailure } from '../model/run-failure'
 import { takeModelStep, type SteppedTurn } from './model-step'
 import type { StepStreamer } from './streamed-chunks'
 import {
+  HandoffAborted,
   interruptibleSleep,
   recordedWaitMs,
   settleRecordedDeadline,
@@ -60,7 +62,7 @@ export type RetryDeps = {
 }
 
 type StepAttempt =
-  | { ok: true; stepped: SteppedTurn }
+  | { ok: true; result: ModelStepResult }
   | {
       ok: false
       message: string
@@ -87,7 +89,7 @@ async function attemptModelStep(args: {
 }): Promise<StepAttempt> {
   try {
     const stepped = await takeModelStep(args)
-    if (stepped.ok) return { ok: true, stepped }
+    if (stepped.ok) return { ok: true, result: stepped.result }
     return {
       ok: false,
       message: stepped.message,
@@ -139,9 +141,19 @@ export async function takeModelStepWithRetry(args: {
   let wake = new AbortController()
   const stopWatching = args.retry?.clockJumps?.onJump(() => wake.abort())
   const handoff = new AbortController()
-  const stopPause = args.pause?.onPause(() => handoff.abort())
-  const sleepSignal =
+  const paused = new AbortController()
+  let handoffAborted = false
+  const stopModelAbort = args.pause?.onModelAbort(() => {
+    handoffAborted = true
+    handoff.abort()
+  })
+  const stopPause = args.pause?.onPause(() => paused.abort())
+  const modelSignal =
     args.pause === undefined ? args.signal : AbortSignal.any([args.signal, handoff.signal])
+  const sleepSignal =
+    args.pause === undefined
+      ? args.signal
+      : AbortSignal.any([args.signal, handoff.signal, paused.signal])
 
   try {
     let attempts = 0
@@ -177,20 +189,24 @@ export async function takeModelStepWithRetry(args: {
     }
 
     for (;;) {
-      const run = (onChunk: ChunkFilter | undefined) =>
-        attemptModelStep({
+      handoffAborted = false
+      const run = (onChunk: ChunkFilter | undefined) => {
+        const ended = args.pause?.beginModelStep()
+        if (args.pause !== undefined && ended === undefined) throw new HandoffAborted()
+        return attemptModelStep({
           model: args.model,
           tools: args.tools,
           onChunk,
           assembled,
-          signal: args.signal,
-        })
+          signal: modelSignal,
+        }).finally(() => ended?.())
+      }
       const attempt =
         args.streamer === undefined
           ? await run(args.onChunk)
-          : await args.streamer.attempt({ filter: args.onChunk, signal: args.signal, run })
+          : await args.streamer.attempt({ filter: args.onChunk, signal: modelSignal, run })
 
-      if (attempt.ok) return attempt.stepped
+      if (attempt.ok) return handoffAborted ? { ...attempt, handoffAborted: true } : attempt
 
       const settled = (): SteppedTurn => {
         if (attempt.thrown) throw attempt.cause
@@ -290,6 +306,7 @@ export async function takeModelStepWithRetry(args: {
     }
   } finally {
     stopWatching?.()
+    stopModelAbort?.()
     stopPause?.()
   }
 }

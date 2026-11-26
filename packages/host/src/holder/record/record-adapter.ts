@@ -168,6 +168,10 @@ export class SessionRecord implements AgentRecordPort, ModelContextPort {
     return this.gatedAppend(args)
   }
 
+  flush(): Promise<void> {
+    return this.tail
+  }
+
   private async gatedAppend(args: AppendArgs): Promise<Event[]> {
     if (!args.drafts.some((draft) => this.isDaemonDispatch(draft))) {
       return (await this.enqueue(args)) ?? []

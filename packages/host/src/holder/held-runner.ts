@@ -200,13 +200,14 @@ export const createLoopRunner = (args: {
     ...(runtime.uploads === undefined ? {} : { uploads: runtime.uploads }),
     ...(runtime.mediaUrls === undefined ? {} : { mediaUrls: runtime.mediaUrls }),
     tools: () => modelFacingDeclarationsOf(pod.tools.declarations()),
-    dispatch: new ScopedToolDispatcher(
-      hookedToolsOf({
+    dispatch: new ScopedToolDispatcher({
+      inner: hookedToolsOf({
         registry: pod.tools,
         hooks: pod.hooks,
         trace: runtime.trace,
       }),
-    ),
+      daemonTools: runtime.daemonTools,
+    }),
     intake,
     output: args.turns.liveOutput({
       headSeq: () => record.eventCache().currentHead().seq,

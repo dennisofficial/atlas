@@ -123,10 +123,10 @@ export class HeldSession {
     this.drain = new HeldDrain({
       deps,
       sessionId: this.sessionId,
+      pause: this.pause,
       turns: this.turns,
       ending: this.ending,
       record: () => this.record,
-      runtime: () => this.runtime,
       childrenPause: () => this.crew?.pauseAll(),
       pendingHandoff: () => this.runtime?.remoteCalls.handoff(),
     })

@@ -37,7 +37,9 @@ A main agent, a sub-agent and a teammate all run this loop. It knows nothing of 
 - `TurnOutcome`, `ETurnStatus`: how a turn ends: `completed`, `paused`, `idle`, `interrupted`,
   `failed`, `waiting-for-model`, `parked` or `relocation-paused`.
 - `PauseSignal`: pause a running turn at the next step boundary. `say`, `runTurn` and `resume` take it
-  as `pause`; a paused turn ends `relocation-paused`.
+  as `pause`; a paused turn ends `relocation-paused`. `beginModelStep` refuses a new model step once
+  paused, `abortModelStep` cuts the stream and nothing else for a hand-off, and `whenModelIdle`
+  reports when no stream is in flight.
 - `TurnDeps.uploads`: a `SaidUploadsPort` places the files of a said message on disk. The loop asks it only for the files the log holds no placement fact for, and appends one `upload-placement` fact per placed file through `AgentRecordPort.appendFacts`.
 
 ### Trace a turn
