@@ -4,15 +4,12 @@ import {
   blobRefsOf,
   blobValueOf,
   chainHash,
-  initialLoopState,
   isVisible,
-  loopStateOf,
   pendingInputsOf,
   queuedSinceOf,
-  stepLoopState,
   resolveBody,
   stepVisibility,
-  toLoopEvent,
+  verifySuffix,
   type Event,
   type LogHead,
   type LoopState,
@@ -24,7 +21,11 @@ import {
 import type { ControlPlane } from '@dltech/atlas-control'
 import type { LogPort } from '@dltech/atlas-observability'
 
+import { RecordBlobs } from './record-blobs'
 import { RecordBookkeeping } from './record-bookkeeping'
+import { RecordLoopEvents } from './record-loop'
+import { readPagesOf } from './record-pages'
+import type { RecordResumeCache } from './record-resume'
 import { firstIndexAfter, itemAtSeq } from './seq-index'
 
 const BLOB_FETCH_CONCURRENCY = 8
@@ -45,18 +46,22 @@ const revealsHidden = (args: { state: VisibilityState; event: RecordEvent }): bo
 const editsHistory = (event: RecordEvent): boolean =>
   event.type === 'history-rewound' || event.type === 'history-summarised'
 
+const eventBytes = (event: RecordEvent): number => JSON.stringify(event).length
+
+const eventsBytes = (events: readonly RecordEvent[]): number =>
+  events.reduce((total, event) => total + eventBytes(event), 0)
+
 export class RecordCache {
   private events: RecordEvent[] = []
   private visibility: VisibilityState = EMPTY_VISIBILITY
   private book = new RecordBookkeeping()
-  private loopSources: RecordEvent[] = []
-  private loopEvents: Event[] = []
-  private loopEventsHandedOut = false
-  private state: LoopState = initialLoopState()
+  private readonly loops = new RecordLoopEvents()
   private revealed = false
+  private diverged = false
   private visibleCache: RecordEvent[] | undefined = undefined
-  private readonly blobValues = new Map<string, unknown>()
-  private fetchedBlobBytes = 0
+  private blobs = new RecordBlobs()
+  private fetchedBytes = 0
+  private retained: number | undefined = undefined
   private head: LogHead = { seq: 0, hash: '' as LogHead['hash'] }
 
   constructor(private readonly args: { plane: ControlPlane; threadId: ThreadId }) {}
@@ -65,53 +70,90 @@ export class RecordCache {
     plane: ControlPlane
     threadId: ThreadId
     log?: LogPort | undefined
+    resume?: RecordResumeCache | undefined
   }): Promise<RecordCache> {
-    const cache = new RecordCache(args)
-    await cache.fill()
-    if (cache.fetchedBlobBytes > 0) {
+    const held = args.resume?.take(args.threadId)
+    const heldBytes = held?.fetchedBytes ?? 0
+    const resumed = held?.resumable() ? held.detach() : undefined
+    const cache =
+      resumed !== undefined && (await resumed.resume()) ? resumed : new RecordCache(args)
+    if (cache !== resumed) await cache.fill()
+    args.resume?.keep(cache)
+    const fetched = cache.fetchedBytes - (cache === resumed ? heldBytes : 0)
+    if (fetched > 0) {
       args.log?.info({
         source: 'holder.record',
         message: 'resolved blob values into the record cache',
-        data: { blobs: cache.blobValues.size, bytes: cache.fetchedBlobBytes },
+        data: { blobs: cache.blobs.size(), bytes: fetched },
       })
     }
     return cache
   }
 
   private async fill(): Promise<void> {
-    const events: RecordEvent[] = []
     const head = await this.args.plane.head({ threadId: this.args.threadId })
-    let afterSeq = 0
-    for (;;) {
-      const page = await this.args.plane.readEvents({
-        threadId: this.args.threadId,
-        afterSeq,
-        limit: 1000,
-        visible: true,
-        hiddenTypes: HOLDER_STATE_TYPES,
-      })
-      events.push(...page.events)
-      await this.resolveBlobsOf(page.events)
-      if (page.next === undefined) break
-      afterSeq = page.next
-    }
+    const events = await this.readPages({
+      afterSeq: 0,
+      visible: true,
+      hiddenTypes: HOLDER_STATE_TYPES,
+    })
     this.rebuild(events)
     if (head.seq >= this.head.seq) this.head = head
+  }
+
+  private readPages(args: {
+    afterSeq: number
+    visible: boolean
+    hiddenTypes?: readonly RecordEventType[] | undefined
+  }): Promise<RecordEvent[]> {
+    return readPagesOf({
+      plane: this.args.plane,
+      threadId: this.args.threadId,
+      afterSeq: args.afterSeq,
+      visible: args.visible,
+      ...(args.hiddenTypes === undefined ? {} : { hiddenTypes: args.hiddenTypes }),
+      onPage: (events) => this.resolveBlobsOf(events),
+    })
+  }
+
+  private async resume(): Promise<boolean> {
+    if (!this.resumable() || !this.chainIntact()) return false
+    const head = await this.args.plane.head({ threadId: this.args.threadId })
+    if (head.seq < this.head.seq) return false
+    if (head.seq === this.head.seq) return head.hash === this.head.hash
+    const events = await this.readPages({ afterSeq: this.head.seq, visible: false })
+    const verified = verifySuffix({ trusted: this.head, events })
+    if (!verified.ok || verified.head.seq < head.seq) return false
+    if (!events.every((event) => this.resumableEvent(event))) return false
+    this.extend({ events, head: verified.head })
+    return true
+  }
+
+  private chainIntact(): boolean {
+    const last = this.events[this.events.length - 1]
+    if (last === undefined) return false
+    return last.seq === this.head.seq && chainHash(last) === this.head.hash
+  }
+
+  private resumableEvent(event: RecordEvent): boolean {
+    if (editsHistory(event)) return false
+    return isVisible(this.visibility, event) || HOLDER_STATE_TYPES.includes(event.type)
   }
 
   private rebuild(events: RecordEvent[]): void {
     this.events = events
     this.visibility = events.reduce(stepVisibility, EMPTY_VISIBILITY)
     this.revealed = false
+    this.diverged = false
+    this.retained = undefined
+    this.blobs.prune(events)
     this.book = new RecordBookkeeping()
-    this.loopSources = []
-    this.loopEvents = []
-    this.loopEventsHandedOut = false
+    this.loops.reset()
     this.visibleCache = undefined
-    this.state = initialLoopState()
     for (const event of events) {
-      this.book.step(this.resolvedEvent(event))
-      if (isVisible(this.visibility, event)) this.addLoopEvent(event)
+      const resolved = this.resolvedEvent(event)
+      this.book.step(resolved)
+      if (isVisible(this.visibility, event)) this.loops.add({ event, resolved })
     }
   }
 
@@ -123,7 +165,7 @@ export class RecordCache {
     const missing = new Set<string>()
     for (const event of events) {
       for (const ref of blobRefsOf(event)) {
-        if (!this.blobValues.has(ref.hash)) missing.add(ref.hash)
+        if (!this.blobs.has(ref.hash)) missing.add(ref.hash)
       }
     }
     const hashes = [...missing]
@@ -133,19 +175,39 @@ export class RecordCache {
       for (const [index, blob] of fetched.entries()) {
         const hash = slice[index] as string
         if (blob === undefined) throw new Error(`the record store lost blob ${hash}`)
-        this.blobValues.set(hash, blobValueOf(blob.bytes))
-        this.fetchedBlobBytes += blob.bytes.byteLength
+        this.blobs.retain({ hash, value: blobValueOf(blob.bytes), bytes: blob.bytes.byteLength })
+        this.fetchedBytes += blob.bytes.byteLength
       }
     }
+    this.retained = undefined
   }
 
   resolvedBlobBytes(): number {
-    return this.fetchedBlobBytes
+    return this.blobs.retainedBytes()
+  }
+
+  retainedBytes(): number {
+    this.retained ??= this.resolvedBlobBytes() + eventsBytes(this.events)
+    return this.retained
+  }
+
+  resumable(): boolean {
+    return !this.diverged
+  }
+
+  detach(): RecordCache {
+    const copy = new RecordCache(this.args)
+    copy.blobs = this.blobs.copy()
+    copy.fetchedBytes = this.fetchedBytes
+    copy.head = this.head
+    copy.rebuild([...this.events])
+    copy.diverged = this.diverged
+    return copy
   }
 
   resolvedEvent(event: RecordEvent): RecordEvent {
     if (blobRefsOf(event).length === 0) return event
-    return resolveBody({ body: event, values: this.blobValues })
+    return resolveBody({ body: event, values: this.blobs.valuesOf() })
   }
 
   currentHead(): LogHead {
@@ -166,8 +228,7 @@ export class RecordCache {
   }
 
   visibleLoopEvents(): Event[] {
-    this.loopEventsHandedOut = true
-    return this.loopEvents
+    return this.loops.handOut()
   }
 
   threadId(): ThreadId {
@@ -175,7 +236,7 @@ export class RecordCache {
   }
 
   loopState(): LoopState {
-    return this.state
+    return this.loops.state()
   }
 
   queuedSince(): string | null {
@@ -183,7 +244,7 @@ export class RecordCache {
   }
 
   loopEventsAfter(seq: number): Event[] {
-    return this.loopEvents.slice(firstIndexAfter({ items: this.loopEvents, seq }))
+    return this.loops.after(seq)
   }
 
   extend(args: {
@@ -191,44 +252,33 @@ export class RecordCache {
     head: LogHead
     resolved?: ReadonlyMap<string, unknown> | undefined
   }): void {
-    for (const [hash, value] of args.resolved ?? []) this.blobValues.set(hash, value)
-    for (const event of args.events) {
-      if (revealsHidden({ state: this.visibility, event })) this.revealed = true
+    for (const [hash, value] of args.resolved ?? []) this.blobs.retainLocal({ hash, value })
+    for (const event of this.afterCached(args.events)) {
+      if (revealsHidden({ state: this.visibility, event })) {
+        this.revealed = true
+        this.diverged = true
+      }
       this.visibility = stepVisibility(this.visibility, event)
       this.events.push(event)
-      this.book.step(this.resolvedEvent(event))
-      if (editsHistory(event)) this.dropHiddenLoopEvents()
-      if (isVisible(this.visibility, event)) this.addLoopEvent(event)
+      const resolved = this.resolvedEvent(event)
+      this.book.step(resolved)
+      if (editsHistory(event)) {
+        this.loops.dropHidden(this.visibility)
+        this.diverged = true
+      }
+      if (isVisible(this.visibility, event)) this.loops.add({ event, resolved })
     }
-    this.head = args.head
+    if (args.head.seq >= this.head.seq) this.head = args.head
     this.visibleCache = undefined
+    this.retained = undefined
   }
 
-  private addLoopEvent(event: RecordEvent): void {
-    const loop = toLoopEvent({ event: this.resolvedEvent(event) })
-    if (loop === undefined) return
-    if (this.loopEventsHandedOut) {
-      this.loopEvents = this.loopEvents.slice()
-      this.loopEventsHandedOut = false
-    }
-    this.loopSources.push(event)
-    this.loopEvents.push(loop)
-    this.state = stepLoopState(this.state, loop)
-  }
-
-  private dropHiddenLoopEvents(): void {
-    const sources: RecordEvent[] = []
-    const loops: Event[] = []
-    for (const [index, source] of this.loopSources.entries()) {
-      const loop = this.loopEvents[index]
-      if (loop === undefined || !isVisible(this.visibility, source)) continue
-      sources.push(source)
-      loops.push(loop)
-    }
-    this.loopSources = sources
-    this.loopEvents = loops
-    this.loopEventsHandedOut = false
-    this.state = loopStateOf({ events: loops })
+  private afterCached(events: readonly RecordEvent[]): readonly RecordEvent[] {
+    const last = this.events[this.events.length - 1]
+    const lastSeq = last?.seq ?? 0
+    const first = events[0]
+    if (first === undefined || first.seq > lastSeq) return events
+    return events.filter((event) => event.seq > lastSeq)
   }
 
   replaceHead(head: LogHead): void {

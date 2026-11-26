@@ -3,7 +3,9 @@ import { ControlPlane } from '@dltech/atlas-control'
 import { InMemoryControlStore } from '@dltech/atlas-control/testing'
 import {
   ECompactionAnchor,
+  blobValueOf,
   chainEvents,
+  spillBody,
   toCallId,
   toRunId,
   toThreadId,
@@ -39,6 +41,7 @@ const appendTo = async (args: {
   plane: ControlPlane
   epoch: number
   bodies: readonly RecordEventBody[]
+  blobs?: readonly { hash: string; bytes: Uint8Array }[] | undefined
 }): Promise<{ head: LogHead; events: ReturnType<typeof chainEvents> }> => {
   const from = await args.plane.head({ threadId: THREAD })
   const events = chainEvents({
@@ -49,7 +52,12 @@ const appendTo = async (args: {
     bodies: args.bodies,
     from,
   })
-  const outcome = await args.plane.append({ threadId: THREAD, epoch: args.epoch, events })
+  const outcome = await args.plane.append({
+    threadId: THREAD,
+    epoch: args.epoch,
+    events,
+    blobs: args.blobs ?? [],
+  })
   if (!outcome.ok) throw new Error(`append refused: ${JSON.stringify(outcome.refusal)}`)
   return { head: outcome.head, events }
 }
@@ -131,6 +139,43 @@ describe('RecordCache', () => {
       expect.stringContaining('two'),
     ])
     expect(cache.currentHead()).toEqual(rewound.head)
+  })
+
+  it('drops the blobs a refill leaves behind', async () => {
+    const { plane, epoch } = await openThread()
+    await appendTo({
+      plane,
+      epoch,
+      bodies: [said('first'), answered('one'), said('second'), answered('two'), summaryOver(4)],
+    })
+    const cache = await RecordCache.load({ plane, threadId: THREAD })
+    const spilled = spillBody({
+      body: {
+        type: 'tool-result',
+        callId: toCallId('call-1'),
+        name: 'bash',
+        output: { text: 'x'.repeat(1002) },
+      },
+      thresholdBytes: 64,
+    })
+    const shown = await appendTo({ plane, epoch, bodies: [spilled.body], blobs: spilled.blobs })
+    const resolved = new Map(spilled.blobs.map((blob) => [blob.hash, blobValueOf(blob.bytes)]))
+    cache.extend({ events: shown.events, head: shown.head, resolved })
+    expect(cache.resolvedBlobBytes()).toBe(1013)
+
+    const rewound = await appendTo({
+      plane,
+      epoch,
+      bodies: [{ type: 'history-rewound', toSeq: 4 }],
+    })
+    cache.extend({ events: rewound.events, head: rewound.head })
+    await cache.refillIfRevealed()
+
+    const fresh = await RecordCache.load({ plane, threadId: THREAD })
+    expect(fresh.resolvedBlobBytes()).toBe(0)
+    expect(cache.resolvedBlobBytes()).toBe(0)
+    expect(cache.retainedBytes()).toBe(fresh.retainedBytes())
+    expect(cache.eventsAfter(0)).toEqual(fresh.eventsAfter(0))
   })
 
   it('loads only the uncovered tail and the bookkeeping of a summarised 20k-event thread', async () => {
