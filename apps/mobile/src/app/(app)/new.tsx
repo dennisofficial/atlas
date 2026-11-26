@@ -128,6 +128,13 @@ export default function NewSessionScreen() {
           draftSessionId={null}
           attachments={attachments}
           onSend={handleSend}
+          trailing={
+            <ProjectSelect
+              projects={projects}
+              projectId={projectId}
+              onProjectChange={setProjectId}
+            />
+          }
         >
           <View style={styles.footer}>
             {modelsReady && settings.ready ? (
@@ -147,12 +154,6 @@ export default function NewSessionScreen() {
             {selection?.model.fast === true ? (
               <FastToggle selection={selection} onToggle={handleFastToggle} />
             ) : null}
-            <View style={styles.spacer} />
-            <ProjectSelect
-              projects={projects}
-              projectId={projectId}
-              onProjectChange={setProjectId}
-            />
           </View>
         </Composer>
       </View>
@@ -179,8 +180,5 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     gap: space(1.5),
     minWidth: 0,
-  },
-  spacer: {
-    flex: 1,
   },
 })

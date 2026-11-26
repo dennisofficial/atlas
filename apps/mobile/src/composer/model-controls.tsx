@@ -1,9 +1,10 @@
 import { ETextRole, Icon, Text, useTheme, withAlpha } from '@dltech/atlas-ui-native'
 import { radius, space } from '@dltech/atlas-ui/tokens'
-import { Check, ChevronDown, Zap } from 'lucide-react-native'
+import { Check, Zap } from 'lucide-react-native'
 import { useState } from 'react'
 import { Modal, Pressable, ScrollView, StyleSheet, View } from 'react-native'
 
+import { EffortGauge } from './effort-gauge'
 import { effortChoicesOf, effortLabelOf, type IModelSelection } from './model-options'
 
 export const EffortSelect = ({
@@ -29,12 +30,9 @@ export const EffortSelect = ({
         accessibilityLabel={`Effort: ${effortLabelOf(selection.effort)}`}
         accessibilityState={{ expanded: open }}
         onPress={() => setOpen(true)}
-        style={({ pressed }) => [styles.pill, pressed ? { backgroundColor: theme.muted } : null]}
+        style={({ pressed }) => [styles.trigger, pressed ? { backgroundColor: theme.muted } : null]}
       >
-        <Text size={ETextRole.Sm} numberOfLines={1}>
-          {effortLabelOf(selection.effort)}
-        </Text>
-        <Icon icon={ChevronDown} color={theme.mutedForeground} size={16} />
+        <EffortGauge efforts={efforts} effort={selection.effort} color={theme.mutedForeground} />
       </Pressable>
       <Modal transparent animationType="fade" visible={open} onRequestClose={() => setOpen(false)}>
         <View
@@ -101,42 +99,26 @@ export const FastToggle = ({
       accessibilityLabel="Fast"
       accessibilityState={{ checked: selection.fast }}
       onPress={() => onToggle(!selection.fast)}
-      style={({ pressed }) => [
-        styles.iconPill,
-        {
-          backgroundColor: selection.fast ? theme.muted : 'transparent',
-          borderColor: selection.fast
-            ? theme.muted
-            : withAlpha({ color: theme.foreground, alpha: 0.12 }),
-        },
-        pressed ? { backgroundColor: theme.accent } : null,
-      ]}
+      style={({ pressed }) => [styles.trigger, pressed ? { backgroundColor: theme.muted } : null]}
     >
-      <Icon
-        icon={Zap}
-        color={selection.fast ? theme.foreground : theme.mutedForeground}
+      <Zap
         size={14}
+        strokeWidth={2}
+        color={selection.fast ? theme.foreground : theme.mutedForeground}
+        fill={selection.fast ? theme.foreground : 'none'}
       />
     </Pressable>
   )
 }
 
 const styles = StyleSheet.create({
-  pill: {
+  trigger: {
     alignItems: 'center',
     borderRadius: radius(0.8),
     flexDirection: 'row',
-    gap: space(1),
-    height: 28,
-    paddingHorizontal: space(2),
-  },
-  iconPill: {
-    alignItems: 'center',
-    borderRadius: radius(0.8),
-    borderWidth: 1,
     height: 28,
     justifyContent: 'center',
-    width: 28,
+    paddingHorizontal: space(2),
   },
   overlay: {
     alignItems: 'center',

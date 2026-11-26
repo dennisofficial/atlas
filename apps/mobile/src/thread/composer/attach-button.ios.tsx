@@ -10,7 +10,7 @@ import { StyleSheet } from 'react-native'
 
 import { ATTACH_SOURCES, type AttachButtonProps, EAttachSource } from './attach-sources'
 
-const SIZE = 36
+const SIZE = 32
 
 const SYMBOL: Record<EAttachSource, ButtonProps['systemImage']> = {
   [EAttachSource.Camera]: 'camera',
@@ -27,7 +27,7 @@ export const AttachButton = ({ onPick }: AttachButtonProps) => {
         label={<Image systemName="plus" size={16} color={theme.foreground} />}
         modifiers={[
           accessibilityLabel('Attach a file'),
-          buttonStyle('bordered'),
+          buttonStyle('glass'),
           buttonBorderShape('circle'),
           menuIndicator('hidden'),
         ]}

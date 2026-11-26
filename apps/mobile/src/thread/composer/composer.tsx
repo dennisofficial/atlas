@@ -42,6 +42,7 @@ export const Composer = ({
   entries = [],
   clientActions,
   joined = false,
+  trailing,
   children,
 }: {
   working: boolean
@@ -57,6 +58,7 @@ export const Composer = ({
   entries?: readonly CommandEntry[]
   clientActions?: Record<EClientAction, () => void> | undefined
   joined?: boolean
+  trailing?: ReactNode
   children?: ReactNode
 }) => {
   const [draft, setDraft] = useState('')
@@ -158,6 +160,7 @@ export const Composer = ({
       canSend={canSend}
       onStop={showsStop ? onStop : undefined}
       onSend={() => void handleSend()}
+      trailing={trailing}
     >
       {children}
     </ComposerControls>

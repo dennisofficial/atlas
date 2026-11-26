@@ -236,6 +236,7 @@ export default function SessionScreen() {
                   refusal={session.notice}
                   entries={session.commands.entries}
                   clientActions={session.commands.clientActions}
+                  trailing={<ContextReading context={session.context} />}
                 >
                   <ModelTrigger
                     models={model.models}
@@ -252,7 +253,6 @@ export default function SessionScreen() {
                       ) : null}
                     </>
                   )}
-                  <ContextReading context={session.context} />
                 </Composer>
               </View>
               <CommandListSheet

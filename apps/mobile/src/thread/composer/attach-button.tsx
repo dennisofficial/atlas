@@ -7,7 +7,7 @@ export const AttachButton = ({ open, onToggle }: AttachButtonProps) => (
   <Button
     label={open ? 'Close the attachment menu' : 'Attach a file'}
     icon={Plus}
-    size={EButtonSize.Icon}
+    size={EButtonSize.IconSm}
     variant={EButtonVariant.Outline}
     round
     onPress={onToggle}
