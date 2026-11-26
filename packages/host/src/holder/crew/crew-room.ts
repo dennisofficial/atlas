@@ -1,5 +1,6 @@
 import {
   EAgentLostCause,
+  EAgentStatus,
   EKilledBy,
   EResumeOutcome,
   heldDraftOf,
@@ -21,7 +22,7 @@ import { ChildRun, type ChildRunArgs } from './child-run'
 import type { CrewSender } from './child-message'
 import { CHILD_READ_CONCURRENCY } from './child-reads'
 import { endingKeyOf, postNotice, threadLastSeq } from './child-reports'
-import { settledChildOf, type OpenChild } from './open-children'
+import { openChildrenOf, settledChildOf, type OpenChild } from './open-children'
 import { pooledMap } from './pooled-map'
 
 export type CrewRoomArgs = Omit<
@@ -32,6 +33,19 @@ export type CrewRoomArgs = Omit<
 class UnknownChild extends Error {}
 
 const spawnBriefKeyOf = (agentId: ThreadId): string => `spawn-brief:${agentId}`
+
+const lostSnapshotOf = (child: OpenChild): SubagentSnapshot => ({
+  agentId: child.agentId,
+  agentType: child.agentType,
+  intent: child.intent,
+  status: EAgentStatus.Failed,
+  turns: 0,
+  toolCalls: 0,
+  startedAt: child.spawnedAt,
+  prose:
+    'this sub-agent was started before the host changed and its log could not be read, so it never ran',
+  ...(child.worktree === undefined ? {} : { worktree: child.worktree }),
+})
 
 export class CrewRoom {
   private readonly runs = new Map<ThreadId, ChildRun>()
@@ -52,6 +66,14 @@ export class CrewRoom {
     if (known !== undefined) {
       await known.say({ text: args.prompt, clientId: spawnBriefKeyOf(known.agentId) })
       return known.snapshot()
+    }
+    const logged = agentId === undefined ? undefined : await this.loggedChildOf(agentId)
+    if (logged !== undefined) {
+      await this.adopt(logged)
+      const adopted = this.runs.get(logged.agentId)
+      if (adopted === undefined) return lostSnapshotOf(logged)
+      await adopted.say({ text: args.prompt, clientId: spawnBriefKeyOf(adopted.agentId) })
+      return adopted.snapshot()
     }
     const run = await ChildRun.open({
       ...this.childArgs(),
@@ -228,6 +250,11 @@ export class CrewRoom {
 
   private childArgs(): Omit<ChildRunArgs, 'agentType' | 'intent'> {
     return { ...this.args, saySibling: (said) => this.say(said) }
+  }
+
+  private async loggedChildOf(agentId: ThreadId): Promise<OpenChild | undefined> {
+    const events = await this.args.parentRecord.ownEvents({ threadId: this.args.parentThreadId })
+    return openChildrenOf(events).find((child) => child.agentId === agentId)
   }
 
   private async runOrUndefined(agentId: string): Promise<ChildRun | undefined> {
