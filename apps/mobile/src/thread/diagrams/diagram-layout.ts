@@ -126,8 +126,7 @@ export const fitTransform = ({
   return { scale: fitScale({ viewport, content, inset }), x: 0, y: -inset / 2 }
 }
 
-export const hasMermaidFence = (text: string): boolean =>
-  /(^|\n)\s*(?:`{3,}|~{3,})\s*mermaid\b/i.test(text)
+export const hasCodeFence = (text: string): boolean => /(^|\n)\s*(?:`{3,}|~{3,})/.test(text)
 
 export const minScaleFor = (scale: number): number =>
   Math.max(Math.min(scale, DIAGRAM_MIN_SCALE), DIAGRAM_SCALE_FLOOR)

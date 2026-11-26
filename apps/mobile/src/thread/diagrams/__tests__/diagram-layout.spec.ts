@@ -16,7 +16,7 @@ import {
   fitDiagramHeight,
   fitScale,
   fitTransform,
-  hasMermaidFence,
+  hasCodeFence,
   initialDiagramCardState,
   minScaleFor,
   diagramCardReducer,
@@ -143,13 +143,18 @@ describe('fitTransform', () => {
   })
 })
 
-describe('hasMermaidFence', () => {
-  test('finds a mermaid fence anywhere in the message', () => {
-    expect(hasMermaidFence('look:\n```mermaid\ngraph TD\nA-->B\n```')).toBe(true)
-    expect(hasMermaidFence('~~~Mermaid\ngraph TD\n~~~')).toBe(true)
-    expect(hasMermaidFence('hello world')).toBe(false)
-    expect(hasMermaidFence('```mermaidx\nA-->B\n```')).toBe(false)
-    expect(hasMermaidFence('```ts\nconst a = 1\n```')).toBe(false)
+describe('hasCodeFence', () => {
+  test('finds a code fence anywhere in the message', () => {
+    expect(hasCodeFence('look:\n```mermaid\ngraph TD\nA-->B\n```')).toBe(true)
+    expect(hasCodeFence('~~~Mermaid\ngraph TD\n~~~')).toBe(true)
+    expect(hasCodeFence('```ts\nconst a = 1\n```')).toBe(true)
+    expect(hasCodeFence('```\nbunx eas-cli@latest integrations:posthog:connect\n```')).toBe(true)
+  })
+
+  test('ignores text without a fence', () => {
+    expect(hasCodeFence('hello world')).toBe(false)
+    expect(hasCodeFence('run `bun test` first')).toBe(false)
+    expect(hasCodeFence('~~struck~~ and ``two``')).toBe(false)
   })
 })
 
