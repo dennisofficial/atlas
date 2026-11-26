@@ -3,6 +3,7 @@ import { describe, expect, it } from 'bun:test'
 import {
   BOTTOM_BAR_CLEARANCE,
   contentInsetsOf,
+  modalInsetsOf,
   EControlsPlacement,
   ESessionsListLayout,
   postureOf,
@@ -89,5 +90,26 @@ describe('contentInsetsOf', () => {
     const window = insets({ top: 54, left: 59, right: 59, bottom: 20 })
     const posture = postureOf({ width: 932, height: 430, insets: window })
     expect(contentInsetsOf({ insets: window, posture })).toEqual(window)
+  })
+})
+
+describe('modalInsetsOf', () => {
+  it('keeps the rail column clear when the screen sees the frame insets', () => {
+    const window = insets({ top: 78, right: 80, bottom: 34 })
+    const posture = postureOf({ width: 626, height: 890, insets: window })
+    const frame = contentInsetsOf({ insets: window, posture })
+    expect(modalInsetsOf({ insets: frame, posture })).toEqual(window)
+  })
+
+  it('keeps the window insets when the screen sees them directly', () => {
+    const window = insets({ top: 78, right: 80, bottom: 34 })
+    const posture = postureOf({ width: 626, height: 890, insets: window })
+    expect(modalInsetsOf({ insets: window, posture })).toEqual(window)
+  })
+
+  it('keeps every inset when there is no rail', () => {
+    const window = insets({ top: 62, bottom: 34 })
+    const posture = postureOf({ width: 466, height: 678, insets: window })
+    expect(modalInsetsOf({ insets: window, posture })).toEqual(window)
   })
 })

@@ -32,6 +32,14 @@ export const contentInsetsOf = ({
   posture: TPosture
 }): TInsets => ({ ...insets, right: insets.right - posture.railWidth })
 
+export const modalInsetsOf = ({
+  insets,
+  posture,
+}: {
+  insets: TInsets
+  posture: TPosture
+}): TInsets => ({ ...insets, right: Math.max(insets.right, posture.railWidth) })
+
 const controlsOf = (insets: TInsets): EControlsPlacement =>
   insets.right >= RAIL_MIN_INSET && insets.right > insets.left
     ? EControlsPlacement.Rail
