@@ -14,7 +14,7 @@ import {
 import { usePosture } from '../layout/use-posture'
 import { AccountButton } from '../navigation/account-button'
 import { usesGlassHeader } from '../navigation/glass-header'
-import { TabHeaderTitle } from '../navigation/header-options'
+import { LEAD_GAP, TabHeaderTitle } from '../navigation/header-options'
 import {
   drawerBarItemsOf,
   drawerSearchBarPropsOf,
@@ -88,16 +88,16 @@ const DrawerScreen = ({ activeId, onOpen }: TDrawerScreenProps) => {
       headerConfig={{
         children: (
           <>
-            {showsAccount ? (
-              <ScreenStackHeaderLeftView>
-                <AccountButton />
-              </ScreenStackHeaderLeftView>
-            ) : null}
             {glass ? (
               <ScreenStackHeaderLeftView hidesSharedBackground={false}>
-                <View style={styles.glassTitle}>
+                <View style={[styles.glassTitle, showsAccount ? styles.glassTitleWithLead : null]}>
+                  {showsAccount ? <AccountButton /> : null}
                   <TabHeaderTitle title={SESSIONS_TITLE} />
                 </View>
+              </ScreenStackHeaderLeftView>
+            ) : showsAccount ? (
+              <ScreenStackHeaderLeftView>
+                <AccountButton />
               </ScreenStackHeaderLeftView>
             ) : null}
             {nativeSearch ? (
@@ -137,7 +137,13 @@ const DrawerScreen = ({ activeId, onOpen }: TDrawerScreenProps) => {
 
 const styles = StyleSheet.create({
   glassTitle: {
+    alignItems: 'center',
+    flexDirection: 'row',
+    gap: LEAD_GAP,
     paddingHorizontal: 12,
+  },
+  glassTitleWithLead: {
+    paddingLeft: 4,
   },
   stack: {
     flex: 1,

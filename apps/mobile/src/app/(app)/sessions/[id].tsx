@@ -91,11 +91,6 @@ export default function SessionScreen() {
   const showsSessions = sessionHeaderLeadingOf({ posture, drawerOpen }).includes(
     EHeaderLeadingItem.Sessions,
   )
-  const sessionsHeaderItem = {
-    type: 'custom' as const,
-    element: <SessionsButton onPress={handleOpenSessions} />,
-    hidesSharedBackground: false,
-  }
 
   const placeholder = session.loaded ? undefined : session.failedToLoad ? (
     <View style={styles.center}>
@@ -113,10 +108,10 @@ export default function SessionScreen() {
         options={{
           title: session.header.title,
           ...leadingHeaderOptionsOf({
-            leading: showsSessions ? [sessionsHeaderItem] : [],
+            lead: showsSessions ? <SessionsButton onPress={handleOpenSessions} /> : undefined,
             title: <SessionTitle header={session.header} />,
             glassTitle: true,
-            titleButtons: showsSessions ? 2 : 1,
+            titleButtons: 0,
             windowWidth,
             posture,
           }),
