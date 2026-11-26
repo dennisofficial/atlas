@@ -1,6 +1,6 @@
 import { randomUUID } from 'node:crypto'
 
-import { EPodReachStep, podReachStepOf } from '@dltech/atlas-core'
+import { EPodReachStep, podReachStepOf, type Lease } from '@dltech/atlas-core'
 import type { ControlPlane } from '@dltech/atlas-control'
 import {
   ELiveOpFailure,
@@ -17,6 +17,7 @@ import type { HolderDemand } from '../holder-demand'
 import type { PodCalls, PodCallOutcome } from '../pod-calls'
 import type { PodCallBus } from '../pod-call-port'
 import type { HostTimers } from '../ports'
+import { podParkedOf } from '../pod-park'
 import { followRemotePod } from './pod-follow'
 import { armPodReady, awaitPodReady } from './pod-ready-wait'
 import { EPodReach, type PodFollowClose, type PodReach } from './pod-reach'
@@ -52,14 +53,7 @@ export class PodRouter {
 
   async reach(args: { sessionId: string; signal?: AbortSignal | undefined }): Promise<PodReach> {
     const current = await this.args.plane.currentLease({ sessionId: args.sessionId })
-    const step = podReachStepOf({
-      runtimeOpen: this.args.runtimeOpen(args.sessionId),
-      holdsLocally: this.args.holds(args.sessionId),
-      selfHostId: this.args.hostId(),
-      holderHostId: current.lease.holderHostId,
-      holderLive: current.live,
-      wantsHolder: current.lease.wantsHolder,
-    })
+    const step = await this.stepOf({ sessionId: args.sessionId, current })
     switch (step) {
       case EPodReachStep.Local:
         return { kind: EPodReach.Local }
@@ -72,6 +66,8 @@ export class PodRouter {
       case EPodReachStep.Wake:
       case EPodReachStep.Revoke:
         return this.requestThenAwait(args)
+      case EPodReachStep.Parked:
+        return { kind: EPodReach.Unreachable }
     }
   }
 
@@ -173,19 +169,13 @@ export class PodRouter {
     requested: boolean
   }): Promise<PodReach | undefined> {
     const current = await this.args.plane.currentLease({ sessionId: args.sessionId })
-    const step = podReachStepOf({
-      runtimeOpen: this.args.runtimeOpen(args.sessionId),
-      holdsLocally: this.args.holds(args.sessionId),
-      selfHostId: this.args.hostId(),
-      holderHostId: current.lease.holderHostId,
-      holderLive: current.live,
-      wantsHolder: current.lease.wantsHolder,
-    })
+    const step = await this.stepOf({ sessionId: args.sessionId, current })
     if (step === EPodReachStep.Local) return { kind: EPodReach.Local }
     if (step === EPodReachStep.Forward && current.lease.holderHostId !== null) {
       return { kind: EPodReach.Remote, hostId: current.lease.holderHostId }
     }
     if (step === EPodReachStep.AwaitLocal) return undefined
+    if (step === EPodReachStep.Parked) return { kind: EPodReach.Unreachable }
     if (args.requested) return undefined
     const requested = await this.args.demand.requestHolder(args.sessionId).catch(() => false)
     return requested ? undefined : { kind: EPodReach.Unreachable }
@@ -248,6 +238,21 @@ export class PodRouter {
 
   private callTimeoutMs(): number {
     return this.args.callTimeoutMs ?? LIVE_OP_TIMEOUT_MS
+  }
+
+  private async stepOf(args: {
+    sessionId: string
+    current: { lease: Lease; live: boolean }
+  }): Promise<EPodReachStep> {
+    return podReachStepOf({
+      runtimeOpen: this.args.runtimeOpen(args.sessionId),
+      holdsLocally: this.args.holds(args.sessionId),
+      selfHostId: this.args.hostId(),
+      holderHostId: args.current.lease.holderHostId,
+      holderLive: args.current.live,
+      wantsHolder: args.current.lease.wantsHolder,
+      parked: await podParkedOf({ plane: this.args.plane, sessionId: args.sessionId }),
+    })
   }
 }
 

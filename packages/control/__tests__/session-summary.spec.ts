@@ -38,6 +38,8 @@ const digest = (patch: Partial<ControlSessionDigest> = {}): ControlSessionDigest
   podAppliedGeneration: null,
   podResizeError: null,
   podWaitingSince: null,
+  podParkedAt: null,
+  podParkError: null,
   routineId: null,
   lastEventAt: null,
   lastAssistantSeq: 0,

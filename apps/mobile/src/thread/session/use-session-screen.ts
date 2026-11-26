@@ -7,7 +7,11 @@ import {
   sessionStateLineOf,
   startFailureOf,
 } from '@dltech/atlas-client/stream'
-import { quickStopRestoresToApply } from '@dltech/atlas-client/session'
+import {
+  quickStopRestoresToApply,
+  sessionBootViewOf,
+  type BootView,
+} from '@dltech/atlas-client/session'
 import { turnStartedAtOf } from '@dltech/atlas-client/transcript'
 import type { Attachment } from '@dltech/atlas-core'
 import { randomUUID } from 'expo-crypto'
@@ -36,6 +40,7 @@ const TICK_MS = 1_000
 
 export type SessionScreen = ThreadView & {
   now: number
+  boot: BootView | null
   stateLine: string | null
   canReconnect: boolean
   header: SessionHeader
@@ -92,6 +97,16 @@ export function useSessionScreen(args: {
   const [now, setNow] = useState(() => Date.now())
   const view = useThreadView({ snapshot, now })
   const blocking = useMemo(() => blockingCommandOf(snapshot.status), [snapshot.status])
+  const boot = useMemo(
+    () =>
+      sessionBootViewOf({
+        events: snapshot.foldable,
+        status: snapshot.status,
+        setupOutput: snapshot.setupOutput,
+        catchingUp: snapshot.connection === ESessionConnection.CatchingUp,
+      }),
+    [snapshot.foldable, snapshot.status, snapshot.setupOutput, snapshot.connection],
+  )
   const [staged, setStaged] = useState<readonly StagedSend[]>([])
   const agentLinks = useMemo(() => agentLinksOf({ events: snapshot.events }), [snapshot.events])
   const [restored, setRestored] = useState<
@@ -256,6 +271,7 @@ export function useSessionScreen(args: {
   return {
     ...view,
     now,
+    boot,
     stateLine: sessionStateLineOf(snapshot),
     canReconnect: canReconnectOf(snapshot),
     header,

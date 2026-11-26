@@ -4,6 +4,7 @@ export enum EPodReachStep {
   Forward = 'forward',
   Wake = 'wake',
   Revoke = 'revoke',
+  Parked = 'parked',
 }
 
 export type PodReachFacts = {
@@ -13,6 +14,7 @@ export type PodReachFacts = {
   holderHostId: number | null
   holderLive: boolean
   wantsHolder: boolean
+  parked: boolean
 }
 
 export const podReachStepOf = (facts: PodReachFacts): EPodReachStep => {
@@ -23,5 +25,6 @@ export const podReachStepOf = (facts: PodReachFacts): EPodReachStep => {
       ? EPodReachStep.AwaitLocal
       : EPodReachStep.Forward
   }
+  if (facts.parked) return EPodReachStep.Parked
   return facts.wantsHolder ? EPodReachStep.Wake : EPodReachStep.Revoke
 }

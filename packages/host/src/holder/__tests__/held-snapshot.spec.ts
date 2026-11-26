@@ -1,89 +1,21 @@
 import { describe, expect, it } from 'bun:test'
 
 import {
-  chainEvents,
   EHeldAction,
   EInputConsumed,
   ESetupPhase,
   EShellStatus,
-  visibleLoopEvents,
-  toRunId,
-  toThreadId,
   type InboxEntry,
-  type RecordEventBody,
   type RecordEvent,
+  type RecordEventBody,
 } from '@dltech/atlas-core'
-import type { ControlPlane } from '@dltech/atlas-control'
 
-import { readHeldAction } from '../held-snapshot'
-import type { HeldSessionDeps } from '../held-session-deps'
-import type { SessionRecord } from '../record/record-adapter'
-
-const THREAD = toThreadId('thr_1')
-const RUN = toRunId('run_1')
-const PREPARED = { prepared: true, failure: undefined }
-
-const eventsOf = (bodies: readonly RecordEventBody[]): RecordEvent[] =>
-  chainEvents({
-    threadId: THREAD,
-    runId: RUN,
-    epoch: 1,
-    at: '2026-11-12T03:00:00.000Z',
-    bodies,
-  })
-
-const depsOf = (entries: readonly InboxEntry[] = []): HeldSessionDeps =>
-  ({
-    sessionId: 'session-1',
-    plane: {
-      readInbox: async () => [...entries],
-      endTerminals: async () => 0,
-    } as unknown as ControlPlane,
-    timers: { now: () => 0 },
-  }) as unknown as HeldSessionDeps
-
-const recordOf = (events: readonly RecordEvent[]): SessionRecord =>
-  ({
-    eventCache: () => ({
-      bookkeeping: () => ({ workspace: () => PREPARED }),
-      eventsAfter: (seq: number) => events.filter((event) => event.seq > seq),
-      loopEventsAfter: (seq: number) =>
-        visibleLoopEvents(events.filter((event) => event.seq > seq)),
-    }),
-  }) as unknown as SessionRecord
-
-const snapshotOf = async (args: {
-  events: readonly RecordEvent[]
-  resumeAfterSeq?: number
-  inbox?: readonly InboxEntry[] | undefined
-}) => {
-  return await readHeldAction({
-    deps: depsOf(args.inbox ?? []),
-    threadId: THREAD,
-    draining: false,
-    turnRunning: false,
-    resumeAfterSeq: args.resumeAfterSeq ?? 0,
-    runtime: undefined,
-    record: recordOf(args.events),
-    preparing: false,
-    setupRunning: false,
-    childrenRunning: 0,
-    shellsOwedSince: undefined,
-  })
-}
+import { eventsOf, posted, snapshotOf } from './held-snapshot-fixture'
 
 const actionOf = async (args: {
   events: readonly RecordEvent[]
   resumeAfterSeq?: number
 }): Promise<EHeldAction> => (await snapshotOf(args)).action
-
-const posted = (): RecordEventBody => ({
-  type: 'input-posted',
-  inboxId: 4,
-  kind: 'message',
-  postedAt: '2026-11-12T03:00:00.000Z',
-  text: 'm4',
-})
 
 describe('readHeldAction over the pending log', () => {
   it('starts a turn for a message posted in the log with no staging row', async () => {

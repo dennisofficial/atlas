@@ -7824,6 +7824,23 @@
                   "kind": "scalar"
                 }
               },
+              "podParkError": {
+                "nullable": true,
+                "type": {
+                  "codecId": "pg/text@1",
+                  "kind": "scalar"
+                }
+              },
+              "podParkedAt": {
+                "nullable": true,
+                "type": {
+                  "codecId": "pg/timestamptz-date@1",
+                  "kind": "scalar",
+                  "typeParams": {
+                    "precision": 3
+                  }
+                }
+              },
               "podResizeError": {
                 "nullable": true,
                 "type": {
@@ -8192,6 +8209,12 @@
                 },
                 "podDesiredVcpus": {
                   "column": "podDesiredVcpus"
+                },
+                "podParkError": {
+                  "column": "podParkError"
+                },
+                "podParkedAt": {
+                  "column": "podParkedAt"
                 },
                 "podResizeError": {
                   "column": "podResizeError"
@@ -17087,6 +17110,19 @@
                   "dataType": "pg/int4",
                   "nullable": true
                 },
+                "podParkError": {
+                  "codecId": "pg/text@1",
+                  "dataType": "pg/text",
+                  "nullable": true
+                },
+                "podParkedAt": {
+                  "codecId": "pg/timestamptz-date@1",
+                  "dataType": "pg/timestamptz",
+                  "nullable": true,
+                  "typeParams": {
+                    "precision": 3
+                  }
+                },
                 "podResizeError": {
                   "codecId": "pg/text@1",
                   "dataType": "pg/text",
@@ -18856,7 +18892,7 @@
         "kind": "postgres-schema"
       }
     },
-    "storageHash": "9b651ec902f5afc2c660ca3b7d91e16bba0d3104f5dd1849aa2be71aa03cb91e"
+    "storageHash": "682b49388e4e1247af1b52d9cc6a6d082ff410b7332e8da6a8a03c52fb702ee4"
   },
   "execution": {
     "executionHash": "0e6f989bb6c7c489039e329d87ab4c7469f87c12c726c4dcf40ed6296bf343c1",

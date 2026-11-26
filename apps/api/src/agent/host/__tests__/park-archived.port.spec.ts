@@ -65,7 +65,7 @@ describe('parkArchived dispatch port', () => {
       {
         taskId: POD_SLEEP_TASK_ID,
         payload: { sessionId: 'p1', epoch: 9 },
-        idempotencyKey: 'pod-sleep:p1:9',
+        idempotencyKey: 'pod-sleep:p1:archived-9',
       },
     ])
     expect(podSleepPayloadSchema.parse(dispatcher.dispatches[0]?.payload)).toEqual({

@@ -11,7 +11,7 @@ import {
   toThreadId,
   type RecordEventBody,
 } from '@dltech/atlas-core'
-import type { SessionSnapshot } from '@dltech/atlas-client/stream'
+import type { SessionSnapshot } from '../../stream'
 import { EBootStepState } from '@dltech/atlas-wire/web'
 
 import { sessionBootViewOf } from '../session-boot-view'

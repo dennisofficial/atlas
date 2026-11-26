@@ -74,14 +74,16 @@ const failedAttempt = (failure: 'sandbox' | 'setup'): RecordEventBody[] => [
   prepareFailed(1),
 ]
 
-const statusOfEvents = (events: readonly RecordEvent[]) =>
-  sessionStatusOf({
+const statusOfEvents = (events: readonly RecordEvent[]) => ({
+  ...sessionStatusOf({
     events,
     live: true,
     queuedSince: null,
     messageAfterFailure: false,
     now: at(50),
-  })
+  }),
+  lease: { epoch: 1, holderHostId: 1, live: true },
+})
 
 const viewOf = (events: readonly RecordEvent[]) =>
   sessionBootViewOf({ events, status: statusOfEvents(events) })

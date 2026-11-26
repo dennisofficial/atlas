@@ -71,6 +71,7 @@ const decidedOf = (events: readonly RecordEvent[]): EHeldAction =>
     workspace: EWorkspaceState.Prepared,
     preparedBefore: true,
     retryPending: false,
+    parked: false,
   })
 
 describe('the resume marker as the prompt', () => {

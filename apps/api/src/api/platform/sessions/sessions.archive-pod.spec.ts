@@ -66,7 +66,7 @@ describe('SessionsService.archive parks the pod', () => {
     expect(dispatcher.dispatches).toEqual([
       {
         payload: { sessionId: created.sessionId, epoch: lease.epoch },
-        idempotencyKey: `pod-sleep:${created.sessionId}:${lease.epoch}`,
+        idempotencyKey: `pod-sleep:${created.sessionId}:archived-${lease.epoch}`,
       },
     ])
   })
@@ -94,7 +94,7 @@ describe('SessionsService.archive parks the pod', () => {
     expect(dispatcher.dispatches).toEqual([
       {
         payload: { sessionId: created.sessionId, epoch: current.lease.epoch },
-        idempotencyKey: `pod-sleep:${created.sessionId}:${current.lease.epoch}`,
+        idempotencyKey: `pod-sleep:${created.sessionId}:archived-${current.lease.epoch}`,
       },
     ])
   })

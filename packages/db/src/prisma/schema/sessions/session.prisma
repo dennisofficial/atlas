@@ -32,6 +32,8 @@ model Session {
   podAppliedGeneration Int?
   podResizeError     String?
   podWaitingSince    TimestamptzJsDate(3)?
+  podParkedAt        TimestamptzJsDate(3)?
+  podParkError       String?
   routineId          String?
   readSeq            Int?
   lastSurface        String                @default("web")

@@ -64,6 +64,13 @@ export const podBusyOf = (facts: PodBusyFacts): PodBusy => {
   return busyOf(running)
 }
 
+export const podStopBusyOf = (facts: PodBusyFacts): PodBusy => {
+  const running: string[] = []
+  if (facts.setupRunning) running.push('Setup script')
+  if (facts.turnInFlight) running.push('Agent turn')
+  return busyOf(running)
+}
+
 export const podResizeBusyOf = (facts: PodBusyFacts): PodBusy => {
   const running = podProcessesOf(facts)
   if (facts.bashRunning) running.push('Bash command')

@@ -12,13 +12,14 @@ import { depsOf, payload, sessionOf } from './pod-resize-fixture'
 
 describe('runPodResize', () => {
   it('stores the desired size on the session pod, reports the restart and wakes it', async () => {
-    const { deps, resizes, wakes } = depsOf()
+    const { deps, resizes, wakes, parks } = depsOf()
 
     expect(await runPodResize({ payload, deps })).toEqual({
       outcome: EPodResizeOutcome.Applied,
     })
     expect(resizes).toEqual([{ sandboxSessionId: 'session-a', shape: { vcpus: 4, memoryGb: 16 } }])
     expect(wakes).toEqual([{ sessionId: 'session-a', epoch: 0 }])
+    expect(parks).toEqual([])
   })
 
   it('resizes an archived session pod without waking it again', async () => {
@@ -163,6 +164,55 @@ describe('runPodResize', () => {
     expect(applied).toEqual([])
     expect(failures).toEqual([])
     expect(wakes).toEqual([])
+  })
+})
+
+describe('runPodResize of a sleeping pod', () => {
+  it('resizes it and parks it again instead of waking it', async () => {
+    const { deps, resizes, wakes, parks } = depsOf({
+      session: async () => sessionOf({ sandboxStatus: 'sleeping' }),
+    })
+
+    expect(await runPodResize({ payload, deps })).toEqual({
+      outcome: EPodResizeOutcome.Applied,
+    })
+    expect(resizes).toHaveLength(1)
+    expect(wakes).toEqual([])
+    expect(parks).toEqual([{ sandboxSessionId: 'session-a' }])
+  })
+
+  it('parks a stopped pod the provider has not named asleep yet', async () => {
+    const { deps, wakes, parks } = depsOf({
+      session: async () => sessionOf({ sandboxStatus: 'stopped' }),
+    })
+
+    await runPodResize({ payload, deps })
+
+    expect(wakes).toEqual([])
+    expect(parks).toEqual([{ sandboxSessionId: 'session-a' }])
+  })
+
+  it('parks a pod the operator stopped before the provider reported it asleep', async () => {
+    const { deps, wakes, parks } = depsOf({
+      session: async () =>
+        sessionOf({ sandboxStatus: 'running', podParkedAt: '2026-11-26T10:00:00.000Z' }),
+    })
+
+    await runPodResize({ payload, deps })
+
+    expect(wakes).toEqual([])
+    expect(parks).toEqual([{ sandboxSessionId: 'session-a' }])
+  })
+
+  it('wakes a pod that was running when the resize arrived', async () => {
+    const { deps, wakes, parks } = depsOf({
+      session: async () => sessionOf({ sandboxStatus: 'running' }),
+    })
+
+    await runPodResize({ payload, deps })
+
+    expect(wakes).toEqual([{ sessionId: 'session-a', epoch: 0 }])
+    expect(parks).toEqual([])
   })
 })
 

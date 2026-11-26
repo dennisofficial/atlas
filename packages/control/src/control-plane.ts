@@ -212,6 +212,24 @@ export class ControlPlane {
     return this.store.transact((tx) => tx.setSandboxStatus(params))
   }
 
+  async parkPod(params: { sessionId: string }): Promise<{ parkedAt: string }> {
+    return this.store.transact(async (tx) =>
+      tx.parkPod({ sessionId: params.sessionId, at: await this.nowIn(tx) }),
+    )
+  }
+
+  async failPodPark(params: {
+    sessionId: string
+    parkedAt: string
+    error: string
+  }): Promise<boolean> {
+    return this.store.transact((tx) => tx.failPodPark(params))
+  }
+
+  async clearPodPark(params: { sessionId: string }): Promise<boolean> {
+    return this.store.transact((tx) => tx.clearPodPark(params))
+  }
+
   async recordPodDesired(params: {
     sessionId: string
     vcpus: number

@@ -21,19 +21,19 @@ The headless client library that web, the TUI and the mobile app share.
 
 ## Entry points
 
-| Import                                          | Use it for                                                                                                              |
-| ----------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------- |
-| `@dltech/atlas-client/stream`                   | The stream connection, the session follower, the log, the window and the overlay.                                       |
-| `@dltech/atlas-client/channel`                  | The pod delta channel, the frame codecs and the tool requests.                                                          |
-| `@dltech/atlas-client/chat`                     | The chat transport, the step chunks and the step messages.                                                              |
-| `@dltech/atlas-client/crew`                     | The crew readout, the sub-agent state and the background work.                                                          |
-| `@dltech/atlas-client/session`                  | The session create input, the rewind, the image upload, the composer attachments, the message input and the draft sync. |
-| `@dltech/atlas-client/account`                  | The Atlas Cloud device-code login.                                                                                      |
-| `@dltech/atlas-client/transcript`               | The transcript rows, the tool runs and the turn rows.                                                                   |
-| `@dltech/atlas-client/stream-fixture`           | A fake scheduler and transport, and the event factories, for a spec.                                                    |
-| `@dltech/atlas-client/transcript-fixture`       | The event drafts and the step signals of a transcript, for a spec.                                                      |
-| `@dltech/atlas-client/transcript-tool-fixture`  | The tool call and result drafts, for a spec.                                                                            |
-| `@dltech/atlas-client/transcript-tools-fixture` | A sample tool call and shell call, for a spec or a prototype.                                                           |
+| Import                                          | Use it for                                                                                                                                      |
+| ----------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------- |
+| `@dltech/atlas-client/stream`                   | The stream connection, the session follower, the log, the window and the overlay.                                                               |
+| `@dltech/atlas-client/channel`                  | The pod delta channel, the frame codecs and the tool requests.                                                                                  |
+| `@dltech/atlas-client/chat`                     | The chat transport, the step chunks and the step messages.                                                                                      |
+| `@dltech/atlas-client/crew`                     | The crew readout, the sub-agent state and the background work.                                                                                  |
+| `@dltech/atlas-client/session`                  | The session create input, the rewind, the image upload, the composer attachments, the message input, the draft sync and the sandbox start view. |
+| `@dltech/atlas-client/account`                  | The Atlas Cloud device-code login.                                                                                                              |
+| `@dltech/atlas-client/transcript`               | The transcript rows, the tool runs and the turn rows.                                                                                           |
+| `@dltech/atlas-client/stream-fixture`           | A fake scheduler and transport, and the event factories, for a spec.                                                                            |
+| `@dltech/atlas-client/transcript-fixture`       | The event drafts and the step signals of a transcript, for a spec.                                                                              |
+| `@dltech/atlas-client/transcript-tool-fixture`  | The tool call and result drafts, for a spec.                                                                                                    |
+| `@dltech/atlas-client/transcript-tools-fixture` | A sample tool call and shell call, for a spec or a prototype.                                                                                   |
 
 ## Capabilities
 

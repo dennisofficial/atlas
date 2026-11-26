@@ -17,6 +17,7 @@
     ".": "./src/index.ts",
     "./tokens": "./src/tokens/index.ts",
     "./brand": "./src/brand/index.ts",
+    "./sandbox-boot-copy": "./src/ai/sandbox-boot-copy.ts",
     "./components/*": "./src/components/*.tsx",
     "./ai/*": "./src/ai/*.tsx",
     "./lib/highlighter": "./src/lib/highlighter.tsx",

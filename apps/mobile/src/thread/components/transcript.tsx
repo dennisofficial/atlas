@@ -1,3 +1,4 @@
+import type { BootView } from '@dltech/atlas-client/session'
 import { space } from '@dltech/atlas-ui/tokens'
 import { EFontWeight, ETextRole, ETextTone, Text, useTheme } from '@dltech/atlas-ui-native'
 import { useCallback, useEffect, useRef } from 'react'
@@ -23,6 +24,7 @@ import {
   type TTailPin,
 } from '../tail-follow'
 import type { AgentLinks } from '../session/agent-links'
+import { BootRowView } from './boot-row'
 import { ThreadRowView } from './thread-row'
 
 const NEAR_TOP_PX = 400
@@ -30,6 +32,8 @@ const NEAR_TOP_PX = 400
 const keyOf = (row: ThreadRow): string => row.id
 
 const UNMEASURED: TTailPin = { offset: 0, contentHeight: 0, viewportHeight: 0 }
+
+const NO_RETRY = () => undefined
 
 const isStreamingMessage = (row: ThreadRow | undefined): boolean =>
   row?.kind === ERowKind.Message && row.author === EMessageAuthor.Atlas && row.streaming
@@ -52,6 +56,9 @@ const WorkingFooter = () => {
 export const Transcript = ({
   rows,
   working,
+  now,
+  boot,
+  onRetryBoot,
   threadId,
   sessionId,
   onLoadOlder,
@@ -62,6 +69,8 @@ export const Transcript = ({
   rows: readonly ThreadRow[]
   working: boolean
   now: number
+  boot?: BootView | null
+  onRetryBoot?: () => void
   threadId: string | undefined
   sessionId?: string | undefined
   onLoadOlder?: (() => Promise<number>) | undefined
@@ -132,7 +141,12 @@ export const Transcript = ({
     pinToTail()
   }
 
-  if (rows.length === 0 && !working) {
+  const header =
+    boot === undefined || boot === null ? null : (
+      <BootRowView view={boot} now={now} onRetry={onRetryBoot ?? NO_RETRY} />
+    )
+
+  if (rows.length === 0 && !working && header === null) {
     return (
       <View style={styles.empty}>
         <Text size={ETextRole.Sm} weight={EFontWeight.Medium}>
@@ -164,6 +178,7 @@ export const Transcript = ({
       maintainVisibleContentPosition={{ minIndexForVisible: 0 }}
       onContentSizeChange={handleContentSizeChange}
       onLayout={handleLayout}
+      ListHeaderComponent={header ?? undefined}
       ListFooterComponent={showWorking ? WorkingFooter : undefined}
     />
   )

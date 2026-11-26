@@ -7,7 +7,7 @@ import { clientOnlyReason } from '@dltech/atlas-commands'
 import type { Attachment } from '@dltech/atlas-core'
 
 import { liveBackgroundOf } from '@dltech/atlas-client/crew'
-import { mergedDraftOf } from '@dltech/atlas-client/session'
+import { mergedDraftOf, sessionBootViewOf } from '@dltech/atlas-client/session'
 import {
   blockingCommandOf,
   ESessionConnection,
@@ -38,7 +38,6 @@ import { headerStateOfSession, isSessionWorking } from './data/session-state'
 import { sessionLog, sessionStream } from './data/session-stream'
 import { useSessionRewind } from './data/use-session-rewind'
 import { sessionRefusalsOf } from './data/session-refusals'
-import { sessionBootViewOf } from './data/session-boot-view'
 import { sessionModelOf } from './data/session-model'
 import { sessionTranscriptOf } from './data/session-transcript'
 import { SessionDiagramRepairProvider } from '@/features/threads/data/session-diagram-repair-provider'

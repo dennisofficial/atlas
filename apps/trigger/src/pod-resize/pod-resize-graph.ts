@@ -11,6 +11,7 @@ import {
   failureText,
   jobsControlPlaneOf,
   podResizerOf,
+  podSleeperOf,
   readPodResizeBusy,
   readPodsEnv,
   type PodResizeDeps,
@@ -32,6 +33,7 @@ export function buildPodResizeGraph(): PodResizeGraph {
   const env = readPodsEnv()
   const plane = jobsControlPlaneOf({ db })
   const resizer = podResizerOf({ env, db })
+  const sleeper = podSleeperOf({ env, db })
   return {
     deps: {
       session: (args) => plane.readSession(args),
@@ -48,6 +50,7 @@ export function buildPodResizeGraph(): PodResizeGraph {
             : `rewaking ${args.sessionId} at its new size`,
         )
       },
+      park: (args) => sleeper.sleep(args),
       lease: async (args) => {
         const current = await plane.currentLease(args)
         return { live: current.live, epoch: current.lease.epoch }

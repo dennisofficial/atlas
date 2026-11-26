@@ -13,6 +13,16 @@ describe('SessionsService.wake', () => {
     expect(lease.wantsHolder).toBe(true)
   })
 
+  it('clears the park record, so the started pod is not slept by the stop it outran', async () => {
+    const { plane, service } = setup()
+    const created = await service.create({ userId: 'user-a', projectId: 'proj-a' })
+    await plane.parkPod({ sessionId: created.sessionId })
+
+    await service.wake({ userId: 'user-a', sessionId: created.sessionId })
+
+    expect((await plane.readSession({ sessionId: created.sessionId }))?.podParkedAt).toBeNull()
+  })
+
   it('does nothing when a live holder is already elsewhere', async () => {
     const { plane, service } = setup()
     const created = await service.create({ userId: 'user-a', projectId: 'proj-a' })

@@ -2,7 +2,7 @@ import { db } from '@dltech/atlas-db'
 import {
   jobsControlPlaneOf,
   podSleeperOf,
-  readPodBusy,
+  readPodStopBusy,
   readPodsEnv,
   type PodSleepDeps,
 } from '@dltech/atlas-pods'
@@ -20,13 +20,19 @@ export function buildPodSleepGraph(): PodSleepGraph {
         const { lease, live } = await plane.currentLease(args)
         return { epoch: lease.epoch, wantsHolder: lease.wantsHolder, live }
       },
-      busy: async (args) => (await readPodBusy({ plane, session: args.session })).busy,
+      parked: async (args) => {
+        const session = await plane.readSession(args)
+        return { parkedAt: session?.podParkedAt ?? null }
+      },
+      turnRunning: async (args) => (await readPodStopBusy({ plane, session: args.session })).busy,
+      failPark: (args) => plane.failPodPark(args),
       release: async (args) => {
-        await plane.revoke({
+        const revoked = await plane.revoke({
           sessionId: args.sessionId,
           wantsHolder: false,
           epoch: args.epoch,
         })
+        return 'ok' in revoked && revoked.ok
       },
       sleep: (args) => sleeper.sleep(args),
       wait: (args) => new Promise((resolve) => setTimeout(resolve, args.ms)),
