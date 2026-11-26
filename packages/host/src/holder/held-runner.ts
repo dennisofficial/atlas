@@ -1,6 +1,5 @@
 import {
   EHeldAction,
-  EToolEffect,
   modelFacingDeclarationsOf,
   type InboxEntry,
   type ThreadId,
@@ -11,6 +10,7 @@ import { composePodCommands } from '@dltech/atlas-plugin-sdk'
 
 import { ScopedToolDispatcher } from '../calls/call-scope'
 import { BranchObserver } from './branch-observer'
+import { crashSettleOf } from './crash-settle'
 import { oomObserverOf, type OomObserver } from './oom-observer'
 import { podSampleObserverOf, type PodSampleObserver } from './pod-sample-observer'
 import { hookedToolsOf } from './hooked-tools'
@@ -75,7 +75,7 @@ export const settleCrashedOf = async (args: {
     record,
     ids: deps.ids,
     threadId,
-    effectOf: (name) => (runtime.daemonTools.has(name) ? EToolEffect.Read : runtime.effectOf(name)),
+    settleOf: (call) => crashSettleOf({ runtime, name: call.name }),
   })
 }
 

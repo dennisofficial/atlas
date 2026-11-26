@@ -89,8 +89,9 @@ A main agent, a sub-agent and a teammate all run this loop. It knows nothing of 
 
 ### Settle and report
 
-- `settleCrashedCalls({record, ids, threadId, effectOf})`, `ToolEffectResolver`: record an interrupted
-  result for each call a restart left open, unless `effectOf` says the call only reads.
+- `settleCrashedCalls({record, ids, threadId, settleOf})`, `ECrashedCall`, `CrashedCallSettle`: record
+  an interrupted result for a call a restart left open when the host says to interrupt it; a call the
+  host holds stays open, and the replay decides it from the daemon's answer.
 - `AgentOutput`, `AgentOutputEvent`, `StepStreamEvent`, `StepKey`: report each step, chunk and tool
   output to a surface.
 

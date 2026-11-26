@@ -3,6 +3,7 @@ import type {
   ClassifierPort,
   ClassifierStatus,
   ESetupPhase,
+  EToolEffect,
   MediaUrlResolver,
   ModelChoice,
   ModelPort,
@@ -17,7 +18,6 @@ import type {
   HookChainArgs,
   NormalizeFailure,
   SaidUploadsPort,
-  ToolEffectResolver,
   ToolRegistry,
 } from '@dltech/atlas-agent'
 import type { TracePort } from '@dltech/atlas-observability'
@@ -82,6 +82,8 @@ export type SetupLifecycle =
 export type PrepareStepReporter = (step: WorkspaceStepReport, producedAtMs?: number) => void
 
 export type RoleModelRequest = { role: ModelRole; root?: ModelChoice | undefined }
+
+export type ToolEffectResolver = (name: string) => EToolEffect | undefined
 
 export type RoleModelChoice = ModelChoice & { unavailable?: ModelRef | undefined }
 
