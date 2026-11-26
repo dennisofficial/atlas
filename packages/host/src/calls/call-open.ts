@@ -14,6 +14,7 @@ export type OpenCallArgs = {
   onOutput?: ((bytes: Uint8Array) => void) | undefined
   dispatchedBootId?: string | undefined
   attachOnly?: boolean | undefined
+  detachOnHandoff?: boolean | undefined
 }
 
 export type CallLane = {
@@ -68,6 +69,7 @@ export const openCall = async (args: {
     armed: false,
     done: false,
     awaitingAnswer: false,
+    ...(request.detachOnHandoff === undefined ? {} : { detachOnHandoff: request.detachOnHandoff }),
   }
   if (!lane.detached()) call.waiters.push(waiter)
   lane.pending.set(request.key, call)

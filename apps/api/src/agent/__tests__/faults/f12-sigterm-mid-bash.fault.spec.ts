@@ -54,7 +54,7 @@ describe.skipIf(REDIS_URL === undefined)('F12 SIGTERM during a 5-minute bash', (
     await rig.stop()
   })
 
-  it('hands off within its drain cap; the new holder collects the bash exactly once', async () => {
+  it('hands off in about a second; the new holder collects the bash exactly once', async () => {
     const sessionId = 'fault-f12-1'
     const threadId = await rig.newSession({ sessionId, text: 'sleep then echo' })
     const daemon = await rig.spawnDaemonFor({ sessionId })
@@ -67,7 +67,6 @@ describe.skipIf(REDIS_URL === undefined)('F12 SIGTERM during a 5-minute bash', (
     const hostA = await rig.spawnHost({
       label: 'host-a',
       daemonUrl: daemon.url,
-      knobs: { drainCapMs: 5_000 },
       scripts: {
         [sessionId]: [
           {

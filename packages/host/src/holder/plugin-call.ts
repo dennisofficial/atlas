@@ -11,6 +11,7 @@ export const pluginCallOf = (args: {
     op: CallOp
     signal?: AbortSignal | undefined
     onOutput?: ((bytes: Uint8Array) => void) | undefined
+    detachOnHandoff?: boolean | undefined
   }) => Promise<CallResult>
   env?: (() => Promise<Record<string, string>>) | undefined
   gate?: WorkspaceGate | undefined
@@ -43,6 +44,7 @@ export const pluginCallOf = (args: {
       op: await withEnv(op),
       signal: options?.signal,
       onOutput: options?.onOutput,
+      detachOnHandoff: false,
     })
   }
 }

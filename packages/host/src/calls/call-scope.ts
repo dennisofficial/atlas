@@ -11,6 +11,7 @@ import { interruptedMessage } from './errors'
 type CallScope = {
   scopeKey: string
   next: number
+  detachOnHandoff: boolean
   dispatchedBootId?: string | undefined
   attachOnly?: boolean | undefined
 }
@@ -34,18 +35,22 @@ export const scopeDispatchedBootId = (): string | undefined => storage.getStore(
 export const runInCallScope = <T>(args: {
   scopeKey: string
   attachOnly?: boolean | undefined
+  detachOnHandoff?: boolean | undefined
   body(): T
 }): T =>
   storage.run(
     {
       scopeKey: args.scopeKey,
       next: 0,
+      detachOnHandoff: args.detachOnHandoff ?? true,
       ...(args.attachOnly === undefined ? {} : { attachOnly: args.attachOnly }),
     },
     args.body,
   )
 
 export const scopeAttachOnly = (): boolean => storage.getStore()?.attachOnly === true
+
+export const scopeDetachOnHandoff = (): boolean => storage.getStore()?.detachOnHandoff === true
 
 export const nextKey = (): string => {
   const scope = storage.getStore()
@@ -64,6 +69,7 @@ export class ScopedToolDispatcher extends ToolDispatcher {
     const scope: CallScope = {
       scopeKey: scopeKeyOf({ runId: args.call.runId, callId: args.call.callId }),
       next: 0,
+      detachOnHandoff: true,
     }
     return storage.run(scope, async () => {
       try {

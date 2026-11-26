@@ -3,7 +3,13 @@ import { describe, expect, it } from 'bun:test'
 import { ToolDispatcher, type DispatchArgs, type DispatchableCall } from '@dltech/atlas-agent'
 import type { EventDraft, CallId, RunId, ThreadId } from '@dltech/atlas-core'
 
-import { ScopedToolDispatcher, nextKey, runInCallScope, scopeKeyOf } from '../call-scope'
+import {
+  ScopedToolDispatcher,
+  nextKey,
+  runInCallScope,
+  scopeDetachOnHandoff,
+  scopeKeyOf,
+} from '../call-scope'
 
 const call = (args: { runId: string; callId: string }): DispatchableCall => ({
   callId: args.callId as CallId,
@@ -22,8 +28,11 @@ const dispatchArgs = (c: DispatchableCall): DispatchArgs => ({
 
 class RecordingDispatcher extends ToolDispatcher {
   keys: string[] = []
+  detachesOnHandoff: boolean[] = []
+
   async dispatch(_args: DispatchArgs): Promise<readonly EventDraft[]> {
     this.keys.push(nextKey(), nextKey())
+    this.detachesOnHandoff.push(scopeDetachOnHandoff())
     return []
   }
 }
@@ -46,6 +55,28 @@ describe('nextKey', () => {
       },
     })
     expect(nextKey()).toMatch(/^host-[0-9a-f-]{36}$/)
+  })
+})
+
+describe('scopeDetachOnHandoff', () => {
+  it('detaches a setup or phase scope by default and honours an opt-out', () => {
+    expect(scopeDetachOnHandoff()).toBe(false)
+    runInCallScope({
+      scopeKey: 'run-1:setup',
+      body: () => expect(scopeDetachOnHandoff()).toBe(true),
+    })
+    runInCallScope({
+      scopeKey: 'host-uuid',
+      detachOnHandoff: false,
+      body: () => expect(scopeDetachOnHandoff()).toBe(false),
+    })
+  })
+
+  it('detaches every call of a built-in tool dispatch', async () => {
+    const inner = new RecordingDispatcher()
+    const scoped = new ScopedToolDispatcher(inner)
+    await scoped.dispatch(dispatchArgs(call({ runId: 'run-1', callId: 'call-1' })))
+    expect(inner.detachesOnHandoff).toEqual([true])
   })
 })
 

@@ -5,13 +5,19 @@ import type { CallResult, DaemonFrame } from '@dltech/atlas-protocol'
 
 import { Answers } from './answers'
 import { openCall, type CallLane, type OpenCallArgs } from './call-open'
-import { scopeDispatchedBootId } from './call-scope'
+import { scopeDetachOnHandoff, scopeDispatchedBootId } from './call-scope'
 import { FencedError, ProtocolViolationError, type DaemonAnswer } from './errors'
 import { handleHello } from './hello-reply'
 import { DaemonLink } from './link'
 import { READY_TIMEOUT_MS, withReadyDeadline } from './ready-deadline'
 import { ReadyGate, type ReadyReply } from './ready-gate'
-import { failedResult, handleDaemonFrame, rejectPending, type Pending } from './remote-calls-frames'
+import {
+  failedResult,
+  handedOffResult,
+  handleDaemonFrame,
+  rejectPending,
+  type Pending,
+} from './remote-calls-frames'
 import type { RemoteCallsArgs } from './remote-calls'
 import { interruptPendingForResize } from './restart-interrupt'
 import { ScopeAcks } from './scope-acks'
@@ -157,6 +163,10 @@ export class RemoteCallsState {
     this.detached = true
     this.args.releaseResize()
     this.answers.refuseAll()
+    for (const call of [...this.pending.values()]) {
+      if (call.done || call.detachOnHandoff !== true) continue
+      this.settle(call, handedOffResult(call))
+    }
   }
 
   close(): void {
@@ -178,7 +188,11 @@ export class RemoteCallsState {
     if (this.closed) {
       throw new FencedError(`session ${this.args.sessionId} closed its daemon link`)
     }
-    return await openCall({ lane: this.lane, request: args, dispatchedBootId })
+    const request: OpenCallArgs = {
+      ...args,
+      detachOnHandoff: args.detachOnHandoff ?? scopeDetachOnHandoff(),
+    }
+    return await openCall({ lane: this.lane, request, dispatchedBootId })
   }
 
   ack(args: { key: string }): Promise<void> {
