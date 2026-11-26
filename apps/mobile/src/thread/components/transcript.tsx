@@ -1,9 +1,11 @@
 import type { BootView } from '@dltech/atlas-client/session'
 import { space } from '@dltech/atlas-ui/tokens'
 import { EFontWeight, ETextRole, ETextTone, Spinner, Text, useTheme } from '@dltech/atlas-ui-native'
-import { type ReactElement, useCallback, useEffect, useRef } from 'react'
+import { type ReactElement, useCallback, useEffect, useMemo, useRef } from 'react'
+import { useSafeAreaInsets } from 'react-native-safe-area-context'
 import {
   FlatList,
+  Platform,
   type ListRenderItem,
   type NativeScrollEvent,
   type LayoutChangeEvent,
@@ -13,6 +15,7 @@ import {
 } from 'react-native'
 
 import { EMessageAuthor, ERowKind, type SessionNameOf, type ThreadRow } from '../rows'
+import { listBottomPaddingOf, nativeBottomInsetOf } from '../../layout/transcript-inset'
 import { useKeyboard } from '../../layout/use-keyboard'
 import {
   EScrollSignal,
@@ -79,6 +82,7 @@ export const Transcript = ({
   agentLinks,
   sessionNameOf,
   onOpenAgent,
+  bottomInset = 0,
   queued,
   background,
 }: {
@@ -94,6 +98,7 @@ export const Transcript = ({
   agentLinks?: AgentLinks | undefined
   sessionNameOf?: SessionNameOf | undefined
   onOpenAgent?: ((agentId: string) => void) | undefined
+  bottomInset?: number
   queued?: QueuedTurnsProps | undefined
   background?: BackgroundWait | null | undefined
 }) => {
@@ -102,6 +107,15 @@ export const Transcript = ({
   const measured = useRef<TTailPin>(UNMEASURED)
   const loadingOlder = useRef(false)
   const keyboardVisible = useKeyboard().inset > 0
+  const safeArea = useSafeAreaInsets()
+  const nativeBottom = nativeBottomInsetOf({ platform: Platform.OS, safeBottom: safeArea.bottom })
+  const insets = useMemo(() => {
+    const padding = listBottomPaddingOf({ clearance: bottomInset, nativeBottom })
+    return {
+      content: [styles.content, { paddingBottom: space(2) + padding }],
+      indicator: { bottom: padding },
+    }
+  }, [bottomInset, nativeBottom])
   const showWorking = working && !isStreamingMessage(rows.at(-1)) && !hasRunningWork(rows)
   const renderRow = useCallback<ListRenderItem<ThreadRow>>(
     ({ item }) => (
@@ -121,7 +135,7 @@ export const Transcript = ({
 
   const pinToTail = () => {
     if (!tail.current.following) return
-    const offset = pinOffsetOf(measured.current)
+    const offset = pinOffsetOf({ ...measured.current, nativeBottom })
     if (offset === undefined) return
     measured.current = { ...measured.current, offset }
     listRef.current?.scrollToOffset({ offset, animated: false })
@@ -199,7 +213,8 @@ export const Transcript = ({
       scrollsToTop={false}
       renderItem={renderRow}
       contentInsetAdjustmentBehavior="automatic"
-      contentContainerStyle={styles.content}
+      contentContainerStyle={insets.content}
+      scrollIndicatorInsets={insets.indicator}
       keyboardDismissMode="interactive"
       keyboardShouldPersistTaps="handled"
       onScroll={handleScroll}
@@ -220,7 +235,6 @@ export const Transcript = ({
 
 const styles = StyleSheet.create({
   content: {
-    paddingBottom: space(2),
     paddingHorizontal: space(4),
     paddingTop: space(1),
   },

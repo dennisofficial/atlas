@@ -100,6 +100,7 @@ describe('subscriptions view', () => {
       ['mergeability', 'mergeability'],
       ['state', 'state'],
       ['merge-queue', 'mergeability'],
+      ['auto-merge-off', 'mergeability'],
     ])
   })
 

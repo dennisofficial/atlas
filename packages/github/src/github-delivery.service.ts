@@ -8,6 +8,7 @@ import {
 } from './github-delivery-fill'
 import { EGithubCallSource } from './github-call-log'
 import { EMergeQueueMove, EPrSource } from '@dltech/atlas-core'
+import { notifyAutoMergeOff } from './github-auto-merge-notice'
 import { mergeQueueMoveOfPullAction, notifyMergeQueueMove } from './github-merge-queue-webhook'
 import { githubLogOf } from './github-log'
 import { normalizedRepo } from './github-pr-identity'
@@ -211,6 +212,9 @@ export class GithubDeliveryService {
         ...(move === null ? {} : { mergeQueued: move === EMergeQueueMove.Entered }),
       },
     })
+    if (payload.action === 'auto_merge_disabled') {
+      await notifyAutoMergeOff({ repoFullName, prNumber, reason: payload.reason })
+    }
     if (move !== null) await notifyMergeQueueMove({ repoFullName, prNumber, move })
     if (!HEAD_ACTIONS.has(payload.action)) return
     const token = await this.findFillToken({ repoFullName, installationId })

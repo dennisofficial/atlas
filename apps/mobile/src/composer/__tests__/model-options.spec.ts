@@ -14,6 +14,7 @@ import {
   pinnedModelsOf,
   searchModelsOf,
   selectionOf,
+  shippedLabelOf,
   togglePinnedModel,
   withoutPinned,
 } from '../model-options'
@@ -188,6 +189,27 @@ describe('modelTriggerLabelOf', () => {
   it('names the picked model', () => {
     const selection = selectionOf({ models, modelId: 'claude-opus-4', effort: 'low', fast: false })
     expect(modelTriggerLabelOf({ models, selection })).toBe('Opus 4')
+  })
+
+  it('names the pinned model before the catalogue loads', () => {
+    expect(
+      modelTriggerLabelOf({ models: [], selection: null, ref: 'anthropic/claude-opus-5' }),
+    ).toBe('Opus 5')
+  })
+
+  it('still reads Default for a session with no pinned model', () => {
+    expect(modelTriggerLabelOf({ models: [], selection: null, ref: null })).toBe(NO_MODEL_LABEL)
+  })
+})
+
+describe('shippedLabelOf', () => {
+  it('names the shipped model behind a ref', () => {
+    expect(shippedLabelOf('anthropic/claude-opus-5')).toBe('Opus 5')
+  })
+
+  it('has no label for a ref the shipped catalogue does not hold', () => {
+    expect(shippedLabelOf('anthropic/no-such-model')).toBeNull()
+    expect(shippedLabelOf(null)).toBeNull()
   })
 })
 

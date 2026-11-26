@@ -1,5 +1,5 @@
-import { outputPriceLabel } from '@dltech/atlas-core'
-import { defaultModelId } from '@dltech/atlas-models'
+import { findCard, outputPriceLabel, parseRef } from '@dltech/atlas-core'
+import { defaultModelId, generatedCatalogue } from '@dltech/atlas-models'
 import { brandOfProvider, type EBrand } from '@dltech/atlas-ui/brand'
 import type { ModelsResponse } from '@dltech/atlas-wire/web'
 
@@ -207,15 +207,26 @@ export const selectionOf = ({
   }
 }
 
+export const shippedLabelOf = (ref: string | null | undefined): string | null => {
+  if (ref === null || ref === undefined) return null
+  const parsed = parseRef(ref)
+  if (parsed === undefined) return null
+  const card = findCard({ catalog: generatedCatalogue(), ref: parsed })
+  return card === undefined ? null : labelOf(card.label)
+}
+
 export const modelTriggerLabelOf = ({
   models,
   selection,
+  ref,
 }: {
   models: readonly IModelOption[]
   selection: IModelSelection | null
+  ref?: string | null | undefined
 }): string =>
   models.find((model) => model.id === selection?.model.id)?.label ??
   selection?.model.label ??
+  shippedLabelOf(ref) ??
   NO_MODEL_LABEL
 
 export const effortChoicesOf = (selection: IModelSelection | null): string[] =>

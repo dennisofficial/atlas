@@ -80,6 +80,7 @@ export enum EPrEventKind {
   Mergeability = 'mergeability',
   State = 'state',
   MergeQueue = 'merge-queue',
+  AutoMergeOff = 'auto-merge-off',
 }
 
 export enum EMergeQueueMove {

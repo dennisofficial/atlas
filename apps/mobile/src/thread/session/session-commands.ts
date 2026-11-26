@@ -71,7 +71,19 @@ export const selectionOfChoice = (args: {
   })
 }
 
+export type SessionRowModel = { sessionId: string; model: SessionModelChoice }
+
 export const choiceOfSessionRows = (
-  rows: readonly { sessionId: string; model: SessionModelChoice }[],
+  rows: readonly SessionRowModel[],
   sessionId: string,
 ): SessionModelChoice | null => rows.find((row) => row.sessionId === sessionId)?.model ?? null
+
+export const selectionOfSessionRows = (args: {
+  models: readonly IModelOption[]
+  rows: readonly SessionRowModel[] | undefined
+  sessionId: string
+}): IModelSelection | null =>
+  selectionOfChoice({
+    models: args.models,
+    choice: choiceOfSessionRows(args.rows ?? [], args.sessionId),
+  })

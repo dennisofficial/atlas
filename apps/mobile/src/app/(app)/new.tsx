@@ -10,7 +10,8 @@ import { z } from 'zod'
 
 import { useAuth } from '../../auth/auth-provider'
 import { createSession } from '../../composer/create-session'
-import { EffortSelect, FastToggle } from '../../composer/model-controls'
+import { EffortSelect } from '../../composer/effort-select'
+import { FastToggle } from '../../composer/model-controls'
 import {
   defaultModelIdOf,
   effortChoicesOf,
@@ -128,6 +129,13 @@ export default function NewSessionScreen() {
           draftSessionId={null}
           attachments={attachments}
           onSend={handleSend}
+          trailing={
+            <ProjectSelect
+              projects={projects}
+              projectId={projectId}
+              onProjectChange={setProjectId}
+            />
+          }
         >
           <View style={styles.footer}>
             {modelsReady && settings.ready ? (
@@ -147,12 +155,6 @@ export default function NewSessionScreen() {
             {selection?.model.fast === true ? (
               <FastToggle selection={selection} onToggle={handleFastToggle} />
             ) : null}
-            <View style={styles.spacer} />
-            <ProjectSelect
-              projects={projects}
-              projectId={projectId}
-              onProjectChange={setProjectId}
-            />
           </View>
         </Composer>
       </View>
@@ -179,8 +181,5 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     gap: space(1.5),
     minWidth: 0,
-  },
-  spacer: {
-    flex: 1,
   },
 })

@@ -94,6 +94,11 @@ const mergeQueueSentence = (event: PrEvent): string => {
   return 'merge queue membership changed.'
 }
 
+const autoMergeOffSentence = (event: PrEvent): string => {
+  const reason = event.reason === undefined ? '' : ` (GitHub: ${event.reason})`
+  return `auto-merge is now off${reason}. The PR will not merge on its own.`
+}
+
 const reviewLead = (event: PrEvent): string => {
   const review = fromAuthor({ noun: 'review', event })
   return event.reviewState === undefined ? review : `${review} (${event.reviewState})`
@@ -111,6 +116,7 @@ const sentenceOf = (event: PrEvent): string => {
   if (event.kind === EPrEventKind.Verdict) return verdictSentence(event)
   if (event.kind === EPrEventKind.Mergeability) return mergeabilitySentence(event)
   if (event.kind === EPrEventKind.MergeQueue) return mergeQueueSentence(event)
+  if (event.kind === EPrEventKind.AutoMergeOff) return autoMergeOffSentence(event)
   return stateSentence(event)
 }
 

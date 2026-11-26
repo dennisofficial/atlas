@@ -13,6 +13,7 @@ export const ComposerControls = ({
   canSend,
   onStop,
   onSend,
+  trailing,
   children,
 }: {
   attach:
@@ -22,6 +23,7 @@ export const ComposerControls = ({
   canSend: boolean
   onStop: (() => void) | undefined
   onSend: () => void
+  trailing?: ReactNode
   children?: ReactNode
 }) => (
   <View style={styles.bar}>
@@ -39,11 +41,12 @@ export const ComposerControls = ({
         {children}
       </ScrollView>
     )}
+    {trailing}
     {onStop !== undefined ? (
       <Button
         label="Stop"
         icon={Square}
-        size={EButtonSize.Icon}
+        size={EButtonSize.IconSm}
         variant={EButtonVariant.Secondary}
         round
         onPress={onStop}
@@ -52,7 +55,7 @@ export const ComposerControls = ({
       <Button
         label={sending ? 'Sending…' : 'Send'}
         icon={ArrowUp}
-        size={EButtonSize.Icon}
+        size={EButtonSize.IconSm}
         round
         disabled={!canSend}
         loading={sending}
@@ -68,8 +71,8 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     gap: space(2),
     justifyContent: 'space-between',
-    paddingBottom: space(2.5),
-    paddingTop: space(1),
+    paddingBottom: space(2),
+    paddingTop: space(1.5),
   },
   slot: {
     flex: 1,
@@ -78,6 +81,5 @@ const styles = StyleSheet.create({
   slotContent: {
     alignItems: 'center',
     gap: space(1),
-    paddingRight: space(1),
   },
 })
