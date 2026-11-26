@@ -14,7 +14,7 @@ import {
   textOf,
 } from './provider-fixtures'
 
-const RESPONSE = { id: 'r1', created_at: 1, model: 'gpt-5.1' }
+const RESPONSE = { id: 'r1', created_at: 1, model: 'gpt-5.6' }
 const STREAM = sse([
   { type: 'response.created', response: RESPONSE },
   {
@@ -51,7 +51,7 @@ const STREAM = sse([
   },
 ])
 
-const REF = { providerId: 'openai', modelId: 'gpt-5.1' }
+const REF = { providerId: 'openai', modelId: 'gpt-5.6' }
 
 const oauth = (providerAccountId?: string): Credential => ({
   kind: EAuthKind.Oauth,

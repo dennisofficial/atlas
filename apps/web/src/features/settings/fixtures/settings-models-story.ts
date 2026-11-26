@@ -11,8 +11,8 @@ const EXPIRED = 'expired'
 export const DEEPSEEK_FLASH = 'gateway/deepseek/deepseek-v4.1-flash-1017'
 export const CLAUDE_OPUS_5 = 'anthropic/claude-opus-5'
 export const CLAUDE_SONNET_5 = 'anthropic/claude-sonnet-5'
-export const GPT_5 = 'openai/gpt-5'
-export const GPT_5_MINI = 'openai/gpt-5-mini'
+export const GPT_5_6 = 'openai/gpt-5.6'
+export const GPT_5_4_MINI = 'openai/gpt-5.4-mini'
 
 export type StoredSettings = Record<string, string | boolean>
 
@@ -43,7 +43,7 @@ const storedString = ({ stored, key }: { stored: StoredSettings; key: string }):
   return typeof value === 'string' ? value : ''
 }
 
-const PINNED = [CLAUDE_OPUS_5, GPT_5]
+const PINNED = [CLAUDE_OPUS_5, GPT_5_6]
 
 export function modelPickerOf(args: {
   accounts: AccountSummary[]
