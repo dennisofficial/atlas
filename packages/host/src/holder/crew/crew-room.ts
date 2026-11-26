@@ -9,104 +9,37 @@ import {
   type EventDraft,
   type ThreadId,
 } from '@dltech/atlas-core'
-import type {
-  PodCrew,
-  SubagentSaid,
-  SubagentSnapshot,
-  WorktreeEntryInfo,
-} from '@dltech/atlas-plugin-sdk'
+import type { PodCrew, SubagentSaid, SubagentSnapshot } from '@dltech/atlas-plugin-sdk'
 
 import { ChildRun, type ChildRunArgs } from './child-run'
-import type { ChildKey } from './child-record'
 import type { CrewSender } from './child-message'
 import { CHILD_READ_CONCURRENCY } from './child-reads'
 import { endingKeyOf, postNotice, threadLastSeq } from './child-reports'
+import { CrewSpawn, type CrewRoomArgs, type SpawnArgs } from './crew-spawn'
 import { settledChildOf, type OpenChild } from './open-children'
 import { pooledMap } from './pooled-map'
-import { hostStepOf } from '../record/host-step'
-import { scopeCallId } from '../../calls/call-scope'
-import { spawnAgentIdOf } from './spawn-key'
 
-export const SPAWN_OP = 'crew.spawn'
-
-export type CrewRoomArgs = Omit<
-  ChildRunArgs,
-  'agentType' | 'intent' | 'group' | 'groupHold' | 'saySibling' | 'key'
->
-
-type SpawnArgs = {
-  agentType: string
-  intent: string
-  prompt: string
-  group?: string | undefined
-  worktree?: WorktreeEntryInfo | undefined
-}
+export type { CrewRoomArgs } from './crew-spawn'
 
 class UnknownChild extends Error {}
 
 export class CrewRoom {
   private readonly runs = new Map<ThreadId, ChildRun>()
+  private readonly spawner: CrewSpawn
   private posts: Promise<void> = Promise.resolve()
 
-  constructor(private readonly args: CrewRoomArgs) {}
-
-  async spawn(args: SpawnArgs): Promise<SubagentSnapshot> {
-    const step = await hostStepOf({
-      record: this.args.parentRecord,
-      threadId: this.args.parentThreadId,
-      runId: () => this.args.deps.ids.nextRunId(),
-      op: SPAWN_OP,
-      input: {
-        agentType: args.agentType,
-        intent: args.intent,
-        prompt: args.prompt,
-        group: args.group,
-        worktree: args.worktree,
-      },
+  constructor(private readonly args: CrewRoomArgs) {
+    this.spawner = new CrewSpawn({
+      args: this.args,
+      runs: this.runs,
+      childArgs: () => this.childArgs(),
+      holdOf: (draft) => this.holdOf(draft),
+      postInOrder: (post) => this.postInOrder(post),
     })
-    return step === undefined
-      ? await this.spawnFresh(args)
-      : await this.spawnKeyed({ args, stepKey: step.key })
   }
 
-  private async spawnFresh(args: SpawnArgs): Promise<SubagentSnapshot> {
-    const run = await ChildRun.open(this.openArgsOf({ args }))
-    this.runs.set(run.agentId, run)
-    await run.say({ text: args.prompt })
-    return run.snapshot()
-  }
-
-  private async spawnKeyed(args: { args: SpawnArgs; stepKey: string }): Promise<SubagentSnapshot> {
-    const agentId = spawnAgentIdOf({
-      parentThreadId: this.args.parentThreadId,
-      stepKey: args.stepKey,
-    })
-    const held = this.runs.get(agentId)
-    if (held !== undefined) return held.snapshot()
-    const callId = scopeCallId()
-    const run = await ChildRun.open(
-      this.openArgsOf({
-        args: args.args,
-        key: { agentId, stepKey: args.stepKey, ...(callId === undefined ? {} : { callId }) },
-      }),
-    )
-    this.runs.set(run.agentId, run)
-    await run.say({ text: args.args.prompt, clientId: `${args.stepKey}:brief` })
-    await run.continueExisting()
-    return run.snapshot()
-  }
-
-  private openArgsOf(open: { args: SpawnArgs; key?: ChildKey | undefined }): ChildRunArgs {
-    return {
-      ...this.childArgs(),
-      agentType: open.args.agentType,
-      intent: open.args.intent,
-      groupHold: (draft) => this.holdOf(draft),
-      postHold: (post) => this.postInOrder(post),
-      ...(open.args.group === undefined ? {} : { group: open.args.group }),
-      ...(open.args.worktree === undefined ? {} : { worktree: open.args.worktree }),
-      ...(open.key === undefined ? {} : { key: open.key }),
-    }
+  spawn(args: SpawnArgs): Promise<SubagentSnapshot> {
+    return this.spawner.spawn(args)
   }
 
   async adoptAll(children: readonly OpenChild[]): Promise<void> {
