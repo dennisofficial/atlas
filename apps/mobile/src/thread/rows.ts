@@ -7,6 +7,7 @@ import {
 } from '@dltech/atlas-client/transcript'
 
 import { ENoticeTone, noticeFieldsOf } from './notice-fields'
+import { picturesIn, type ToolPictureView } from './tool-pictures'
 
 export { ENoticeTone } from './notice-fields'
 
@@ -14,6 +15,7 @@ export enum ERowKind {
   Message = 'message',
   Work = 'work',
   Notice = 'notice',
+  Images = 'images',
 }
 
 export enum EMessageAuthor {
@@ -76,7 +78,13 @@ export type NoticeRow = {
   tone: ENoticeTone
 }
 
-export type ThreadRow = MessageRow | WorkRow | NoticeRow
+export type ImagesRow = {
+  kind: ERowKind.Images
+  id: string
+  images: readonly ToolPictureView[]
+}
+
+export type ThreadRow = MessageRow | WorkRow | NoticeRow | ImagesRow
 
 export const senderLabelOf = (args: {
   row: MessageRow
@@ -259,6 +267,10 @@ export function rowsOf(args: {
         work.startedAt ??= latestStamp(entry.run.calls.map((call) => call.at))
         work.endedAt = latestStamp([work.endedAt, ...entry.run.calls.map((call) => call.settledAt)])
         if (entry.streaming) work.running = true
+        const images = picturesIn(entry.run)
+        if (images.length === 0) continue
+        flush()
+        rows.push({ kind: ERowKind.Images, id: `images:${entry.key}`, images })
         continue
       }
       case EEntryKind.TurnEnded:
