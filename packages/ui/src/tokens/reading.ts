@@ -1,18 +1,19 @@
 import { ETextRole, typeScale } from './scale'
 
-export const READING_LEADING = 1.625
+export const READING_LEADING =
+  typeScale[ETextRole.Reading].lineHeight / typeScale[ETextRole.Reading].fontSize
 
 export const READING_HEADING_LEADING = 1.375
 
 export const READING_MEASURE_REM = 56
 
 export const readingRole = {
-  body: ETextRole.Base,
+  body: ETextRole.Reading,
   h1: ETextRole.Xl,
   h2: ETextRole.Lg,
-  h3: ETextRole.Base,
-  h4: ETextRole.Base,
-  h5: ETextRole.Base,
+  h3: ETextRole.Reading,
+  h4: ETextRole.Reading,
+  h5: ETextRole.Reading,
   h6: ETextRole.Sm,
 } as const
 

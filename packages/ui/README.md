@@ -49,8 +49,9 @@ The package ships TypeScript source with no build step.
 - `primitives`, `font`, `radiusBase`, `radiusScale`, `radius`, `radiusPx`, `space`, `spacingUnit`.
 - `ETextRole`, `typeScale`, `EFontFamily`, `EFontWeight`, `fontFaceNames`, `REM_PX`.
 - `readingClasses`, `readingType`, `readingRole`, `READING_LEADING`, `READING_HEADING_LEADING`,
-  `READING_MEASURE_REM`: the measure, the leading and the sizes that a transcript and the web
-  screens share.
+  `READING_MEASURE_REM`: the measure, the leading and the sizes of transcript text. Native
+  body text uses `ETextRole.Reading`, Apple's 17pt body. Web body text stays 16px. Both have a
+  26px line.
 - `buildThemeCss()`: the stylesheet text for the tokens.
 
 ### Mark a brand
