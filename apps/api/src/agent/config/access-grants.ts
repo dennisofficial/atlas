@@ -8,7 +8,7 @@ import type {
   AccessSource,
 } from './access-rows'
 import { databaseUrlWithTls } from './database-url'
-import { readAgentHostEnv } from './env'
+import type { AgentHostEnv } from './env'
 
 const QUERY_TIMEOUT_MS = 10_000
 
@@ -25,11 +25,10 @@ const secretOf = (row: AccessSecretRow): AccessSecretRow => ({
 
 const fileOf = (row: AccessFileRow): AccessFileRow => ({ path: row.path, grantId: row.grantId })
 
-export const accessSourceOf = (): AccessSource => {
+export const accessSourceOf = (env: Pick<AgentHostEnv, 'databaseUrl'>): AccessSource => {
   let opened: Db | undefined
   const connection = (): Db => {
     if (opened !== undefined) return opened
-    const env = readAgentHostEnv()
     opened = createDb(
       createPool(databaseUrlWithTls(env.databaseUrl), { queryTimeoutMs: QUERY_TIMEOUT_MS }),
     )

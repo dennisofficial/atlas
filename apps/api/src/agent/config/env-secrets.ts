@@ -6,7 +6,7 @@ import {
   type ExportedEnvSecrets,
 } from '../runtime/env-secrets'
 import { databaseUrlWithTls } from './database-url'
-import { readAgentHostEnv } from './env'
+import type { AgentHostEnv } from './env'
 import { SecretCipher } from '@dltech/atlas-pods/config/secret-cipher'
 
 const QUERY_TIMEOUT_MS = 10_000
@@ -62,11 +62,12 @@ export const readEnvSecrets = async (args: {
   })
 }
 
-export const envSecretsReader = (): EnvSecretsSource => {
+export const envSecretsReader = (
+  env: Pick<AgentHostEnv, 'databaseUrl' | 'secretsEncryptionKey'>,
+): EnvSecretsSource => {
   let opened: { db: Db; cipher: SecretCipher } | undefined
   const connection = (): { db: Db; cipher: SecretCipher } => {
     if (opened !== undefined) return opened
-    const env = readAgentHostEnv()
     opened = {
       db: createDb(
         createPool(databaseUrlWithTls(env.databaseUrl), { queryTimeoutMs: QUERY_TIMEOUT_MS }),
