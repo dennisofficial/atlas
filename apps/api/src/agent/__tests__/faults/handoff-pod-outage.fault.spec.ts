@@ -5,9 +5,15 @@ import { describeHandoff, waitUntil, type HandoffContext } from '../../testing/h
 import type { HostProcess } from '../../testing/fault-rig'
 
 const CALL_ID = 'c1'
-const OUTAGE_MS = 4_000
+const REJOIN_MS = 1_000
+const HELD_MS = 1_500
 
 const KNOBS = { pingMs: 500 }
+
+const sleep = (ms: number): Promise<void> =>
+  new Promise((resolve) => {
+    setTimeout(resolve, ms)
+  })
 
 const dispatchesOf = async (ctx: HandoffContext) =>
   (await ctx.events()).filter((row) => row.type === 'tool-dispatched' && callIdOf(row) === CALL_ID)
@@ -57,15 +63,26 @@ describeHandoff({
 
   async beforeClaim(ctx) {
     ctx.daemon.proxy.set({ blackhole: true })
-    setTimeout(() => {
-      ctx.daemon.proxy.drop()
-      ctx.daemon.proxy.clear()
-    }, OUTAGE_MS)
   },
 
   async inFlight(ctx) {
     expect(await dispatchesOf(ctx)).toHaveLength(1)
     expect(await resultsOf(ctx)).toHaveLength(0)
+
+    ctx.daemon.proxy.clear()
+    await waitUntil({
+      what: 'host b to reach the pod',
+      check: async () => ctx.daemon.proxy.connections() > 0,
+    })
+    await sleep(REJOIN_MS)
+
+    ctx.daemon.proxy.set({ blackhole: true })
+    ctx.daemon.proxy.drop()
+    await sleep(HELD_MS)
+
+    expect(await dispatchesOf(ctx)).toHaveLength(1)
+    expect(await resultsOf(ctx)).toHaveLength(0)
+    expect(await interruptedEverywhereOf(ctx)).toEqual([])
   },
 
   async release(ctx) {

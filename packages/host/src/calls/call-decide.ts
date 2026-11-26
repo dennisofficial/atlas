@@ -9,6 +9,7 @@ export const decideCall = async (args: { lane: CallLane; call: Pending }): Promi
   const answer = await lane.answers.ask(call.key)
   call.awaitingAnswer = false
   if (call.done || lane.gone()) return
+  if (settleAborted({ lane, call })) return
   const action = actionForAnswer({
     op: call.op.op,
     dispatchedBootId: call.dispatchBootId,
@@ -38,6 +39,7 @@ export const attachRecordedCall = async (args: {
   const answer = await lane.answers.ask(call.key)
   call.awaitingAnswer = false
   if (call.done || lane.gone()) return
+  if (settleAborted({ lane, call })) return
   if (answer === 'unavailable') {
     call.waiting = true
     return
@@ -48,4 +50,10 @@ export const attachRecordedCall = async (args: {
   }
   call.armed = true
   if (lane.linkReady()) lane.sendRun(call)
+}
+
+const settleAborted = (args: { lane: CallLane; call: Pending }): boolean => {
+  if (!args.call.controller.signal.aborted) return false
+  args.lane.settle(args.call, interruptedResult(args.call.op.op))
+  return true
 }

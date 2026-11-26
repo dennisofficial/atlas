@@ -6,6 +6,7 @@ import { toCallId, toRunId, toThreadId } from '@dltech/atlas-core'
 import { createInMemoryDaemon, inMemoryDaemonToken } from '@dltech/atlas-protocol/testing'
 
 import { RemoteCalls } from '../../../calls/remote-calls'
+import { dispatchBootOf } from '../record-commit'
 import { SessionRecord } from '../record-adapter'
 
 const SESSION = 'session-dispatch-boot'
@@ -99,5 +100,39 @@ describe('the boot a dispatch is recorded under', () => {
 
     rig.remoteCalls.close()
     await rig.daemon.stop()
+  })
+
+  it('waits for the pod to answer before it records the boot of a tool the daemon runs', async () => {
+    const link = { boot: 'boot-a' as string | undefined, readies: 0 }
+    const event = await dispatchBootOf({
+      draft: { type: 'tool-dispatched', callId: toCallId('call-bash'), name: 'bash' },
+      daemonTools: new Set(['bash']),
+      link: {
+        bootId: () => link.boot,
+        ready: async () => {
+          link.readies += 1
+          link.boot = 'boot-b'
+          return { bootId: link.boot, version: 'test' }
+        },
+      },
+    })
+
+    expect(event).toBe('boot-b')
+    expect(link.readies).toBe(1)
+  })
+
+  it('records the boot the link last saw for a tool the daemon does not run, without waiting', async () => {
+    const event = await dispatchBootOf({
+      draft: { type: 'tool-dispatched', callId: toCallId('call-service'), name: 'service' },
+      daemonTools: new Set(['bash']),
+      link: {
+        bootId: () => 'boot-a',
+        ready: async () => {
+          throw new Error('a plugin tool must not wait for the link')
+        },
+      },
+    })
+
+    expect(event).toBe('boot-a')
   })
 })

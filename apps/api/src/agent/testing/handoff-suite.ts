@@ -59,10 +59,6 @@ const readAll = async (args: {
   return page.events.map((row) => ({ seq: row.seq, type: row.type, event: row }))
 }
 
-/**
- * What a scenario gets to work with. Files it creates through `path` and `gate` live in the
- * workspace both hosts share, so they survive a handoff the way a file in the pod does.
- */
 export type HandoffContext = {
   rig: FaultRig
   sessionId: string
@@ -90,8 +86,6 @@ export type HandoffScenario = {
   /** the operator message the session starts with */
   prompt?: string
   files?: readonly SpawnFile[] | undefined
-  /** whether the clean drain case runs; a tool blocked inside the host never lets a drain finish */
-  drain?: boolean
   /** whether the workspace is already prepared when the session starts (default true) */
   prepared?: boolean
   /** what the pod runs as the setup script; the work under test when the scenario is a setup */
@@ -101,7 +95,6 @@ export type HandoffScenario = {
   takeOverScripts?(args: { sessionId: string }): Record<string, ScriptedModelStep[]>
   /** begins the work on host A, and waits until it is really in flight */
   start(ctx: HandoffContext): Promise<HostProcess>
-  /** runs once host B is up and before it claims: fault the pod link here so the takeover meets it down */
   beforeClaim?(ctx: HandoffContext, hostB: HostProcess): Promise<void>
   /** wakes a session that waits for the operator and wants no holder until then */
   wake?(ctx: HandoffContext): Promise<void>
@@ -166,18 +159,6 @@ const contextFor = (args: {
   return ctx
 }
 
-/**
- * Proves that work which outlives a turn or a prepare — a background setup script, a bash call —
- * keeps running on the pod and is collected exactly once whichever host takes the session over:
- *
- * - host A drains cleanly mid-work;
- * - host A is SIGKILLed mid-work;
- * - the pod restarts mid-work: the call is gone, so the record says it was interrupted and the
- *   work is never run a second time (only when the scenario supplies `interrupted`).
- *
- * Every case starts its own rig, pod and workspace, because a setup script leaves markers in the
- * workspace that a later case must not inherit.
- */
 export const describeHandoff = (scenario: HandoffScenario): void => {
   describe.skipIf(REDIS_URL === undefined)(`handoff: ${scenario.name}`, () => {
     const testDb = useTestDatabase()
@@ -263,19 +244,15 @@ export const describeHandoff = (scenario: HandoffScenario): void => {
         }
       })
 
-    it.skipIf(scenario.drain === false)(
-      'survives host A draining cleanly mid-work',
-      async () => {
-        await ownFault({
-          slug: 'drain',
-          apply: async (_ctx, hostA) => {
-            hostA.kill('SIGTERM')
-            await hostA.exited
-          },
-        })
-      },
-      90_000,
-    )
+    it('survives host A draining cleanly mid-work', async () => {
+      await ownFault({
+        slug: 'drain',
+        apply: async (_ctx, hostA) => {
+          hostA.kill('SIGTERM')
+          await hostA.exited
+        },
+      })
+    }, 90_000)
 
     it('survives host A being SIGKILLed mid-work', async () => {
       await ownFault({

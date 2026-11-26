@@ -68,6 +68,7 @@ export const openCall = async (args: {
     done: false,
     awaitingAnswer: false,
     waiting: false,
+    ...(request.attachOnly === true ? { attachOnly: true } : {}),
   }
   if (!lane.detached()) call.waiters.push(waiter)
   lane.pending.set(request.key, call)
@@ -88,7 +89,7 @@ export const openCall = async (args: {
     throw error
   }
   if (call.done) return outcome
-  call.dispatchBootId = args.dispatchedBootId ?? lane.bootId()
+  call.dispatchBootId = args.dispatchedBootId
   if (request.attachOnly === true) {
     await attachRecordedCall({ lane, call })
     return outcome

@@ -1,4 +1,4 @@
-import { decideCall } from './call-decide'
+import { attachRecordedCall, decideCall } from './call-decide'
 import type { CallLane } from './call-open'
 
 export const handleHello = (lane: CallLane, frame: { bootId: string; version: string }): void => {
@@ -14,7 +14,8 @@ export const handleHello = (lane: CallLane, frame: { bootId: string; version: st
   for (const call of lane.listed()) {
     if (call.done || call.awaitingAnswer) continue
     if (call.waiting) {
-      void decideCall({ lane, call })
+      if (call.attachOnly === true) void attachRecordedCall({ lane, call })
+      else void decideCall({ lane, call })
       continue
     }
     if (!call.armed) continue
