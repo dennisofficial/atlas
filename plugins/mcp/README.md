@@ -13,6 +13,7 @@ Connects a session to the MCP servers that the operator and the repository confi
 - The events `mcp-server-changed`, `mcp-server-removed`, `mcp-sign-in-started` and `mcp-sign-in-resolved`.
 - The MCP instructions in the context slot `McpInstructions`.
 - A handoff that is invisible: a token the API could not fetch keeps the last recorded row and tools, marked `retry: true`, instead of showing `needs-auth`.
+- A live `http` connection that answers 401: the client asks `PodMcpControl` for a current token once, retries the request once, and reports a sign-in only when that second attempt also fails.
 
 ## Does not own
 
