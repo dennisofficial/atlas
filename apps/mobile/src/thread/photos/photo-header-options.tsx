@@ -75,8 +75,6 @@ export const photoHeaderOptionsOf = ({
 }): NativeStackNavigationOptions => {
   const base: NativeStackNavigationOptions = {
     headerShown: visible,
-    statusBarHidden: !visible,
-    statusBarAnimation: 'fade',
     headerTransparent: true,
     headerShadowVisible: false,
     headerTintColor: tint,
