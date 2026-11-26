@@ -2,6 +2,7 @@ import { describe, expect, it } from 'bun:test'
 
 import {
   EEffort,
+  latchFactOf,
   refKey,
   toRunId,
   toThreadId,
@@ -119,6 +120,16 @@ describe('pluginPodContextOf on a replayed call', () => {
     await ctx.append([{ type: 'idle-released', inboxHead: 1 }])
     expect(drafts.filter((draft) => draft.type === 'fact-recorded')).toHaveLength(1)
     expect(drafts.filter((draft) => draft.type === 'idle-released')).toHaveLength(2)
+  })
+
+  it('appends a fact that rewrites its key to a new value, so a latch re-arms', async () => {
+    const { ctx, drafts } = await contextOf()
+    await ctx.append([latchFactOf({ name: 'memory-nudge', level: 1 })])
+    await ctx.append([latchFactOf({ name: 'memory-nudge', level: 0 })])
+    await ctx.append([latchFactOf({ name: 'memory-nudge', level: 1 })])
+    await ctx.append([latchFactOf({ name: 'memory-nudge', level: 1 })])
+    const levels = drafts.flatMap((draft) => (draft.type === 'fact-recorded' ? [draft.value] : []))
+    expect(levels).toEqual([1, 0, 1])
   })
 
   it('posts a notice once for a repeated key', async () => {
