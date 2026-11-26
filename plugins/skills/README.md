@@ -37,7 +37,7 @@ frontmatter. The model sees the model-invocable skills in its system prompt and 
 - `skillFrontmatterOf({ fields: frontmatterOf(text), fallbackName })`, `frontmatterOf`, `skillBodyOf`: split and read a `SKILL.md`.
 - `skillSpecOf({ text, fallbackName })`: the name, the summary and the argument hint of a `SKILL.md`, or nothing for blank text or an empty name. The API uses it to describe a stored skill.
 - `validateSkill`: the names, the limits (`SKILL_NAME_MAX_LENGTH`, `SKILL_DESCRIPTION_MAX_LENGTH`) and the warnings (`ESkillWarning`).
-- `resolveSkillShadowing`: which skill wins when two layers hold the same name. A repo skill beats a cloud project skill. A cloud project skill beats a cloud user skill. A cloud user skill beats a built-in skill.
+- `resolveSkillShadowing`: which skill wins when two layers hold the same name. A repo skill beats a cloud project skill. A cloud project skill beats a cloud group skill. A cloud group skill beats a cloud user skill. A cloud user skill beats a built-in skill.
 - `expandSkillBody`, `renderSkillListing`, `skillSummaryOf`, `skillListRowSchema`, `skillsChangedSchema`, `ESkillOrigin`.
 - `skillSuggestionStateOf({ events })`: the last `SKILL_SUGGEST_TURNS` operator messages, each with
   the agent's last reply, and the skills already loaded. An operator message still waiting in the
@@ -72,7 +72,7 @@ The source of the five built-in skills is `plugins/skills/skills`, in this packa
 | Tool           | What it does                                                                                                     |
 | -------------- | ---------------------------------------------------------------------------------------------------------------- |
 | `skill`        | Load the skill named `name`. `arguments` names the subject of the task; `path` reads one file the skill bundles. |
-| `skill_manage` | `install`, `edit` or `delete` a skill in the `user`, `project` or `repo` layer.                                  |
+| `skill_manage` | `install`, `edit` or `delete` a skill in the `user`, `group`, `project` or `repo` layer.                         |
 
 `install` and `edit` need `body`. A cloud `edit` also needs `baseRevision`.
 
@@ -132,8 +132,8 @@ definePlugin({
 ```
 
 `skillCloudPort({ db })` is the port factory of the API. It takes an optional `db` handle from the
-caller and binds the cloud skill store. Its `suggests(sessionId)` reads `skills.suggest` (project
-over user, on by default).
+caller and binds the cloud skill store. Its `suggests(sessionId)` reads `skills.suggest` (user,
+then group, then project; on by default).
 
 ## Rules
 

@@ -101,7 +101,7 @@ The headless client library that web, the TUI and the mobile app share.
   `rewindKillsOf(args)`, `mergedDraftOf(args)`: the picked message, its sequence, the draft ahead of the composer, and the work the rewind stops.
 - `restorePlanOf(attachments)`, `requestRewind(args)`: the attachments back in their composer
   stores, and the queued command. `RewindApi`, `RewoundMessage`, `RestorePlan`, `RestoredMedia`,
-  `RewindKillRow`: the types.
+  `RewindKillRow`: the types. `quickStopRestoresOf(args)`, `quickStopRestoresToApply(args)`: the composer text and attachments that a quick stop gives back, one `QuickStopRestore` for each rewind.
 
 ### Start a session and upload a composer image
 
@@ -111,7 +111,7 @@ The headless client library that web, the TUI and the mobile app share.
 - `EAttachmentStatus`, `HeldStatus`, `OCTET_STREAM`, `MAX_UPLOAD_MB`: the held attachment type and
   its limits. `planAttach({ files, held })`: `accepted`, `oversize` and `droppedOverflow`.
   `withProgress`, `withFailed`, `withoutAttachment`, `readyAttachments`, `isUploading`, `hasFailed`: the holder updates. `TOO_MANY_FILES`, `REMOVE_FAILED_FILES`, `tooLargeNotice(name)`, `uploadFailedNotice(name)`: the notices.
-- `sessionCreateInputOf(args)`, `initialProjectIdOf(args)`: a new session's create input and project.
+- `sessionCreateInputOf(args)`, `initialProjectIdOf(args)`: a new session's create input and project. `sessionBootViewOf(args)` gives the sandbox start steps, and `BootView` types them.
 - `composerSendStateOf`, `contextPercentOf`, `createDraftSync(args)`: send, context, draft write.
 - `queuedMessagesOf`, `queuedNoticesOf`, `stagedQueuedMessagesOf`, `optimisticPlacementOf(args)`: the queued rows. `WithdrawTarget`, `WithdrawIntent` (a target plus the request id it was minted for), `WithdrawSettlement`, `withdrawSettlementsOf(args)`, `withdrawRefusalNoticeOf(reason)`: the Edit or Remove of one queued row, settled by the durable `input-withdrawn` or `input-refused`. `requestWithdraw(args)`, `createWithdrawStore()`, `withdrawStore`: the withdraw request and the in-memory per-session intents that hide a row until the settlement for its target arrives; an answer that belongs to an older request for the same target leaves the newer intent held. `operatorSaidOf(said)`, `withdrawOwnedInboxIdsOf(args)`: the messages the operator owns, so the withdraw path alone restores the text and reports a refusal. `ToolPicture` and `firstPictureIn(args)` (in `transcript`) read the media ref a tool result carried.
 

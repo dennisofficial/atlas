@@ -44,8 +44,10 @@ The worker registers the tasks. This package only names them and validates their
 
 ### Name a pod task
 
-- `POD_SLEEP_TASK_ID`: `pod-sleep`, a payload of a `sessionId` and an `epoch`.
-- `POD_RESIZE_TASK_ID`: `pod-resize`, a payload of a session, a generation and the pod shape.
+- `POD_SLEEP_TASK_ID`: `pod-sleep`, a payload of a `sessionId`, an `epoch` and an optional
+  `parkedAt`.
+- `POD_RESIZE_TASK_ID`: `pod-resize`, a payload of a session, a generation, the pod shape and an
+  optional `whenIdle`.
 - `POD_RESIZE_MAX_DISK_GB`: the 100 GB ceiling a resize payload enforces, the same ceiling
   `RESIZE_MAX_DISK_GB` names in `@dltech/atlas-native-commands`.
 - `podSleepPayloadSchema`, `PodSleepPayload`, `EPodSleepOutcome`, `PodSleepOutput`: the sleep
@@ -74,7 +76,8 @@ The worker registers the tasks. This package only names them and validates their
   devices once.
 - `notifyTestIdempotencyKey({ payload, now })`: gives `notify-test:<userId>:<minute>`, so repeated
   presses inside one minute send one test. `NOTIFY_TEST_WINDOW_MS` is that one-minute window.
-- `podSleepIdempotencyKey(payload)`: gives `pod-sleep:<sessionId>:<epoch>`.
+- `podSleepIdempotencyKey(payload)`: gives `pod-sleep:<sessionId>:<parkedAt>`. Without `parkedAt`,
+  it gives `pod-sleep:<sessionId>:archived-<epoch>`.
 - `podResizeIdempotencyKey(payload)`: gives `pod-resize:<sessionId>:<generation>`. A run the idle
   push resumes carries `waitedSince` and gets `pod-resize:<sessionId>:<generation>:idle:<waitedSince>`,
   so every push for one wait starts one run.

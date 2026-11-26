@@ -7,10 +7,9 @@ a thread's event log.
 ## Owns
 
 - `ControlPlane`: every write and read of the control plane, over a store port.
-- The session lifecycle: create, title, rename, archive, mark read, and the peer and teammate
-  messages.
+- The session lifecycle: create, title, rename, archive, mark read, and the peer and teammate messages.
 - The thread record: the hash-chained event log, the reads, the blobs and the plugin views.
-- The holder leases, the claims, the pod wakes and the host presence.
+- The holder leases, the claims, the pod wakes, the pod park state and the host presence.
 - The inbox, the subscriptions and their endings.
 - The terminals, the worktree changes and the change-blob garbage collection.
 - The routines: the rows, the runs and the due check.
@@ -29,7 +28,7 @@ a thread's event log.
 | Import                           | Use it for                                                                  |
 | -------------------------------- | --------------------------------------------------------------------------- |
 | `@dltech/atlas-control`          | `ControlPlane`, the store port, the refusal kinds and the routine service.  |
-| `@dltech/atlas-control/postgres` | The Postgres store and the session write and view helpers.                  |
+| `@dltech/atlas-control/postgres` | The Postgres store, `threadOwnerOf` and the session write and view helpers. |
 | `@dltech/atlas-control/testing`  | `InMemoryControlStore`, the conformance suites and the fake content stores. |
 | `@dltech/atlas-control/s3`       | The S3 change and context content stores, and the settings of each.         |
 
@@ -43,10 +42,11 @@ a thread's event log.
   record `session-archived` in its inbox. Returns a `SpawnedArchive`.
 - `listSessions`, `listSessionDigests`, `countSessionBuckets`, `readSession`, `sessionsOf`,
   `readSessionBusy`. A digest listing can filter on archived, a title search and a keyset cursor.
-- `spawnPeer`, `messagePeer`, `reportToSpawner`, `podPeersPlaced`.
+- `spawnPeer`, `messagePeer`, `reportToSpawner`, `podSessionsPlaced`, `podPeersPlaced`.
 - `setSandboxInstanceId`, `setSandboxStatus`, `recordPodDesired`, `recordPodApplied`,
-  `recordPodDisk`, `recordPodFailed`, `recordPodWaiting`. `claimPodWait` takes one recorded wait.
-  `cancelPodWait` reverts a resize that waits for the pod to go idle; both return false if none.
+  `recordPodDisk`, `recordPodFailed`, `recordPodWaiting`, `parkPod`, `failPodPark`,
+  `clearPodPark`. `claimPodWait` takes one recorded wait. `cancelPodWait` reverts a resize that
+  waits for the pod to go idle; both return false if none.
 
 ### Append to the thread record
 
@@ -62,6 +62,7 @@ a thread's event log.
 ### Read a session view
 
 - `readSessionView({ sessionId, threadId })`: the session view that a follow stream reads.
+- `readTailBase({ sessionId, threadId, tailFrom })`: the `TailBase` of a catch-up frame.
 - `pricedView({ at, value, compute? })`: the priced `SessionViewOutput` of a control session value.
 - `sessionSummaryOf({ digest, now })`: returns the `SessionSummary` of a session digest.
 - `readSessionStatus({ plane, sessionId, threadId })`: returns the status of a session view.

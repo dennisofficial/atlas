@@ -24,6 +24,15 @@
 - `@dltech/atlas-native-commands` is the name of `commands/` (`commands/package.json:2`), not a stale rename.
 - Decision links named `docs/decisions/00NN-v2-*.md` are real file names.
 - `packages/sandbox`: "cgroup v2 or v1" and `CGROUP_V2_CPU_STAT` name the Linux cgroup versions.
+- `plugins/quality`: "the hook budget is 5 s" is the host `HOOK_BUDGET_MS` (`packages/agent/src/hooks/budget.ts:1`), not the plugin's 1 s review budget.
+- `plugins/mcp`: the four watched `.mcp.json`/`mcp.json` paths are right though only two are read (`src/pod/resources.ts:32-37`).
+- `packages/schedule`: "uses it in the API" holds through `packages/control/src/routine-service.ts:71`.
+- `plugins/instructions`: a group instruction reloads through the `PersonalInstructions` version (`apps/api/src/agent/control/settings-versions.ts:84-90`).
+- `plugins/web`: "the daemon keeps it alive between bash calls" is deliberate text from #2951.
+- `packages/classifier`: the usage example's `classifierCredentialOf` result is assignable to `ClassifierCredential`.
+- `packages/protocol`: the 64 KiB service-log tail lives in `apps/api/src/api/platform/sessions/services.service.ts:7`.
+- `packages/previews`: "`expose` takes a per-pod advisory lock" covers the row writes, not the Cloudflare create; the claim is still true.
+- `packages/sandbox`: "the v1 serve reserve" names the legacy reserve on purpose.
 
 ## Runs
 
@@ -47,3 +56,10 @@
 - Corrected 28 READMEs. Most fixes: paths under the deleted `apps/trigger/src/trigger/` and `apps/api/src/trigger`, omitted public exports, and `v2` wording.
 - Usage examples that did not compile: previews (`livePreviewPeersOf`), web (`jinaKey` is a function), classifier, wire. Removed `takeBack`, `qualityNoticeOf`, `serve-env`.
 - Possible bugs: `SUBSCRIPTIONS_VIEW` still unregistered; github subscribe reasons name a `subscribe` tool; `applyServePriority` has no caller; `SessionStreamOlderPage` is not exported.
+
+### 2026-11-26
+
+- Window: 26 h. 38 changed READMEs. Rotation: `packages/pods`, `packages/previews`.
+- Corrected 16 READMEs. Most fixes: omitted public exports (`readPodStopBusy`, `sealPreviewTunnel`, `parkPod`, `sessionBootViewOf`, `validateMediaBytes`, quick-stop restores, core retention and shell names) and the new project group layer (skills, mcp, wire).
+- Removed names a consumer cannot import: host `readKey`, `planStep`, `stepDigestOf`, `crashSettleOf`; previews `PreviewTunnelClaims`.
+- Possible bugs: `SUBSCRIPTIONS_VIEW` still unregistered; `applyServePriority` and `SERVE_MEMORY_RESERVE` have no caller; `putMemory` skips the body limit; api-router does not export `ApiCredentials`.

@@ -110,7 +110,7 @@ definePlugin({
 
 - A server name holds only letters, digits, underscores and hyphens, because the model reads it verbatim in a tool name.
 - A server that is not disabled needs a `transport`.
-- The sources rank in this order, from lowest to highest: cloud user, cloud project, `.atlas/mcp.json`, `.mcp.json`. A later source wins a name.
+- The sources rank in this order, from lowest to highest: cloud user, cloud group, cloud project, `.atlas/mcp.json`, `.mcp.json`. A later source wins a name.
 - A `.mcp.json` entry never beats a native definition of the same name. The merge shadows it.
 - Import `@dltech/atlas-plugin-mcp/pod` in the pod only. It starts processes and opens sockets.
 

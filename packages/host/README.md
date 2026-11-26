@@ -58,16 +58,16 @@ only what it can rebuild or drop.
 
 ### Call the daemon
 
-- `RemoteCalls`: the client of the daemon link. `open`, `ready`, `invoke`, `ack`, `ackScope`, `handoff`, `bootId`, `close`.
+- `RemoteCalls`: the client of the daemon link. `open`, `ready`, `daemonCapabilities`, `invoke`, `ack`, `ackScope`, `handoff`, `bootId`, `close`.
 - `WorkspaceGate`, `POD_WAIT_INTERRUPTED`, `WorkspaceGateOutcome`, `webSocketConnector({url})`,
   `DaemonConnector`, `DaemonSocket`: hold a tool call until the workspace prepare settles, and connect.
 - `newKey()`, `systemTimers`, `CallTimers`, `ScopedToolDispatcher`, `runInCallScope`, `scopeKeyOf`,
-  `markDispatched`, `nextKey`, `readKey`: bind a call to one scope. `scopeKeyOf` is the call id, so a
-  step key `<callId>.<n>` is both the recorded fact and the wire key.
-- `planStep`, `stepDigestOf`: give a plugin tool's steps that key, reuse a recorded one whose op and
-  env-free digest match, take a slot above the maximum for a diverged one, ask before a replay
-  (`replayed`), and wait for the next hello when the daemon cannot answer.
-- `crashSettleOf`, `ECrashedCall`: a call a restart left open holds while its steps answer for themselves, and is interrupted only on a proven pod boot change.
+  `dispatchableScopeKey`, `markDispatched`, `nextKey`: bind a call to one scope. `scopeKeyOf` is the
+  call id, so a step key `<callId>.<n>` is both the recorded fact and the wire key.
+- The dispatcher reuses a recorded step whose op and digest match, and asks the daemon before it
+  replays it. A diverged step takes a slot above the maximum. The digest leaves out `env`,
+  `tunnelToken` and the fields the daemon mints.
+- A call that a restart left open holds while its steps answer for themselves, and is interrupted only on a proven pod boot change.
 
 ### Reach the sandbox through a port
 

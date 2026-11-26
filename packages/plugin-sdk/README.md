@@ -64,9 +64,8 @@ export const probeObservedSchema = z.object({
 
 A `PodSlot` declares:
 - `tools(ctx)` and `hooks(ctx)`: the `ToolDefinition` values and the `HookChainArgs` of each phase.
-  An `afterTool` hook may opt into captured file changes with `capturesFileChanges({call, signal})`
-  and then read `result.fileChanges`; it may key its `additionalContext` to the call with
-  `contextKey: call.callId`, so later findings do not supersede it.
+  An `afterTool` hook may opt into captured file changes with `capturesFileChanges({call, signal})`,
+  read `result.fileChanges`, and key its `additionalContext` with `contextKey: call.callId`.
 - `prompts`: the `PromptFragment` values the plugin adds to the system prompt.
 - `commands(ctx)`: a map from inbox kind to `CommandHandler`, each closing over the pod context; a duplicate kind throws.
 - `resources`: the `PodResource` values the plugin loads, such as a skill directory.
@@ -77,8 +76,9 @@ A `PodSlot` declares:
 `ctx` is a `PluginPodContext`. It gives `sessionId`, `workspaceDirectory`, `env()`, `append(drafts)`,
 `notify(event, {key})`, `events()`, `call(op)`, `live(frame)`, `onDaemonEvent(listener)`, `log`, and
 the capabilities `control`, `crew`, `messages`, `classifier`, `analytics`, `sessions`, `worktrees`,
-`resources`. `ctx.analytics.capture({event, properties})` sends a product event for the session's
-user; the host adds `session_id` and `thread_id`.
+`resources`. `ctx.analytics.capture({event, properties, links})` sends one product event for the
+session's user. The host adds `session_id` and `thread_id`, or with `links: EAnalyticsLinks.Hashed`
+the hashes `session_hash` and `thread_hash`.
 `ctx.crew` is a `PodCrew`: `spawn` with a `group` wakes the parent once, after every member ends,
 `report({text})` answers the parent, and `say`, `stop`, `list` and `resume` act on one sub-agent.
 `ctx.control` is a `PodControl`: `exposePort({port})`, `settingsVersions()`, `memory`,
