@@ -4,6 +4,7 @@ import type { ServiceInfo } from '@dltech/atlas-protocol'
 
 import { newServiceId, startService } from './daemon'
 import { exposeService } from './expose'
+import { EServiceFailure, failureOutcome, serviceFailed, type ServiceFailed } from './failure'
 import { renderStarted } from './render'
 import { serviceEnvOf } from './service-env'
 import type { ServicePodState } from './state'
@@ -37,7 +38,7 @@ export type LaunchedService = {
 
 export const launchTracked = async (
   args: LaunchArgs,
-): Promise<{ ok: true; value: LaunchedService } | { ok: false; reason: string }> => {
+): Promise<{ ok: true; value: LaunchedService } | ServiceFailed> => {
   const { ctx, state } = args
   const requested = newServiceId()
   let settled: () => void = () => undefined
@@ -59,7 +60,9 @@ export const launchTracked = async (
       readyTimeoutMs: args.readyTimeoutMs,
       signal: args.signal,
     })
-    if (!launched.ok) return { ok: false, reason: launched.reason }
+    if (!launched.ok) {
+      return serviceFailed({ reason: launched.reason, failure: EServiceFailure.LaunchFailed })
+    }
     const serviceId = launched.value.serviceId
     const exposure =
       args.port === undefined || args.expose === false
@@ -104,7 +107,7 @@ export const launchTracked = async (
 
 export const launchService = async (args: LaunchArgs): Promise<ToolOutcome> => {
   const launched = await launchTracked(args)
-  if (!launched.ok) return launched
+  if (!launched.ok) return failureOutcome(launched)
   return {
     ok: true,
     output: {

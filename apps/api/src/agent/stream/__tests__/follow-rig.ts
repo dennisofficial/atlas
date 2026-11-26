@@ -64,6 +64,7 @@ export class FollowRig {
   reads = 0
   headReads = 0
   tailBaseReads = 0
+  tailBaseMissing = false
   onRead: (() => Promise<void>) | undefined
   readonly follow: FollowSubscriptions
   private epoch = 0
@@ -97,6 +98,7 @@ export class FollowRig {
       },
       readTailBase: async (params) => {
         this.tailBaseReads += 1
+        if (this.tailBaseMissing) return undefined
         return this.plane.readTailBase(params)
       },
       listSessionDigests: (params) => {

@@ -7,7 +7,7 @@ import {
   type ToolDefinition,
   type ToolOutcome,
 } from '@dltech/atlas-core'
-import { logFieldsOf, type LogPort } from '@dltech/atlas-observability'
+import { errorClassOf, logFieldsOf, type LogPort } from '@dltech/atlas-observability'
 
 const messageOf = (error: unknown): string =>
   error instanceof Error ? error.message : String(error)
@@ -46,6 +46,10 @@ export async function invokeTool(args: {
       data: { tool: args.call.name },
       ...logFieldsOf({ error }),
     })
-    return { ok: false, reason: `the ${args.call.name} tool threw: ${messageOf(error)}` }
+    return {
+      ok: false,
+      reason: `the ${args.call.name} tool threw: ${messageOf(error)}`,
+      spanDetail: { 'error.class': errorClassOf(error) },
+    }
   }
 }

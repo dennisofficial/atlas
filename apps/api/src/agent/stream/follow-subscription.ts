@@ -195,7 +195,8 @@ export class FollowSubscription implements FollowTarget {
       threadId: this.requireThread(),
       tailFrom,
     })
-    if (this.stopped || base === undefined) return
+    if (this.stopped) return
+    if (base === undefined) return this.meter?.markTailMissed()
     this.meter?.markTail()
     this.cursor = base.cursor
     this.sendMetered(base.frame)

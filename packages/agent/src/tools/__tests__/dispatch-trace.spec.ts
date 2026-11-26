@@ -38,6 +38,17 @@ class InterruptedTool extends ToolDefinition {
   }
 }
 
+class ThrowingTool extends ToolDefinition {
+  readonly name = 'slow'
+  readonly description = 'a tool that throws'
+  readonly effect = EToolEffect.Read
+  readonly inputSchema = z.unknown()
+
+  async invoke(_args: ToolInvocation): Promise<ToolOutcome> {
+    throw new TypeError('the pipe broke')
+  }
+}
+
 class DetailedTool extends ToolDefinition {
   readonly name = 'slow'
   readonly description = 'a tool that reports how its command ran'
@@ -123,6 +134,17 @@ describe('the tool span outcome', () => {
     })
 
     expect(trace.named(ESpan.Tool)[0]?.fields.outcome).toBe(ESpanOutcome.Error)
+  })
+
+  it('carries the class of a thrown tool failure, never its message', async () => {
+    const trace = await dispatchUnder({
+      signal: new AbortController().signal,
+      tool: new ThrowingTool(),
+    })
+    const tool = trace.named(ESpan.Tool)[0]
+
+    expect(tool?.fields.extra).toEqual({ 'error.class': 'TypeError' })
+    expect(tool?.fields.outcome).toBe(ESpanOutcome.Error)
   })
 
   it('carries the span detail a tool result reported, next to its outcome', async () => {

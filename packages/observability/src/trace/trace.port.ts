@@ -69,6 +69,13 @@ export enum EPrepareOutcome {
   Stopped = 'stopped',
 }
 
+export enum EPreparePhase {
+  Steps = 'steps',
+  Seed = 'seed',
+  Record = 'record',
+  SetupEnd = 'setupEnd',
+}
+
 export enum ESpanSpeed {
   Fast = 'fast',
   Standard = 'standard',

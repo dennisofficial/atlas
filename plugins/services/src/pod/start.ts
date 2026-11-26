@@ -3,6 +3,7 @@ import type { PluginPodContext } from '@dltech/atlas-plugin-sdk'
 
 import { ensureDeclared } from './declared-ensure'
 import { readDeclared } from './declared-file'
+import { failureOutcome } from './failure'
 import { launchService } from './launch'
 import type { DeclaredPlace } from './place'
 import type { ServiceInput } from './schema'
@@ -23,7 +24,7 @@ export const startService = async (args: {
       projectDirectory: args.place.root,
       signal: args.signal,
     })
-    if (!declared.ok) return declared
+    if (!declared.ok) return failureOutcome(declared)
     return ensureDeclared({
       ctx,
       state,

@@ -1,5 +1,6 @@
 import { z } from 'zod'
 
+import { isAsyncIterable } from './async-iterable'
 import {
   dimensionSchema,
   terminalIdSchema,
@@ -107,6 +108,9 @@ export const terminalStreamFrameSchema = z.discriminatedUnion('type', [
   }),
 ])
 export type TerminalStreamFrame = z.infer<typeof terminalStreamFrameSchema>
+
+export const terminalStreamOutputSchema =
+  z.custom<AsyncIterable<TerminalStreamFrame>>(isAsyncIterable)
 
 export const terminalStreamAttachInputSchema = z.strictObject({
   sessionId: sessionIdSchema,
