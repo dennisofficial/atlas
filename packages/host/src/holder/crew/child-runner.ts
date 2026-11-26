@@ -10,13 +10,8 @@ import type { PodCrew } from '@dltech/atlas-plugin-sdk'
 import { dispatchableScopeKey, ScopedToolDispatcher } from '../../calls/call-scope'
 import { InFlightSteps } from '../../calls/step-detach'
 import type { HeldSessionDeps } from '../held-session-deps'
-import {
-  pluginHooksOf,
-  pluginPodContextOf,
-  pluginToolsOf,
-  resolvedEventsOf,
-  resourceSyncOf,
-} from '../plugin-pod'
+import { pluginPodContextOf, pluginToolsOf, resolvedEventsOf } from '../plugin-pod'
+import { pluginHooksOf, resourceSyncOf } from '../plugin-hooks'
 import { hookedToolsOf } from '../hooked-tools'
 import { liveOutputOf } from '../live-output'
 import { modelWaitObserverOf } from '../model-wait-observer'
