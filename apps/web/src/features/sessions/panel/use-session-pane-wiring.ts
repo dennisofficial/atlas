@@ -17,7 +17,7 @@ import { enteredWorktreePathOf } from '../data/entered-worktree'
 import { contextChangesOf } from '../data/context-files'
 import { useTurnEndCount } from '@/features/threads/data/use-git-changes'
 
-export type PaneSnapshot = Pick<SessionSnapshot, 'view' | 'status' | 'shells' | 'events'>
+export type PaneSnapshot = Pick<SessionSnapshot, 'view' | 'status' | 'shells' | 'foldable'>
 
 const NO_CHECKOUTS: SessionViewOutput['checkouts'] = { repos: [], primary: null }
 
@@ -41,16 +41,16 @@ export function useSessionPaneWiring(args: {
 }): SessionPaneWiring {
   const { sessionId, title, startedAt, projectId, model, snapshot, mainThreadId, pane } = args
   const { openTab, openRequest, requestOpen, consumeOpenRequest } = pane
-  const { view: viewOutput, status, shells, events } = snapshot
+  const { view: viewOutput, status, shells, foldable } = snapshot
   const threadWorktreePath = useMemo(
     () =>
       mainThreadId === undefined
         ? undefined
-        : enteredWorktreePathOf({ events, threadId: mainThreadId }),
-    [mainThreadId, events],
+        : enteredWorktreePathOf({ events: foldable, threadId: mainThreadId }),
+    [mainThreadId, foldable],
   )
   const shellTails = useMemo(() => shellTailTextOf(shells), [shells])
-  const contextChanged = useMemo(() => contextChangesOf(events), [events])
+  const contextChanged = useMemo(() => contextChangesOf(foldable), [foldable])
   const turnEnds = useTurnEndCount(isSessionWorking(status))
   const ports = useMemo(() => previewPortsOf(model.previews), [model.previews])
   const openBrowserTab = useCallback(() => openTab(ESessionPaneTab.Browser), [openTab])

@@ -104,6 +104,13 @@ describe('contextChangesOf', () => {
     expect(contextChangesOf([])).toBeUndefined()
   })
 
+  it('needs the retained log when the tail holds no context change', () => {
+    const retained = [eventOf(1, ['plan.md'])]
+
+    expect(contextChangesOf(retained.slice(1))).toBeUndefined()
+    expect(contextChangesOf(retained)).toEqual({ seq: 1, paths: ['plan.md'] })
+  })
+
   it('reaches the web stream as a known event', () => {
     expect(sessionEventTypes.has('context-changed')).toBe(true)
     expect(sessionEventSchema.safeParse(eventOf(1, ['plan.md'])).success).toBe(true)

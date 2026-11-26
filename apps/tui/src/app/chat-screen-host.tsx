@@ -121,8 +121,8 @@ export function ChatScreenHost(props: ChatScreenHostProps): React.ReactNode {
   })
 
   const request = useMemo(
-    () => pendingOperatorRequestOf({ events: transcript.rawEvents }),
-    [transcript.rawEvents],
+    () => pendingOperatorRequestOf({ events: transcript.foldable }),
+    [transcript.foldable],
   )
 
   const operator = useOperatorInput({
@@ -141,7 +141,7 @@ export function ChatScreenHost(props: ChatScreenHostProps): React.ReactNode {
     api: props.client.api,
     sessionId: props.sessionId,
     events: transcript.events,
-    rawEvents: transcript.rawEvents,
+    foldable: transcript.foldable,
     live: transcript.liveSteps,
     working: transcript.working,
     connected: connection.cloudConnected,
@@ -173,7 +173,7 @@ export function ChatScreenHost(props: ChatScreenHostProps): React.ReactNode {
   const panels = useTranscriptPanels({
     api: props.client.api,
     views: transcript.view?.pluginViews ?? {},
-    events: transcript.rawEvents,
+    events: transcript.foldable,
     openUrl: props.openUrl,
     onProblem: problemOf,
     onComplete: (name) => composer.draft.setValue(`/${name} `),
