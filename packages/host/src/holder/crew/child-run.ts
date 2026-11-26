@@ -397,8 +397,11 @@ export class ChildRun {
     await this.posts(() => this.transcript.ended({ draft }))
   }
 
-  private async report(args: { text: string }): Promise<SubagentSnapshot> {
-    await this.posts(() => this.transcript.reported({ text: args.text }))
+  private async report(args: {
+    text: string
+    clientId?: string | undefined
+  }): Promise<SubagentSnapshot> {
+    await this.posts(() => this.transcript.reported(args))
     return this.snapshot()
   }
 }

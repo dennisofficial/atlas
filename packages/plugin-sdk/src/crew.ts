@@ -36,5 +36,5 @@ export type PodCrew = {
   stop(args: { agentId: string }): Promise<SubagentSnapshot>
   resume(args: { agentId: string }): Promise<EResumeOutcome>
   list(): readonly SubagentSnapshot[]
-  report(args: { text: string }): Promise<SubagentSnapshot>
+  report(args: { text: string; clientId?: string | undefined }): Promise<SubagentSnapshot>
 }

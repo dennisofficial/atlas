@@ -273,6 +273,25 @@ describe('send_message on a call that has a step', () => {
     ])
   })
 
+  it('stamps the step key on a sub-agent report to its parent', async () => {
+    const reports: { text: string; clientId?: string | undefined }[] = []
+    const messages = podMessagesOf({
+      sessionId: SESSION,
+      selfAgentId: 'a1',
+      crew: {
+        ...crewOf({ calls: [], reported: [] }),
+        report: async (report) => {
+          reports.push(report)
+          return snapshot
+        },
+      },
+      plane: planeOf({ calls: [] }),
+      step: stepOf('host.1.messages.h3'),
+    })
+    await messages.send({ to: 'parent', text: 'done reading' })
+    expect(reports).toEqual([{ text: 'done reading', clientId: 'host.1.messages.h3' }])
+  })
+
   it('sends no client id when the call has no step', async () => {
     const rig = sentOf({})
     await rig.messages.send({ to: 'session-2', text: 'hello' })

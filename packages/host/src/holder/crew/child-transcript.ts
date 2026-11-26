@@ -114,7 +114,7 @@ export class ChildTranscript {
     ])
   }
 
-  async reported(args: { text: string }): Promise<void> {
+  async reported(args: { text: string; clientId?: string | undefined }): Promise<void> {
     await postNotice(this.parent, {
       event: {
         type: 'agent-reported',
@@ -123,7 +123,7 @@ export class ChildTranscript {
         intent: this.args.intent,
         prose: args.text,
       },
-      key: reportKeyOf({ agentId: this.args.agentId, seq: this.args.lastSeq() }),
+      key: args.clientId ?? reportKeyOf({ agentId: this.args.agentId, seq: this.args.lastSeq() }),
     })
   }
 

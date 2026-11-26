@@ -30,7 +30,7 @@ const parentOf = async (params: {
 }): Promise<MessageSent> => {
   const { source, text, clientId } = params
   if (source.selfAgentId !== undefined) {
-    await source.crew.report({ text })
+    await source.crew.report({ text, ...(clientId === undefined ? {} : { clientId }) })
     return { delivered: true, to: PARENT_ADDRESS, queued: false }
   }
   const sent = await source.plane.reportToSpawner({
