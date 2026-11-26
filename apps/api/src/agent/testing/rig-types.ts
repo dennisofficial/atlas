@@ -29,6 +29,7 @@ export type HostKnobs = {
   sweepMs?: number
   fault?: EHostFault
   pluginToolGate?: ToolGate
+  faultTools?: boolean
   plugins?: boolean
   modelRequestsFile?: string
   contextMirrorDir?: string

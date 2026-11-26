@@ -29,7 +29,6 @@ describeHandoff({
   name: 'a service start whose host handoff meets the pod link down',
   prompt: 'start the service',
   knobs: KNOBS,
-  drain: false,
 
   async start(ctx): Promise<HostProcess> {
     const command = listeningCommandOf({

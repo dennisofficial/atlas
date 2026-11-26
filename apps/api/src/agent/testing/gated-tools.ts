@@ -9,6 +9,8 @@ import {
 import type { ComposedPlugins } from '@dltech/atlas-plugin-sdk'
 import type { ZodType } from 'zod'
 
+import { faultToolsOf } from './fault-tools'
+
 export type ToolGate = {
   tool: string
   waitFor: string
@@ -78,22 +80,32 @@ export const toolGateOf = (raw: string | undefined): ToolGate | undefined => {
   return JSON.parse(raw) as ToolGate
 }
 
-export const gatedPluginsOf = (args: {
+export const riggedPluginsOf = (args: {
   plugins: ComposedPlugins
-  raw: string | undefined
+  gate: ToolGate | undefined
+  faultTools: boolean
 }): ComposedPlugins => {
-  const gate = toolGateOf(args.raw)
-  if (gate === undefined) return args.plugins
+  if (args.gate === undefined && !args.faultTools) return args.plugins
+  const { plugins, gate } = args
   return {
-    ...args.plugins,
+    ...plugins,
     pod: {
-      ...args.plugins.pod,
-      tools: (ctx) => gatedToolsOf({ gate, tools: args.plugins.pod.tools(ctx) }),
+      ...plugins.pod,
+      tools: (ctx) => [
+        ...(gate === undefined
+          ? plugins.pod.tools(ctx)
+          : gatedToolsOf({ gate, tools: plugins.pod.tools(ctx) })),
+        ...(args.faultTools ? faultToolsOf(ctx) : []),
+      ],
     },
   }
 }
 
 export const rigPluginsOf = (plugins: ComposedPlugins): ComposedPlugins | undefined =>
   process.env.FAULT_PLUGINS === '1'
-    ? gatedPluginsOf({ plugins, raw: process.env.PLUGIN_TOOL_GATE })
+    ? riggedPluginsOf({
+        plugins,
+        gate: toolGateOf(process.env.PLUGIN_TOOL_GATE),
+        faultTools: process.env.FAULT_TOOLS === '1',
+      })
     : undefined

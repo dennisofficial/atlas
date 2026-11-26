@@ -16,7 +16,7 @@ import type { TurnLedgerDeps } from '../ledger/record-turn-spend'
 import type { ApplyLoopCut } from '../loop-cut'
 import type { FailureDiagnostics, NormalizeFailure } from '../model/run-failure'
 import type { AgentRecordPort, ModelContextPort } from '../record/agent-record.port'
-import type { ToolDispatcher } from '../tools/dispatch'
+import type { DispatchableCall, ToolDispatcher } from '../tools/dispatch'
 import type { SaidUploadsPort } from '../uploads/said-uploads.port'
 import type { AgentOutput } from './agent-output'
 import type { LoopWatch } from './loop-watchdog'
@@ -52,7 +52,7 @@ export type TurnDeps = {
   retry?: RetryDeps | undefined
   sleepPrevention?: SleepPrevention | undefined
   waitState?: ModelWaitObserver | undefined
-  detachTool?: ((name: string) => boolean) | undefined
+  detachTool?: ((call: DispatchableCall) => boolean) | undefined
   normalizeFailure: NormalizeFailure
   failureDiagnostics?: FailureDiagnostics | undefined
   onceLedger?: OnceLedger | undefined

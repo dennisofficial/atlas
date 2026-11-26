@@ -28,6 +28,7 @@ type PlannedCall = {
   replayed: boolean
   bootId?: string | undefined
   read: boolean
+  step: boolean
 }
 
 const ackRead = (args: Parameters<typeof pluginCallOf>[0], key: string): void => {
@@ -51,6 +52,7 @@ export const pluginCallOf = (args: {
   steps?: PluginSteps | undefined
   bootId?: (() => string | undefined) | undefined
   ack?: ((key: string) => Promise<unknown>) | undefined
+  detached?: ((plan: { callKey: string; step: boolean }) => void) | undefined
 }): PluginPodContext['call'] => {
   const withEnv = async (op: CallOp): Promise<CallOp> => {
     if (op.op !== 'exec' || args.env === undefined) return op
@@ -73,13 +75,16 @@ export const pluginCallOf = (args: {
     }
   }
   const freshCallOf = (op: CallOp): PlannedCall => {
-    if (!isReadOnlyOp(op.op)) return { key: nextKey(), replayed: false, read: false }
-    return { key: readKey(), replayed: false, read: true }
+    if (!isReadOnlyOp(op.op)) return { key: nextKey(), replayed: false, read: false, step: false }
+    return { key: readKey(), replayed: false, read: true, step: false }
   }
   const planOf = async (op: CallOp): Promise<PlannedCall> => {
     const scope = scopeKey()
     if (scope === undefined || args.steps === undefined) return freshCallOf(op)
-    if (isReadOnlyOp(op.op)) return freshCallOf(op)
+    if (isReadOnlyOp(op.op)) {
+      args.detached?.({ callKey: scope, step: false })
+      return freshCallOf(op)
+    }
     const recorded: readonly RecordedStep[] =
       scopeRecordedSteps() ?? (await args.steps.recorded(scope))
     rememberRecordedSteps(recorded)
@@ -93,6 +98,7 @@ export const pluginCallOf = (args: {
       nextSlot: scopeNextSlot(),
     })
     claimStepSlot({ key: plan.key, index: plan.index })
+    args.detached?.({ callKey: scope, step: true })
     if (plan.kind === 'append') {
       await args.steps.record({
         key: plan.key,
@@ -100,7 +106,7 @@ export const pluginCallOf = (args: {
         digest,
         ...(args.bootId?.() === undefined ? {} : { bootId: args.bootId() }),
       })
-      return { key: plan.key, replayed: false, read: false }
+      return { key: plan.key, replayed: false, read: false, step: true }
     }
     const step = recorded.find((fact) => fact.key === plan.key)
     const bootId = step?.bootId ?? scopeDispatchedBootId()
@@ -109,6 +115,7 @@ export const pluginCallOf = (args: {
       replayed: true,
       ...(bootId === undefined ? {} : { bootId }),
       read: false,
+      step: true,
     }
   }
   return async (op, options) => {
@@ -120,7 +127,7 @@ export const pluginCallOf = (args: {
       op: await withEnv(op),
       signal: options?.signal,
       onOutput: options?.onOutput,
-      detachOnHandoff: false,
+      detachOnHandoff: planned.step,
       ...(planned.replayed ? { replayed: true } : {}),
       ...(planned.bootId === undefined ? {} : { dispatchedBootId: planned.bootId }),
     })

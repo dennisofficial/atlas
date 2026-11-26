@@ -23,8 +23,6 @@ describeHandoff({
   name: 'a service start whose host is killed mid-operation',
   prompt: 'start the service',
   knobs: { plugins: true },
-  // the drain case is the same start without a kill, and it is covered by handoff-service
-  drain: false,
 
   async start(ctx): Promise<HostProcess> {
     const command = listeningCommandOf({

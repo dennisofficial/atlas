@@ -23,7 +23,6 @@ describeHandoff({
   name: 'a service start that outlives the turn',
   prompt: 'start the service',
   knobs: { plugins: true },
-  drain: false,
 
   async start(ctx): Promise<HostProcess> {
     const command = listeningCommandOf({

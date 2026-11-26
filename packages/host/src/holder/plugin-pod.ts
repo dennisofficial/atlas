@@ -39,6 +39,7 @@ import { heldMessagesOf } from './pod-messages'
 import { modelFellBackDraft } from './crew/model-fell-back'
 import type { RoleModelChoice, SessionRuntime } from './ports'
 import type { SessionRecord } from './record/record-adapter'
+import type { InFlightSteps } from '../calls/step-detach'
 
 export class ComposedPodRegistry extends ToolRegistry {
   private readonly taken: ReadonlySet<string>
@@ -150,6 +151,7 @@ export const pluginPodContextOf = (args: {
   signal: AbortSignal
   crew: PodCrew
   selfAgentId?: string | undefined
+  steps?: InFlightSteps | undefined
   notify?: ((event: EventBody, options: { key: string }) => Promise<void>) | undefined
 }): PluginPodContext => {
   const { deps, runtime, record, threadId } = args
@@ -203,6 +205,7 @@ export const pluginPodContextOf = (args: {
       },
       bootId: () => runtime.remoteCalls.bootId(),
       ack: (key) => runtime.remoteCalls.ack({ key }),
+      ...(args.steps === undefined ? {} : { detached: (plan) => args.steps?.mark(plan) }),
     }),
     live: (frame) => fireLive({ bus: deps.bus, key: deps.sessionId, frame }),
     onDaemonEvent: (listener) => {
@@ -336,6 +339,7 @@ export const pluginPodOf = (args: {
   threadId: ThreadId
   signal: AbortSignal
   crew: PodCrew
+  steps?: InFlightSteps | undefined
 }): PluginPod => {
   const { plugins } = args.runtime
   if (plugins === undefined) {

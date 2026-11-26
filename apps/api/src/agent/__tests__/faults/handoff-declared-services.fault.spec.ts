@@ -60,7 +60,6 @@ describeHandoff({
   name: 'a declared service that needs another, across a handoff',
   prompt: 'start the api',
   knobs: { plugins: true },
-  drain: false,
 
   async start(ctx): Promise<HostProcess> {
     const gate = ctx.gate('gate')

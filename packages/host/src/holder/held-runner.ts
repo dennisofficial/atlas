@@ -8,7 +8,8 @@ import { LoopTurnRunner, settleCrashedCalls } from '@dltech/atlas-agent'
 import { logFieldsOf } from '@dltech/atlas-observability'
 import { composePodCommands } from '@dltech/atlas-plugin-sdk'
 
-import { ScopedToolDispatcher } from '../calls/call-scope'
+import { dispatchableScopeKey, ScopedToolDispatcher } from '../calls/call-scope'
+import { InFlightSteps } from '../calls/step-detach'
 import { BranchObserver } from './branch-observer'
 import { crashSettleOf } from './crash-settle'
 import { oomObserverOf, type OomObserver } from './oom-observer'
@@ -148,6 +149,7 @@ export const createLoopRunner = (args: {
   childrenRunning(): number
 }): { runner: LoopTurnRunner; intake: InboxIntake } => {
   const { deps, runtime, record, threadId } = args
+  const steps = new InFlightSteps()
   const operator =
     deps.operator === undefined
       ? undefined
@@ -167,6 +169,7 @@ export const createLoopRunner = (args: {
     threadId,
     signal: args.signal,
     crew: args.crew,
+    steps,
   })
   const podCommands = composePodCommands({ factories: deps.podCommands ?? [], ctx: pod.ctx })
   const intake = new InboxIntake({
@@ -213,7 +216,9 @@ export const createLoopRunner = (args: {
       headSeq: () => record.eventCache().currentHead().seq,
       epoch: args.epoch,
     }),
-    detachTool: (tool) => args.isDraining() && runtime.daemonTools.has(tool),
+    detachTool: (call) =>
+      args.isDraining() &&
+      (runtime.daemonTools.has(call.name) || steps.detached(dispatchableScopeKey(call))),
     launchDirectory: runtime.launchDirectory,
     normalizeFailure: runtime.normalizeFailure,
     retry: retryDepsFromTimers(deps.timers),
