@@ -91,7 +91,11 @@ export type FrameSink = {
   settleError(call: Pending, error: Error): void
   sendRun(call: Pending): void
   failAll(error: Error): void
-  handleHelloReply(frame: { bootId: string; version: string }): void
+  handleHelloReply(frame: {
+    bootId: string
+    version: string
+    capabilities?: readonly string[] | undefined
+  }): void
   answered(key: string, state: DaemonAnswer): void
   emitEvent(frame: Extract<DaemonFrame, { kind: 'event' }>): void
 }

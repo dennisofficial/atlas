@@ -11,6 +11,7 @@ import {
   callFailureOf,
   ECallFailure,
   ECallStatus,
+  EDaemonCapability,
   EExecOutcome,
   type ExecResult,
 } from '@dltech/atlas-protocol'
@@ -83,6 +84,7 @@ export class DaemonProcessPort extends ProcessPort {
     private readonly args: {
       calls: Pick<RemoteCalls, 'invoke'>
       known?: Readonly<Record<string, string>> | undefined
+      capabilities?: (() => readonly string[]) | undefined
     },
   ) {
     super()
@@ -91,6 +93,10 @@ export class DaemonProcessPort extends ProcessPort {
   spawn(args: SpawnCommand): ProcessHandle {
     const controller = new AbortController()
     const key = nextKey()
+    const foreground = args.foreground
+    const ownsForegroundDeadline =
+      foreground !== undefined &&
+      (this.args.capabilities?.() ?? []).includes(EDaemonCapability.ExecDeadline)
     let output: TransformStream<Uint8Array, Uint8Array> | null = new TransformStream<
       Uint8Array,
       Uint8Array
@@ -104,6 +110,9 @@ export class DaemonProcessPort extends ProcessPort {
           argv: [...args.cmd],
           cwd: args.cwd,
           ...(args.env === undefined ? {} : { env: definedEnv(args.env) }),
+          ...(ownsForegroundDeadline && foreground !== undefined
+            ? { deadlineMs: foreground.timeoutMs, shellId: foreground.shellId }
+            : {}),
         },
         signal: controller.signal,
         ...(scopeAttachOnly() ? { attachOnly: true } : {}),
@@ -129,6 +138,7 @@ export class DaemonProcessPort extends ProcessPort {
       exited,
       outcome,
       terminate: () => controller.abort(),
+      foregroundDeadlineOwned: ownsForegroundDeadline,
       moveToBackground: ({ shellId }) => this.adopt({ key, shellId }),
     }
   }

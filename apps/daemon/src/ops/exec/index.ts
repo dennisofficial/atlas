@@ -1,5 +1,5 @@
 import { type OomMemory } from '@dltech/atlas-core'
-import { EExecOutcome } from '@dltech/atlas-protocol'
+import { EExecOutcome, type ShellInfo } from '@dltech/atlas-protocol'
 import { type DaemonGroupFactory, defineOp } from '@dltech/atlas-protocol/engine'
 
 import { ManagedProcess } from '../../process/managed'
@@ -61,9 +61,26 @@ export const execGroup =
               },
             }
             let decided = false
+            let settled = false
+            let deadlineTimer: ReturnType<typeof setTimeout> | undefined
             let announce: ((request: AdoptRequest) => void) | null = null
             const adoption = new Promise<AdoptRequest>((resolve) => {
               announce = resolve
+            })
+            const deadline = new Promise<ShellInfo | null>((resolve) => {
+              const deadlineMs = op.deadlineMs
+              const shellId = op.shellId
+              if (deadlineMs === undefined || shellId === undefined) return
+              deadlineTimer = setTimeout(() => {
+                if (settled) return
+                void registry.handOver({ shellId, hold }).then((info) => {
+                  if (info === null) {
+                    timedOut = true
+                    child.kill()
+                  }
+                  resolve(info)
+                })
+              }, deadlineMs)
             })
             registry.offers.set(ctx.key, (request) => {
               if (decided) {
@@ -78,8 +95,21 @@ export const execGroup =
               const first = await Promise.race([
                 exit.then((value) => ({ kind: 'exit' as const, value })),
                 adoption.then((request) => ({ kind: 'claim' as const, request })),
+                deadline.then((info) => ({ kind: 'deadline' as const, info })),
               ])
+              if (first.kind === 'deadline' && first.info !== null) {
+                settled = true
+                decided = true
+                return {
+                  exitCode: null,
+                  signal: null,
+                  outcome: EExecOutcome.Backgrounded,
+                  outputBytes,
+                  shellId: first.info.shellId,
+                }
+              }
               if (first.kind === 'claim') {
+                settled = true
                 const info = await registry.handOver({
                   shellId: first.request.shellId,
                   hold,
@@ -97,6 +127,7 @@ export const execGroup =
                   }
                 }
               }
+              settled = true
               decided = true
               const ended = first.kind === 'exit' ? first.value : await exit
               let memory: OomMemory | null = null
@@ -122,6 +153,7 @@ export const execGroup =
             } finally {
               registry.offers.delete(ctx.key)
               if (timer !== undefined) clearTimeout(timer)
+              if (deadlineTimer !== undefined) clearTimeout(deadlineTimer)
               ctx.signal.removeEventListener('abort', handleAbort)
             }
           },

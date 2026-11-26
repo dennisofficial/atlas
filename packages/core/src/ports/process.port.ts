@@ -1,11 +1,17 @@
 import type { OomMemory } from '../pod/pod-oom'
 import type { ThreadId } from '../events/ids'
 
+export type SpawnForeground = {
+  readonly timeoutMs: number
+  readonly shellId: string
+}
+
 export type SpawnCommand = {
   readonly cmd: readonly string[]
   readonly cwd: string
   readonly env?: Record<string, string | undefined> | undefined
   readonly threadId?: ThreadId | undefined
+  readonly foreground?: SpawnForeground | undefined
 }
 
 export enum EProcessOutcome {
@@ -29,6 +35,7 @@ export type ProcessHandle = {
   readonly exited: Promise<number>
   readonly outcome?: Promise<ProcessOutcome>
   terminate(): void
+  readonly foregroundDeadlineOwned?: boolean
   moveToBackground?(args: { shellId: string }): Promise<boolean>
 }
 

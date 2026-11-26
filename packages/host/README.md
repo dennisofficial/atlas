@@ -61,7 +61,7 @@ only what it can rebuild or drop.
 ### Call the daemon
 
 - `RemoteCalls`: the client of the daemon link. `open`, `ready`, `invoke`, `ack`, `ackScope`,
-  `handoff`, `bootId` and `close(RemoteCloseReason)`. It reports each `EventFrame` to its listeners.
+  `handoff`, `bootId`, `daemonCapabilities`, `close`. It reports each `EventFrame` to its listeners.
 - `WorkspaceGate`, `POD_WAIT_INTERRUPTED`, `WorkspaceGateOutcome`: hold a tool call until the
   workspace prepare settles, and fail the call when the wait is interrupted.
 - `webSocketConnector({url})`, `DaemonConnector`, `DaemonSocket`: connect to the daemon.
@@ -72,6 +72,7 @@ only what it can rebuild or drop.
 ### Reach the sandbox through a port
 
 - `DaemonFileSystemPort`, `DaemonAgentFileSystemPort`, `DaemonProcessPort`: the daemon-backed ports.
+  A `foreground` window is the daemon's deadline when it declares `EDaemonCapability.ExecDeadline`.
 - `DEFAULT_SANDBOX_COMMANDS`: the command names the sandbox resolves.
 
 ### Keep the record

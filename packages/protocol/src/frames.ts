@@ -32,7 +32,12 @@ export const helloReplyFrameSchema = z.object({
   kind: z.literal('hello-reply'),
   bootId: bootIdSchema,
   version: z.string().min(1),
+  capabilities: z.array(z.string().min(1)).optional(),
 })
+
+export enum EDaemonCapability {
+  ExecDeadline = 'exec.deadline',
+}
 
 export const runFrameSchema = z
   .object({

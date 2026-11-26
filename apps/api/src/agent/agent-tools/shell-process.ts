@@ -5,6 +5,7 @@ import {
   type ProcessHandle,
   type ProcessOutcome,
   type ProcessPort,
+  type SpawnForeground,
   type ThreadId,
   type ToolOutputChunk,
 } from '@dltech/atlas-core'
@@ -38,6 +39,7 @@ export function startShell(args: {
   processes: ProcessPort
   env?: (() => Record<string, string>) | undefined
   threadId?: ThreadId | undefined
+  foreground?: SpawnForeground | undefined
 }): StartedShell {
   const { processes } = args
   try {
@@ -48,6 +50,7 @@ export function startShell(args: {
         cwd: args.cwd,
         env: args.env?.() ?? {},
         threadId: args.threadId,
+        ...(args.foreground === undefined ? {} : { foreground: args.foreground }),
       }),
     }
   } catch (error) {
