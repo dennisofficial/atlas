@@ -63,7 +63,13 @@ export const MessageAttachments = ({
               accessibilityRole="button"
               accessibilityLabel={`Open ${view.name}`}
               onPress={() => {
-                if (view.uri !== undefined) openPhoto({ uri: view.uri, name: view.name })
+                if (view.uri === undefined) return
+                openPhoto({
+                  uri: view.uri,
+                  name: view.name,
+                  mediaType: view.mediaType,
+                  size: view.size,
+                })
               }}
             >
               <Image

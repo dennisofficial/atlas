@@ -30,7 +30,15 @@ export const ImagesRowView = ({
             accessibilityLabel={`Open ${image.alt}`}
             disabled={uri === undefined}
             onPress={() => {
-              if (uri !== undefined) openPhoto({ uri, name: image.alt })
+              if (uri === undefined) return
+              openPhoto({
+                uri,
+                name: image.alt,
+                mediaType: image.mediaType,
+                size: image.size,
+                width: image.width,
+                height: image.height,
+              })
             }}
             style={[
               styles.frame,

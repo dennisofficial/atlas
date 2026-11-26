@@ -1,6 +1,13 @@
 export const PHOTO_STORE_LIMIT = 24
 
-export type Photo = { uri: string; name: string }
+export type Photo = {
+  uri: string
+  name: string
+  mediaType?: string | undefined
+  size?: number | undefined
+  width?: number | undefined
+  height?: number | undefined
+}
 
 const photos = new Map<string, Photo>()
 let sequence = 0

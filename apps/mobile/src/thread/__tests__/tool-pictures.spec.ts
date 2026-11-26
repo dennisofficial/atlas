@@ -67,7 +67,15 @@ const rowsNow = (entries: TranscriptEntry[]) =>
 describe('picturesIn', () => {
   it('keeps the media picture of an image read, named by its file', () => {
     expect(picturesIn(runOf('r1', [textCall, pictureCall]))).toEqual([
-      { id: 'call_pic#image', hash: 'h1', alt: 'shot.png', width: 1600, height: 800 },
+      {
+        id: 'call_pic#image',
+        hash: 'h1',
+        alt: 'shot.png',
+        width: 1600,
+        height: 800,
+        mediaType: 'image/png',
+        size: 10,
+      },
     ])
   })
 
