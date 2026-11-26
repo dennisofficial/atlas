@@ -9,7 +9,7 @@ import {
   refKey,
   type ModelCard,
 } from '@dltech/atlas-core'
-import { API_BY_NPM, CATALOGUE_PROVIDER_IDS } from '../generated-card'
+import { API_BY_NPM, CATALOGUE_PROVIDER_IDS, RELEASE_STAMP } from '../generated-card'
 import {
   cardsForProvider,
   generatedCards,
@@ -159,7 +159,7 @@ describe('generated catalogue', () => {
       expect(cardFor(`anthropic/${modelId}`).imageTier).toBe(EImageTier.HighResolution)
     }
 
-    expect(cardFor('anthropic/claude-opus-4-5').imageTier).toBe(DEFAULT_IMAGE_TIER)
+    expect(cardFor('anthropic/claude-opus-4-6').imageTier).toBe(DEFAULT_IMAGE_TIER)
     expect(cardFor('openrouter/z-ai/glm-4.6').imageTier).toBe(DEFAULT_IMAGE_TIER)
   })
 
@@ -221,28 +221,36 @@ const fakeCard = (reference: string): ModelCard => {
 const referencesOf = (cards: readonly ModelCard[]): readonly string[] =>
   cards.map((card) => refKey(card.ref))
 
+const stampedWithUnstamped = (providerId: string): readonly string[] => {
+  const ids = cardsForProvider(providerId).map((card) => card.ref.modelId)
+
+  return ids.filter((modelId) => {
+    const unstamped = modelId.replace(RELEASE_STAMP, '')
+
+    return unstamped !== modelId && ids.includes(unstamped)
+  })
+}
+
 describe('withoutDatedDuplicates', () => {
   it('collapses the anthropic pairs onto the unstamped id', () => {
     const kept = referencesOf(withoutDatedDuplicates(cardsForProvider('anthropic')))
+    const stamped = stampedWithUnstamped('anthropic')
+    expect(stamped.length).toBeGreaterThan(0)
 
-    for (const modelId of ['claude-haiku-4-5', 'claude-opus-4-5', 'claude-sonnet-4-5']) {
-      expect(kept).toContain(`anthropic/${modelId}`)
-    }
-    for (const stamped of [
-      'claude-haiku-4-5-20251001',
-      'claude-opus-4-5-20251101',
-      'claude-sonnet-4-5-20250929',
-    ]) {
-      expect(kept).not.toContain(`anthropic/${stamped}`)
+    for (const modelId of stamped) {
+      expect(kept).toContain(`anthropic/${modelId.replace(RELEASE_STAMP, '')}`)
+      expect(kept).not.toContain(`anthropic/${modelId}`)
     }
   })
 
   it("collapses openai's dash-punctuated snapshots too", () => {
-    const kept = referencesOf(withoutDatedDuplicates(cardsForProvider('openai')))
+    const given = [
+      fakeCard('openai/gpt-4o-2024-08-06'),
+      fakeCard('openai/gpt-4o'),
+      fakeCard('openai/gpt-4o-2024-11-20'),
+    ]
 
-    expect(kept).toContain('openai/gpt-4o')
-    expect(kept).not.toContain('openai/gpt-4o-2024-08-06')
-    expect(kept).not.toContain('openai/gpt-4o-2024-11-20')
+    expect(referencesOf(withoutDatedDuplicates(given))).toEqual(['openai/gpt-4o'])
   })
 
   it('keeps a stamped card that has no unstamped sibling', () => {

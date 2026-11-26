@@ -103,9 +103,12 @@ describe('modelOptionsOf', () => {
   })
 
   it('gives a card with no effort ladder an empty effort list', () => {
-    const { models } = modelOptionsOf({ accounts: [account('openai')] })
-    const bare = cardsForProvider('openai').find((card) => card.effort === undefined)
-    expect(models.find((model) => model.id === `openai/${bare?.ref.modelId}`)?.efforts).toEqual([])
+    const bare = cardsForProvider('openrouter').find((card) => card.effort === undefined)
+    expect(bare).toBeDefined()
+    const { models } = modelOptionsOf({ accounts: [account('openrouter')] })
+    expect(models.find((model) => model.id === `openrouter/${bare?.ref.modelId}`)?.efforts).toEqual(
+      [],
+    )
   })
 
   it('keeps a thread model whose provider has no key, marked unusable', () => {

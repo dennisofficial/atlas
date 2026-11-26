@@ -54,7 +54,7 @@ describe('anthropic provider model', () => {
   it('sends a budget for cards that take one', async () => {
     const http = fakeFetch([{ body: STREAM }])
     const model = createProviderModel({
-      ref: { providerId: 'anthropic', modelId: 'claude-sonnet-4-5' },
+      ref: { providerId: 'anthropic', modelId: 'claude-haiku-4-5' },
       credentials: new FakeCredentials([apiKey('k')]),
       effort: () => EEffort.Low,
       fetch: http.fetch,
