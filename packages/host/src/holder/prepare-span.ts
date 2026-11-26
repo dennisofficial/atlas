@@ -1,6 +1,7 @@
 import { EWorkspaceStepState, type ThreadId, type WorkspaceStepReport } from '@dltech/atlas-core'
 import {
   EPrepareOutcome,
+  type EPreparePhase,
   ESandboxStart,
   ESpan,
   spanWith,
@@ -11,8 +12,10 @@ import {
 export class PrepareSpan {
   private stopped = false
   private attemptStartedAt: number | undefined
+  private lastClosedAt: number | undefined
   private readonly started = new Map<string, number>()
   private readonly stepMs: Record<string, number> = {}
+  private readonly phaseMs: Record<string, number> = {}
 
   constructor(
     private readonly args: {
@@ -34,9 +37,20 @@ export class PrepareSpan {
       return
     }
     const startedAt = this.started.get(report.step)
-    if (startedAt === undefined) return
-    this.started.delete(report.step)
-    this.stepMs[report.step] = Math.max(0, at - startedAt)
+    if (startedAt === undefined) {
+      this.stepMs[report.step] = Math.max(0, at - (this.lastClosedAt ?? at))
+    } else {
+      this.started.delete(report.step)
+      this.stepMs[report.step] = Math.max(0, at - startedAt)
+    }
+    this.lastClosedAt = at
+  }
+
+  phase(name: EPreparePhase): () => void {
+    const startedAt = this.args.now()
+    return () => {
+      this.phaseMs[name] = Math.max(0, this.args.now() - startedAt)
+    }
   }
 
   markStopped(): void {
@@ -58,7 +72,11 @@ export class PrepareSpan {
 
   private timingsOf(): Record<string, number> {
     const from = this.attemptStartedAt ?? this.args.now()
-    return { ...this.stepMs, prepare: Math.max(0, this.args.now() - from) }
+    return {
+      ...this.stepMs,
+      ...this.phaseMs,
+      prepare: Math.max(0, this.args.now() - from),
+    }
   }
 
   private outcomeOf(failed: boolean): EPrepareOutcome {

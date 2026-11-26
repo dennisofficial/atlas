@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'bun:test'
 
 import { EWorkspaceStep, EWorkspaceStepState } from '@dltech/atlas-core'
-import { EPrepareOutcome, ESandboxStart, ESpan } from '@dltech/atlas-observability'
+import { EPrepareOutcome, EPreparePhase, ESandboxStart, ESpan } from '@dltech/atlas-observability'
 import { RecordingTracer } from '@dltech/atlas-observability/testing'
 
 import { PrepareSpan } from '../prepare-span'
@@ -41,7 +41,15 @@ describe('holder.prepare span', () => {
     expect(span?.fields.preparedBefore).toBe(false)
     expect(span?.fields.sandbox).toBe(ESandboxStart.Unknown)
     expect(span?.fields.outcome).toBe(EPrepareOutcome.Prepared)
-    expect(span?.fields.timings).toEqual({ sandbox: 40, clone: 15, prepare: 55 })
+    expect(span?.fields.timings).toEqual({
+      sandbox: 40,
+      clone: 15,
+      steps: 0,
+      seed: 0,
+      record: 0,
+      setupEnd: 0,
+      prepare: 55,
+    })
   })
 
   it('times the steps from when their reports were produced, not when the span subscribed', async () => {
@@ -63,6 +71,60 @@ describe('holder.prepare span', () => {
 
     const [recorded] = trace.named(ESpan.Prepare)
     expect(recorded?.fields.timings).toEqual({ sandbox: 200, clone: 100, prepare: 900 })
+  })
+
+  it('attributes a step reported only when done to the wait since the last closed step', async () => {
+    const trace = new RecordingTracer()
+    const span = new PrepareSpan({
+      trace,
+      sessionId: SESSION,
+      threadId: THREAD_ID,
+      attempt: 1,
+      preparedBefore: false,
+      promptWaiting: true,
+      now: () => 1_000,
+    })
+    span.step({ step: EWorkspaceStep.Sandbox, state: EWorkspaceStepState.Started }, 100)
+    span.step({ step: EWorkspaceStep.Sandbox, state: EWorkspaceStepState.Done }, 140)
+    span.step({ step: EWorkspaceStep.Daemon, state: EWorkspaceStepState.Done }, 900)
+    await span.begin(async () => ({ failed: false }))
+
+    const [recorded] = trace.named(ESpan.Prepare)
+    expect(recorded?.fields.timings).toEqual({ sandbox: 40, daemon: 760, prepare: 900 })
+  })
+
+  it('times the holder phases around the attempt', async () => {
+    const trace = new RecordingTracer()
+    let now = 100
+    const span = new PrepareSpan({
+      trace,
+      sessionId: SESSION,
+      threadId: THREAD_ID,
+      attempt: 1,
+      preparedBefore: true,
+      promptWaiting: undefined,
+      now: () => now,
+    })
+    span.step({ step: EWorkspaceStep.Sandbox, state: EWorkspaceStepState.Started }, 100)
+    span.step({ step: EWorkspaceStep.Sandbox, state: EWorkspaceStepState.Done }, 140)
+    now = 140
+    await span.begin(async () => {
+      const stopSeed = span.phase(EPreparePhase.Seed)
+      now = 390
+      stopSeed()
+      const stopRecord = span.phase(EPreparePhase.Record)
+      now = 400
+      stopRecord()
+      return { failed: false }
+    })
+
+    const [recorded] = trace.named(ESpan.Prepare)
+    expect(recorded?.fields.timings).toEqual({
+      sandbox: 40,
+      seed: 250,
+      record: 10,
+      prepare: 300,
+    })
   })
 
   it('reports a failed attempt', async () => {

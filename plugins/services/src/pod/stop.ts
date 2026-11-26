@@ -3,6 +3,7 @@ import type { PluginPodContext } from '@dltech/atlas-plugin-sdk'
 
 import { runningDeclaredOf, servicesOfEvents } from '../core'
 import { stopService } from './daemon'
+import { EServiceFailure, failureOutcome, serviceFailed } from './failure'
 import type { DeclaredPlace } from './place'
 import { renderStopped } from './render'
 import type { ServiceInput } from './schema'
@@ -30,19 +31,23 @@ export const stopServiceAction = async (args: {
       : namedRunning({ ctx, name: input.name, root: args.place.root })
   const serviceId = input.serviceId ?? named?.serviceId
   if (serviceId === undefined) {
-    return {
-      ok: false,
-      reason:
-        input.name === undefined
-          ? 'action "stop" takes a serviceId or a declared name'
-          : `no running service is declared as "${input.name}" in .atlas/services.yaml; list shows what is running`,
-    }
+    return failureOutcome(
+      serviceFailed({
+        reason:
+          input.name === undefined
+            ? 'action "stop" takes a serviceId or a declared name'
+            : `no running service is declared as "${input.name}" in .atlas/services.yaml; list shows what is running`,
+        failure: EServiceFailure.InvalidArgs,
+      }),
+    )
   }
   state.stopping.add(serviceId)
   const stopped = await stopService({ ctx, serviceId, signal: args.signal })
   if (!stopped.ok) {
     state.stopping.delete(serviceId)
-    return { ok: false, reason: stopped.reason }
+    return failureOutcome(
+      serviceFailed({ reason: stopped.reason, failure: EServiceFailure.StopFailed }),
+    )
   }
   return {
     ok: true,

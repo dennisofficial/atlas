@@ -3,6 +3,7 @@ import type { PluginPodContext } from '@dltech/atlas-plugin-sdk'
 
 import { declaredNames, runningDeclaredOf, servicesOfEvents, type ServiceRow } from '../core'
 import { stopService } from './daemon'
+import { EServiceFailure, failureOutcome, serviceFailed } from './failure'
 import { ensureDeclared, setupKeyOf } from './declared-ensure'
 import { readDeclared } from './declared-file'
 import { launchService } from './launch'
@@ -23,7 +24,9 @@ const stopForRestart = async (args: {
   if (!stopped.ok) {
     args.state.stopping.delete(serviceId)
     args.state.restarting.delete(serviceId)
-    return { ok: false, reason: stopped.reason }
+    return failureOutcome(
+      serviceFailed({ reason: stopped.reason, failure: EServiceFailure.StopFailed }),
+    )
   }
   return undefined
 }
@@ -37,13 +40,15 @@ const restartDeclared = async (args: {
 }): Promise<ToolOutcome> => {
   const { ctx, place } = args
   const declared = await readDeclared({ ctx, projectDirectory: place.root, signal: args.signal })
-  if (!declared.ok) return declared
+  if (!declared.ok) return failureOutcome(declared)
   const hash = declared.value.hashes.get(args.name)
   if (hash === undefined) {
-    return {
-      ok: false,
-      reason: `"${args.name}" is not declared in .atlas/services.yaml; declared services: ${declaredNames(declared.value.services)}`,
-    }
+    return failureOutcome(
+      serviceFailed({
+        reason: `"${args.name}" is not declared in .atlas/services.yaml; declared services: ${declaredNames(declared.value.services)}`,
+        failure: EServiceFailure.NotDeclared,
+      }),
+    )
   }
   const running = runningDeclaredOf({
     rows: servicesOfEvents(ctx.events()),
@@ -87,7 +92,12 @@ export const restartService = async (args: {
   const serviceId = input.serviceId ?? ''
   const row = servicesOfEvents(ctx.events()).find((kept) => kept.serviceId === serviceId)
   if (row === undefined || row.command === '') {
-    return { ok: false, reason: `no service is registered as "${serviceId}"` }
+    return failureOutcome(
+      serviceFailed({
+        reason: `no service is registered as "${serviceId}"`,
+        failure: EServiceFailure.NotDeclared,
+      }),
+    )
   }
   if (row.name !== undefined && row.declarationHash !== undefined && row.root !== undefined) {
     return restartDeclared({

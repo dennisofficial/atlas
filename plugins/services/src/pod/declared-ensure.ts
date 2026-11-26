@@ -9,6 +9,7 @@ import {
   type DeclaredServices,
 } from '../core'
 import { runCommand, stopService } from './daemon'
+import { EServiceFailure, failureOutcome, serviceFailed, type ServiceFailed } from './failure'
 import { launchTracked } from './launch'
 import { allocatePort, type DeclaredPlace } from './place'
 import { forwardReferences } from './references'
@@ -33,7 +34,7 @@ const runSetup = async (args: {
   cwd: string
   env: Record<string, string>
   signal?: AbortSignal | undefined
-}): Promise<string | undefined> => {
+}): Promise<ServiceFailed | undefined> => {
   if (args.state.setupDone.has(args.key)) return undefined
   for (const command of args.commands) {
     const ran = await runCommand({
@@ -43,10 +44,18 @@ const runSetup = async (args: {
       env: args.env,
       signal: args.signal,
     })
-    if (!ran.ok) return `setup "${command}" could not run: ${ran.reason}`
+    if (!ran.ok) {
+      return serviceFailed({
+        reason: `setup "${command}" could not run: ${ran.reason}`,
+        failure: EServiceFailure.SetupFailed,
+      })
+    }
     if (ran.value.exitCode !== 0) {
       const tail = tailOf(ran.value.output)
-      return `setup "${command}" exited ${ran.value.exitCode ?? 'without an exit code'}${tail === '' ? '' : `\n${tail}`}`
+      return serviceFailed({
+        reason: `setup "${command}" exited ${ran.value.exitCode ?? 'without an exit code'}${tail === '' ? '' : `\n${tail}`}`,
+        failure: EServiceFailure.SetupFailed,
+      })
     }
   }
   args.state.setupDone.add(args.key)
@@ -79,7 +88,11 @@ export const ensureDeclared = async (args: {
 }): Promise<ToolOutcome> => {
   const { ctx, place } = args
   const ordered = declaredOrder({ declared: args.declared, name: args.name })
-  if (!ordered.ok) return { ok: false, reason: ordered.reason }
+  if (!ordered.ok) {
+    return failureOutcome(
+      serviceFailed({ reason: ordered.reason, failure: EServiceFailure.InvalidDeclaration }),
+    )
+  }
 
   const kept: string[] = []
   const started: Started[] = []
@@ -116,11 +129,22 @@ export const ensureDeclared = async (args: {
       env: await serviceEnvOf({ ctx, env }),
       signal: args.signal,
     })
-    if (setup !== undefined) return { ok: false, reason: `the setup of ${name} failed: ${setup}` }
+    if (setup !== undefined) {
+      return failureOutcome(
+        serviceFailed({
+          reason: `the setup of ${name} failed: ${setup.reason}`,
+          failure: setup.failure,
+        }),
+      )
+    }
 
     if (running !== undefined && args.restart !== true) {
       const stopped = await stopService({ ctx, serviceId: running.serviceId, signal: args.signal })
-      if (!stopped.ok) return { ok: false, reason: stopped.reason }
+      if (!stopped.ok) {
+        return failureOutcome(
+          serviceFailed({ reason: stopped.reason, failure: EServiceFailure.StopFailed }),
+        )
+      }
     }
 
     const port = await allocatePort({
@@ -148,7 +172,7 @@ export const ensureDeclared = async (args: {
       expose: args.expose,
       signal: args.signal,
     })
-    if (!launched.ok) return { ok: false, reason: launched.reason }
+    if (!launched.ok) return failureOutcome(launched)
     started.push({
       name,
       serviceId: launched.value.serviceId,

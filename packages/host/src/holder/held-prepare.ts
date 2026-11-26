@@ -8,7 +8,7 @@ import {
   type ThreadId,
   type WorkspaceStepReport,
 } from '@dltech/atlas-core'
-import { logFieldsOf } from '@dltech/atlas-observability'
+import { EPreparePhase, logFieldsOf } from '@dltech/atlas-observability'
 import { setupOutputCallId } from '@dltech/atlas-protocol'
 
 import { appendAttemptStarted, appendSetupStep, prepareAttemptOf } from './prepare-attempt'
@@ -167,16 +167,20 @@ export class HeldPrepare {
       return { ok: false, reason: error instanceof Error ? error.message : String(error) }
     })
     try {
-      await this.steps
-      const recorded = await preparedWithContextFiles({
-        seed: this.args.seed,
-        result,
-        log: deps.log,
-        sessionId: deps.sessionId,
-      })
-      await this.record({ ...start, runId, result: recorded })
+      await this.timed(EPreparePhase.Steps, () => this.steps)
+      const recorded = await this.timed(EPreparePhase.Seed, () =>
+        preparedWithContextFiles({
+          seed: this.args.seed,
+          result,
+          log: deps.log,
+          sessionId: deps.sessionId,
+        }),
+      )
+      await this.timed(EPreparePhase.Record, () =>
+        this.record({ ...start, runId, result: recorded }),
+      )
       this.settled = true
-      await this.setup.flushEnd()
+      await this.timed(EPreparePhase.SetupEnd, () => this.setup.flushEnd())
       return { failed: !recorded.ok }
     } catch (error) {
       deps.log?.error({
@@ -185,6 +189,15 @@ export class HeldPrepare {
         ...logFieldsOf({ error }),
       })
       return { failed: false }
+    }
+  }
+
+  private async timed<T>(name: EPreparePhase, work: () => Promise<T>): Promise<T> {
+    const stop = this.span?.phase(name)
+    try {
+      return await work()
+    } finally {
+      stop?.()
     }
   }
 

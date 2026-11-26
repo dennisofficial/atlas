@@ -8,6 +8,7 @@ import {
   terminalRowSchema,
   terminalStreamAttachInputSchema,
   terminalStreamFrameSchema,
+  terminalStreamOutputSchema,
   TERMINAL_STREAM_BUFFER_BYTES,
 } from '../terminal'
 
@@ -91,6 +92,14 @@ describe('terminal schemas', () => {
     expect(terminalStreamFrameSchema.safeParse({ type: 'wake', state: 'waking' }).success).toBe(
       false,
     )
+  })
+
+  it('validates the attach output as the frame stream, not as one frame', () => {
+    const frames = async function* () {
+      yield { type: 'parked' } as const
+    }
+    expect(terminalStreamOutputSchema.safeParse(frames()).success).toBe(true)
+    expect(terminalStreamOutputSchema.safeParse({ type: 'parked' }).success).toBe(false)
   })
 
   it('requires non-negative cursors on attach', () => {
