@@ -2,6 +2,17 @@ import type { KeyboardMetrics, PlatformOSType } from 'react-native'
 
 const DOCKED_SLACK = 4
 
+export const dockPaddingOf = ({
+  keyboardHeight,
+  safeBottom,
+}: {
+  keyboardHeight: number
+  safeBottom: number
+}): number => {
+  'worklet'
+  return Math.max(Math.abs(keyboardHeight), safeBottom)
+}
+
 export const keyboardInsetOf = ({
   frame,
   platform,

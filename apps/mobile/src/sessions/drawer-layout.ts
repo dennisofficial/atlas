@@ -26,13 +26,23 @@ export const opensDrawerWithoutSessionOf = ({
   selected: string | null
 }): boolean => selected === null && listLayout === ESessionsListLayout.Stacked
 
+export const drawerHidableOf = ({
+  listLayout,
+  selected,
+}: {
+  listLayout: ESessionsListLayout
+  selected: string | null
+}): boolean => !opensDrawerWithoutSessionOf({ listLayout, selected })
+
 export const drawerSwipeEnabledOf = ({
   geometry,
   open,
+  hidable,
 }: {
   geometry: TDrawerGeometry
   open: boolean
-}): boolean => !geometry.permanent && !open
+  hidable: boolean
+}): boolean => !geometry.permanent && (!open || hidable)
 
 export const drawerOpenByDefaultOf = ({
   listLayout,

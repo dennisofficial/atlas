@@ -1,23 +1,10 @@
-import { type ReactNode, useEffect } from 'react'
-import { type KeyboardEventEasing, type StyleProp, type ViewStyle } from 'react-native'
-import Animated, {
-  Easing,
-  type EasingFunction,
-  useAnimatedStyle,
-  useSharedValue,
-  withTiming,
-} from 'react-native-reanimated'
+import type { ReactNode } from 'react'
+import type { StyleProp, ViewStyle } from 'react-native'
+import { useReanimatedKeyboardAnimation } from 'react-native-keyboard-controller'
+import Animated, { useAnimatedStyle } from 'react-native-reanimated'
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
 
-import { useKeyboard } from './use-keyboard'
-
-const EASING_OF: Record<KeyboardEventEasing, EasingFunction> = {
-  easeIn: Easing.in(Easing.ease),
-  easeInEaseOut: Easing.inOut(Easing.ease),
-  easeOut: Easing.out(Easing.ease),
-  linear: Easing.linear,
-  keyboard: Easing.linear,
-}
+import { dockPaddingOf } from './keyboard-inset'
 
 export const KeyboardDock = ({
   children,
@@ -26,16 +13,11 @@ export const KeyboardDock = ({
   children: ReactNode
   style?: StyleProp<ViewStyle>
 }) => {
-  const insets = useSafeAreaInsets()
-  const { duration, easing, inset } = useKeyboard()
-  const target = inset > 0 ? inset : insets.bottom
-  const padding = useSharedValue(target)
-
-  useEffect(() => {
-    padding.value = withTiming(target, { duration, easing: EASING_OF[easing] })
-  }, [duration, easing, padding, target])
-
-  const animatedStyle = useAnimatedStyle(() => ({ paddingBottom: padding.value }))
-
+  const { bottom } = useSafeAreaInsets()
+  const { height } = useReanimatedKeyboardAnimation()
+  const animatedStyle = useAnimatedStyle(
+    () => ({ paddingBottom: dockPaddingOf({ keyboardHeight: height.value, safeBottom: bottom }) }),
+    [bottom],
+  )
   return <Animated.View style={[style, animatedStyle]}>{children}</Animated.View>
 }

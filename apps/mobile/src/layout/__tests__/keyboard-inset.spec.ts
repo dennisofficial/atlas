@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'bun:test'
 
-import { keyboardInsetOf } from '../keyboard-inset'
+import { dockPaddingOf, keyboardInsetOf } from '../keyboard-inset'
 
 const frame = (screenY: number, height: number) => ({ screenX: 0, screenY, width: 390, height })
 
@@ -27,5 +27,20 @@ describe('keyboardInsetOf', () => {
 
   it('reports nothing when no keyboard is up', () => {
     expect(keyboardInsetOf({ frame: frame(0, 0), platform: 'ios', windowHeight: 814 })).toBe(0)
+  })
+})
+
+describe('dockPaddingOf', () => {
+  it('keeps the composer above the home indicator while the keyboard is down', () => {
+    expect(dockPaddingOf({ keyboardHeight: 0, safeBottom: 34 })).toBe(34)
+  })
+
+  it('holds the composer still until the rising keyboard passes the home indicator', () => {
+    expect(dockPaddingOf({ keyboardHeight: -20, safeBottom: 34 })).toBe(34)
+  })
+
+  it('rides on top of the keyboard frame by frame', () => {
+    expect(dockPaddingOf({ keyboardHeight: -180, safeBottom: 34 })).toBe(180)
+    expect(dockPaddingOf({ keyboardHeight: -336, safeBottom: 34 })).toBe(336)
   })
 })
