@@ -10,6 +10,7 @@ import { interruptedMessage } from './errors'
 
 type CallScope = {
   scopeKey: string
+  callId?: string | undefined
   next: number
   consumed: Set<string>
   recorded?: readonly StepFact[] | undefined
@@ -26,6 +27,8 @@ export const scopeKeyOf = (args: { runId: string; callId: string }): string => {
 }
 
 export const scopeKey = (): string | undefined => storage.getStore()?.scopeKey
+
+export const scopeCallId = (): string | undefined => storage.getStore()?.callId
 
 export const scopeNextSlot = (): number => storage.getStore()?.next ?? 0
 
@@ -55,6 +58,7 @@ export const scopeDispatchedBootId = (): string | undefined => storage.getStore(
 
 export const runInCallScope = <T>(args: {
   scopeKey: string
+  callId?: string | undefined
   attachOnly?: boolean | undefined
   detachOnHandoff?: boolean | undefined
   body(): T
@@ -62,6 +66,7 @@ export const runInCallScope = <T>(args: {
   storage.run(
     {
       scopeKey: args.scopeKey,
+      ...(args.callId === undefined ? {} : { callId: args.callId }),
       next: 0,
       consumed: new Set(),
       detachOnHandoff: args.detachOnHandoff ?? true,
@@ -100,6 +105,7 @@ export class ScopedToolDispatcher extends ToolDispatcher {
   dispatch(args: DispatchArgs): Promise<readonly EventDraft[]> {
     const scope: CallScope = {
       scopeKey: scopeKeyOf({ runId: args.call.runId, callId: args.call.callId }),
+      callId: args.call.callId,
       next: 0,
       consumed: new Set(),
       detachOnHandoff: this.args.daemonTools.has(args.call.name),

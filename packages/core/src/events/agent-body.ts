@@ -15,6 +15,8 @@ export type AgentEventBody =
       mode: EAgentStart
       /** The spawn step this sub-agent belongs to: the call id of the step's first tool call. */
       group?: string | undefined
+      /** The tool call whose body started this sub-agent, when the holder recorded that call's step. */
+      callId?: string | undefined
       worktree?:
         | { path: string; branch: string; base?: string | undefined; adopted?: boolean | undefined }
         | undefined

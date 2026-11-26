@@ -6,6 +6,7 @@ import {
   EModelFallbackReason,
   type EventDraft,
   type ModelRef,
+  type RecordBody,
   type RunFailure,
   type ThreadId,
 } from '@dltech/atlas-core'
@@ -29,6 +30,8 @@ type ChildFallback = {
   to: ModelRef
   reason: EModelFallbackReason
 }
+
+export const SPAWNED_FACT_KIND = 'agent-spawned'
 
 export type ChildTranscriptArgs = {
   deps: HeldSessionDeps
@@ -57,7 +60,13 @@ export class ChildTranscript {
     }
   }
 
-  async spawned(args: { worktree: WorktreeEntryInfo | undefined }): Promise<void> {
+  async spawned(args: {
+    worktree: WorktreeEntryInfo | undefined
+    callId?: string | undefined
+    stepKey?: string | undefined
+  }): Promise<void> {
+    const key = args.stepKey === undefined ? undefined : `${args.stepKey}:spawned`
+    if (key !== undefined && this.spawnedBefore(key)) return
     await this.append([
       {
         type: 'agent-spawned',
@@ -66,10 +75,25 @@ export class ChildTranscript {
         intent: this.args.intent,
         mode: EAgentStart.Fresh,
         ...(this.args.group === undefined ? {} : { group: this.args.group }),
+        ...(args.callId === undefined ? {} : { callId: args.callId }),
         ...(args.worktree === undefined ? {} : { worktree: worktreeDraftOf(args.worktree) }),
       },
       ...this.unavailableDrafts(),
+      ...(key === undefined
+        ? []
+        : [
+            {
+              type: 'fact-recorded' as const,
+              key,
+              kind: SPAWNED_FACT_KIND,
+              value: { agentId: this.args.agentId },
+            },
+          ]),
     ])
+  }
+
+  private spawnedBefore(key: string): boolean {
+    return this.args.parentRecord.eventCache().bookkeeping().fact(key).found
   }
 
   async restarted(args: { via: EAgentRestart }): Promise<void> {
@@ -155,7 +179,7 @@ export class ChildTranscript {
     })
   }
 
-  private async append(drafts: readonly EventDraft[]): Promise<void> {
+  private async append(drafts: readonly (EventDraft | RecordBody)[]): Promise<void> {
     await appendOnParent(this.parent, drafts)
   }
 }

@@ -491,13 +491,19 @@ export class ControlPlane {
   }
 
   async createThread(params: { threadId: string; sessionId: string }): Promise<void> {
-    await this.store.transact(async (tx) =>
-      tx.createThread({
+    await this.store.transact(async (tx) => {
+      const open = await tx.readThread(params.threadId)
+      if (open !== undefined) {
+        if (open.sessionId !== params.sessionId)
+          throw new Error(`thread ${params.threadId} belongs to another session`)
+        return
+      }
+      await tx.createThread({
         ...params,
         visibility: EMPTY_VISIBILITY_TEXT,
         at: await this.nowIn(tx),
-      }),
-    )
+      })
+    })
   }
 
   async head(params: { threadId: string }): Promise<LogHead> {

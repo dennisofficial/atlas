@@ -17,16 +17,30 @@ import type {
 } from '@dltech/atlas-plugin-sdk'
 
 import { ChildRun, type ChildRunArgs } from './child-run'
+import type { ChildKey } from './child-record'
 import type { CrewSender } from './child-message'
 import { CHILD_READ_CONCURRENCY } from './child-reads'
 import { endingKeyOf, postNotice, threadLastSeq } from './child-reports'
 import { settledChildOf, type OpenChild } from './open-children'
 import { pooledMap } from './pooled-map'
+import { hostStepOf } from '../record/host-step'
+import { scopeCallId } from '../../calls/call-scope'
+import { spawnAgentIdOf } from './spawn-key'
+
+export const SPAWN_OP = 'crew.spawn'
 
 export type CrewRoomArgs = Omit<
   ChildRunArgs,
-  'agentType' | 'intent' | 'group' | 'groupHold' | 'saySibling'
+  'agentType' | 'intent' | 'group' | 'groupHold' | 'saySibling' | 'key'
 >
+
+type SpawnArgs = {
+  agentType: string
+  intent: string
+  prompt: string
+  group?: string | undefined
+  worktree?: WorktreeEntryInfo | undefined
+}
 
 class UnknownChild extends Error {}
 
@@ -36,25 +50,63 @@ export class CrewRoom {
 
   constructor(private readonly args: CrewRoomArgs) {}
 
-  async spawn(args: {
-    agentType: string
-    intent: string
-    prompt: string
-    group?: string | undefined
-    worktree?: WorktreeEntryInfo | undefined
-  }): Promise<SubagentSnapshot> {
-    const run = await ChildRun.open({
-      ...this.childArgs(),
-      agentType: args.agentType,
-      intent: args.intent,
-      groupHold: (draft) => this.holdOf(draft),
-      postHold: (post) => this.postInOrder(post),
-      ...(args.group === undefined ? {} : { group: args.group }),
-      ...(args.worktree === undefined ? {} : { worktree: args.worktree }),
+  async spawn(args: SpawnArgs): Promise<SubagentSnapshot> {
+    const step = await hostStepOf({
+      record: this.args.parentRecord,
+      threadId: this.args.parentThreadId,
+      runId: () => this.args.deps.ids.nextRunId(),
+      op: SPAWN_OP,
+      input: {
+        agentType: args.agentType,
+        intent: args.intent,
+        prompt: args.prompt,
+        group: args.group,
+        worktree: args.worktree,
+      },
     })
+    return step === undefined
+      ? await this.spawnFresh(args)
+      : await this.spawnKeyed({ args, stepKey: step.key })
+  }
+
+  private async spawnFresh(args: SpawnArgs): Promise<SubagentSnapshot> {
+    const run = await ChildRun.open(this.openArgsOf({ args }))
     this.runs.set(run.agentId, run)
     await run.say({ text: args.prompt })
     return run.snapshot()
+  }
+
+  private async spawnKeyed(args: { args: SpawnArgs; stepKey: string }): Promise<SubagentSnapshot> {
+    const agentId = spawnAgentIdOf({
+      parentThreadId: this.args.parentThreadId,
+      stepKey: args.stepKey,
+    })
+    const held = this.runs.get(agentId)
+    if (held !== undefined) return held.snapshot()
+    const callId = scopeCallId()
+    const run = await ChildRun.open(
+      this.openArgsOf({
+        args: args.args,
+        key: { agentId, stepKey: args.stepKey, ...(callId === undefined ? {} : { callId }) },
+      }),
+    )
+    this.runs.set(run.agentId, run)
+    await run.say({ text: args.args.prompt, clientId: `${args.stepKey}:brief` })
+    await run.continueExisting()
+    return run.snapshot()
+  }
+
+  private openArgsOf(open: { args: SpawnArgs; key?: ChildKey | undefined }): ChildRunArgs {
+    return {
+      ...this.childArgs(),
+      agentType: open.args.agentType,
+      intent: open.args.intent,
+      groupHold: (draft) => this.holdOf(draft),
+      postHold: (post) => this.postInOrder(post),
+      ...(open.args.group === undefined ? {} : { group: open.args.group }),
+      ...(open.args.worktree === undefined ? {} : { worktree: open.args.worktree }),
+      ...(open.key === undefined ? {} : { key: open.key }),
+    }
   }
 
   async adoptAll(children: readonly OpenChild[]): Promise<void> {

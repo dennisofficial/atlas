@@ -43,7 +43,9 @@ import { lastSeqOf } from './child-reports'
 import {
   adoptRecordOf,
   childRecordOf,
+  holdsWorktreeOf,
   seedWorktreeOf,
+  settleCallsOf,
   type AdoptedChildArgs,
   type ChildRunArgs,
 } from './child-record'
@@ -72,6 +74,7 @@ export class ChildRun {
   private failure: string | undefined
   private readonly group: GroupRunState
   private awaitingAdoptSettle = false
+  private reopened = false
   private readonly posts: (post: () => Promise<void>) => Promise<void>
 
   private constructor(
@@ -99,27 +102,34 @@ export class ChildRun {
   }
 
   static async open(args: ChildRunArgs): Promise<ChildRun> {
+    const key = args.key
     const run = new ChildRun(
       args,
-      args.deps.ids.nextThreadId(),
+      key?.agentId ?? args.deps.ids.nextThreadId(),
       childChoiceOf({ runtime: args.runtime, agentType: args.agentType }),
       new Date(args.deps.timers.now()).toISOString(),
     )
+    const onLeaseLost = (error: LeaseLostError): void => {
+      run.lost(error)
+    }
     await args.deps.plane.createThread({ threadId: run.agentId, sessionId: args.deps.sessionId })
-    run.record = await childRecordOf({
-      args,
-      agentId: run.agentId,
-      onLeaseLost: (error) => run.lost(error),
-    })
+    run.record = await childRecordOf({ args, agentId: run.agentId, onLeaseLost })
     run.inbox = childInboxOf({ deps: args.deps, record: run.record, threadId: run.agentId })
-    if (args.worktree !== undefined)
+    const reopened = key !== undefined && run.record.eventCache().eventsAfter(0).length > 0
+    if (reopened)
+      await settleCallsOf({ args, agentId: run.agentId, onLeaseLost, record: run.record })
+    if (args.worktree !== undefined && !holdsWorktreeOf(run.record))
       await seedWorktreeOf({
         record: run.record,
         ids: args.deps.ids,
         agentId: run.agentId,
         worktree: args.worktree,
       })
-    await run.transcript.spawned({ worktree: args.worktree })
+    await run.transcript.spawned({
+      worktree: args.worktree,
+      ...(key === undefined ? {} : { callId: key.callId, stepKey: key.stepKey }),
+    })
+    run.reopened = reopened
     return run
   }
 
@@ -150,6 +160,12 @@ export class ChildRun {
     if (!this.awaitingAdoptSettle) return
     this.awaitingAdoptSettle = false
     await this.endSettledTurn()
+  }
+
+  async continueExisting(): Promise<void> {
+    if (!this.reopened) return
+    await this.endSettledTurn()
+    await this.continueTurn()
   }
 
   get done(): Promise<void> {
