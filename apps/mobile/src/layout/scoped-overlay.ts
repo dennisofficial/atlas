@@ -4,7 +4,13 @@ export type TOverlayScope = { layout: ESessionsListLayout; screen: string | null
 
 export type TScopedOverlay = { open: boolean; scope: TOverlayScope }
 
-export const closedOverlayOf = (scope: TOverlayScope): TScopedOverlay => ({ open: false, scope })
+export const defaultOverlayOf = ({
+  scope,
+  openByDefault,
+}: {
+  scope: TOverlayScope
+  openByDefault: boolean
+}): TScopedOverlay => ({ open: openByDefault, scope })
 
 const sameScope = ({ a, b }: { a: TOverlayScope; b: TOverlayScope }): boolean =>
   a.layout === b.layout && a.screen === b.screen
@@ -12,7 +18,10 @@ const sameScope = ({ a, b }: { a: TOverlayScope; b: TOverlayScope }): boolean =>
 export const scopedOverlayOf = ({
   overlay,
   scope,
+  openByDefault,
 }: {
   overlay: TScopedOverlay
   scope: TOverlayScope
-}): TScopedOverlay => (sameScope({ a: overlay.scope, b: scope }) ? overlay : closedOverlayOf(scope))
+  openByDefault: boolean
+}): TScopedOverlay =>
+  sameScope({ a: overlay.scope, b: scope }) ? overlay : defaultOverlayOf({ scope, openByDefault })

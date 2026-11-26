@@ -53,6 +53,7 @@ describe('sessionHeaderLeadingOf', () => {
   it('offers the sessions drawer whenever the list is not a fixed panel', () => {
     expect(
       sessionHeaderLeadingOf({
+        drawerOpen: true,
         posture: postureWith({
           controls: EControlsPlacement.BottomBar,
           sessionsList: ESessionsListLayout.Stacked,
@@ -61,6 +62,7 @@ describe('sessionHeaderLeadingOf', () => {
     ).toEqual([EHeaderLeadingItem.Sessions])
     expect(
       sessionHeaderLeadingOf({
+        drawerOpen: true,
         posture: postureWith({
           controls: EControlsPlacement.BottomBar,
           sessionsList: ESessionsListLayout.Overlay,
@@ -69,9 +71,22 @@ describe('sessionHeaderLeadingOf', () => {
     ).toEqual([EHeaderLeadingItem.Sessions])
   })
 
+  it('offers the sessions button to bring back a hidden fixed panel', () => {
+    expect(
+      sessionHeaderLeadingOf({
+        drawerOpen: false,
+        posture: postureWith({
+          controls: EControlsPlacement.Rail,
+          sessionsList: ESessionsListLayout.Panel,
+        }),
+      }),
+    ).toEqual([EHeaderLeadingItem.Sessions])
+  })
+
   it('offers no drawer button while the fixed panel already shows the list', () => {
     expect(
       sessionHeaderLeadingOf({
+        drawerOpen: true,
         posture: postureWith({
           controls: EControlsPlacement.Rail,
           sessionsList: ESessionsListLayout.Panel,

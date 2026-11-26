@@ -24,8 +24,10 @@ export default function SessionsIndexScreen() {
   const selected = useSelectedSession()
   const loaded = useSelectedSessionLoaded()
   const posture = usePosture()
-  const { setOpen } = useSessionsDrawer()
-  const showsSessions = sessionHeaderLeadingOf({ posture }).includes(EHeaderLeadingItem.Sessions)
+  const { open: drawerOpen, setOpen } = useSessionsDrawer()
+  const showsSessions = sessionHeaderLeadingOf({ posture, drawerOpen }).includes(
+    EHeaderLeadingItem.Sessions,
+  )
   const handleOpenSessions = useCallback(() => setOpen(true), [setOpen])
 
   useEffect(() => {

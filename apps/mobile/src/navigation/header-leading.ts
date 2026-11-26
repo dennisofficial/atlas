@@ -12,8 +12,16 @@ export const HEADER_TITLE_MIN_WIDTH = 120
 export const tabHeaderLeadingOf = ({ posture }: { posture: TPosture }): EHeaderLeadingItem[] =>
   posture.controls === EControlsPlacement.BottomBar ? [EHeaderLeadingItem.Account] : []
 
-export const sessionHeaderLeadingOf = ({ posture }: { posture: TPosture }): EHeaderLeadingItem[] =>
-  posture.sessionsList === ESessionsListLayout.Panel ? [] : [EHeaderLeadingItem.Sessions]
+export const sessionHeaderLeadingOf = ({
+  posture,
+  drawerOpen,
+}: {
+  posture: TPosture
+  drawerOpen: boolean
+}): EHeaderLeadingItem[] =>
+  posture.sessionsList === ESessionsListLayout.Panel && drawerOpen
+    ? []
+    : [EHeaderLeadingItem.Sessions]
 
 export const leadingTitleWidthOf = ({
   windowWidth,
