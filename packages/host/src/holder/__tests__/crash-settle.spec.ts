@@ -80,8 +80,16 @@ describe('crashSettleOf', () => {
     )
   })
 
-  it('holds a plugin call dispatched on a known boot, which sent nothing yet', () => {
-    expect(settleOf({ name: 'service', bodies: [dispatched('boot-a')] })).toBe(ECrashedCall.Hold)
+  it('interrupts a plugin call that recorded no step, whatever boot its dispatch names', () => {
+    expect(settleOf({ name: 'service', bodies: [dispatched('boot-a')] })).toBe(
+      ECrashedCall.Interrupt,
+    )
+  })
+
+  it('interrupts a host-side-effect call whose effect opens no pod step', () => {
+    expect(settleOf({ name: 'agent_spawn', bodies: [dispatched('boot-a')] })).toBe(
+      ECrashedCall.Interrupt,
+    )
   })
 
   it('interrupts a plugin call whose dispatch recorded no boot', () => {

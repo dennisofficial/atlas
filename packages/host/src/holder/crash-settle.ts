@@ -15,6 +15,5 @@ export const crashSettleOf = (args: {
   if (args.runtime.effectOf(args.call.name) === EToolEffect.Read) return ECrashedCall.Hold
   const scopeKey = scopeKeyOf({ runId: args.call.runId, callId: args.call.callId })
   if (recordedStepsOf({ record: args.record, scopeKey }).length > 0) return ECrashedCall.Hold
-  const dispatched = args.record.eventCache().bookkeeping().findDispatched(args.call.callId)
-  return dispatched?.bootId === undefined ? ECrashedCall.Interrupt : ECrashedCall.Hold
+  return ECrashedCall.Interrupt
 }
