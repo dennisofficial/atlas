@@ -10,10 +10,17 @@ web spinner), never `ActivityIndicator`.
 
 ## Native first
 
-- **Navigation bar:** every screen uses the native stack header. Do not draw a custom `header`.
-  iOS always centres `headerTitle`, and `headerTitleAlign` does nothing on iOS. For a leading
-  title, use `leadingHeaderOptionsOf` (`src/navigation/header-options.tsx`), which places the title
-  as a `custom` item in `unstable_headerLeftItems`.
+- **Navigation bar:** every screen uses the native stack header. That includes a full-screen
+  modal and a screen whose content runs under the bar (`headerTransparent: true`). Do not draw a
+  custom `header`, and do not float a JS row of buttons over the content instead of a bar. Only
+  the native bar gets these from iOS: its place in the iPhone Duo status strip (top in open
+  portrait, beside the clock), safe areas, rotation and the glass style. A JS row has to compute
+  them again and gets them wrong (#3024 floated one in the photo viewer; it sat under the Duo
+  strip and stuck at the old orientation after a rotation). iOS always centres `headerTitle`, and
+  `headerTitleAlign` does nothing on iOS. For a leading title, use `leadingHeaderOptionsOf`
+  (`src/navigation/header-options.tsx`), which places the title as a `custom` item in
+  `unstable_headerLeftItems`. Its `titleButtons` counts every bar button on the screen plus one
+  spare slot. With too little room, iOS moves every bar item into one overflow "…" menu.
 - **Bar buttons:** use native bar button items (`unstable_headerLeftItems`,
   `unstable_headerRightItems`) with SF Symbols. Then iOS 26+ gives them the glass style. Use a
   React Native button in the bar only as the non-iOS fallback.
@@ -35,6 +42,9 @@ web spinner), never `ActivityIndicator`.
   (`src/layout/rail-content-frame.tsx`) keeps every screen clear of it, so do not add right padding
   on a single screen. A layer outside the frame (for example the in-app banner) adds the insets
   itself.
+- A `fullScreenModal` draws outside `RailContentFrame`. It pads right by `posture.railWidth`
+  itself, and wraps itself in its own `SafeAreaProvider`: while it is open, the root insets and
+  `usePosture()` keep the orientation it opened in. See `src/app/(app)/photo.tsx`.
 - The check viewports, the Duo included, are in `docs/mobile/devices.md`.
 
 ## Shipping
