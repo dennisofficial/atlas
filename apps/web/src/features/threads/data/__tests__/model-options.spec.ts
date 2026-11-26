@@ -1,10 +1,10 @@
 import { describe, expect, it } from 'bun:test'
 
-import { EImageTier } from '@dltech/atlas-core'
+import { EImageTier, type ModelCard } from '@dltech/atlas-core'
 import { cardsForProvider, offersFastMode, withoutDatedDuplicates } from '@dltech/atlas-models'
 import { EModelProviderStatus, type ModelsResponse } from '@dltech/atlas-wire/web'
 
-import { modelLabelOf, modelOptionsFromResponse, modelOptionsOf } from '../model-options'
+import { effortsOf, modelLabelOf, modelOptionsFromResponse, modelOptionsOf } from '../model-options'
 
 const account = (provider: string, status = 'active') => ({
   provider,
@@ -102,12 +102,6 @@ describe('modelOptionsOf', () => {
     expect(option?.rate).toBe(`$${card?.cost?.outputPerMillion.toFixed(2)}/M`)
   })
 
-  it('gives a card with no effort ladder an empty effort list', () => {
-    const { models } = modelOptionsOf({ accounts: [account('openai')] })
-    const bare = cardsForProvider('openai').find((card) => card.effort === undefined)
-    expect(models.find((model) => model.id === `openai/${bare?.ref.modelId}`)?.efforts).toEqual([])
-  })
-
   it('keeps a thread model whose provider has no key, marked unusable', () => {
     const card = cardsForProvider('anthropic')[0]
     const id = `anthropic/${card?.ref.modelId}`
@@ -147,6 +141,20 @@ describe('modelOptionsOf', () => {
     expect(models.find((model) => model.id === `anthropic/${plainCard?.ref.modelId}`)?.fast).toBe(
       false,
     )
+  })
+})
+
+describe('effortsOf', () => {
+  const bareCard: ModelCard = {
+    ref: { providerId: 'openai', modelId: 'gpt-bare' },
+    label: 'GPT Bare',
+    api: 'openai-responses',
+    contextWindow: 1,
+    imageTier: EImageTier.Standard,
+  }
+
+  it('gives a card with no effort ladder an empty effort list', () => {
+    expect(effortsOf(bareCard)).toEqual([])
   })
 })
 

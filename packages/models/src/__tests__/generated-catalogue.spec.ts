@@ -159,7 +159,7 @@ describe('generated catalogue', () => {
       expect(cardFor(`anthropic/${modelId}`).imageTier).toBe(EImageTier.HighResolution)
     }
 
-    expect(cardFor('anthropic/claude-opus-4-5').imageTier).toBe(DEFAULT_IMAGE_TIER)
+    expect(cardFor('anthropic/claude-opus-4-6').imageTier).toBe(DEFAULT_IMAGE_TIER)
     expect(cardFor('openrouter/z-ai/glm-4.6').imageTier).toBe(DEFAULT_IMAGE_TIER)
   })
 
@@ -222,8 +222,18 @@ const referencesOf = (cards: readonly ModelCard[]): readonly string[] =>
   cards.map((card) => refKey(card.ref))
 
 describe('withoutDatedDuplicates', () => {
+  const pairOf = (modelIds: readonly string[]): readonly string[] =>
+    referencesOf(withoutDatedDuplicates(modelIds.map(fakeCard)))
+
   it('collapses the anthropic pairs onto the unstamped id', () => {
-    const kept = referencesOf(withoutDatedDuplicates(cardsForProvider('anthropic')))
+    const kept = pairOf([
+      'anthropic/claude-haiku-4-5',
+      'anthropic/claude-haiku-4-5-20251001',
+      'anthropic/claude-opus-4-5',
+      'anthropic/claude-opus-4-5-20251101',
+      'anthropic/claude-sonnet-4-5',
+      'anthropic/claude-sonnet-4-5-20250929',
+    ])
 
     for (const modelId of ['claude-haiku-4-5', 'claude-opus-4-5', 'claude-sonnet-4-5']) {
       expect(kept).toContain(`anthropic/${modelId}`)
@@ -238,7 +248,7 @@ describe('withoutDatedDuplicates', () => {
   })
 
   it("collapses openai's dash-punctuated snapshots too", () => {
-    const kept = referencesOf(withoutDatedDuplicates(cardsForProvider('openai')))
+    const kept = pairOf(['openai/gpt-4o', 'openai/gpt-4o-2024-08-06', 'openai/gpt-4o-2024-11-20'])
 
     expect(kept).toContain('openai/gpt-4o')
     expect(kept).not.toContain('openai/gpt-4o-2024-08-06')
@@ -246,8 +256,8 @@ describe('withoutDatedDuplicates', () => {
   })
 
   it('keeps a stamped card that has no unstamped sibling', () => {
-    const kept = referencesOf(withoutDatedDuplicates(cardsForProvider('openrouter')))
-    expect(kept).toContain('openrouter/qwen/qwen3.5-plus-20260420')
+    const given = ['openrouter/qwen/qwen3.5-plus-20260420']
+    expect(pairOf(given)).toEqual(given)
   })
 
   it('never lets one provider shadow another', () => {

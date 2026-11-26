@@ -76,7 +76,7 @@ describe('AgentHostCredentialPort', () => {
       model: {
         configured: false,
         gap: 'no openai account',
-        unavailable: { providerId: 'openai', modelId: 'gpt-5' },
+        unavailable: { providerId: 'openai', modelId: 'gpt-5.6' },
       },
       tokens: fakeTokens([]),
     })
@@ -87,7 +87,7 @@ describe('AgentHostCredentialPort', () => {
       gap: 'no openai account',
     })
     expect((fault as Error).message).toBe(
-      "Your main agent is set to GPT-5, but OpenAI isn't connected.",
+      "Your main agent is set to GPT-5.6, but OpenAI isn't connected.",
     )
   })
 
