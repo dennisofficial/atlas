@@ -11,7 +11,7 @@ import {
 import type { SessionModelAsk } from '@dltech/atlas-models'
 import { INBOX_KIND_MESSAGE } from '@dltech/atlas-protocol'
 
-import { postIn } from './inbox-ops'
+import { postIn, postedReceiptOf } from './inbox-ops'
 import type { ControlSessionRow, ControlTx, EffectReceiptKey, SessionDigestRow } from './port'
 import { createSessionIn } from './session-ops'
 
@@ -138,6 +138,12 @@ export const reportToSpawnerIn = async (params: {
       refused: `the session ${spawnerId} that created this one no longer exists`,
     }
   }
+  const posted = await postedReceiptOf({
+    tx: params.tx,
+    sessionId: spawner.sessionId,
+    receipt: params.clientId,
+  })
+  if (posted !== undefined) return posted
   const archived = archivedRefusalOf(spawner)
   if (archived !== undefined) return { refused: archived }
   return postIn({
@@ -176,6 +182,8 @@ export const messagePeerIn = async (params: {
       refused: `there is no session ${params.toSessionId} in this project`,
     }
   }
+  const delivered = await postedReceiptOf({ tx, sessionId: to.sessionId, receipt: params.clientId })
+  if (delivered !== undefined) return { inboxId: delivered.inboxId, title: to.title }
   const archived = archivedRefusalOf(to)
   if (archived !== undefined) return { refused: archived }
   const posted = await postIn({

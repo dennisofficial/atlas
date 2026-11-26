@@ -28,6 +28,18 @@ const inboxReceiptOf = (params: { sessionId: string; stepKey: string }): EffectR
 
 const inboxIdOfReceipt = (result: unknown): number => storedInboxSchema.parse(result).inboxId
 
+export const postedReceiptOf = async (params: {
+  tx: ControlTx
+  sessionId: string
+  receipt: string | undefined
+}): Promise<{ inboxId: number } | undefined> => {
+  if (params.receipt === undefined) return undefined
+  const stored = await params.tx.readEffectReceipt(
+    inboxReceiptOf({ sessionId: params.sessionId, stepKey: params.receipt }),
+  )
+  return stored === undefined ? undefined : { inboxId: inboxIdOfReceipt(stored) }
+}
+
 export type WithdrawPayload = { targetInboxId: number }
 
 const MAIN_THREAD_ONLY_KINDS: ReadonlySet<string> = new Set([
