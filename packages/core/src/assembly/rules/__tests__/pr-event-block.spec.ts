@@ -239,6 +239,21 @@ describe('handing a PR event to the model', () => {
     expect(unknown).toContain('merge queue membership changed.')
   })
 
+  it('says auto-merge is off, with the reason GitHub gave', () => {
+    const withReason = prEventBlock(
+      eventOf({
+        kind: EPrEventKind.AutoMergeOff,
+        reason: 'Repository rule violations found',
+      }),
+    )
+    const bare = prEventBlock(eventOf({ kind: EPrEventKind.AutoMergeOff }))
+
+    expect(withReason).toContain(
+      'auto-merge is now off (GitHub: Repository rule violations found). The PR will not merge on its own.',
+    )
+    expect(bare).toContain('auto-merge is now off. The PR will not merge on its own.')
+  })
+
   it('carries the checks tally a verdict was taken from', () => {
     const block = prEventBlock(
       eventOf({

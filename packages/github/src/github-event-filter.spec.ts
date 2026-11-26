@@ -6,7 +6,15 @@ const delivers = (events: readonly string[], kind: string): boolean =>
 
 describe('wantsPrEvent', () => {
   it('delivers every kind to a row with no filter', () => {
-    const kinds = ['comment', 'review', 'review-comment', 'verdict', 'mergeability', 'state']
+    const kinds = [
+      'comment',
+      'review',
+      'review-comment',
+      'verdict',
+      'mergeability',
+      'state',
+      'auto-merge-off',
+    ]
     for (const kind of kinds) expect(delivers([], kind)).toBe(true)
   })
 
@@ -27,6 +35,7 @@ describe('wantsPrEvent', () => {
     expect(delivers(['ci'], 'verdict')).toBe(true)
     expect(delivers(['ci'], 'review')).toBe(false)
     expect(delivers(['mergeability'], 'merge-queue')).toBe(true)
+    expect(delivers(['mergeability'], 'auto-merge-off')).toBe(true)
     expect(delivers(['mergeability'], 'mergeable')).toBe(false)
   })
 

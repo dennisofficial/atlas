@@ -36,6 +36,7 @@ const prEventLabel = (event: Event & { type: 'pr-event' }): string => {
       ? 'merge queue membership changed'
       : `${event.queue} the merge queue`
   }
+  if (event.kind === EPrEventKind.AutoMergeOff) return 'auto-merge turned off'
   return `state ${event.state ?? 'changed'}`
 }
 

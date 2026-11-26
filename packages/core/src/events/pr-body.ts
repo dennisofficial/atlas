@@ -35,6 +35,7 @@ export type PrEventBody =
       baseBranch?: string | undefined
       state?: string | undefined
       queue?: EMergeQueueMove | undefined
+      reason?: string | undefined
       mergeQueued?: boolean | undefined
       checks?: PrChecksTally | undefined
       reviewState?: EPrReviewState | undefined

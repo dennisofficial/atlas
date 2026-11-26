@@ -2,7 +2,7 @@ import { describe, expect, it } from 'bun:test'
 
 import { EMergeQueueMove, EPrEventKind, EPrVerdict, type EventOfType } from '@dltech/atlas-core'
 
-import { prEventLine } from '../pr-event-line'
+import { prEventFailed, prEventLine } from '../pr-event-line'
 
 const verdict = (over: Partial<EventOfType<'pr-event'>>): EventOfType<'pr-event'> =>
   ({
@@ -132,6 +132,27 @@ describe('a review comment line', () => {
         }),
       ),
     ).toBe('PR #794: octocat commented — ### Codex Review')
+  })
+})
+
+describe('an auto-merge off line', () => {
+  it('says auto-merge turned off, with the reason GitHub gave', () => {
+    expect(
+      prEventLine(
+        verdict({
+          kind: EPrEventKind.AutoMergeOff,
+          reason: 'Repository rule violations found',
+        }),
+      ),
+    ).toBe('PR #794: auto-merge turned off, Repository rule violations found')
+    expect(prEventLine(verdict({ kind: EPrEventKind.AutoMergeOff }))).toBe(
+      'PR #794: auto-merge turned off',
+    )
+  })
+
+  it('marks the line as needing attention', () => {
+    expect(prEventFailed(verdict({ kind: EPrEventKind.AutoMergeOff }))).toBe(true)
+    expect(prEventFailed(verdict({ kind: EPrEventKind.MergeQueue }))).toBe(false)
   })
 })
 

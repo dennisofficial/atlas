@@ -38,6 +38,7 @@ export const prEventSchemas = [
     baseBranch: z.string().optional(),
     state: z.string().optional(),
     queue: z.enum(EMergeQueueMove).optional(),
+    reason: z.string().optional(),
     mergeQueued: z.boolean().optional(),
     checks: prChecksTallySchema.optional(),
     reviewState: z.enum(EPrReviewState).optional(),

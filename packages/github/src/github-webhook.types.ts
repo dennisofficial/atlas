@@ -23,6 +23,7 @@ export interface GithubPullRequestWebhookPayload {
   action: string
   pull_request: GithubWebhookPullRequest
   repository: GithubWebhookRepository
+  reason?: string | null
 }
 
 export interface GithubCheckSuiteWebhookPayload {
