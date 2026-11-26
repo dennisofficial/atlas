@@ -1,6 +1,6 @@
-import type { GithubDeviceCodes, GithubPollResult } from '@dltech/atlas-wire'
+import type { GithubDeviceCodes, GithubPollResult } from '@dltech/atlas-core'
 
-export { EGithubPollStatus } from '@dltech/atlas-wire'
+export { EGithubPollStatus } from '@dltech/atlas-core'
 
 export type GithubDeviceCodesDto = GithubDeviceCodes
 

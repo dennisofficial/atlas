@@ -1,6 +1,9 @@
+import { ERepoTreeEntryKind, projectRepoTreeSchema, type ProjectRepoTree } from '@dltech/atlas-core'
 import { z } from 'zod'
 
 import { projectIdInputSchema } from '../project-wire'
+
+export { ERepoTreeEntryKind, projectRepoTreeSchema, type ProjectRepoTree }
 
 export const HOME_MOUNT_PREFIX = '~/'
 // Atlas-home mounts are API-written only: in a sandbox ATLAS_HOME (= SANDBOX_HOME_PATH) is not
@@ -15,11 +18,6 @@ const MAX_FILE_MODE = 0o777
 export enum EFileMountTarget {
   Repository = 'repository',
   Home = 'home',
-}
-
-export enum ERepoTreeEntryKind {
-  File = 'file',
-  Folder = 'folder',
 }
 
 export const fileMountTargetOf = (path: string): EFileMountTarget =>
@@ -130,9 +128,3 @@ export type PersonalFileMountSetInput = z.output<typeof personalFileMountSetSche
 
 export const personalFileMountContentsSchema = z.object({ contents: z.string() })
 export type PersonalFileMountContents = z.infer<typeof personalFileMountContentsSchema>
-
-export const projectRepoTreeSchema = z.object({
-  entries: z.array(z.object({ path: z.string(), kind: z.enum(ERepoTreeEntryKind) })),
-  truncated: z.boolean(),
-})
-export type ProjectRepoTree = z.infer<typeof projectRepoTreeSchema>

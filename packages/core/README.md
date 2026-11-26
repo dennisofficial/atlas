@@ -11,7 +11,7 @@ assembly, settings, ports, and the record folds. It imports `zod` and nothing el
 - The record folds: log, inbox, lease, durability, summary target, views and session status.
 - The tool contract, the prompt fragment, the hook order, and the policy decisions.
 - The context envelope, the compaction plan, the plan of a thread, the commands, the skills and the memory.
-- The folds of the workspace, the pod, the services, the shells, the pull request, the diff and the review.
+- The folds of the workspace, the pod, the services, the shells, the pull request and its GitHub schemas, the diff and the review.
 - The notices, the subscriptions, the notify moment, the provider account and the usage window.
 
 ## Does not own

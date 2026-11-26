@@ -4,7 +4,7 @@ import {
   ERepoTreeEntryKind,
   type GithubRepoSummary,
   type ProjectRepoTree,
-} from '@dltech/atlas-wire'
+} from '@dltech/atlas-core'
 import { GithubUserReadFailed } from './github-user-reads'
 import { GITHUB_API } from './github-user-http'
 

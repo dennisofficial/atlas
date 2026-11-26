@@ -67,6 +67,8 @@ response payloads, the constants that both sides must agree on, and the sandbox 
   `EAccessScope` and `EAccessMemberKind` name the scopes and the member kinds.
 - `fileMountSummarySchema`, `projectFileMountSetSchema`, `personalFileMountSetSchema`: a file mount
   a sandbox gets, with its mode. A personal mount path must start with `~/` or `@/`.
+- The GitHub repo, sign-in and PR stream schemas (`githubRepoSchema`, `githubPrStreamFrameSchema`
+  and kin). `@dltech/atlas-core` owns them, and wire re-exports them.
 
 ### Layer a project group
 
