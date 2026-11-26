@@ -35,7 +35,6 @@ export const fakeDaemon = (
     env?: Record<string, string>
   }[] = []
   const closed: string[] = []
-  const sends: { serverId: string; line: string }[] = []
   const listeners: ((frame: DaemonEventFrame) => void)[] = []
   let reads = 0
 
@@ -117,7 +116,6 @@ export const fakeDaemon = (
     }
     if (op.op === 'mcp.send') {
       const serverId = String(op['serverId'])
-      sends.push({ serverId, line: String(op['line']) })
       if (behaviours[serverId]?.exit === undefined) answer(serverId, JSON.parse(String(op['line'])))
       return { status: ECallStatus.Ok, op: 'mcp.send', value: null }
     }
@@ -183,7 +181,6 @@ export const fakeDaemon = (
     kill,
     spawns,
     closed,
-    sends,
     files,
     lines,
     reads: () => reads,

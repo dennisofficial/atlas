@@ -638,7 +638,6 @@
       },
       "devDependencies": {
         "@dltech/atlas-daemon": "workspace:*",
-        "@dltech/atlas-plugin-mcp": "workspace:*",
         "@dltech/atlas-plugin-services": "workspace:*",
         "@dltech/atlas-plugin-shells": "workspace:*",
         "@types/bun": "latest",

@@ -11,7 +11,6 @@ import { interruptedMessage } from './errors'
 type CallScope = {
   scopeKey: string
   next: number
-  ids: number
   consumed: Set<string>
   recorded?: readonly StepFact[] | undefined
   detachOnHandoff: boolean
@@ -64,7 +63,6 @@ export const runInCallScope = <T>(args: {
     {
       scopeKey: args.scopeKey,
       next: 0,
-      ids: 0,
       consumed: new Set(),
       detachOnHandoff: args.detachOnHandoff ?? true,
       ...(args.attachOnly === undefined ? {} : { attachOnly: args.attachOnly }),
@@ -84,19 +82,15 @@ export const nextKey = (): string => {
   return key
 }
 
-export const replayStableId = (): string | undefined => {
+const randomKeyOf = (prefix: string): string => {
   const scope = storage.getStore()
-  if (scope === undefined) return undefined
-  const index = scope.ids
-  scope.ids += 1
-  return `${scope.scopeKey}#${index}`
+  if (scope === undefined) return `host-${prefix}-${randomUUID()}`
+  return `${scope.scopeKey}.${prefix}.${randomUUID().slice(0, 8)}`
 }
 
-export const readKey = (): string => {
-  const scope = storage.getStore()
-  const suffix = randomUUID().slice(0, 8)
-  return scope === undefined ? `host-read-${randomUUID()}` : `${scope.scopeKey}.read.${suffix}`
-}
+export const readKey = (): string => randomKeyOf('read')
+
+export const noStepKey = (): string => randomKeyOf('no-step')
 
 export class ScopedToolDispatcher extends ToolDispatcher {
   constructor(private readonly args: { inner: ToolDispatcher; daemonTools: ReadonlySet<string> }) {
@@ -107,7 +101,6 @@ export class ScopedToolDispatcher extends ToolDispatcher {
     const scope: CallScope = {
       scopeKey: scopeKeyOf({ runId: args.call.runId, callId: args.call.callId }),
       next: 0,
-      ids: 0,
       consumed: new Set(),
       detachOnHandoff: this.args.daemonTools.has(args.call.name),
     }

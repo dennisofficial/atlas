@@ -154,15 +154,10 @@ export class StdioClient implements McpTransportClient {
     if (result.value.attached) this.afterSeq = result.value.seq
   }
 
-  private idOf(method: string): string {
-    if (method !== 'tools/call') return String(this.nextId++)
-    return this.args.ctx.replayStableId?.() ?? String(this.nextId++)
-  }
-
   private async request(payload: { method: string; params?: unknown }): Promise<unknown> {
     if (this.closed) throw new McpTransportError('the transport is closed')
     if (this.exitError !== null) throw this.exitError
-    const id = this.idOf(payload.method)
+    const id = String(this.nextId++)
     const settled = new Promise<unknown>((resolve, reject) => {
       this.pending.set(id, { resolve, reject })
     })

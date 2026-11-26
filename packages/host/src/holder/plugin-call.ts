@@ -5,6 +5,7 @@ import { ECallFailure, ECallStatus, type CallOp, type CallResult } from '@dltech
 import {
   claimStepSlot,
   nextKey,
+  noStepKey,
   readKey,
   rememberRecordedSteps,
   scopeConsumedKeys,
@@ -33,6 +34,14 @@ type PlannedCall = {
   step: boolean
   scopeKey?: string | undefined
 }
+
+const MCP_OPS_WITHOUT_A_STEP_UNTIL_A_REQUEST_OP_EXISTS: ReadonlySet<CallOp['op']> = new Set([
+  'mcp.close',
+  'mcp.list',
+  'mcp.read',
+  'mcp.send',
+  'mcp.spawn',
+])
 
 const ackRead = (args: Parameters<typeof pluginCallOf>[0], key: string): void => {
   Promise.resolve()
@@ -84,6 +93,9 @@ export const pluginCallOf = (args: {
   const planOf = async (op: CallOp): Promise<PlannedCall> => {
     const scope = scopeKey()
     if (scope === undefined || args.steps === undefined) return freshCallOf(op)
+    if (MCP_OPS_WITHOUT_A_STEP_UNTIL_A_REQUEST_OP_EXISTS.has(op.op)) {
+      return { key: noStepKey(), replayed: false, read: false, step: false }
+    }
     if (isReadOnlyOp(op.op)) return freshCallOf(op)
     const recorded: readonly RecordedStep[] =
       scopeRecordedSteps() ?? (await args.steps.recorded(scope))
