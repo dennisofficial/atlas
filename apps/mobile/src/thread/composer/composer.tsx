@@ -8,20 +8,13 @@ import {
 } from '@dltech/atlas-client/session'
 import type { Attachment } from '@dltech/atlas-core'
 import { radius, readingType, space } from '@dltech/atlas-ui/tokens'
-import {
-  ETextRole,
-  ETextTone,
-  Input,
-  Text,
-  useIsDark,
-  useTheme,
-  withAlpha,
-} from '@dltech/atlas-ui-native'
+import { ETextRole, ETextTone, Input, Text } from '@dltech/atlas-ui-native'
 import { type PasteEventPayload, TextInputWrapper } from 'expo-paste-input'
 import { type ReactNode, useEffect, useRef, useState } from 'react'
 import { StyleSheet, View } from 'react-native'
 
 import { mergeIntoDraft } from '../session/staged-send'
+import { GlassSurface } from '../../navigation/glass-surface'
 import { AttachmentChips } from './attachment-chips'
 import { AttachMenu } from './attach-menu'
 import type { EAttachSource } from './attach-sources'
@@ -66,8 +59,6 @@ export const Composer = ({
   joined?: boolean
   children?: ReactNode
 }) => {
-  const theme = useTheme()
-  const dark = useIsDark()
   const [draft, setDraft] = useState('')
   const [sending, setSending] = useState(false)
   const [failed, setFailed] = useState(false)
@@ -178,40 +169,36 @@ export const Composer = ({
         <SlashMenu entries={candidates} onPick={handleCommand} />
       )}
       {choosing && attachments !== undefined ? <AttachMenu onPick={handlePick} /> : null}
-      {attachments === undefined ? null : (
-        <AttachmentChips held={attachments.held} onRemove={attachments.remove} />
-      )}
-      {notice === null ? null : (
-        <Text size={ETextRole.Xs} tone={ETextTone.Destructive} style={styles.notice}>
-          {notice}
-        </Text>
-      )}
-      <ComposerDropZone
-        style={[
-          styles.field,
-          joined ? styles.joinedField : null,
-          {
-            backgroundColor: dark ? withAlpha({ color: theme.input, alpha: 0.3 }) : 'transparent',
-          },
-        ]}
-        borderColor={theme.input}
-        onFiles={attachments?.attachFiles}
-        controls={controls}
-      >
-        <TextInputWrapper onPaste={attachments === undefined ? undefined : handlePaste}>
-          <Input
-            bare
-            multiline
-            accessibilityLabel="Message Atlas"
-            autoFocus={autoFocus}
-            editable={!sending}
-            placeholder={placeholder}
-            value={draft}
-            onChangeText={setDraft}
-            style={styles.input}
-          />
-        </TextInputWrapper>
-      </ComposerDropZone>
+      <GlassSurface style={styles.surface}>
+        {attachments === undefined ? null : (
+          <AttachmentChips held={attachments.held} onRemove={attachments.remove} />
+        )}
+        {notice === null ? null : (
+          <Text size={ETextRole.Xs} tone={ETextTone.Destructive} style={styles.notice}>
+            {notice}
+          </Text>
+        )}
+        <ComposerDropZone
+          style={[styles.field, joined ? styles.joinedField : null]}
+          borderColor="transparent"
+          onFiles={attachments?.attachFiles}
+          controls={controls}
+        >
+          <TextInputWrapper onPaste={attachments === undefined ? undefined : handlePaste}>
+            <Input
+              bare
+              multiline
+              accessibilityLabel="Message Atlas"
+              autoFocus={autoFocus}
+              editable={!sending}
+              placeholder={placeholder}
+              value={draft}
+              onChangeText={setDraft}
+              style={styles.input}
+            />
+          </TextInputWrapper>
+        </ComposerDropZone>
+      </GlassSurface>
     </View>
   )
 }
@@ -223,10 +210,13 @@ const styles = StyleSheet.create({
     paddingTop: space(2),
   },
   field: {
-    borderRadius: radius(1),
+    borderRadius: radius(2.4),
     borderWidth: 1,
     paddingHorizontal: space(2.5),
     paddingTop: space(2.5),
+  },
+  surface: {
+    borderRadius: radius(2.4),
   },
   joinedDock: {
     paddingTop: 0,

@@ -12,13 +12,22 @@ import {
 import { space } from '@dltech/atlas-ui/tokens'
 import { router, Stack, useFocusEffect, useLocalSearchParams } from 'expo-router'
 import { PanelLeft } from 'lucide-react-native'
-import { useCallback, useMemo } from 'react'
-import { Platform, StyleSheet, useWindowDimensions, View } from 'react-native'
+import { useCallback, useMemo, useState } from 'react'
+import {
+  type LayoutChangeEvent,
+  Platform,
+  StyleSheet,
+  useWindowDimensions,
+  View,
+} from 'react-native'
 import { EffortSelect, FastToggle } from '../../../composer/model-controls'
 import { ModelSheet } from '../../../composer/model-picker'
 import { ModelTrigger } from '../../../composer/model-trigger'
 import { KeyboardDock } from '../../../layout/keyboard-dock'
+import { transcriptInsetOf } from '../../../layout/transcript-inset'
+import { useKeyboard } from '../../../layout/use-keyboard'
 import { usePosture } from '../../../layout/use-posture'
+import { GlassSurface } from '../../../navigation/glass-surface'
 import { EHeaderLeadingItem, sessionHeaderLeadingOf } from '../../../navigation/header-leading'
 import { leadingHeaderOptionsOf } from '../../../navigation/header-options'
 import { SessionsButton } from '../../../navigation/sessions-button'
@@ -37,6 +46,7 @@ import { Transcript } from '../../../thread/components/transcript'
 import { selectedSessionStore } from '../../../sessions/selected-session'
 import { useSessionsDrawer } from '../../../sessions/sessions-drawer-state'
 import { useSessionScreen } from '../../../thread/session/use-session-screen'
+import { useSafeAreaInsets } from 'react-native-safe-area-context'
 
 export default function SessionScreen() {
   const theme = useTheme()
@@ -47,6 +57,14 @@ export default function SessionScreen() {
   const attachments = useAttachments()
   const model = session.commands.model
   const { open: drawerOpen, setOpen } = useSessionsDrawer()
+  const insets = useSafeAreaInsets()
+  const keyboardInset = useKeyboard().inset
+  const [dockHeight, setDockHeight] = useState(0)
+  const bottomInset = transcriptInsetOf({
+    dockHeight,
+    keyboardInset,
+    safeBottom: insets.bottom,
+  })
   const transcriptRows = useMemo(
     () => [...session.rows, ...session.stagedRows],
     [session.rows, session.stagedRows],
@@ -59,6 +77,10 @@ export default function SessionScreen() {
   )
 
   const handleOpenSessions = useCallback(() => setOpen(true), [setOpen])
+
+  const handleDockLayout = useCallback((event: LayoutChangeEvent) => {
+    setDockHeight(event.nativeEvent.layout.height)
+  }, [])
 
   const handleOpenAgent = useCallback(
     (agentId: string) => {
@@ -144,86 +166,95 @@ export default function SessionScreen() {
               agentLinks={session.agentLinks}
               sessionNameOf={session.sessionNameOf}
               onOpenAgent={handleOpenAgent}
+              bottomInset={bottomInset}
             />
-            {session.failure === null || session.startFailure !== undefined ? null : (
-              <View style={styles.failure}>
-                <Text size={ETextRole.Xs} tone={ETextTone.Destructive} style={styles.failureText}>
-                  {session.failure}
-                </Text>
-                <Button
-                  label="Retry"
-                  size={EButtonSize.Sm}
-                  variant={EButtonVariant.Outline}
-                  onPress={() => void session.retry()}
-                />
-              </View>
-            )}
-            <KeyboardDock>
-              <OperatorRequestDock operator={session.operator} />
-              {session.stale ? (
-                <View style={styles.operator}>
-                  <StaleCard />
-                </View>
-              ) : null}
-              {session.stateLine === null ? null : (
-                <View style={styles.stateRow}>
-                  {session.catchingUp ? <Spinner color={theme.mutedForeground} /> : null}
-                  <Text size={ETextRole.Xs} tone={ETextTone.Muted} style={styles.state}>
-                    {session.stateLine}
-                  </Text>
-                  {session.canReconnect ? (
-                    <Button
-                      label="Reconnect"
-                      size={EButtonSize.Sm}
-                      variant={EButtonVariant.Ghost}
-                      onPress={session.reconnect}
-                    />
-                  ) : null}
-                </View>
-              )}
-              {session.startFailure === undefined ? null : (
-                <StartFailedCard reason={session.startFailure.reason} onRetry={session.retry} />
-              )}
-              <QueuedDock
-                dock={session.queued}
-                threadId={id}
-                sessionId={id}
-                sessionNameOf={session.sessionNameOf}
-                onEdit={session.withdrawEdit}
-                onRemove={session.withdrawRemove}
-              />
-              {session.blocking === undefined ? null : (
-                <BlockingStrip command={session.blocking} now={session.now} />
-              )}
-              <Composer
-                working={session.working}
-                joined={session.blocking !== undefined}
-                attachments={attachments}
-                onSend={session.send}
-                onStop={session.stop}
-                restored={session.restored}
-                draftSessionId={id}
-                refusal={session.notice}
-                entries={session.commands.entries}
-                clientActions={session.commands.clientActions}
-              >
-                <ModelTrigger
-                  models={model.models}
-                  selection={model.selection}
-                  onPress={handleOpenModel}
-                />
-                {model.selection === null ? null : (
-                  <>
-                    {model.selection.model.efforts.length === 0 ? null : (
-                      <EffortSelect selection={model.selection} onChange={handleEffort} />
-                    )}
-                    {model.selection.model.fast ? (
-                      <FastToggle selection={model.selection} onToggle={handleFast} />
-                    ) : null}
-                  </>
+            <KeyboardDock overlay>
+              <View onLayout={handleDockLayout}>
+                {session.failure === null || session.startFailure !== undefined ? null : (
+                  <View style={styles.operator}>
+                    <GlassSurface style={styles.failure}>
+                      <Text
+                        size={ETextRole.Xs}
+                        tone={ETextTone.Destructive}
+                        style={styles.failureText}
+                      >
+                        {session.failure}
+                      </Text>
+                      <Button
+                        label="Retry"
+                        size={EButtonSize.Sm}
+                        variant={EButtonVariant.Outline}
+                        onPress={() => void session.retry()}
+                      />
+                    </GlassSurface>
+                  </View>
                 )}
-                <ContextReading context={session.context} />
-              </Composer>
+                <OperatorRequestDock operator={session.operator} />
+                {session.stale ? (
+                  <View style={styles.operator}>
+                    <StaleCard />
+                  </View>
+                ) : null}
+                {session.stateLine === null ? null : (
+                  <View style={styles.stateRow}>
+                    {session.catchingUp ? <Spinner color={theme.mutedForeground} /> : null}
+                    <Text size={ETextRole.Xs} tone={ETextTone.Muted} style={styles.state}>
+                      {session.stateLine}
+                    </Text>
+                    {session.canReconnect ? (
+                      <Button
+                        label="Reconnect"
+                        size={EButtonSize.Sm}
+                        variant={EButtonVariant.Ghost}
+                        onPress={session.reconnect}
+                      />
+                    ) : null}
+                  </View>
+                )}
+                {session.startFailure === undefined ? null : (
+                  <StartFailedCard reason={session.startFailure.reason} onRetry={session.retry} />
+                )}
+                <QueuedDock
+                  dock={session.queued}
+                  threadId={id}
+                  sessionId={id}
+                  sessionNameOf={session.sessionNameOf}
+                  onEdit={session.withdrawEdit}
+                  onRemove={session.withdrawRemove}
+                />
+                {session.blocking === undefined ? null : (
+                  <BlockingStrip command={session.blocking} now={session.now} />
+                )}
+                <Composer
+                  working={session.working}
+                  joined={session.blocking !== undefined}
+                  attachments={attachments}
+                  onSend={session.send}
+                  onStop={session.stop}
+                  restored={session.restored}
+                  draftSessionId={id}
+                  refusal={session.notice}
+                  entries={session.commands.entries}
+                  clientActions={session.commands.clientActions}
+                >
+                  <ModelTrigger
+                    models={model.models}
+                    selection={model.selection}
+                    onPress={handleOpenModel}
+                  />
+                  {model.selection === null ? null : (
+                    <>
+                      {model.selection.model.efforts.length === 0 ? null : (
+                        <EffortSelect selection={model.selection} onChange={handleEffort} />
+                      )}
+                      {model.selection.model.fast ? (
+                        <FastToggle selection={model.selection} onToggle={handleFast} />
+                      ) : null}
+                    </>
+                  )}
+                  <ContextReading context={session.context} />
+                </Composer>
+              </View>
               <CommandListSheet
                 open={session.commands.commandList.open}
                 onClose={session.commands.commandList.onClose}
@@ -255,8 +286,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     flexDirection: 'row',
     gap: space(2),
-    paddingBottom: space(2),
-    paddingHorizontal: space(4),
+    padding: space(2.5),
   },
   failureText: {
     flex: 1,
