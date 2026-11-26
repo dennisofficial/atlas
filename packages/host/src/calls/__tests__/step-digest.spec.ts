@@ -14,6 +14,18 @@ describe('stepDigestOf', () => {
     expect(stepDigestOf({ ...bare, tunnelToken: 'abc' })).toBe(stepDigestOf(bare))
   })
 
+  it('ignores the service id the daemon decides', () => {
+    const bare = { op: 'services.start', command: 'listen', cwd: '/w' }
+    expect(stepDigestOf({ ...bare, serviceId: 'svc-one00000' })).toBe(stepDigestOf(bare))
+    expect(stepDigestOf({ ...bare, serviceId: 'svc-two00000' })).toBe(stepDigestOf(bare))
+  })
+
+  it('keeps the service id of every other pod operation', () => {
+    expect(stepDigestOf({ op: 'services.stop', serviceId: 'svc-one00000' })).not.toBe(
+      stepDigestOf({ op: 'services.stop', serviceId: 'svc-two00000' }),
+    )
+  })
+
   it('changes with the op as the plugin wrote it', () => {
     expect(stepDigestOf({ op: 'services.start', name: 'api' })).not.toBe(
       stepDigestOf({ op: 'services.start', name: 'db' }),
