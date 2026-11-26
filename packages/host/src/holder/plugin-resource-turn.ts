@@ -5,16 +5,11 @@ import type { ECloudSetting, PluginPodContext, PodResource } from '@dltech/atlas
 import type { Adoption } from './plugin-resource-refresh'
 import { cloudStringOf, versionsKnownOf, versionsOf } from './plugin-resource-probes'
 import { ELoadReason } from './plugin-resource-reason'
+import { waitingOn, type ResourceWait } from './plugin-resource-waits'
 
 type Ctx = PluginPodContext
 
 type Versions = Readonly<Record<ECloudSetting, string>>
-
-export type ResourceWait = <T>(args: {
-  waitFor: EResourceWait
-  resource?: string | undefined
-  work: () => Promise<T>
-}) => Promise<T>
 
 const recordedOf = (args: {
   events: readonly RecordEvent[]
@@ -44,6 +39,7 @@ export type ResourceTurnArgs = {
     resource: PodResource<unknown>
     directory: string
     reason: ELoadReason
+    wait?: ResourceWait | undefined
   }): Promise<void>
 }
 
@@ -140,28 +136,32 @@ export class ResourceTurn {
       void this.reloadWhenSettled({ resource, versions: args.versions })
     }
     const awaited = changed.filter((resource) => resource.background !== true)
-    if (awaited.length === 0) return
     for (const resource of awaited) {
-      const waiting = this.args.waitOn({
+      if (!this.args.podReady()) {
+        void this.reloadWhenSettled({ resource, versions: args.versions })
+        continue
+      }
+      await this.args.waitOn({
         waitFor: EResourceWait.ChangedResource,
         resource: resource.name,
-        work: () => this.reloadWhenSettled({ resource, versions: args.versions }),
+        work: () =>
+          this.reloadWhenSettled({ resource, versions: args.versions, wait: this.args.waitOn }),
       })
-      if (this.args.podReady()) await waiting
-      else void waiting
     }
   }
 
   private async reloadWhenSettled(args: {
     resource: PodResource<unknown>
     versions: Versions
+    wait?: ResourceWait | undefined
   }): Promise<void> {
     const planned = this.args.plannedOf()
     if (planned !== undefined) await planned.catch(() => undefined)
     if (args.resource.background === true) {
       const background = this.args.backgroundLoadOf(args.resource.name)
       if (background !== undefined) {
-        await this.args.waitOn({
+        await waitingOn({
+          wait: args.wait,
           waitFor: EResourceWait.BackgroundLoad,
           resource: args.resource.name,
           work: () => background.catch(() => undefined),
@@ -172,14 +172,18 @@ export class ResourceTurn {
       if (refreshed !== undefined) await refreshed.catch(() => undefined)
     }
     if (!this.cloudChangedOf(args)) return
-    await this.reloadOf(args.resource)
+    await this.reloadOf({ resource: args.resource, wait: args.wait })
   }
 
-  private reloadOf(resource: PodResource<unknown>): Promise<void> {
+  private reloadOf(args: {
+    resource: PodResource<unknown>
+    wait?: ResourceWait | undefined
+  }): Promise<void> {
     return this.args.reload({
-      resource,
+      resource: args.resource,
       directory: this.args.directory(),
       reason: ELoadReason.Cloud,
+      wait: args.wait,
     })
   }
 

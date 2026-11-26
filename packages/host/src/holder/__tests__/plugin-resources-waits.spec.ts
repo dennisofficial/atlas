@@ -1,11 +1,20 @@
-import { ECloudSetting, type PodResource } from '@dltech/atlas-plugin-sdk'
+import { ECloudSetting, readResource, type PodResource } from '@dltech/atlas-plugin-sdk'
 import { EResourceWait, ESpan } from '@dltech/atlas-observability'
 import { RecordingTracer, type RecordedSpan } from '@dltech/atlas-observability/testing'
 import { describe, expect, it } from 'bun:test'
 import { z } from 'zod'
 
 import { pluginResourcesHook } from '../plugin-resources'
-import { DIRECTORY, agentsRootOf, rig, skillsOf, THREAD, versionsAt } from './plugin-resources-rig'
+import {
+  DIRECTORY,
+  agentsRootOf,
+  rig,
+  skillsOf,
+  snapshotEventOf,
+  stringResource,
+  THREAD,
+  versionsAt,
+} from './plugin-resources-rig'
 
 const HOLD_MS = 120
 const TIMER_SLACK_MS = 20
@@ -69,7 +78,7 @@ describe('the turn times what it waits for on plugin resources', () => {
     expect(durationOf(wait)).toBeGreaterThanOrEqual(HOLD_MS - TIMER_SLACK_MS)
   }, 10_000)
 
-  it('covers a background load that was already in flight', async () => {
+  it('records no wait for a background load the turn does not block on', async () => {
     const trace = new RecordingTracer()
     const gate = gateOf()
     const attempts = { count: 0 }
@@ -84,20 +93,111 @@ describe('the turn times what it waits for on plugin resources', () => {
     expect(attempts.count).toBe(2)
 
     const hook = pluginResourcesHook({ sync: turn.sync })
+    await trace.span({
+      name: ESpan.Turn,
+      root: true,
+      run: () => hook.run({ threadId: THREAD, projectDirectory: DIRECTORY }),
+    })
+    await sleep(20)
+    gate.open('tools v2')
+    await turn.sync.settled()
+    await sleep(20)
+
+    expect(trace.named(ESpan.ResourceWait)).toEqual([])
+  }, 10_000)
+
+  it('records no wait for a cloud reload it starts in the background', async () => {
+    const trace = new RecordingTracer()
+    const gate = gateOf()
+    const loads: string[] = []
+    const skills = stringResource({
+      name: 'skills',
+      loads,
+      value: () => 'two',
+      watch: true,
+      cloud: [ECloudSetting.Skills],
+    })
+    const turn = rig({
+      resources: [skills],
+      trace,
+      podReady: false,
+      beforeCall: async (op) => {
+        if (op.op === 'watch.status') await gate.promise
+      },
+    })
+    turn.events.push(
+      snapshotEventOf({
+        resource: 'skills',
+        fingerprint: `instance-1:0:v1:${DIRECTORY}`,
+        value: 'one',
+      }),
+    )
+    turn.daemon.setVersions({ ...versionsAt('v1'), [ECloudSetting.Skills]: 'v2' })
+
+    turn.sync.start()
+    const hook = pluginResourcesHook({ sync: turn.sync })
+    const started = Date.now()
+    await trace.span({
+      name: ESpan.Turn,
+      root: true,
+      run: () => hook.run({ threadId: THREAD, projectDirectory: DIRECTORY }),
+    })
+    expect(Date.now() - started).toBeLessThan(HOLD_MS)
+
+    turn.setPodReady(true)
+    gate.open('')
+    await turn.settled()
+    await sleep(20)
+
+    expect(readResource({ ctx: turn.ctx, resource: skills })).toBe('two')
+    expect(trace.named(ESpan.ResourceWait)).toEqual([])
+  }, 10_000)
+
+  it('times the changed resource load the hook waits for', async () => {
+    const trace = new RecordingTracer()
+    const gate = gateOf()
+    const loads: string[] = []
+    const skills = stringResource({
+      name: 'skills',
+      loads,
+      value: () => 'two',
+      watch: true,
+      cloud: [ECloudSetting.Skills],
+    })
+    const turn = rig({
+      resources: [skills],
+      trace,
+      beforeAppend: async () => {
+        await gate.promise
+      },
+    })
+    turn.events.push(
+      snapshotEventOf({
+        resource: 'skills',
+        fingerprint: `instance-1:0:v1:${DIRECTORY}`,
+        value: 'one',
+      }),
+    )
+    turn.daemon.setVersions({ ...versionsAt('v1'), [ECloudSetting.Skills]: 'v2' })
+
+    const hook = pluginResourcesHook({ sync: turn.sync })
     const running = trace.span({
       name: ESpan.Turn,
       root: true,
       run: () => hook.run({ threadId: THREAD, projectDirectory: DIRECTORY }),
     })
     await sleep(HOLD_MS)
-    gate.open('tools v2')
+    gate.open('')
     await running
-    await sleep(20)
+    await turn.settled()
 
-    const wait = waitSpanOf({ trace, waitFor: EResourceWait.BackgroundLoad })
-    expect(wait?.fields.resource).toBe('mcp-tools')
-    expect(wait?.parent?.name).toBe(ESpan.Turn)
-    expect(durationOf(wait)).toBeGreaterThanOrEqual(HOLD_MS - TIMER_SLACK_MS)
+    const waits = trace
+      .named(ESpan.ResourceWait)
+      .filter((span) => span.fields.waitFor === EResourceWait.ChangedResource)
+    expect(waits.map((span) => span.fields.resource)).toEqual(['skills'])
+    expect(waits.every((span) => span.parent?.name === ESpan.Turn)).toBe(true)
+    expect(durationOf(waits[0])).toBeGreaterThanOrEqual(HOLD_MS - TIMER_SLACK_MS)
+    expect(loads).toEqual(['skills'])
   }, 10_000)
 
   it('opens a load span for a background resource', async () => {

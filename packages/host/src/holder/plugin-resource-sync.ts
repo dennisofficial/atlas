@@ -1,5 +1,5 @@
 import { latestResourceOf, type RecordEvent } from '@dltech/atlas-core'
-import { EResourceWait, ESpan, spanWith, type TracePort } from '@dltech/atlas-observability'
+import { EResourceWait, type TracePort } from '@dltech/atlas-observability'
 import type { PluginPodContext, PodResource } from '@dltech/atlas-plugin-sdk'
 
 import { appendOf, draftsOf } from './plugin-resource-loads'
@@ -8,6 +8,7 @@ import { ELoadReason } from './plugin-resource-reason'
 import { refresh, watchOf, type Adoption } from './plugin-resource-refresh'
 import { reloadOne } from './plugin-resource-reload'
 import { ResourceTurn } from './plugin-resource-turn'
+import { spanWaitOf, waitingOn, type ResourceWait } from './plugin-resource-waits'
 
 type Ctx = PluginPodContext
 
@@ -33,6 +34,7 @@ export class ResourceSync {
   private readonly refreshLoads = new Map<string, Promise<void>>()
   private readonly adoptions = new Map<string, Promise<void>>()
   private readonly offs: (() => void)[] = []
+  private readonly waitOn: ResourceWait
   private initial: Promise<void> | undefined
   private refreshing: Promise<void> | undefined
   private planned: Promise<void> | undefined
@@ -43,6 +45,7 @@ export class ResourceSync {
 
   constructor(args: ResourceSyncArgs) {
     this.args = args
+    this.waitOn = spanWaitOf(args.trace)
     this.turn = new ResourceTurn({
       ctx: args.ctx,
       resources: args.resources,
@@ -122,21 +125,6 @@ export class ResourceSync {
         work: () => Promise.all(running.map((attempt) => attempt.catch(() => undefined))),
       })
     }
-  }
-
-  private waitOn<T>(args: {
-    waitFor: EResourceWait
-    resource?: string | undefined
-    work: () => Promise<T>
-  }): Promise<T> {
-    return spanWith(this.args.trace, {
-      name: ESpan.ResourceWait,
-      fields: {
-        waitFor: args.waitFor,
-        ...(args.resource === undefined ? {} : { resource: args.resource }),
-      },
-      run: args.work,
-    })
   }
 
   private handleReady(hello: { restart: boolean }): void {
@@ -246,6 +234,7 @@ export class ResourceSync {
     resource: PodResource<unknown>
     directory: string
     reason: ELoadReason
+    wait?: ResourceWait | undefined
   }): Promise<void> {
     const name = args.resource.name
     const running = this.running.get(name)
@@ -262,11 +251,13 @@ export class ResourceSync {
     resource: PodResource<unknown>
     directory: string
     reason: ELoadReason
+    wait?: ResourceWait | undefined
   }): Promise<void> {
     const planned = this.refreshing === undefined ? undefined : this.planned
     const refreshed = this.refreshLoads.get(args.resource.name)
     if (planned !== undefined || refreshed !== undefined) {
-      await this.waitOn({
+      await waitingOn({
+        wait: args.wait,
         waitFor: EResourceWait.ChangedResource,
         resource: args.resource.name,
         work: async () => {
@@ -277,7 +268,8 @@ export class ResourceSync {
     }
     const background = this.backgroundLoads.get(args.resource.name)
     if (background !== undefined) {
-      await this.waitOn({
+      await waitingOn({
+        wait: args.wait,
         waitFor: EResourceWait.BackgroundLoad,
         resource: args.resource.name,
         work: () => background.catch(() => undefined),
