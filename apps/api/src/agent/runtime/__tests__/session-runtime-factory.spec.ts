@@ -28,7 +28,7 @@ import { fakeModelSourceOf } from '../../testing/model-source'
 
 const CONFIGURED_MODEL = {
   configured: true as const,
-  ref: { providerId: 'anthropic', modelId: 'claude-sonnet-4-5' },
+  ref: { providerId: 'anthropic', modelId: 'claude-sonnet-4-6' },
   effort: EEffort.Medium,
   fast: false,
   accountId: 'acct-1',
