@@ -89,6 +89,44 @@ describe('take-over measurement', () => {
     })
   })
 
+  it('marks a prompt posted before the claim and times its wait from the claim', async () => {
+    const { takeOver, trace, log, clock } = await opened()
+    clock.advance(500)
+    takeOver.firstStep({
+      action: EFirstAction.Turn,
+      promptWaiting: true,
+      preparedBefore: true,
+      queuedAt: new Date(-2_000).toISOString(),
+    })
+    const [span] = trace.named(ESpan.Takeover)
+    expect(span?.fields.promptAtClaim).toBe(true)
+    expect(span?.fields.timings?.promptWait).toBe(500)
+    expect(takeoverLineOf(log)).toMatchObject({ promptAtClaim: true, promptWaitMs: 500 })
+  })
+
+  it('times a prompt posted during the take-over from its post', async () => {
+    const { takeOver, trace, clock } = await opened()
+    clock.advance(90_000)
+    takeOver.firstStep({
+      action: EFirstAction.Turn,
+      promptWaiting: true,
+      preparedBefore: true,
+      queuedAt: new Date(89_700).toISOString(),
+    })
+    const [span] = trace.named(ESpan.Takeover)
+    expect(span?.fields.promptAtClaim).toBe(false)
+    expect(span?.fields.timings?.promptWait).toBe(300)
+    expect(span?.fields.timings?.firstStep).toBe(90_000)
+  })
+
+  it('leaves the prompt fields out when no prompt waited', async () => {
+    const { takeOver, trace } = await opened()
+    takeOver.firstStep({ action: EFirstAction.Turn, promptWaiting: false, preparedBefore: true })
+    const [span] = trace.named(ESpan.Takeover)
+    expect(span?.fields.promptAtClaim).toBeUndefined()
+    expect(span?.fields.timings?.promptWait).toBeUndefined()
+  })
+
   it('measures branches from the moment the observation started', async () => {
     const { takeOver, trace, clock } = await opened()
     clock.advance(100)

@@ -30,6 +30,7 @@ export type TakeOverFirstStep = {
   action: EFirstAction
   promptWaiting: boolean
   preparedBefore: boolean
+  queuedAt?: string | undefined
 }
 
 const timed = async <T>(deps: HeldSessionDeps, work: () => Promise<T>): Promise<Timed<T>> => {
@@ -167,8 +168,9 @@ export class TakeOver {
       return
     }
     this.logged = true
-    const timings = this.timingsOf()
-    const chosen = firstStepFieldsOf(first)
+    const prompt = this.promptOf(first.queuedAt)
+    const timings = { ...this.timingsOf(), ...prompt.timings }
+    const chosen = { ...firstStepFieldsOf(first), ...prompt.fields }
     void spanWith(this.trace, {
       name: ESpan.Takeover,
       root: true,
@@ -185,6 +187,19 @@ export class TakeOver {
         ...msOf(timings),
       },
     })
+  }
+
+  private promptOf(queuedAt: string | undefined): {
+    fields: Pick<SpanFields, 'promptAtClaim'>
+    timings: Record<string, number>
+  } {
+    const postedAt = queuedAt === undefined ? Number.NaN : Date.parse(queuedAt)
+    if (Number.isNaN(postedAt)) return { fields: {}, timings: {} }
+    const claimedFrom = this.startedAt - this.claimMs
+    return {
+      fields: { promptAtClaim: postedAt <= claimedFrom },
+      timings: { promptWait: this.deps.timers.now() - Math.max(postedAt, claimedFrom) },
+    }
   }
 
   private timingsOf(): Record<string, number> {
