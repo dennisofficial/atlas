@@ -16,6 +16,7 @@ import {
 } from '@dltech/atlas-core'
 
 import type { AgentRecordPort } from '../record/agent-record.port'
+import type { InProcessWork } from './in-process-work'
 import type { OnceLedger } from './once-ledger.port'
 import type { PauseSignal } from './pause-signal'
 
@@ -45,6 +46,8 @@ export function createSettlePending(deps: {
   onToolOutput?: OnToolOutputNotice | undefined
   onceLedger?: OnceLedger | undefined
   detachTool?: ((name: string) => boolean) | undefined
+  podTool?: ((name: string) => boolean) | undefined
+  inProcess?: InProcessWork | undefined
 }): SettlePending {
   const isSafe = (call: DispatchableCall): boolean => {
     const declarations = new Map((deps.tools?.() ?? []).map((tool) => [tool.name, tool]))
@@ -111,20 +114,26 @@ export function createSettlePending(deps: {
       const settled = await Promise.all(
         run.map(async (call) => {
           if (detaching) return []
-          const drafts = await settleOne({
-            call,
-            events: current,
-            signal,
-            projectDirectory,
-            homeDirectory,
-            activeWorktree,
-            paused,
-          })
-          if ((signal.aborted || paused()) && detach?.(call.name) === true) return []
-          if (drafts.length > 0) {
-            await deps.record.append({ threadId, runId: call.runId, drafts, signal })
+          const settledWork =
+            deps.podTool?.(call.name) === true ? undefined : deps.inProcess?.begin()
+          try {
+            const drafts = await settleOne({
+              call,
+              events: current,
+              signal,
+              projectDirectory,
+              homeDirectory,
+              activeWorktree,
+              paused,
+            })
+            if ((signal.aborted || paused()) && detach?.(call.name) === true) return []
+            if (drafts.length > 0) {
+              await deps.record.append({ threadId, runId: call.runId, drafts, signal })
+            }
+            return drafts
+          } finally {
+            settledWork?.()
           }
-          return drafts
         }),
       )
 

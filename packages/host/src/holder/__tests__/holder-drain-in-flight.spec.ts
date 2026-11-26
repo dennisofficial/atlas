@@ -2,6 +2,7 @@ import { describe, expect, it } from 'bun:test'
 
 import {
   EFinishReason,
+  EToolEffect,
   ModelPort,
   toCallId,
   type Assembled,
@@ -12,7 +13,9 @@ import {
   type RecordEvent,
 } from '@dltech/atlas-core'
 import { FakeTool, ScriptedModel } from '@dltech/atlas-agent/testing'
+import { LogPort } from '@dltech/atlas-observability'
 
+import { DRAIN_IN_FLIGHT_CAP_MS, DRAIN_STREAM_ABORT_CAP_MS } from '../drain-cap'
 import { flushUntil, makeRig, seedSession, SESSION, THREAD_ID, type HolderRig } from './holder-rig'
 
 const STEP_TEXT = 'working'
@@ -22,8 +25,8 @@ class GatedTool extends FakeTool {
   runs = 0
   private release: (() => void) | undefined
 
-  constructor() {
-    super('slow', 'done')
+  constructor(effect: EToolEffect = EToolEffect.Read) {
+    super('slow', 'done', undefined, effect)
   }
 
   releaseNow(): void {
@@ -37,6 +40,13 @@ class GatedTool extends FakeTool {
       this.release = resolve
     })
     return { ok: true, output: 'done', modelText: 'done' }
+  }
+}
+
+class MemoryLog extends LogPort {
+  readonly entries: { source: unknown; message: string }[] = []
+  record(entry: Parameters<LogPort['record']>[0]): void {
+    this.entries.push({ source: entry.source, message: entry.message })
   }
 }
 
@@ -122,39 +132,49 @@ describe('SessionHolder drain with work in flight', () => {
     expect(lease.holderHostId).toBeNull()
   }, 15_000)
 
-  it('hands back without waiting for a host-side tool, and writes nothing about it', async () => {
+  it('waits for an in-process tool to finish and records its result before handing back', async () => {
     const model = new ScriptedModel([...script(), { text: 'done' }])
-    const tool = new GatedTool()
+    const tool = new GatedTool(EToolEffect.Write)
     const a = await makeRig({ model: () => model, hostTools: [tool] })
     await started(a, 'go')
     expect(await flushUntil({ check: () => tool.started })).toBe(true)
 
-    await a.holder.drain()
+    let drained = false
+    const draining = a.holder.drain().then(() => {
+      drained = true
+    })
     await a.flush()
-
-    const drained = await eventsOf(a)
-    expect(drained.filter((event) => event.type === 'tool-result')).toEqual([])
-    expect(drained.filter((event) => event.type === 'tool-dispatched')).toHaveLength(1)
-    expect(typesOf(drained)).not.toContain('nudge')
-    const { lease } = await a.plane.currentLease({ sessionId: SESSION })
-    expect(lease.holderHostId).toBeNull()
+    expect(drained).toBe(false)
 
     tool.releaseNow()
+    await draining
     await a.flush()
-    expect((await eventsOf(a)).filter((event) => event.type === 'tool-result')).toEqual([])
+
+    const after = await eventsOf(a)
+    const results = after.filter((event) => event.type === 'tool-result')
+    expect(results).toHaveLength(1)
+    expect(results[0]).toMatchObject({ callId: 'call-1', output: 'done' })
+    expect(after.filter((event) => event.type === 'tool-dispatched')).toHaveLength(1)
+    expect(typesOf(after)).not.toContain('nudge')
+    expect(tool.runs).toBe(1)
+    const { lease } = await a.plane.currentLease({ sessionId: SESSION })
+    expect(lease.holderHostId).toBeNull()
   }, 15_000)
 
-  it('leaves the open call to the next host, which settles it exactly once', async () => {
+  it('leaves no open call for the next host, which neither reruns nor interrupts it', async () => {
     const model = new ScriptedModel([...script(), { text: 'done' }])
-    const tool = new GatedTool()
+    const tool = new GatedTool(EToolEffect.Write)
     const a = await makeRig({ model: () => model, hostTools: [tool] })
     await started(a, 'go')
     expect(await flushUntil({ check: () => tool.started })).toBe(true)
 
-    await a.holder.drain()
+    const draining = a.holder.drain()
+    await a.flush()
+    tool.releaseNow()
+    await draining
     await a.flush()
 
-    const bTool = new FakeTool('slow', 'done')
+    const bTool = new FakeTool('slow', 'done', undefined, EToolEffect.Write)
     const b = await makeRig({
       plane: a.plane,
       store: a.store,
@@ -166,18 +186,39 @@ describe('SessionHolder drain with work in flight', () => {
     })
     await b.holder.start()
     await b.wake()
-
-    const settled = await flushUntil({
-      check: async () => (await eventsOf(a)).some((event) => event.type === 'tool-result'),
-      attempts: 200,
-      clock: a.clock,
-    })
-    expect(settled).toBe(true)
+    await b.flush()
+    await a.flush()
 
     const after = await eventsOf(a)
-    expect(after.filter((event) => event.type === 'tool-result')).toHaveLength(1)
-    expect(after.filter((event) => event.type === 'tool-dispatched')).toHaveLength(1)
-    expect(tool.runs).toBe(1)
+    const results = after.filter((event) => event.type === 'tool-result')
+    expect(results).toHaveLength(1)
+    expect(results[0]).toMatchObject({ callId: 'call-1', output: 'done' })
+    expect(bTool.invocations).toEqual([])
     expect(typesOf(after)).not.toContain('nudge')
   }, 20_000)
+
+  it('hands back at the drain cap when an in-process tool never finishes', async () => {
+    const model = new ScriptedModel([...script(), { text: 'done' }])
+    const tool = new GatedTool(EToolEffect.Write)
+    const log = new MemoryLog()
+    const a = await makeRig({ model: () => model, hostTools: [tool], log })
+    await started(a, 'go')
+    expect(await flushUntil({ check: () => tool.started })).toBe(true)
+
+    const draining = a.holder.drain()
+    await a.flush()
+    a.clock.advance(DRAIN_IN_FLIGHT_CAP_MS)
+    await a.flush()
+    a.clock.advance(DRAIN_STREAM_ABORT_CAP_MS)
+    await draining
+    await a.flush()
+
+    const caps = log.entries.filter((entry) => entry.source === 'holder.drain')
+    expect(caps.map((entry) => entry.message).join('\n')).toContain('in-process tool work outlived')
+    expect((await eventsOf(a)).filter((event) => event.type === 'tool-result')).toEqual([])
+    const { lease } = await a.plane.currentLease({ sessionId: SESSION })
+    expect(lease.holderHostId).toBeNull()
+    tool.releaseNow()
+    await a.flush()
+  }, 15_000)
 })

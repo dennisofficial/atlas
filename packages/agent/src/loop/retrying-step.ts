@@ -1,14 +1,11 @@
 import {
   DEFAULT_RETRY_POLICY,
-  EProviderFailureKind,
-  EProviderFailureScope,
-  EProviderRetry,
   planRetry,
   retryReasonOf,
   type Assembled,
   type ChunkFilter,
   type ModelPort,
-  type NormalizedProviderFailure,
+  type ModelStepResult,
   type RetryPolicy,
   type ToolDeclaration,
 } from '@dltech/atlas-core'
@@ -22,6 +19,8 @@ import type { NormalizeFailure } from '../model/run-failure'
 import { takeModelStep, type SteppedTurn } from './model-step'
 import type { StepStreamer } from './streamed-chunks'
 import {
+  HandoffAborted,
+  asksToGiveUp,
   interruptibleSleep,
   recordedWaitMs,
   settleRecordedDeadline,
@@ -60,7 +59,7 @@ export type RetryDeps = {
 }
 
 type StepAttempt =
-  | { ok: true; stepped: SteppedTurn }
+  | { ok: true; result: ModelStepResult }
   | {
       ok: false
       message: string
@@ -87,7 +86,7 @@ async function attemptModelStep(args: {
 }): Promise<StepAttempt> {
   try {
     const stepped = await takeModelStep(args)
-    if (stepped.ok) return { ok: true, stepped }
+    if (stepped.ok) return { ok: true, result: stepped.result }
     return {
       ok: false,
       message: stepped.message,
@@ -104,14 +103,6 @@ async function attemptModelStep(args: {
       blocked: blockedErrorOf(causeChainOf(error)),
     }
   }
-}
-
-const asksToGiveUp = (failure: NormalizedProviderFailure, spent: boolean): boolean => {
-  if (failure.retry === EProviderRetry.Transient) return spent
-  return (
-    failure.scope === EProviderFailureScope.Credential &&
-    (failure.kind === EProviderFailureKind.Quota || failure.kind === EProviderFailureKind.Auth)
-  )
 }
 
 /**
@@ -139,7 +130,11 @@ export async function takeModelStepWithRetry(args: {
   let wake = new AbortController()
   const stopWatching = args.retry?.clockJumps?.onJump(() => wake.abort())
   const handoff = new AbortController()
-  const stopPause = args.pause?.onModelAbort(() => handoff.abort())
+  let handoffAborted = false
+  const stopPause = args.pause?.onModelAbort(() => {
+    handoffAborted = true
+    handoff.abort()
+  })
   const sleepSignal =
     args.pause === undefined ? args.signal : AbortSignal.any([args.signal, handoff.signal])
 
@@ -177,8 +172,10 @@ export async function takeModelStepWithRetry(args: {
     }
 
     for (;;) {
+      handoffAborted = false
       const run = (onChunk: ChunkFilter | undefined) => {
         const ended = args.pause?.beginModelStep()
+        if (args.pause !== undefined && ended === undefined) throw new HandoffAborted()
         return attemptModelStep({
           model: args.model,
           tools: args.tools,
@@ -192,7 +189,7 @@ export async function takeModelStepWithRetry(args: {
           ? await run(args.onChunk)
           : await args.streamer.attempt({ filter: args.onChunk, signal: sleepSignal, run })
 
-      if (attempt.ok) return attempt.stepped
+      if (attempt.ok) return handoffAborted ? { ...attempt, handoffAborted: true } : attempt
 
       const settled = (): SteppedTurn => {
         if (attempt.thrown) throw attempt.cause

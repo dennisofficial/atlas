@@ -26,7 +26,7 @@ export class HeldDrain {
   async handoff(): Promise<void> {
     const children = this.args.childrenPause()
     this.args.pendingHandoff()
-    await this.settleModelStream()
+    await this.settleInFlight()
     await this.settleRecordTail()
     await children
     const record = this.args.record()
@@ -46,15 +46,15 @@ export class HeldDrain {
     })
   }
 
-  private async settleModelStream(): Promise<void> {
+  private async settleInFlight(): Promise<void> {
     if (!this.args.turns.turnRunning) return
     const startedAt = this.args.deps.timers.now()
-    const idle = await settledWithin({
+    const quiet = await settledWithin({
       timers: this.args.deps.timers,
       ms: this.args.deps.drainCapMs,
-      done: this.args.pause.whenModelIdle(),
+      done: this.whenInFlightIdle(),
     })
-    if (idle) return
+    if (quiet) return
     this.logCap({ startedAt })
     this.args.pause.abortModelStep()
     const aborted = await settledWithin({
@@ -66,6 +66,18 @@ export class HeldDrain {
       this.warn({
         message: `the model stream outlived the ${DRAIN_STREAM_ABORT_CAP_MS}ms abort; handing back without it`,
       })
+    }
+    if (this.args.turns.work.running) {
+      this.warn({
+        message: `in-process tool work outlived the ${this.args.deps.drainCapMs}ms drain cap; handing back without it`,
+      })
+    }
+  }
+
+  private async whenInFlightIdle(): Promise<void> {
+    for (;;) {
+      await Promise.all([this.args.pause.whenModelIdle(), this.args.turns.work.whenIdle()])
+      if (!this.args.pause.modelStepRunning && !this.args.turns.work.running) return
     }
   }
 

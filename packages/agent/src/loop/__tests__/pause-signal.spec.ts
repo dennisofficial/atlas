@@ -19,7 +19,7 @@ describe('a pause signal', () => {
     const ended = pause.beginModelStep()
     expect(await settled(pause.whenModelIdle())).toBe(false)
 
-    ended()
+    ended?.()
     expect(await settled(pause.whenModelIdle())).toBe(true)
   })
 
@@ -29,12 +29,20 @@ describe('a pause signal', () => {
     const second = pause.beginModelStep()
     const idle = pause.whenModelIdle()
 
-    first()
-    first()
+    first?.()
+    first?.()
     expect(await settled(idle)).toBe(false)
 
-    second()
+    second?.()
     expect(await settled(idle)).toBe(true)
+  })
+
+  it('refuses to admit a model step once it is paused', async () => {
+    const pause = new PauseSignal()
+    expect(pause.beginModelStep()).toBeDefined()
+    pause.pause()
+    expect(pause.beginModelStep()).toBeUndefined()
+    expect(pause.modelStepRunning).toBe(true)
   })
 
   it('aborts the model step without telling the pause listeners, and the other way round', async () => {

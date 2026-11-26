@@ -204,7 +204,6 @@ export class CrewRoom {
 
   async pauseAll(): Promise<void> {
     await Promise.all([...this.runs.values()].map((run) => run.pause()))
-    this.disposeAll()
   }
 
   handoffAll(): void {

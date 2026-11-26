@@ -1,5 +1,6 @@
 import {
   ETurnStatus,
+  InProcessWorkCounter,
   type AgentOutput,
   type LoopTurnRunner,
   type PauseSignal,
@@ -81,6 +82,7 @@ export class HeldTurns {
   private turnAbort: AbortController | undefined
   private turnAborted = ETurnAborted.Other
   private readonly idleWaiters: (() => void)[] = []
+  readonly work = new InProcessWorkCounter()
   turnRunning = false
   onTurnEnd: (() => void | Promise<void>) | undefined
   onTurnStart: (() => void) | undefined

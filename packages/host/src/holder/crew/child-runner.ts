@@ -1,4 +1,9 @@
-import { HookChain, LoopTurnRunner, type AgentIntake } from '@dltech/atlas-agent'
+import {
+  HookChain,
+  LoopTurnRunner,
+  type AgentIntake,
+  type InProcessWork,
+} from '@dltech/atlas-agent'
 import {
   modelFacingDeclarationsOf,
   type EventBody,
@@ -40,6 +45,7 @@ export const childRunnerOf = (args: {
   intake: AgentIntake
   notify(event: EventBody, options: { key: string }): Promise<void>
   isDraining(): boolean
+  inProcess?: InProcessWork | undefined
   onFallback?: ((refs: { from: ModelRef; to: ModelRef }) => void | Promise<void>) | undefined
 }): LoopTurnRunner => {
   const { deps, runtime, record } = args
@@ -99,6 +105,8 @@ export const childRunnerOf = (args: {
       epoch: args.epoch,
     }),
     detachTool: (tool) => args.isDraining() && runtime.daemonTools.has(tool),
+    podTool: (tool) => runtime.daemonTools.has(tool),
+    ...(args.inProcess === undefined ? {} : { inProcess: args.inProcess }),
     launchDirectory: runtime.launchDirectory,
     normalizeFailure: runtime.normalizeFailure,
     retry: retryDepsFromTimers(deps.timers),

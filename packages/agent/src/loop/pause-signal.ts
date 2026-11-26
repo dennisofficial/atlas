@@ -37,7 +37,8 @@ export class PauseSignal {
     }
   }
 
-  beginModelStep(): () => void {
+  beginModelStep(): (() => void) | undefined {
+    if (this.isPaused) return undefined
     this.modelSteps += 1
     let ended = false
     return () => {
@@ -48,6 +49,10 @@ export class PauseSignal {
       const idle = this.modelIdle.splice(0)
       for (const resolve of idle) resolve()
     }
+  }
+
+  get modelStepRunning(): boolean {
+    return this.modelSteps > 0
   }
 
   whenModelIdle(): Promise<void> {

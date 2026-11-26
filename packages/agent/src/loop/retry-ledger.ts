@@ -1,4 +1,11 @@
-import type { ERetryReason, ScheduledRetry } from '@dltech/atlas-core'
+import {
+  EProviderFailureKind,
+  EProviderFailureScope,
+  EProviderRetry,
+  type ERetryReason,
+  type NormalizedProviderFailure,
+  type ScheduledRetry,
+} from '@dltech/atlas-core'
 
 import type { OnceLedger } from './once-ledger.port'
 import type { PauseSignal } from './pause-signal'
@@ -15,6 +22,14 @@ export type Waiting = (notice: RetryNotice) => void
 export type RetryLedgerRef = {
   onceLedger: OnceLedger
   stepKey: string
+}
+
+export const asksToGiveUp = (failure: NormalizedProviderFailure, spent: boolean): boolean => {
+  if (failure.retry === EProviderRetry.Transient) return spent
+  return (
+    failure.scope === EProviderFailureScope.Credential &&
+    (failure.kind === EProviderFailureKind.Quota || failure.kind === EProviderFailureKind.Auth)
+  )
 }
 
 export class HandoffAborted extends Error {

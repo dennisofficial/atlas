@@ -27,6 +27,8 @@ export const trackedDepsOf = (deps: TurnDeps): TrackedTurnDeps => {
             launchDirectory: deps.launchDirectory,
             onceLedger: deps.onceLedger,
             detachTool: deps.detachTool,
+            podTool: deps.podTool,
+            inProcess: deps.inProcess,
             onToolOutput:
               deps.output === undefined
                 ? undefined
