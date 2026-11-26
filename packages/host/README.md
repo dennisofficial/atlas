@@ -71,7 +71,8 @@ only what it can rebuild or drop.
   interrupted: every effect a call can have now has an identity to replay into.
 - Every host-side effect a tool runs records `<callId>.<n>` before it runs and an
   `effect-result:<callId>.<n>` fact after, so a replay returns the effect it already made instead of
-  making a second one: a crew spawn, `sessions.spawn`, a memory edit, a message.
+  making a second one: a crew spawn, `sessions.spawn`, a memory edit, a message, a routine create
+  or run.
 
 ### Reach the sandbox through a port
 

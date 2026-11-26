@@ -94,15 +94,16 @@ A tool call can be replayed after a crash or a host handoff, and the host then r
 body again. Each host-side effect runs under a step key the call recorded, so a replay reattaches to
 the effect it already made:
 
-| Effect                                                                                                                    | A replay                                                                    |
-| ------------------------------------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------- |
-| `ctx.crew.spawn`                                                                                                          | returns the sub-agent whose `agentId` its step derives                      |
-| `ctx.sessions.spawn`                                                                                                      | returns the session whose ids its step derives                              |
-| `ctx.messages.send`, `ctx.crew.say`, `ctx.crew.report`                                                                    | posts with the step key as the inbox `clientId`, so the inbox drops it      |
-| `ctx.control.memory.edit`                                                                                                 | returns the first summary; a re-run past the result fact reports a conflict |
-| `ctx.append`                                                                                                              | drops a `fact-recorded` draft whose key the log holds; appends other bodies |
-| `ctx.control.exposePort`, `subscriptions`, `memory.write`, `memory.delete`, `worktrees`, `sessions.archive`, `ctx.notify` | idempotent by port, target or address                                       |
-| `ctx.control.mcp`, `ctx.analytics.capture`, `placeContextFiles`, `ctx.prepare`                                            | accepts a duplicate, because it has no id of its own                        |
+| Effect                                                                                                                                                          | A replay                                                                     |
+| --------------------------------------------------------------------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------- |
+| `ctx.crew.spawn`                                                                                                                                                | returns the sub-agent whose `agentId` its step derives                       |
+| `ctx.sessions.spawn`                                                                                                                                            | returns the session whose ids its step derives                               |
+| `ctx.messages.send`, `ctx.crew.say`, `ctx.crew.report`                                                                                                          | posts with the step key as the inbox `clientId`, so the inbox drops it       |
+| `ctx.control.memory.edit`                                                                                                                                       | returns the first summary; a re-run past the result fact reports a conflict  |
+| `ctx.control.routines.create`, `ctx.control.routines.run`                                                                                                       | creates the routine or the session its step key derives, or returns that one |
+| `ctx.append`                                                                                                                                                    | drops a `fact-recorded` draft whose key the log holds; appends other bodies  |
+| `ctx.control.exposePort`, `subscriptions`, `memory.write`, `memory.delete`, `routines.update`, `routines.remove`, `worktrees`, `sessions.archive`, `ctx.notify` | idempotent by port, target or address                                        |
+| `ctx.control.mcp`, `ctx.analytics.capture`, `placeContextFiles`, `ctx.prepare`                                                                                  | accepts a duplicate, because it has no id of its own                         |
 
 An effect whose result the host recorded returns that result without running again. An effect the
 host recorded but never got a result for runs again under the same key.

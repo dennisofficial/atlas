@@ -14,9 +14,18 @@ import {
   EMPTY_POD,
   type PluginPodContext,
 } from '@dltech/atlas-plugin-sdk'
+import type { Routine } from '@dltech/atlas-protocol'
 import { z } from 'zod'
+import { runInCallScope } from '../../calls/call-scope'
+import {
+  effectResultKeyOf,
+  runHostStep,
+  type EffectResultLookup,
+  type HostStepFacts,
+} from '../host-step'
 import { podControlOf, type PodControlClient } from '../pod-control'
 import type { PodStepRunner } from '../plugin-context'
+import type { StepRecord } from '../record/call-steps'
 import { makeRig, seedSession, THREAD, THREAD_ID } from './holder-rig'
 
 const steppedOf = (): PodStepRunner => {
@@ -311,5 +320,125 @@ describe('podControlOf wiring', () => {
     const control = podControlOf({ step: steppedOf(), client, threadId: toThreadId('thr_holder') })
     await control.exposePort({ port: 1 })
     expect(client.exposePort).toHaveBeenCalledWith({ threadId: 'thr_holder', port: 1 })
+  })
+})
+
+const SCOPE = '22222222-2222-4222-8222-222222222222'
+
+const stepRigOf = () => {
+  const steps: StepRecord[] = []
+  const results = new Map<string, unknown>()
+  const facts: HostStepFacts = {
+    recorded: () => steps.map((step) => ({ ...step })),
+    record: async (step) => {
+      steps.push(step)
+    },
+    result: <T>(stepKey: string): EffectResultLookup<T> => {
+      const key = effectResultKeyOf(stepKey)
+      return results.has(key) ? { found: true, value: results.get(key) as T } : { found: false }
+    },
+    recordResult: async (stepKey, value) => {
+      results.set(effectResultKeyOf(stepKey), value)
+    },
+  }
+  const step: PodStepRunner = { run: (args) => runHostStep({ facts, ...args }) }
+  return { step, steps, results }
+}
+
+const routineOf = (routineId: string): Routine => ({
+  routineId,
+  projectId: 'p1',
+  name: 'standup',
+  prompt: 'post the standup',
+  cron: '0 9 * * 1-5',
+  timezone: 'Europe/London',
+  enabled: true,
+  model: null,
+  effort: null,
+  fast: null,
+  nextRunAt: '2026-11-20T09:00:00.000Z',
+  lastRunAt: null,
+  lastSessionId: null,
+  createdAt: '2026-11-19T10:00:00.000Z',
+  updatedAt: '2026-11-19T10:00:00.000Z',
+})
+
+describe('podControlOf routines', () => {
+  const clientOf = (): {
+    client: PodControlClient
+    created: string[]
+    ran: string[]
+  } => {
+    const created: string[] = []
+    const ran: string[] = []
+    const client: PodControlClient = {
+      memory: memoryStub,
+      subscriptions: subscriptionsStub,
+      settingsVersions: versionsStub,
+      gateway: { apiKey: async () => undefined, imageModel: async () => undefined },
+      exposePort: async () => ({ url: 'u', tunnelToken: 't' }),
+      routines: {
+        ...routinesStub,
+        create: async (args) => {
+          created.push(args.idempotencyKey ?? 'no-key')
+          return routineOf(`routine-${created.length}`)
+        },
+        run: async (args) => {
+          ran.push(args.idempotencyKey ?? 'no-key')
+          return { sessionId: `session-${args.idempotencyKey ?? 'no-key'}` }
+        },
+      },
+    }
+    return { client, created, ran }
+  }
+
+  const inScope = <T>(body: () => Promise<T>): Promise<T> =>
+    runInCallScope({ scopeKey: SCOPE, body })
+
+  const input = {
+    name: 'standup',
+    prompt: 'post the standup',
+    cron: '0 9 * * 1-5',
+    timezone: 'Europe/London',
+  }
+
+  it('creates a routine under the step key and answers a replay from its result', async () => {
+    const rig = stepRigOf()
+    const { client, created } = clientOf()
+    const control = podControlOf({ step: rig.step, client, threadId: THREAD_ID })
+    const first = await inScope(async () => await control.routines.create(input))
+    const second = await inScope(async () => await control.routines.create(input))
+    expect(created).toEqual([`${SCOPE}.0`])
+    expect(second).toEqual(first)
+  })
+
+  it('creates again under the same step key when no result was recorded', async () => {
+    const rig = stepRigOf()
+    const { client, created } = clientOf()
+    const control = podControlOf({ step: rig.step, client, threadId: THREAD_ID })
+    await inScope(async () => await control.routines.create(input))
+    for (const key of [...rig.results.keys()]) rig.results.delete(key)
+    await inScope(async () => await control.routines.create(input))
+    expect(created).toEqual([`${SCOPE}.0`, `${SCOPE}.0`])
+  })
+
+  it('runs a routine under the step key, so a replay starts no second session', async () => {
+    const rig = stepRigOf()
+    const { client, ran } = clientOf()
+    const control = podControlOf({ step: rig.step, client, threadId: THREAD_ID })
+    const first = await inScope(async () => await control.routines.run({ routineId: 'r1' }))
+    for (const key of [...rig.results.keys()]) rig.results.delete(key)
+    const second = await inScope(async () => await control.routines.run({ routineId: 'r1' }))
+    expect(ran).toEqual([`${SCOPE}.0`, `${SCOPE}.0`])
+    expect(second).toEqual(first)
+  })
+
+  it('runs two distinct routines under two step keys', async () => {
+    const rig = stepRigOf()
+    const { client, ran } = clientOf()
+    const control = podControlOf({ step: rig.step, client, threadId: THREAD_ID })
+    await inScope(async () => await control.routines.run({ routineId: 'r1' }))
+    await inScope(async () => await control.routines.run({ routineId: 'r2' }))
+    expect(ran).toEqual([`${SCOPE}.0`, `${SCOPE}.1`])
   })
 })

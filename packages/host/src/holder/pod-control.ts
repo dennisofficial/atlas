@@ -81,10 +81,14 @@ export type PodControlClient = {
   routines: {
     list(args: Called): Promise<readonly Routine[]>
     get(args: Called & { routineId: string }): Promise<Routine>
-    create(args: Called & PodRoutineInput): Promise<Routine>
+    create(
+      args: Called & PodRoutineInput & { idempotencyKey?: string | undefined },
+    ): Promise<Routine>
     update(args: Called & RoutineUpdateInput): Promise<Routine>
     remove(args: Called & { routineId: string }): Promise<RoutineRemoveOutput>
-    run(args: Called & { routineId: string }): Promise<RoutineRunOutput>
+    run(
+      args: Called & { routineId: string; idempotencyKey?: string | undefined },
+    ): Promise<RoutineRunOutput>
   }
 }
 
@@ -93,6 +97,7 @@ const unreachable = (): Error => new Error('this session cannot reach the contro
 const routinesOf = (args: {
   client: PodControlClient | undefined
   threadId: ThreadId
+  step: PodStepRunner
 }): PodRoutines => ({
   list: async () => {
     if (args.client === undefined) throw unreachable()
@@ -102,10 +107,19 @@ const routinesOf = (args: {
     if (args.client === undefined) throw unreachable()
     return await args.client.routines.get({ threadId: args.threadId, routineId })
   },
-  create: async (input) => {
-    if (args.client === undefined) throw unreachable()
-    return await args.client.routines.create({ threadId: args.threadId, ...input })
-  },
+  create: async (input) =>
+    await args.step.run({
+      op: 'host.routine.create',
+      input,
+      run: async (key) => {
+        if (args.client === undefined) throw unreachable()
+        return await args.client.routines.create({
+          threadId: args.threadId,
+          ...input,
+          idempotencyKey: key,
+        })
+      },
+    }),
   update: async (input) => {
     if (args.client === undefined) throw unreachable()
     return await args.client.routines.update({ threadId: args.threadId, ...input })
@@ -114,10 +128,19 @@ const routinesOf = (args: {
     if (args.client === undefined) throw unreachable()
     return await args.client.routines.remove({ threadId: args.threadId, routineId })
   },
-  run: async ({ routineId }) => {
-    if (args.client === undefined) throw unreachable()
-    return await args.client.routines.run({ threadId: args.threadId, routineId })
-  },
+  run: async ({ routineId }) =>
+    await args.step.run({
+      op: 'host.routine.run',
+      input: { routineId },
+      run: async (key) => {
+        if (args.client === undefined) throw unreachable()
+        return await args.client.routines.run({
+          threadId: args.threadId,
+          routineId,
+          idempotencyKey: key,
+        })
+      },
+    }),
 })
 
 const subscriptionsOf = (args: {
@@ -158,7 +181,7 @@ export const podControlOf = (args: {
     return await args.client.settingsVersions({ threadId: args.threadId })
   },
   mcp: args.mcp ?? EMPTY_MCP_CONTROL,
-  routines: routinesOf({ client: args.client, threadId: args.threadId }),
+  routines: routinesOf({ client: args.client, threadId: args.threadId, step: args.step }),
   subscriptions: subscriptionsOf({ client: args.client, threadId: args.threadId }),
   gateway: {
     apiKey: async () => {

@@ -176,13 +176,14 @@ export const localPodControlOf = (args: {
           return routineRefused(failure)
         }
       },
-      create: async ({ threadId, ...input }) => {
+      create: async ({ threadId, idempotencyKey, ...input }) => {
         const scope = routineScopeOf(await ownerOf(threadId))
         try {
           return await routineCreateOf({
             plane: args.plane,
             userId: scope.userId,
             input: { ...input, projectId: scope.projectId },
+            ...(idempotencyKey === undefined ? {} : { idempotencyKey }),
           })
         } catch (failure) {
           return routineRefused(failure)
@@ -204,10 +205,15 @@ export const localPodControlOf = (args: {
           return routineRefused(failure)
         }
       },
-      run: async ({ threadId, routineId }) => {
+      run: async ({ threadId, routineId, idempotencyKey }) => {
         const scope = routineScopeOf(await ownerOf(threadId))
         try {
-          return await routineRunNowOf({ plane: args.plane, ...scope, routineId })
+          return await routineRunNowOf({
+            plane: args.plane,
+            ...scope,
+            routineId,
+            ...(idempotencyKey === undefined ? {} : { idempotencyKey }),
+          })
         } catch (failure) {
           return routineRefused(failure)
         }

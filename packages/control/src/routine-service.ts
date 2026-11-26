@@ -20,6 +20,7 @@ import {
 } from '@dltech/atlas-schedule'
 
 import type { ControlPlane } from './control-plane'
+import { derivedIdOf } from './derived-id'
 import type { RoutinePatch } from './routine-crud'
 import type { RoutineRow, RoutineRunRow as ControlRoutineRunRow } from './routine-rows'
 
@@ -47,6 +48,7 @@ export type RoutinePlane = Pick<
   | 'listRoutineRuns'
   | 'listRoutines'
   | 'readRoutine'
+  | 'readSession'
   | 'updateRoutine'
 >
 
@@ -138,13 +140,31 @@ export const routineGetOf = async (args: RoutinesFor & { routineId: string }): P
   routineOf(await routineIn(args))
 
 export const routineCreateOf = async (
-  args: { userId: string; input: RoutineCreateInput } & { plane: RoutinePlane },
+  args: {
+    userId: string
+    input: RoutineCreateInput
+    idempotencyKey?: string | undefined
+  } & { plane: RoutinePlane },
 ): Promise<Routine> => {
   const cron = checkedCron({ cron: args.input.cron, timezone: args.input.timezone })
   const now = new Date()
   const at = now.toISOString()
+  const routineId =
+    args.idempotencyKey === undefined ? randomUUID() : derivedIdOf(`routine:${args.idempotencyKey}`)
+  const existing =
+    args.idempotencyKey === undefined
+      ? undefined
+      : await args.plane.readRoutine({ routineId, userId: args.userId })
+  if (existing !== undefined) {
+    if (existing.projectId !== args.input.projectId) {
+      throw new RoutineInvalidError(
+        `the routine ${routineId} this call already created belongs to another project`,
+      )
+    }
+    return routineOf(existing)
+  }
   const row: RoutineRow = {
-    routineId: randomUUID(),
+    routineId,
     userId: args.userId,
     projectId: args.input.projectId,
     name: args.input.name,
@@ -227,13 +247,30 @@ export const routineRunsOf = async (
 }
 
 export const routineRunNowOf = async (
-  args: RoutinesFor & { routineId: string },
+  args: RoutinesFor & { routineId: string; idempotencyKey?: string | undefined },
 ): Promise<RoutineRunOutput> => {
   const row = await routineIn({ ...args, routineId: args.routineId })
-  const sessionId = randomUUID()
+  const sessionId =
+    args.idempotencyKey === undefined
+      ? randomUUID()
+      : derivedIdOf(`routine-run:${args.idempotencyKey}`)
+  if (args.idempotencyKey !== undefined) {
+    const existing = await args.plane.readSession({ sessionId })
+    if (existing !== undefined) {
+      if (existing.userId !== args.userId) {
+        throw new RoutineInvalidError(
+          `the session ${sessionId} this call already started belongs to another user`,
+        )
+      }
+      return { sessionId }
+    }
+  }
   await args.plane.createSessionWithMessage({
     sessionId,
-    mainThreadId: randomUUID(),
+    mainThreadId:
+      args.idempotencyKey === undefined
+        ? randomUUID()
+        : derivedIdOf(`routine-run-thread:${args.idempotencyKey}`),
     userId: args.userId,
     projectId: row.projectId,
     title: row.name,

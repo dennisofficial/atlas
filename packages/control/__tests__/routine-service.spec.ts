@@ -36,14 +36,28 @@ const rowOf = (patch: Partial<RoutineRow> = {}): RoutineRow => ({
 
 const fakePlane = (rows: readonly RoutineRow[] = []) => {
   const routines = new Map(rows.map((row) => [row.routineId, row]))
-  const sessions: { userId: string; projectId: string | null; routineId: string | undefined }[] = []
+  const sessions: {
+    sessionId: string
+    userId: string
+    projectId: string | null
+    routineId: string | undefined
+  }[] = []
+  const sessionRows = new Map<string, { userId: string }>()
   const plane: RoutinePlane = {
     createRoutine: async (row) => {
+      if (routines.has(row.routineId)) throw new Error(`routine ${row.routineId} already exists`)
       routines.set(row.routineId, row)
       return row
     },
     createSessionWithMessage: async (args) => {
-      sessions.push({ userId: args.userId, projectId: args.projectId, routineId: args.routineId })
+      if (sessionRows.has(args.sessionId)) throw new Error(`session ${args.sessionId} exists`)
+      sessionRows.set(args.sessionId, { userId: args.userId })
+      sessions.push({
+        sessionId: args.sessionId,
+        userId: args.userId,
+        projectId: args.projectId,
+        routineId: args.routineId,
+      })
       return {} as never
     },
     deleteRoutine: async ({ routineId, userId }) => {
@@ -53,6 +67,10 @@ const fakePlane = (rows: readonly RoutineRow[] = []) => {
       return true
     },
     listRoutineRuns: async () => [],
+    readSession: async ({ sessionId }) => {
+      const row = sessionRows.get(sessionId)
+      return row === undefined ? undefined : ({ sessionId, userId: row.userId } as never)
+    },
     listRoutines: async ({ userId, projectId }) =>
       [...routines.values()].filter(
         (row) => row.userId === userId && (projectId === undefined || row.projectId === projectId),
@@ -208,7 +226,9 @@ describe('routine scoping', () => {
     const { plane, sessions } = fakePlane([rowOf()])
     const run = await routineRunNowOf({ plane, userId: 'u1', projectId: 'p1', routineId: 'r1' })
     expect(run.sessionId.length).toBeGreaterThan(0)
-    expect(sessions).toEqual([{ userId: 'u1', projectId: 'p1', routineId: 'r1' }])
+    expect(sessions).toEqual([
+      { sessionId: run.sessionId, userId: 'u1', projectId: 'p1', routineId: 'r1' },
+    ])
   })
 
   it('refuses to run a routine of another project', async () => {
@@ -216,5 +236,78 @@ describe('routine scoping', () => {
     await expect(
       routineRunNowOf({ plane, userId: 'u1', projectId: 'p2', routineId: 'r1' }),
     ).rejects.toBeInstanceOf(RoutineNotFoundError)
+  })
+})
+
+describe('routine idempotency', () => {
+  beforeEach(() => setSystemTime(new Date('2026-11-19T10:00:00.000Z')))
+  afterEach(() => setSystemTime())
+
+  it('creates one routine for two creates under the same key', async () => {
+    const { plane, routines } = fakePlane()
+    const first = await routineCreateOf({ plane, userId: 'u1', input, idempotencyKey: 'call-1.0' })
+    const second = await routineCreateOf({ plane, userId: 'u1', input, idempotencyKey: 'call-1.0' })
+    expect(second).toEqual(first)
+    expect(routines.size).toBe(1)
+    expect(routines.get(first.routineId)?.name).toBe('standup')
+  })
+
+  it('names the routine after its key, so another key makes another routine', async () => {
+    const { plane, routines } = fakePlane()
+    const first = await routineCreateOf({ plane, userId: 'u1', input, idempotencyKey: 'call-1.0' })
+    const second = await routineCreateOf({ plane, userId: 'u1', input, idempotencyKey: 'call-1.1' })
+    expect(second.routineId).not.toBe(first.routineId)
+    expect(routines.size).toBe(2)
+  })
+
+  it('refuses a key that already named a routine of another project', async () => {
+    const { plane } = fakePlane()
+    await routineCreateOf({ plane, userId: 'u1', input, idempotencyKey: 'call-1.0' })
+    await expect(
+      routineCreateOf({
+        plane,
+        userId: 'u1',
+        input: { ...input, projectId: 'p2' },
+        idempotencyKey: 'call-1.0',
+      }),
+    ).rejects.toBeInstanceOf(RoutineInvalidError)
+  })
+
+  it('starts one session for two runs under the same key', async () => {
+    const { plane, sessions } = fakePlane([rowOf()])
+    const first = await routineRunNowOf({
+      plane,
+      userId: 'u1',
+      projectId: 'p1',
+      routineId: 'r1',
+      idempotencyKey: 'call-2.0',
+    })
+    const second = await routineRunNowOf({
+      plane,
+      userId: 'u1',
+      projectId: 'p1',
+      routineId: 'r1',
+      idempotencyKey: 'call-2.0',
+    })
+    expect(second).toEqual(first)
+    expect(sessions).toHaveLength(1)
+  })
+
+  it('starts a session for each run under a different key', async () => {
+    const { plane, sessions } = fakePlane([rowOf()])
+    const first = await routineRunNowOf({
+      plane,
+      userId: 'u1',
+      routineId: 'r1',
+      idempotencyKey: 'call-2.0',
+    })
+    const second = await routineRunNowOf({
+      plane,
+      userId: 'u1',
+      routineId: 'r1',
+      idempotencyKey: 'call-2.1',
+    })
+    expect(second.sessionId).not.toBe(first.sessionId)
+    expect(sessions).toHaveLength(2)
   })
 })
