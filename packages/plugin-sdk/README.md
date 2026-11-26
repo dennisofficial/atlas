@@ -86,7 +86,8 @@ the capabilities `control`, `crew`, `messages`, `classifier`, `analytics`, `sess
 A handoff may run a tool body again, so a port that changes something names it first.
 `crew.spawn`, `sessions.spawn`, `messages.send`, `routines.*` and `memory.edit` key it by the step
 key; `sessions.archive`, memory writes and deletes, `exposePort`, `subscriptions`, worktrees by
-path, `notify` by its key and a `fact-recorded` draft are keyed by address or name. `mcp`,
+path, `notify` by its key and a `fact-recorded` draft are keyed by address or name. `notify`
+dedupes by its key only within the last 200 inbox entries of the destination session. `mcp`,
 `analytics`, `placeContextFiles`, `prepare` and any other draft run again on every replay.
 
 ### The control and client slots
