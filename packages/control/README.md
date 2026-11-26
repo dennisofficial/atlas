@@ -43,6 +43,8 @@ a thread's event log.
 - `listSessions`, `listSessionDigests`, `countSessionBuckets`, `readSession`, `sessionsOf`,
   `readSessionBusy`. A digest listing can filter on archived, a title search and a keyset cursor.
 - `spawnPeer`, `messagePeer`, `reportToSpawner`, `podSessionsPlaced`, `podPeersPlaced`.
+  A `clientId` makes a spawn brief or a message idempotent: the inbox drops a repeat, and a
+  `spawnPeer` whose session id already exists returns that session when its spawner matches.
 - `setSandboxInstanceId`, `setSandboxStatus`, `recordPodDesired`, `recordPodApplied`,
   `recordPodDisk`, `recordPodFailed`, `recordPodWaiting`, `parkPod`, `failPodPark`,
   `clearPodPark`. `claimPodWait` takes one recorded wait. `cancelPodWait` reverts a resize that
@@ -50,7 +52,8 @@ a thread's event log.
 
 ### Append to the thread record
 
-- `createThread({ sessionId, threadId })`, `head({ threadId })`, `readThread({ threadId })`.
+- `createThread({ sessionId, threadId })`, `threadExists({ threadId })`, `head({ threadId })`,
+  `readThread({ threadId })`.
 - `append({ threadId, epoch, events, blobs? })`: returns an `AppendOutcome`. A refused append
   carries its `refusal` and the current head.
 - `readEvents({ threadId, afterSeq, limit, visible, hiddenTypes?, maxBytes? })`, `readBlob`,
