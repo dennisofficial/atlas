@@ -1,7 +1,7 @@
 import type { BootView } from '@dltech/atlas-client/session'
 import { space } from '@dltech/atlas-ui/tokens'
 import { EFontWeight, ETextRole, ETextTone, Text, useTheme, Spinner } from '@dltech/atlas-ui-native'
-import { useCallback, useEffect, useRef } from 'react'
+import { useCallback, useEffect, useMemo, useRef } from 'react'
 import {
   FlatList,
   type ListRenderItem,
@@ -67,6 +67,7 @@ export const Transcript = ({
   agentLinks,
   sessionNameOf,
   onOpenAgent,
+  bottomInset = 0,
   queued,
   background,
 }: {
@@ -81,6 +82,7 @@ export const Transcript = ({
   agentLinks?: AgentLinks | undefined
   sessionNameOf?: SessionNameOf | undefined
   onOpenAgent?: ((agentId: string) => void) | undefined
+  bottomInset?: number
   queued?: QueuedTurnsProps | undefined
   background?: BackgroundWait | null | undefined
 }) => {
@@ -89,6 +91,13 @@ export const Transcript = ({
   const measured = useRef<TTailPin>(UNMEASURED)
   const loadingOlder = useRef(false)
   const keyboardVisible = useKeyboard().inset > 0
+  const insets = useMemo(
+    () => ({
+      content: [styles.content, { paddingBottom: space(2) + bottomInset }],
+      indicator: { bottom: bottomInset },
+    }),
+    [bottomInset],
+  )
   const showWorking = working && !isStreamingMessage(rows.at(-1)) && !hasRunningWork(rows)
   const renderRow = useCallback<ListRenderItem<ThreadRow>>(
     ({ item }) => (
@@ -194,7 +203,8 @@ export const Transcript = ({
       keyExtractor={keyOf}
       scrollsToTop={false}
       renderItem={renderRow}
-      contentContainerStyle={styles.content}
+      contentContainerStyle={insets.content}
+      scrollIndicatorInsets={insets.indicator}
       keyboardDismissMode="interactive"
       keyboardShouldPersistTaps="handled"
       onScroll={handleScroll}
@@ -214,7 +224,6 @@ export const Transcript = ({
 
 const styles = StyleSheet.create({
   content: {
-    paddingBottom: space(2),
     paddingHorizontal: space(4),
     paddingTop: space(1),
   },

@@ -23,8 +23,8 @@ import {
   togglePinnedModel,
   withoutPinned,
 } from './model-options'
+import { ModelMenu } from './model-menu'
 import { DefaultRow, ModelRow } from './model-picker-rows'
-import { ModelTrigger } from './model-trigger'
 
 type Props = {
   models: readonly IModelOption[]
@@ -199,7 +199,14 @@ export const ModelSelect = ({
 
   return (
     <>
-      <ModelTrigger models={models} selection={selection} onPress={() => setOpen(true)} />
+      <ModelMenu
+        models={models}
+        selection={selection}
+        pinned={pinned}
+        defaultRow={defaultRow}
+        onSelect={onSelect}
+        onOpenAll={() => setOpen(true)}
+      />
       <ModelSheet
         open={open}
         onClose={() => setOpen(false)}

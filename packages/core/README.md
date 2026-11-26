@@ -91,6 +91,7 @@ assembly, settings, ports, and the record folds. It imports `zod` and nothing el
 - `formatUtilization(value)`: a usage figure for the operator.
 - `formatCountdown({ resetsAt, now })`: how long a usage window has left. `shownWindowsOf(usage)`: the plan windows to show; a weekly-only plan hides the 5-hour window.
 - `UsageReport`: a reading and the time it was fetched, so a surface can show its age.
+- `usageProviderOf(choice)`: the plan provider a session's model bills. `planUsageReadingsOf(usage)` and `planUsageLabelOf(usage)` with `WINDOW_SHORT` and `WINDOW_LONG`: the windows a composer shows as "5h 68% · 7d 41%".
 - `parseAnthropicUsage(body)`, `parseCodexUsage({ body, nowMs })`: the 5-hour and 7-day windows of a provider's plan usage body. A window the body does not state is `null`.
 - `maskTypedSecret(value)`, `maskStoredSecret(value)`: a secret with its core hidden. `looksSecretShaped({path})`, `namesASecretLiteral({text})`: whether a path is a secret file (`.env`, a key, `.ssh`) or a text holds a key literal.
 
