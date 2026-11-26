@@ -35,6 +35,23 @@ type PlannedCall = {
   scopeKey?: string | undefined
 }
 
+const SIDE_EFFECT_FREE_OPS: ReadonlySet<CallOp['op']> = new Set([
+  'changes.read',
+  'changes.scan',
+  'digestFile',
+  'git.read',
+  'oom.list',
+  'previews.status',
+  'services.list',
+  'services.log',
+  'shells.list',
+  'shells.read',
+  'terminal.read',
+  'watch.status',
+])
+
+const isStepFreeOp = (op: CallOp['op']): boolean => isReadOnlyOp(op) || SIDE_EFFECT_FREE_OPS.has(op)
+
 const MCP_OPS_WITHOUT_A_STEP_UNTIL_A_REQUEST_OP_EXISTS: ReadonlySet<CallOp['op']> = new Set([
   'mcp.close',
   'mcp.list',
@@ -87,7 +104,7 @@ export const pluginCallOf = (args: {
     }
   }
   const freshCallOf = (op: CallOp): PlannedCall => {
-    if (!isReadOnlyOp(op.op)) return { key: nextKey(), replayed: false, read: false, step: false }
+    if (!isStepFreeOp(op.op)) return { key: nextKey(), replayed: false, read: false, step: false }
     return { key: readKey(), replayed: false, read: true, step: false }
   }
   const planOf = async (op: CallOp): Promise<PlannedCall> => {
@@ -96,7 +113,7 @@ export const pluginCallOf = (args: {
     if (MCP_OPS_WITHOUT_A_STEP_UNTIL_A_REQUEST_OP_EXISTS.has(op.op)) {
       return { key: noStepKey(), replayed: false, read: false, step: false }
     }
-    if (isReadOnlyOp(op.op)) return freshCallOf(op)
+    if (isStepFreeOp(op.op)) return freshCallOf(op)
     const recorded: readonly RecordedStep[] =
       scopeRecordedSteps() ?? (await args.steps.recorded(scope))
     rememberRecordedSteps(recorded)
