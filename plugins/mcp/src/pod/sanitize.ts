@@ -5,8 +5,7 @@ const secretValuesOf = (entry: LoadedMcpEntry): readonly string[] => {
   const transport = entry.transport
   const env = transport?.kind === 'stdio' ? Object.values(transport.env ?? {}) : []
   const headers = transport?.kind === 'http' ? Object.values(transport.headers ?? {}) : []
-  const token = entry.accessToken === undefined ? [] : [entry.accessToken]
-  return [...token, ...env, ...headers].sort()
+  return [...env, ...headers].sort()
 }
 
 export const configuredTransportOf = (entry: LoadedMcpEntry): McpConfiguredTransport | null => {

@@ -6,7 +6,7 @@ import {
 } from '@dltech/atlas-plugin-sdk'
 
 import type { LoadedMcpEntry } from '../core'
-import { HttpClient } from './http'
+import { HttpClient, type McpTokenSource } from './http'
 import { ProxyClient } from './proxy'
 import { specHashOf } from './sanitize'
 import { EMcpServerStatus } from './snapshot'
@@ -64,6 +64,20 @@ const tokenOf = async (args: {
   }
 }
 
+const tokenSourceOf = (args: {
+  ctx: PluginPodContext
+  entry: LoadedMcpEntry
+  url: string
+  connectToken: McpToken
+}): McpTokenSource => {
+  let next: McpToken | undefined = args.connectToken
+  return async () => {
+    const token = next ?? (await tokenOf({ ctx: args.ctx, entry: args.entry, url: args.url }))
+    next = undefined
+    return token
+  }
+}
+
 export type McpOpened = { client: McpTransportClient | null } | { blocked: string }
 
 export const openClient = async (args: {
@@ -85,16 +99,17 @@ export const openClient = async (args: {
     }
   }
   if (transport.kind === 'http') {
-    const token: McpToken =
+    const url = transport.url
+    const connectToken: McpToken =
       entry.accessToken === undefined
-        ? await tokenOf({ ctx, entry, url: transport.url })
+        ? await tokenOf({ ctx, entry, url })
         : { kind: EMcpToken.Granted, accessToken: entry.accessToken }
-    if (token.kind === EMcpToken.Unavailable) return { blocked: token.reason }
+    if (connectToken.kind === EMcpToken.Unavailable) return { blocked: connectToken.reason }
     return {
       client: new HttpClient({
         serverId: entry.name,
         transport,
-        ...(token.kind === EMcpToken.Granted ? { accessToken: token.accessToken } : {}),
+        token: tokenSourceOf({ ctx, entry, url, connectToken }),
       }),
     }
   }

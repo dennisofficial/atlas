@@ -18,8 +18,12 @@ import { fakeDaemon } from './support'
 
 const SERVER_URL = 'https://mcp.test/mcp'
 
-const rowsOf = (): readonly McpCloudRow[] => [
-  { source: 'user', spec: { name: 'posthog', transport: { kind: 'http', url: SERVER_URL } } },
+const rowsOf = (accessToken?: string): readonly McpCloudRow[] => [
+  {
+    source: 'user',
+    spec: { name: 'posthog', transport: { kind: 'http', url: SERVER_URL } },
+    ...(accessToken === undefined ? {} : { accessToken }),
+  },
 ]
 
 const controlOf = (token: PodMcpControl['token']): PodMcpControl => ({
@@ -74,9 +78,9 @@ const stubFetch = (answer: (request: Captured) => Response): { restore: () => vo
   }
 }
 
-const resourceOf = (): PodResource<McpToolsSnapshot> =>
+const resourceOf = (rows: readonly McpCloudRow[] = rowsOf()): PodResource<McpToolsSnapshot> =>
   mcpToolsResource({
-    config: { read: async () => ({ rows: rowsOf(), rejections: [] }) },
+    config: { read: async () => ({ rows, rejections: [] }) },
     connectTimeoutMs: 200,
     signIns: new McpSignInBook(),
   })
@@ -120,6 +124,28 @@ describe('a transient token failure', () => {
         expect(value.servers).toEqual([{ ...earlier, retry: true }])
         expect(resource.stale?.(value)).toBe(true)
         expect(resource.announce?.(value, second.ctx)).toEqual([])
+      })
+    } finally {
+      fetched.restore()
+    }
+  })
+
+  it('carries the tools after an access token lapses out of the config', async () => {
+    const fetched = stubFetch(handshake)
+    try {
+      await withDaemon(async (daemon) => {
+        const first = await connectedRun({ resource: resourceOf(rowsOf('token-1')), daemon })
+        const earlier = first.value.servers[0]
+        if (earlier === undefined) throw new Error('the first load recorded no server')
+
+        const second = recordingRig(daemon, {
+          records: first.records,
+          mcp: unavailable('the authorization server is unavailable; retry shortly'),
+        })
+        const value = await resourceOf(rowsOf()).load({ ctx: second.ctx, directory: '/repo' })
+
+        expect(value.servers).toEqual([{ ...earlier, retry: true }])
+        expect(resourceOf().stale?.(value)).toBe(true)
       })
     } finally {
       fetched.restore()
