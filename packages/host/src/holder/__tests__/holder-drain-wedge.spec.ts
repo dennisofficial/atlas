@@ -43,7 +43,7 @@ class GatedTool extends FakeTool {
 }
 
 describe('SessionHolder drain while a record append never settles', () => {
-  it('finishes within its cap and hands the session back for another host', async () => {
+  it('hands the session back for another host while an append never settles', async () => {
     const clock = new FakeClock()
     const store = new InMemoryControlStore({ clock: () => new Date(clock.now()).toISOString() })
     const plane = new StallingPlane({ store })
@@ -77,7 +77,7 @@ describe('SessionHolder drain while a record append never settles', () => {
     expect(lease).toMatchObject({ holderHostId: null, wantsHolder: true })
   }, 15_000)
 
-  it('finishes when the detach append at the cap fails', async () => {
+  it('hands the session back when the record refuses every append', async () => {
     const clock = new FakeClock()
     const store = new InMemoryControlStore({ clock: () => new Date(clock.now()).toISOString() })
     const plane = new StallingPlane({ store })
@@ -108,7 +108,7 @@ describe('SessionHolder drain while a record append never settles', () => {
     expect(lease.holderHostId).toBeNull()
   }, 15_000)
 
-  it('waits the drain cap it was given, not the default one', async () => {
+  it('uses the drain cap it was given, not the default one', async () => {
     const clock = new FakeClock()
     const store = new InMemoryControlStore({ clock: () => new Date(clock.now()).toISOString() })
     const plane = new StallingPlane({ store })
