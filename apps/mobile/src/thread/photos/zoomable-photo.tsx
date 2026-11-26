@@ -1,18 +1,24 @@
 import { Image } from 'expo-image'
 import { useRef, useState } from 'react'
+import { GestureDetector, useTapGesture } from 'react-native-gesture-handler'
 import {
-  type GestureResponderEvent,
   type LayoutChangeEvent,
   type NativeScrollEvent,
   type NativeSyntheticEvent,
   Platform,
-  Pressable,
   ScrollView,
   type ScrollViewInstance,
   StyleSheet,
+  View,
 } from 'react-native'
 
-import { isDoubleTap, MAX_ZOOM_SCALE, type Size, shouldDismiss, zoomRectOf } from './photo-zoom'
+import {
+  DOUBLE_TAP_MAX_DELAY_MS,
+  MAX_ZOOM_SCALE,
+  type Size,
+  shouldDismiss,
+  zoomRectOf,
+} from './photo-zoom'
 
 export const ZoomablePhoto = ({
   uri,
@@ -25,7 +31,6 @@ export const ZoomablePhoto = ({
 }) => {
   const scrollRef = useRef<ScrollViewInstance>(null)
   const zoomScale = useRef(1)
-  const lastTapAt = useRef<number | undefined>(undefined)
   const [viewport, setViewport] = useState<Size | undefined>(undefined)
 
   const handleLayout = (event: LayoutChangeEvent) => {
@@ -42,20 +47,20 @@ export const ZoomablePhoto = ({
     if (shouldDismiss({ pullY: event.nativeEvent.contentOffset.y, zoomScale: scale })) onDismiss()
   }
 
-  const handlePress = (event: GestureResponderEvent) => {
-    const at = Date.now()
-    if (!isDoubleTap({ previousAt: lastTapAt.current, at })) {
-      lastTapAt.current = at
-      return
-    }
-    lastTapAt.current = undefined
+  const handleDoubleTap = (point: { x: number; y: number }) => {
     if (Platform.OS !== 'ios' || viewport === undefined) return
-    const point = { x: event.nativeEvent.locationX, y: event.nativeEvent.locationY }
     scrollRef.current?.scrollResponderZoomTo({
       ...zoomRectOf({ point, viewport, zoomScale: zoomScale.current }),
       animated: true,
     })
   }
+
+  const doubleTap = useTapGesture({
+    numberOfTaps: 2,
+    maxDelay: DOUBLE_TAP_MAX_DELAY_MS,
+    runOnJS: true,
+    onActivate: (event) => handleDoubleTap({ x: event.x, y: event.y }),
+  })
 
   return (
     <ScrollView
@@ -76,15 +81,17 @@ export const ZoomablePhoto = ({
       onScrollEndDrag={handleScrollEndDrag}
     >
       {viewport === undefined ? null : (
-        <Pressable
-          accessibilityRole="image"
-          accessibilityLabel={name}
-          accessibilityHint="Pinch or double-tap to zoom. Swipe down to close."
-          onPress={handlePress}
-          style={viewport}
-        >
-          <Image source={{ uri }} contentFit="contain" style={styles.fill} />
-        </Pressable>
+        <GestureDetector gesture={doubleTap}>
+          <View
+            accessible
+            accessibilityRole="image"
+            accessibilityLabel={name}
+            accessibilityHint="Pinch or double-tap to zoom. Swipe down to close."
+            style={viewport}
+          >
+            <Image source={{ uri }} contentFit="contain" style={styles.fill} />
+          </View>
+        </GestureDetector>
       )}
     </ScrollView>
   )

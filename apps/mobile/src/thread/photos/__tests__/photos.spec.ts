@@ -7,14 +7,7 @@ import {
   putPhoto,
   shareFileNameOf,
 } from '../photo-store'
-import {
-  DISMISS_PULL,
-  DOUBLE_TAP_MS,
-  DOUBLE_TAP_SCALE,
-  isDoubleTap,
-  shouldDismiss,
-  zoomRectOf,
-} from '../photo-zoom'
+import { DISMISS_PULL, DOUBLE_TAP_SCALE, shouldDismiss, zoomRectOf } from '../photo-zoom'
 
 const viewport = { width: 400, height: 800 }
 
@@ -38,17 +31,6 @@ describe('zoomRectOf', () => {
       y: 0,
       ...viewport,
     })
-  })
-})
-
-describe('isDoubleTap', () => {
-  it('counts a second tap inside the window', () => {
-    expect(isDoubleTap({ previousAt: 1_000, at: 1_000 + DOUBLE_TAP_MS })).toBe(true)
-  })
-
-  it('does not count a first tap or a slow second tap', () => {
-    expect(isDoubleTap({ previousAt: undefined, at: 1_000 })).toBe(false)
-    expect(isDoubleTap({ previousAt: 1_000, at: 1_001 + DOUBLE_TAP_MS })).toBe(false)
   })
 })
 

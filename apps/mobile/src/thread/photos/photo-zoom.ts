@@ -1,6 +1,6 @@
 export const MAX_ZOOM_SCALE = 5
 export const DOUBLE_TAP_SCALE = 2.5
-export const DOUBLE_TAP_MS = 300
+export const DOUBLE_TAP_MAX_DELAY_MS = 300
 export const DISMISS_PULL = 96
 
 const ZOOMED_SCALE = 1.01
@@ -13,9 +13,6 @@ const clamp = (args: { value: number; max: number }): number =>
   Math.min(Math.max(args.value, 0), Math.max(args.max, 0))
 
 export const isZoomed = (zoomScale: number): boolean => zoomScale > ZOOMED_SCALE
-
-export const isDoubleTap = (args: { previousAt: number | undefined; at: number }): boolean =>
-  args.previousAt !== undefined && args.at - args.previousAt <= DOUBLE_TAP_MS
 
 export const zoomRectOf = (args: { point: Point; viewport: Size; zoomScale: number }): Rect => {
   if (isZoomed(args.zoomScale)) return { x: 0, y: 0, ...args.viewport }
