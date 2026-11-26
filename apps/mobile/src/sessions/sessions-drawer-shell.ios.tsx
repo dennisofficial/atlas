@@ -21,7 +21,7 @@ import {
   showsAccountViewOf,
   usesNativeSearchOf,
 } from './drawer-header-items'
-import { drawerHidableOf } from './drawer-layout'
+import { showsHideSessionsButtonOf } from './drawer-layout'
 import {
   emptyDrawerSearchOf,
   searchClearedOf,
@@ -57,7 +57,6 @@ const DrawerScreen = ({ activeId, onOpen }: TDrawerScreenProps) => {
   const nativeSearch = usesNativeSearchOf({ listLayout: posture.sessionsList })
   const showsAccount = showsAccountViewOf({ controls: posture.controls })
   const { setOpen } = useSessionsDrawer()
-  const hidable = drawerHidableOf({ listLayout: posture.sessionsList, selected: activeId })
   const glass = usesGlassHeader()
 
   const handleNewSession = () => router.push('/new')
@@ -76,7 +75,9 @@ const DrawerScreen = ({ activeId, onOpen }: TDrawerScreenProps) => {
 
   const items = drawerBarItemsOf({
     onNewSession: handleNewSession,
-    onHide: hidable ? handleHide : undefined,
+    onHide: showsHideSessionsButtonOf({ listLayout: posture.sessionsList })
+      ? handleHide
+      : undefined,
   })
 
   return (

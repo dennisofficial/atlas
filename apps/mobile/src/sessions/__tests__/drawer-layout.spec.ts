@@ -11,6 +11,7 @@ import {
   drawerScopeOf,
   drawerSwipeEnabledOf,
   opensDrawerWithoutSessionOf,
+  showsHideSessionsButtonOf,
 } from '../drawer-layout'
 
 describe('drawerGeometryOf', () => {
@@ -96,6 +97,17 @@ describe('drawerHidableOf', () => {
   it('always hides the overlay and the panel', () => {
     expect(drawerHidableOf({ listLayout: ESessionsListLayout.Overlay, selected: null })).toBe(true)
     expect(drawerHidableOf({ listLayout: ESessionsListLayout.Panel, selected: null })).toBe(true)
+  })
+})
+
+describe('showsHideSessionsButtonOf', () => {
+  it('offers the hide button only beside the content in the panel', () => {
+    expect(showsHideSessionsButtonOf({ listLayout: ESessionsListLayout.Panel })).toBe(true)
+  })
+
+  it('leaves the overlay and the iPhone list to a tap outside or a swipe', () => {
+    expect(showsHideSessionsButtonOf({ listLayout: ESessionsListLayout.Overlay })).toBe(false)
+    expect(showsHideSessionsButtonOf({ listLayout: ESessionsListLayout.Stacked })).toBe(false)
   })
 })
 

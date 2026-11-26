@@ -34,6 +34,12 @@ export const drawerHidableOf = ({
   selected: string | null
 }): boolean => !opensDrawerWithoutSessionOf({ listLayout, selected })
 
+export const showsHideSessionsButtonOf = ({
+  listLayout,
+}: {
+  listLayout: ESessionsListLayout
+}): boolean => listLayout === ESessionsListLayout.Panel
+
 export const drawerSwipeEnabledOf = ({
   geometry,
   open,
