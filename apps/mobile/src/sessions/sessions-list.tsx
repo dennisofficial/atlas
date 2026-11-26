@@ -22,6 +22,9 @@ import { ELoadState, useSessions } from './use-sessions'
 const handleNewSession = (projectId: string) =>
   router.push({ pathname: '/new', params: { project: projectId } })
 
+const handleOpenProjectSettings = (projectId: string) =>
+  router.push(`/project-settings/${projectId}`)
+
 const ListStatusView = ({ status, onRetry }: { status: EListStatus; onRetry: () => void }) => {
   const theme = useTheme()
   if (status === EListStatus.Ready) return null
@@ -129,7 +132,12 @@ export const SessionsList = ({
         />
       }
       renderSectionHeader={({ section }) => (
-        <SectionHeader section={section} onToggle={handleToggle} onNewSession={handleNewSession} />
+        <SectionHeader
+          section={section}
+          onToggle={handleToggle}
+          onNewSession={handleNewSession}
+          onOpenSettings={handleOpenProjectSettings}
+        />
       )}
       renderItem={({ item }) => {
         if (item.kind === EItemKind.ProjectLabel) return <BucketProjectLabel name={item.name} />

@@ -66,6 +66,10 @@ const AppStack = () => {
         options={{ title: 'Sub-agent', ...pushedHeaderOptions }}
       />
       <Stack.Screen
+        name="project-settings/[projectId]"
+        options={{ title: 'Project settings', ...pushedHeaderOptions }}
+      />
+      <Stack.Screen
         name="diagram"
         options={{
           title: 'Diagram',
