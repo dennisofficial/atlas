@@ -83,13 +83,14 @@ export const childRunnerOf = (args: {
     assembly: runtime.assembly,
     hooks,
     tools: () => modelFacingDeclarationsOf(registry.declarations()),
-    dispatch: new ScopedToolDispatcher(
-      hookedToolsOf({
+    dispatch: new ScopedToolDispatcher({
+      inner: hookedToolsOf({
         registry,
         hooks,
         trace: runtime.trace,
       }),
-    ),
+      daemonTools: runtime.daemonTools,
+    }),
     intake: args.intake,
     output: liveOutputOf({
       bus: deps.bus,

@@ -11,9 +11,9 @@ import {
   scopeKeyOf,
 } from '../call-scope'
 
-const call = (args: { runId: string; callId: string }): DispatchableCall => ({
+const call = (args: { runId: string; callId: string; name?: string }): DispatchableCall => ({
   callId: args.callId as CallId,
-  name: 'bash',
+  name: args.name ?? 'bash',
   input: {},
   runId: args.runId as RunId,
   threadId: 'thread-1' as ThreadId,
@@ -72,18 +72,27 @@ describe('scopeDetachOnHandoff', () => {
     })
   })
 
-  it('detaches every call of a built-in tool dispatch', async () => {
+  it('detaches every call of a built-in daemon tool dispatch', async () => {
     const inner = new RecordingDispatcher()
-    const scoped = new ScopedToolDispatcher(inner)
+    const scoped = new ScopedToolDispatcher({ inner, daemonTools: new Set(['bash']) })
     await scoped.dispatch(dispatchArgs(call({ runId: 'run-1', callId: 'call-1' })))
     expect(inner.detachesOnHandoff).toEqual([true])
+  })
+
+  it('leaves a dispatch of any other tool attached', async () => {
+    const inner = new RecordingDispatcher()
+    const scoped = new ScopedToolDispatcher({ inner, daemonTools: new Set(['bash']) })
+    await scoped.dispatch(
+      dispatchArgs(call({ runId: 'run-1', callId: 'call-1', name: 'worktree_list' })),
+    )
+    expect(inner.detachesOnHandoff).toEqual([false])
   })
 })
 
 describe('ScopedToolDispatcher', () => {
   it('replays the same key sequence for two dispatches of one call', async () => {
     const inner = new RecordingDispatcher()
-    const scoped = new ScopedToolDispatcher(inner)
+    const scoped = new ScopedToolDispatcher({ inner, daemonTools: new Set(['bash']) })
     await scoped.dispatch(dispatchArgs(call({ runId: 'run-1', callId: 'call-1' })))
     await scoped.dispatch(dispatchArgs(call({ runId: 'run-1', callId: 'call-1' })))
     expect(inner.keys).toEqual([
@@ -96,7 +105,7 @@ describe('ScopedToolDispatcher', () => {
 
   it('never shares a key between two concurrent calls', async () => {
     const inner = new RecordingDispatcher()
-    const scoped = new ScopedToolDispatcher(inner)
+    const scoped = new ScopedToolDispatcher({ inner, daemonTools: new Set(['bash']) })
     await Promise.all([
       scoped.dispatch(dispatchArgs(call({ runId: 'run-1', callId: 'call-a' }))),
       scoped.dispatch(dispatchArgs(call({ runId: 'run-1', callId: 'call-b' }))),

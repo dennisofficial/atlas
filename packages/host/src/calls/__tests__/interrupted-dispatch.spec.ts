@@ -43,12 +43,13 @@ class ResizedTool extends ToolDefinition {
 
 describe('ScopedToolDispatcher', () => {
   it('turns a CallInterruptedError thrown by a tool into the interrupted draft', async () => {
-    const scoped = new ScopedToolDispatcher(
-      new HookedToolDispatcher({
+    const scoped = new ScopedToolDispatcher({
+      inner: new HookedToolDispatcher({
         registry: new InMemoryToolRegistry([new ThrowingTool()]),
         hooks: new HookChain({}),
       }),
-    )
+      daemonTools: new Set(['bash']),
+    })
 
     const drafts = await scoped.dispatch({
       call: {
@@ -76,12 +77,13 @@ describe('ScopedToolDispatcher', () => {
   })
 
   it('carries the message the host chose for the interruption', async () => {
-    const scoped = new ScopedToolDispatcher(
-      new HookedToolDispatcher({
+    const scoped = new ScopedToolDispatcher({
+      inner: new HookedToolDispatcher({
         registry: new InMemoryToolRegistry([new ResizedTool()]),
         hooks: new HookChain({}),
       }),
-    )
+      daemonTools: new Set(['bash']),
+    })
 
     const drafts = await scoped.dispatch({
       call: {
