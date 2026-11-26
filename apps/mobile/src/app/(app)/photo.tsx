@@ -1,7 +1,6 @@
 import { ETextRole, ETextTone, Text, useTheme } from '@dltech/atlas-ui-native'
 import { space } from '@dltech/atlas-ui/tokens'
 import { router, Stack, useLocalSearchParams } from 'expo-router'
-import { StatusBar } from 'expo-status-bar'
 import { useCallback, useState } from 'react'
 import { Alert, StyleSheet, useWindowDimensions, View } from 'react-native'
 import { SafeAreaProvider, useSafeAreaInsets } from 'react-native-safe-area-context'
@@ -54,7 +53,6 @@ const PhotoViewer = () => {
           onShare: handleShare,
         })}
       />
-      <StatusBar hidden={!chromeVisible} animated hideTransitionAnimation="fade" />
       <View style={[styles.content, { backgroundColor: theme.background }]}>
         {photo === undefined ? (
           <View style={styles.center}>
