@@ -11,6 +11,7 @@ import {
   resize,
 } from '@dltech/atlas-native-commands'
 import { composedPluginsOf, controlEventSchema } from '../registered-plugins'
+import { gatedToolsOf, toolGateOf } from './gated-tools'
 import { ERunFailureKind, ModelPort } from '@dltech/atlas-core'
 import { PostgresControlStore } from '@dltech/atlas-control/postgres'
 import { createDb, createPool } from '@dltech/atlas-db'
@@ -24,6 +25,7 @@ import {
 import { createPgHostPresence } from '../presence/pg-host-presence'
 import { startHostWatch, type HostWatch } from '../presence/pg-host-watch'
 import { LogPort, logFieldsOf } from '@dltech/atlas-observability'
+import type { ComposedPlugins } from '@dltech/atlas-plugin-sdk'
 import { TurnFault } from '@dltech/atlas-agent'
 import { ScriptedModel, type ScriptedModelStep } from '@dltech/atlas-agent/testing'
 
@@ -212,6 +214,18 @@ const scriptedStepsOf = (steps: readonly ScriptedModelStep[]): ScriptedModelStep
     return fault === undefined ? step : { throws: fault }
   })
 
+const pluginsOf = (plugins: ComposedPlugins): ComposedPlugins => {
+  const gate = toolGateOf(process.env.PLUGIN_TOOL_GATE)
+  if (gate === undefined) return plugins
+  return {
+    ...plugins,
+    pod: {
+      ...plugins.pod,
+      tools: (ctx) => gatedToolsOf({ gate, tools: plugins.pod.tools(ctx) }),
+    },
+  }
+}
+
 const main = async (): Promise<void> => {
   const holderLabel = requireEnv('HOLDER_ID')
   const daemonSecret = requireEnv('DAEMON_SECRET')
@@ -292,7 +306,7 @@ const main = async (): Promise<void> => {
       launchDirectory: workspace,
       sandboxHome: process.env.SANDBOX_HOME,
       panelHolds: (sessionId) => held?.demandOf().panel.countOf(sessionId) ?? 0,
-      plugins: process.env.FAULT_PLUGINS === '1' ? composedPlugins : undefined,
+      plugins: process.env.FAULT_PLUGINS === '1' ? pluginsOf(composedPlugins) : undefined,
       log,
       pingMs: numberEnv('PING_MS', 10_000),
     }),

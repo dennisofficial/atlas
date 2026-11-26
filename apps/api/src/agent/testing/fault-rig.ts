@@ -10,6 +10,7 @@ import { FaultProxy } from '@dltech/atlas-host/testing'
 
 import { controlEventSchema } from '../registered-plugins'
 import { createRedisLiveFrames } from '../bus/redis-live-frames'
+import type { ToolGate } from './gated-tools'
 import type { EHostFault } from './host-faults'
 import { seedSession, type NewSessionArgs } from './rig-seed'
 import { startDaemon, type RigDaemon } from './rig-daemon'
@@ -48,6 +49,7 @@ export type HostKnobs = {
   toolOutputFile?: string
   sweepMs?: number
   fault?: EHostFault
+  pluginToolGate?: ToolGate
   plugins?: boolean
   modelRequestsFile?: string
   contextMirrorDir?: string
