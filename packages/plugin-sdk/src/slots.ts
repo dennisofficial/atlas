@@ -160,6 +160,7 @@ export type PluginPodContext = {
   ): Promise<CallResult>
   live(frame: LiveFrame): void
   onDaemonEvent(listener: (frame: DaemonEventFrame) => void): () => void
+  daemonCapabilities?(): readonly string[]
   log(message: string): void
   env?(): Promise<Record<string, string>>
 }

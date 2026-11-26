@@ -1,61 +1,12 @@
-import type { CallOp, DaemonEvent } from '@dltech/atlas-protocol'
-import type { CallContext } from '@dltech/atlas-protocol/engine'
 import { describe, expect, it } from 'bun:test'
 
-import { mcpGroup } from '..'
-import type { DaemonOpsDeps } from '../../deps'
-
-type Rig = {
-  events: DaemonEvent[]
-  call(op: CallOp): Promise<unknown>
-  lines(serverId: string): string[]
-  stop(): Promise<void>
-}
-
-const deps: DaemonOpsDeps = { env: { PATH: process.env['PATH'] ?? '' }, home: '/tmp' }
-
-const rig = (): Rig => {
-  const events: DaemonEvent[] = []
-  const group = mcpGroup(deps)({
-    publish: (event: DaemonEvent) => void events.push(event),
-  } as never)
-  const ctx: CallContext = {
-    key: 'k',
-    signal: new AbortController().signal,
-    output: () => undefined,
-    publish: () => undefined,
-  }
-  return {
-    events,
-    call: async (op) => {
-      const registered = group.ops.find((candidate) => candidate.op === op.op)
-      if (registered === undefined) throw new Error(`no op ${op.op}`)
-      return await registered.run({ op, ctx })
-    },
-    lines: (serverId) =>
-      events.flatMap((event) =>
-        event.type === 'mcp.message' && event.serverId === serverId ? [event.line] : [],
-      ),
-    stop: async () => {
-      await group.stop?.()
-    },
-  }
-}
-
-const waitUntil = async (ready: () => boolean, ms = 3_000): Promise<void> => {
-  const deadline = Date.now() + ms
-  while (Date.now() < deadline) {
-    if (ready()) return
-    await new Promise((resolve) => setTimeout(resolve, 10))
-  }
-  throw new Error('the server never answered')
-}
+import { mcpRig, waitUntil } from './rig'
 
 const serverId = 'ses_1.docs'
 
 describe('mcp.spawn', () => {
   it('spawns a stdio server on the first call and reports that it did', async () => {
-    const daemon = rig()
+    const daemon = mcpRig()
     try {
       const result = await daemon.call({
         op: 'mcp.spawn',
@@ -71,7 +22,7 @@ describe('mcp.spawn', () => {
   })
 
   it('attaches to the running server when the spec hash matches, keeping its lines', async () => {
-    const daemon = rig()
+    const daemon = mcpRig()
     try {
       const first = await daemon.call({
         op: 'mcp.spawn',
@@ -97,7 +48,7 @@ describe('mcp.spawn', () => {
   })
 
   it('replaces the running server when the spec hash differs', async () => {
-    const daemon = rig()
+    const daemon = mcpRig()
     try {
       const first = await daemon.call({
         op: 'mcp.spawn',

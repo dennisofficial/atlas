@@ -43,6 +43,10 @@ The ops are `exec` (`deadlineMs` and `shellId` background it at the deadline), `
 `fetchToFile`, `digestFile`, `putFile`, `remove`, `mkdir`, `rename`, `glob`, `grep` and the groups
 `changes.*`, `git.*`, `mcp.*`, `metrics.*`, `oom.*`, `previews.*`, `services.*`, `shells.*`, `terminal.*`, `watch.*`.
 
+`mcp.request` writes one JSON-RPC request to a stdio MCP server and answers with `response`, `timed-out`
+or `exited`, keyed by the call key so a replay returns the same answer without writing again. A daemon
+that serves it advertises `EDaemonCapability.McpRequest`.
+
 ### Call a pod from the API
 
 - `podCallRequestSchema`, `PodCallRequest`, `EPodCallKind`: the request that the API sends to the

@@ -9,6 +9,7 @@ import {
 import { MISE_DATA_DIR_ENV } from '../../child-env'
 import { ManagedProcess } from '../../process/managed'
 import type { DaemonOpsDeps } from '../deps'
+import { McpWaiters, cancelLineOf, requestLineOf, requestSettlement } from './requests'
 
 const BUFFER_LINES = 10_000
 const EVENT_LINE_BYTES = 1024 * 1024
@@ -29,6 +30,7 @@ type RunningServer = {
   stderrPartial: string
   seq: number
   ended: Exit | null
+  waiters: McpWaiters
   closed: Promise<Exit>
 }
 
@@ -70,6 +72,7 @@ export const mcpGroup =
       server.seq += 1
       server.lines.push({ seq: server.seq, line })
       if (server.lines.length > BUFFER_LINES) server.lines.shift()
+      server.waiters.settleLine({ line })
       if (line.length > EVENT_LINE_BYTES) {
         ctx.publish({ type: 'mcp.dropped', serverId: server.serverId, seq: server.seq })
         return
@@ -96,6 +99,18 @@ export const mcpGroup =
       const parts = text.split('\n')
       server.partial = parts.pop() ?? ''
       for (const part of parts) record(server, part)
+    }
+
+    const writeLine = (args: { server: RunningServer; line: string }): void => {
+      if (args.server.child.writeInput(new TextEncoder().encode(`${args.line}\n`))) return
+      throw new CallFailureError({
+        code: ECallFailure.Internal,
+        message: `could not write to the mcp server '${args.server.serverId}'`,
+      })
+    }
+
+    const writeQuietly = (args: { server: RunningServer; line: string }): void => {
+      args.server.child.writeInput(new TextEncoder().encode(`${args.line}\n`))
     }
 
     const close = async (server: RunningServer): Promise<Exit> => {
@@ -154,11 +169,13 @@ export const mcpGroup =
               stderrPartial: '',
               seq: 0,
               ended: null,
+              waiters: new McpWaiters(),
               closed: child.exit().then((exit) => {
                 if (server.stderrPartial !== '') recordStderr(server, server.stderrPartial)
                 server.stderrPartial = ''
                 const ended = { exitCode: exit.exitCode, signal: exit.signal }
                 server.ended = ended
+                server.waiters.end({ exit: ended, stderr: [...server.stderr] })
                 ctx.publish({ type: 'mcp.exited', serverId: op.serverId, ...ended })
                 return ended
               }),
@@ -184,14 +201,40 @@ export const mcpGroup =
                 message: `the mcp server '${op.serverId}' is not running`,
               })
             }
-            const written = server.child.writeInput(new TextEncoder().encode(`${op.line}\n`))
-            if (!written) {
+            writeLine({ server, line: op.line })
+            return null
+          },
+        }),
+        defineOp({
+          op: 'mcp.request',
+          run: async ({ op, ctx }) => {
+            const server = serverOf(servers, op.serverId)
+            if (server.ended !== null) {
               throw new CallFailureError({
-                code: ECallFailure.Internal,
-                message: `could not write to the mcp server '${op.serverId}'`,
+                code: ECallFailure.NotFound,
+                message: `the mcp server '${op.serverId}' is not running`,
               })
             }
-            return null
+            const hold = server.waiters.hold(ctx.key)
+            const cancel = (reason: string): void => {
+              if (server.ended !== null) return
+              writeQuietly({ server, line: cancelLineOf({ key: ctx.key, reason }) })
+            }
+            try {
+              writeLine({
+                server,
+                line: requestLineOf({ key: ctx.key, method: op.method, params: op.params }),
+              })
+              return await requestSettlement({
+                hold,
+                timeoutMs: op.timeoutMs,
+                signal: ctx.signal,
+                onTimeout: () => cancel('timed out'),
+                onCancel: () => cancel('cancelled'),
+              })
+            } finally {
+              server.waiters.drop(ctx.key)
+            }
           },
         }),
         defineOp({

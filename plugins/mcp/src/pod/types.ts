@@ -23,7 +23,11 @@ export type McpConnection = {
 
 export type McpTransportClient = {
   connect(): Promise<McpConnection>
-  callTool(args: { name: string; input: unknown }): Promise<McpCallResult>
+  callTool(args: {
+    name: string
+    input: unknown
+    signal?: AbortSignal | undefined
+  }): Promise<McpCallResult>
   close(): Promise<void>
 }
 

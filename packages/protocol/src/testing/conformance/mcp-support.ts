@@ -1,4 +1,6 @@
+import type { OpValue } from '../../ops'
 import type { DaemonSession } from '../client'
+import { FAKE_MCP_SILENT } from '../fake/mcp'
 import { okValue, runToEnd } from './support'
 
 export const ECHO_SCRIPT = [
@@ -20,6 +22,18 @@ export const ECHO_SCRIPT = [
   '  }',
   '}',
 ].join('; ')
+
+export const SILENT_SCRIPT = 'for await (const _ of Bun.stdin.stream()) {}'
+
+export const spawnSilent = (args: {
+  session: DaemonSession
+  serverId: string
+}): Promise<{ serverId: string; pid: number; attached: boolean; seq: number }> =>
+  spawnEcho({
+    ...args,
+    script: SILENT_SCRIPT,
+    env: { [FAKE_MCP_SILENT]: '1' },
+  })
 
 export const spawnEcho = (args: {
   session: DaemonSession
@@ -53,6 +67,37 @@ export const sendLine = (args: {
     key: args.key ?? `send-${args.serverId}-${Math.random().toString(36).slice(2)}`,
     op: { op: 'mcp.send', serverId: args.serverId, line: args.line },
   }).then((result) => okValue({ result, op: 'mcp.send' }))
+
+export const requestOf = (args: {
+  session: DaemonSession
+  serverId: string
+  key: string
+  method: string
+  params?: unknown
+  timeoutMs?: number
+}): Promise<OpValue<'mcp.request'>> =>
+  runToEnd({
+    session: args.session,
+    key: args.key,
+    op: {
+      op: 'mcp.request',
+      serverId: args.serverId,
+      method: args.method,
+      ...(args.params === undefined ? {} : { params: args.params }),
+      timeoutMs: args.timeoutMs ?? 5_000,
+    },
+  }).then((result) => okValue({ result, op: 'mcp.request' }))
+
+export const readLines = (args: {
+  session: DaemonSession
+  serverId: string
+  afterSeq?: number
+}): Promise<readonly { seq: number; line: string }[]> =>
+  runToEnd({
+    session: args.session,
+    key: `read-${args.serverId}-${Math.random().toString(36).slice(2)}`,
+    op: { op: 'mcp.read', serverId: args.serverId, afterSeq: args.afterSeq ?? 0 },
+  }).then((result) => okValue({ result, op: 'mcp.read' }).lines)
 
 export const messageEventOf = (args: {
   session: DaemonSession

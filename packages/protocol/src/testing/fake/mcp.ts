@@ -4,9 +4,11 @@ import {
   type GroupContext,
   defineOp,
 } from '../../engine'
-import { CallFailureError, ECallFailure } from '../../ops'
+import { CallFailureError, ECallFailure, type McpRequestResult } from '../../ops'
 
 const EVENT_LINE_BYTES = 1024 * 1024
+
+export const FAKE_MCP_SILENT = 'FAKE_MCP_SILENT'
 
 type BufferedLine = { seq: number; line: string }
 type Exit = { exitCode: number; signal: string | null }
@@ -20,6 +22,8 @@ type FakeServer = {
   seq: number
   ended: Exit | null
   closed: Promise<Exit>
+  silent: boolean
+  pending: Map<string, (value: McpRequestResult) => void>
   respond(line: string): void
   close(): void
 }
@@ -33,6 +37,14 @@ const echoOf = (line: string): string => {
     return line
   }
 }
+
+const requestLineOf = (args: { key: string; method: string; params: unknown }): string =>
+  JSON.stringify({
+    jsonrpc: '2.0',
+    id: args.key,
+    method: args.method,
+    ...(args.params === undefined ? {} : { params: args.params }),
+  })
 
 const serverOf = (servers: Map<string, FakeServer>, serverId: string): FakeServer => {
   const server = servers.get(serverId)
@@ -50,16 +62,22 @@ export const fakeMcpGroup = (): DaemonGroupFactory => {
   return (ctx: GroupContext): DaemonGroup => {
     const servers = new Map<string, FakeServer>()
 
-    const spawn = (serverId: string, specHash: string | undefined): FakeServer => {
+    const spawn = (args: {
+      serverId: string
+      specHash: string | undefined
+      silent: boolean
+    }): FakeServer => {
       let settleClosed: (exit: Exit) => void = () => {}
       const server: FakeServer = {
-        serverId,
-        specHash,
+        serverId: args.serverId,
+        specHash: args.specHash,
         pid: nextPid++,
         lines: [],
         stderr: [],
         seq: 0,
         ended: null,
+        silent: args.silent,
+        pending: new Map(),
         closed: new Promise<Exit>((resolve) => {
           settleClosed = resolve
         }),
@@ -67,17 +85,20 @@ export const fakeMcpGroup = (): DaemonGroupFactory => {
           server.seq += 1
           server.lines.push({ seq: server.seq, line })
           if (line.length > EVENT_LINE_BYTES) {
-            ctx.publish({ type: 'mcp.dropped', serverId, seq: server.seq })
+            ctx.publish({ type: 'mcp.dropped', serverId: args.serverId, seq: server.seq })
             return
           }
-          ctx.publish({ type: 'mcp.message', serverId, seq: server.seq, line })
+          ctx.publish({ type: 'mcp.message', serverId: args.serverId, seq: server.seq, line })
         },
         close() {
           if (server.ended !== null) return
           const exit = { exitCode: 0, signal: null }
           server.ended = exit
           settleClosed(exit)
-          ctx.publish({ type: 'mcp.exited', serverId, ...exit })
+          for (const settle of server.pending.values())
+            settle({ kind: 'exited', exit, stderr: [...server.stderr] })
+          server.pending.clear()
+          ctx.publish({ type: 'mcp.exited', serverId: args.serverId, ...exit })
         },
       }
       return server
@@ -106,7 +127,11 @@ export const fakeMcpGroup = (): DaemonGroupFactory => {
               held.close()
               servers.delete(op.serverId)
             }
-            const server = spawn(op.serverId, op.specHash)
+            const server = spawn({
+              serverId: op.serverId,
+              specHash: op.specHash,
+              silent: op.env?.[FAKE_MCP_SILENT] === '1',
+            })
             servers.set(op.serverId, server)
             return { serverId: op.serverId, pid: server.pid, attached: false, seq: 0 }
           },
@@ -129,6 +154,40 @@ export const fakeMcpGroup = (): DaemonGroupFactory => {
             }
             server.respond(echoOf(op.line))
             return null
+          },
+        }),
+        defineOp({
+          op: 'mcp.request',
+          run: async ({ op, ctx }) => {
+            const server = serverOf(servers, op.serverId)
+            if (server.ended !== null) {
+              throw new CallFailureError({
+                code: ECallFailure.NotFound,
+                message: `the mcp server '${op.serverId}' is not running`,
+              })
+            }
+            let settle: (value: McpRequestResult) => void = () => undefined
+            const settled = new Promise<McpRequestResult>((resolve) => {
+              settle = resolve
+            })
+            server.pending.set(ctx.key, settle)
+            const timer = setTimeout(() => {
+              server.pending.delete(ctx.key)
+              settle({ kind: 'timed-out' })
+            }, op.timeoutMs)
+            const line = requestLineOf({ key: ctx.key, method: op.method, params: op.params })
+            if (!server.silent) {
+              const response = { jsonrpc: '2.0', id: ctx.key, result: { echo: line } }
+              server.pending.delete(ctx.key)
+              server.respond(JSON.stringify(response))
+              settle({ kind: 'response', response })
+            }
+            try {
+              return await settled
+            } finally {
+              clearTimeout(timer)
+              server.pending.delete(ctx.key)
+            }
           },
         }),
         defineOp({
