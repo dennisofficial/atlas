@@ -11,9 +11,9 @@ import {
 import { ETextRole, REM_PX, typeScale } from '../scale'
 
 describe('reading tokens', () => {
-  test('body text is 16 over 26, the leading-relaxed ratio', () => {
-    expect(readingType.body).toEqual({ fontSize: 16, lineHeight: 26 })
-    expect(READING_LEADING).toBe(1.625)
+  test('native body text is Apple 17pt body over a 26pt line', () => {
+    expect(readingType.body).toEqual({ fontSize: 17, lineHeight: 26 })
+    expect(READING_LEADING).toBeCloseTo(1.53, 2)
   })
 
   test('every heading is at least as large as body text, except the muted h6', () => {
@@ -32,7 +32,7 @@ describe('reading tokens', () => {
   })
 
   test('heading and body sizes come from the shared type scale', () => {
-    expect(readingRole.body).toBe(ETextRole.Base)
+    expect(readingRole.body).toBe(ETextRole.Reading)
     expect(readingType.h2.fontSize).toBe(typeScale.lg.fontSize)
     expect(readingType.h6.lineHeight).toBe(
       Math.round(typeScale.sm.fontSize * READING_HEADING_LEADING),
@@ -44,17 +44,20 @@ describe('reading tokens', () => {
     expect(READING_MEASURE_REM * REM_PX).toBe(896)
   })
 
-  test('every web class carries the same px size and leading as the native tokens', () => {
-    for (const key of ['body', 'h1', 'h2', 'h3', 'h4', 'h5', 'h6'] as const) {
-      const { fontSize, lineHeight } = readingType[key]
+  test('web body is one px smaller than native body but keeps the same line', () => {
+    const webBody = webTypeOf(readingClasses.body)
+    expect(webBody.size).toBe(readingType.body.fontSize - 1)
+    expect(Math.round(webBody.size * (webBody.leading ?? 0))).toBe(readingType.body.lineHeight)
+    expect(webSizeOf(readingClasses.composer)).toBe(webBody.size)
+  })
+
+  test('every web heading class carries the native size, less the native body bump', () => {
+    for (const key of ['h1', 'h2', 'h3', 'h4', 'h5', 'h6'] as const) {
+      const bump = readingRole[key] === ETextRole.Reading ? 1 : 0
       const { size, leading } = webTypeOf(readingClasses[key])
-      expect({ key, size }).toEqual({ key, size: fontSize })
-      expect({ key, lineHeight: Math.round(fontSize * (leading ?? 0)) }).toEqual({
-        key,
-        lineHeight,
-      })
+      expect({ key, size: size + bump }).toEqual({ key, size: readingType[key].fontSize })
+      expect(leading).toBe(READING_HEADING_LEADING)
     }
-    expect(webSizeOf(readingClasses.composer)).toBe(readingType.body.fontSize)
     expect(WEB_MEASURE[readingClasses.measure]).toBe(READING_MEASURE_REM)
   })
 })
@@ -87,7 +90,7 @@ const webTypeOf = (value: string) => {
   const size = names.find((candidate) => candidate in WEB_SIZE)
   const leading = names.find((candidate) => candidate in WEB_LEADING)
   return {
-    size: size === undefined ? undefined : WEB_SIZE[size],
+    size: size === undefined ? 0 : (WEB_SIZE[size] ?? 0),
     leading: leading === undefined ? undefined : WEB_LEADING[leading],
   }
 }
