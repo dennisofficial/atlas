@@ -10,6 +10,7 @@ import { modalInsetsOf } from '../../layout/posture'
 import { usePosture } from '../../layout/use-posture'
 import { PhotoActionButton } from '../../thread/photos/photo-action-button'
 import { photoOf } from '../../thread/photos/photo-store'
+import { PhotoTitle } from '../../thread/photos/photo-title'
 import { sharePhoto } from '../../thread/photos/share-photo'
 import { ZoomablePhoto } from '../../thread/photos/zoomable-photo'
 
@@ -55,6 +56,7 @@ export default function PhotoScreen() {
             label="Close the photo"
             onPress={handleClose}
           />
+          {photo === undefined ? null : <PhotoTitle name={photo.name} />}
           {photo === undefined ? null : (
             <PhotoActionButton
               symbol="square.and.arrow.up"
