@@ -1,7 +1,7 @@
 import type { BootView } from '@dltech/atlas-client/session'
 import { space } from '@dltech/atlas-ui/tokens'
-import { EFontWeight, ETextRole, ETextTone, Text, useTheme, Spinner } from '@dltech/atlas-ui-native'
-import { useCallback, useEffect, useRef } from 'react'
+import { EFontWeight, ETextRole, ETextTone, Spinner, Text, useTheme } from '@dltech/atlas-ui-native'
+import { type ReactElement, useCallback, useEffect, useRef } from 'react'
 import {
   FlatList,
   type ListRenderItem,
@@ -52,9 +52,21 @@ const WorkingFooter = () => {
   )
 }
 
+const EmptyTranscript = () => (
+  <View style={styles.empty}>
+    <Text size={ETextRole.Sm} weight={EFontWeight.Medium}>
+      Nothing here yet
+    </Text>
+    <Text size={ETextRole.Xs} tone={ETextTone.Muted}>
+      Send a message to start.
+    </Text>
+  </View>
+)
+
 export const Transcript = ({
   rows,
   working,
+  placeholder,
   now,
   boot,
   onRetryBoot,
@@ -67,6 +79,7 @@ export const Transcript = ({
 }: {
   rows: readonly ThreadRow[]
   working: boolean
+  placeholder?: ReactElement | undefined
   now: number
   boot?: BootView | null
   onRetryBoot?: () => void
@@ -145,18 +158,7 @@ export const Transcript = ({
       <BootRowView view={boot} now={now} onRetry={onRetryBoot ?? NO_RETRY} />
     )
 
-  if (rows.length === 0 && !working && header === null) {
-    return (
-      <View style={styles.empty}>
-        <Text size={ETextRole.Sm} weight={EFontWeight.Medium}>
-          Nothing here yet
-        </Text>
-        <Text size={ETextRole.Xs} tone={ETextTone.Muted}>
-          Send a message to start.
-        </Text>
-      </View>
-    )
-  }
+  const emptyView = placeholder ?? (working || header !== null ? undefined : <EmptyTranscript />)
 
   return (
     <FlatList
@@ -165,6 +167,7 @@ export const Transcript = ({
       keyExtractor={keyOf}
       scrollsToTop={false}
       renderItem={renderRow}
+      contentInsetAdjustmentBehavior="automatic"
       contentContainerStyle={styles.content}
       keyboardDismissMode="none"
       keyboardShouldPersistTaps="handled"
@@ -178,6 +181,7 @@ export const Transcript = ({
       onContentSizeChange={handleContentSizeChange}
       onLayout={handleLayout}
       ListHeaderComponent={header ?? undefined}
+      ListEmptyComponent={emptyView}
       ListFooterComponent={showWorking ? WorkingFooter : undefined}
     />
   )

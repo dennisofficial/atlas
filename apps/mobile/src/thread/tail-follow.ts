@@ -59,6 +59,7 @@ export const pinOffsetOf = ({
   contentHeight,
   viewportHeight,
 }: TTailPin): number | undefined => {
-  const bottom = Math.max(0, contentHeight - viewportHeight)
+  if (contentHeight <= viewportHeight) return undefined
+  const bottom = contentHeight - viewportHeight
   return Math.abs(bottom - offset) < PIN_SLOP_PX ? undefined : bottom
 }

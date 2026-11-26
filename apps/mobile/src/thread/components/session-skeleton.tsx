@@ -60,9 +60,7 @@ export const SessionSkeleton = () => (
 
 const styles = StyleSheet.create({
   content: {
-    flex: 1,
-    paddingHorizontal: space(4),
-    paddingTop: space(4),
+    paddingTop: space(3),
   },
   item: {
     gap: space(2),

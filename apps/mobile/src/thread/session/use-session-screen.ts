@@ -12,7 +12,6 @@ import {
   sessionBootViewOf,
   type BootView,
 } from '@dltech/atlas-client/session'
-import { turnStartedAtOf } from '@dltech/atlas-client/transcript'
 import type { Attachment } from '@dltech/atlas-core'
 import { randomUUID } from 'expo-crypto'
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
@@ -201,13 +200,9 @@ export function useSessionScreen(args: {
     () => queuedDockOf({ snapshot, staged, now, hiddenInboxIds: withdraw.hiddenInboxIds }),
     [snapshot, staged, now, withdraw.hiddenInboxIds],
   )
-  const turnStartedAt = useMemo(
-    () => turnStartedAtOf({ events: snapshot.foldable, status: snapshot.status }),
-    [snapshot.foldable, snapshot.status],
-  )
   const header = useMemo(
-    () => sessionHeaderOf({ summary, fallbackTitle, status: snapshot.status, turnStartedAt, now }),
-    [summary, fallbackTitle, snapshot.status, turnStartedAt, now],
+    () => sessionHeaderOf({ summary, fallbackTitle }),
+    [summary, fallbackTitle],
   )
 
   const send = useCallback(

@@ -1,7 +1,7 @@
 import { useTheme } from '@dltech/atlas-ui-native'
 import { router } from 'expo-router'
 import { useRef, useState } from 'react'
-import { StyleSheet } from 'react-native'
+import { StyleSheet, View } from 'react-native'
 import {
   ScreenStack,
   ScreenStackHeaderLeftView,
@@ -13,6 +13,8 @@ import {
 
 import { usePosture } from '../layout/use-posture'
 import { AccountButton } from '../navigation/account-button'
+import { usesGlassHeader } from '../navigation/glass-header'
+import { TabHeaderTitle } from '../navigation/header-options'
 import {
   drawerBarItemsOf,
   drawerSearchBarPropsOf,
@@ -36,6 +38,8 @@ type TDrawerScreenProps = {
   onOpen: (entry: ISessionEntry) => void
 }
 
+const SESSIONS_TITLE = 'Sessions'
+
 export const SessionsDrawerShell = ({ activeId, onOpen }: TDrawerScreenProps) => {
   const posture = usePosture()
   return (
@@ -54,6 +58,7 @@ const DrawerScreen = ({ activeId, onOpen }: TDrawerScreenProps) => {
   const showsAccount = showsAccountViewOf({ controls: posture.controls })
   const { setOpen } = useSessionsDrawer()
   const hidable = drawerHidableOf({ listLayout: posture.sessionsList, selected: activeId })
+  const glass = usesGlassHeader()
 
   const handleNewSession = () => router.push('/new')
   const handleSearchFocus = () => setSearch(searchFocusedOf)
@@ -87,6 +92,13 @@ const DrawerScreen = ({ activeId, onOpen }: TDrawerScreenProps) => {
                 <AccountButton />
               </ScreenStackHeaderLeftView>
             ) : null}
+            {glass ? (
+              <ScreenStackHeaderLeftView hidesSharedBackground={false}>
+                <View style={styles.glassTitle}>
+                  <TabHeaderTitle title={SESSIONS_TITLE} />
+                </View>
+              </ScreenStackHeaderLeftView>
+            ) : null}
             {nativeSearch ? (
               <ScreenStackHeaderSearchBarView>
                 <SearchBar
@@ -101,12 +113,14 @@ const DrawerScreen = ({ activeId, onOpen }: TDrawerScreenProps) => {
             ) : null}
           </>
         ),
-        backgroundColor: theme.sidebar,
+        backgroundColor: glass ? 'transparent' : theme.sidebar,
         color: theme.foreground,
         headerRightBarButtonItems: items.right,
         hideBackButton: true,
-        title: 'Sessions',
+        hideShadow: glass,
+        title: glass ? '' : SESSIONS_TITLE,
         titleColor: theme.foreground,
+        translucent: glass,
       }}
     >
       <SessionsList
@@ -121,6 +135,9 @@ const DrawerScreen = ({ activeId, onOpen }: TDrawerScreenProps) => {
 }
 
 const styles = StyleSheet.create({
+  glassTitle: {
+    paddingHorizontal: 12,
+  },
   stack: {
     flex: 1,
   },

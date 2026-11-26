@@ -37,6 +37,9 @@ import { Transcript } from '../../../thread/components/transcript'
 import { selectedSessionStore } from '../../../sessions/selected-session'
 import { useSessionsDrawer } from '../../../sessions/sessions-drawer-state'
 import { useSessionScreen } from '../../../thread/session/use-session-screen'
+import type { ThreadRow } from '../../../thread/rows'
+
+const NO_ROWS: readonly ThreadRow[] = []
 
 export default function SessionScreen() {
   const theme = useTheme()
@@ -94,6 +97,16 @@ export default function SessionScreen() {
     hidesSharedBackground: false,
   }
 
+  const placeholder = session.loaded ? undefined : session.failedToLoad ? (
+    <View style={styles.center}>
+      <Text size={ETextRole.Sm} tone={ETextTone.Destructive}>
+        This session could not be loaded.
+      </Text>
+    </View>
+  ) : (
+    <SessionSkeleton />
+  )
+
   return (
     <View style={[styles.screen, { backgroundColor: theme.background }]}>
       <Stack.Screen
@@ -102,6 +115,7 @@ export default function SessionScreen() {
           ...leadingHeaderOptionsOf({
             leading: showsSessions ? [sessionsHeaderItem] : [],
             title: <SessionTitle header={session.header} />,
+            glassTitle: true,
             titleButtons: showsSessions ? 2 : 1,
             windowWidth,
             posture,
@@ -122,29 +136,22 @@ export default function SessionScreen() {
         }}
       />
       <View style={styles.content}>
-        {session.loaded || session.failedToLoad ? null : <SessionSkeleton />}
-        {session.failedToLoad ? (
-          <View style={styles.center}>
-            <Text size={ETextRole.Sm} tone={ETextTone.Destructive}>
-              This session could not be loaded.
-            </Text>
-          </View>
-        ) : null}
+        <Transcript
+          rows={session.loaded ? transcriptRows : NO_ROWS}
+          working={session.loaded && session.turnRunning}
+          placeholder={placeholder}
+          now={session.now}
+          boot={session.loaded ? session.boot : null}
+          onRetryBoot={() => void session.retry()}
+          threadId={id}
+          sessionId={id}
+          onLoadOlder={session.loadOlder}
+          agentLinks={session.agentLinks}
+          sessionNameOf={session.sessionNameOf}
+          onOpenAgent={handleOpenAgent}
+        />
         {session.loaded ? (
           <>
-            <Transcript
-              rows={transcriptRows}
-              working={session.turnRunning}
-              now={session.now}
-              boot={session.boot}
-              onRetryBoot={() => void session.retry()}
-              threadId={id}
-              sessionId={id}
-              onLoadOlder={session.loadOlder}
-              agentLinks={session.agentLinks}
-              sessionNameOf={session.sessionNameOf}
-              onOpenAgent={handleOpenAgent}
-            />
             {session.failure === null || session.startFailure !== undefined ? null : (
               <View style={styles.failure}>
                 <Text size={ETextRole.Xs} tone={ETextTone.Destructive} style={styles.failureText}>

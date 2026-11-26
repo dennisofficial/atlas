@@ -121,6 +121,10 @@ describe('pinning the transcript to its tail', () => {
     ).toBeUndefined()
   })
 
+  it('leaves a short transcript where the system rests it below a glass bar', () => {
+    expect(pinOffsetOf({ offset: -116, contentHeight: 500, viewportHeight: 800 })).toBeUndefined()
+  })
+
   it('stays at the top while the content is shorter than the viewport', () => {
     expect(pinOffsetOf({ offset: 0, contentHeight: 500, viewportHeight: 800 })).toBeUndefined()
   })

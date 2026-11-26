@@ -1,56 +1,42 @@
-import { EFontWeight, ETextRole, ETextTone, Text } from '@dltech/atlas-ui-native'
+import { EFontWeight, ETextRole, Text } from '@dltech/atlas-ui-native'
 import { space } from '@dltech/atlas-ui/tokens'
 import * as WebBrowser from 'expo-web-browser'
 import { Pressable, StyleSheet, View } from 'react-native'
 
-import { PullRequestChip } from '../../sessions/pull-request-chip'
-import { StatusIcon } from '../../sessions/status-icon'
+import { EWorkKind } from '../../sessions/session-groups'
+import { WorkSummary } from '../../sessions/work-summary'
 import type { SessionHeader } from '../session/session-header'
 
-export const SessionTitle = ({ header }: { header: SessionHeader }) => {
-  const pullRequest = header.pullRequest
-  const handleOpenPullRequest = () => {
-    if (pullRequest === null) return
-    void WebBrowser.openBrowserAsync(pullRequest.url)
-  }
+const WorkLine = ({ header }: { header: SessionHeader }) => {
+  const work = header.work
+  if (work.kind === EWorkKind.Branch) return <WorkSummary work={work} />
+  const handleOpenPullRequest = () => void WebBrowser.openBrowserAsync(work.pullRequest.url)
   return (
-    <View style={styles.root} accessibilityRole="header">
-      <Text size={ETextRole.Sm} weight={EFontWeight.Medium} numberOfLines={1}>
-        {header.title}
-      </Text>
-      {header.subtitle === null ? null : (
-        <View style={styles.state}>
-          <StatusIcon status={header.display} unread={false} />
-          <Text size={ETextRole.Xs} tone={ETextTone.Muted} numberOfLines={1}>
-            {header.subtitle}
-          </Text>
-        </View>
-      )}
-      {pullRequest === null ? null : (
-        <Pressable
-          accessibilityRole="link"
-          accessibilityLabel={`Open pull request #${pullRequest.number}`}
-          hitSlop={space(2)}
-          onPress={handleOpenPullRequest}
-          style={styles.pullRequest}
-        >
-          <PullRequestChip pullRequest={pullRequest} />
-        </Pressable>
-      )}
-    </View>
+    <Pressable
+      accessibilityRole="link"
+      accessibilityLabel={`Open pull request #${work.pullRequest.number}`}
+      hitSlop={space(2)}
+      onPress={handleOpenPullRequest}
+      style={styles.pullRequest}
+    >
+      <WorkSummary work={work} />
+    </Pressable>
   )
 }
+
+export const SessionTitle = ({ header }: { header: SessionHeader }) => (
+  <View style={styles.root} accessibilityRole="header">
+    <Text size={ETextRole.Sm} weight={EFontWeight.Medium} numberOfLines={1}>
+      {header.title}
+    </Text>
+    <WorkLine header={header} />
+  </View>
+)
 
 const styles = StyleSheet.create({
   root: {
     flexShrink: 1,
     gap: space(0.5),
-    paddingHorizontal: space(1),
-  },
-  state: {
-    alignItems: 'center',
-    flexDirection: 'row',
-    gap: space(1.5),
   },
   pullRequest: {
     alignItems: 'flex-start',

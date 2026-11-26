@@ -27,6 +27,11 @@ web spinner), never `ActivityIndicator`.
 - **Scroll edge effect:** iOS 26+ attaches the bar's scroll edge effect to the first scroll view it
   finds when the screen opens. Render the list from the first frame. Show loading, error and empty
   states inside the list, and never in a view that the list replaces later.
+- **Glass bars:** on iOS 26+ every bar is transparent and content scrolls under it. Set bar
+  colours through `barHeaderOptionsOf` (`src/navigation/glass-header.ts`), never a plain
+  `headerStyle.backgroundColor`, which makes the bar opaque. A scroll view under the bar uses
+  `contentInsetAdjustmentBehavior="automatic"`, not a top padding: the edge blur and the rest
+  position after a rotation both come from the native inset.
 
 ## Layout
 

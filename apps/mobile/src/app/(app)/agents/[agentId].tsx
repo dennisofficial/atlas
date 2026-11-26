@@ -6,7 +6,10 @@ import { StyleSheet, View } from 'react-native'
 
 import { SessionSkeleton } from '../../../thread/components/session-skeleton'
 import { Transcript } from '../../../thread/components/transcript'
+import type { ThreadRow } from '../../../thread/rows'
 import { useAgentScreen } from '../../../thread/session/use-agent-screen'
+
+const NO_ROWS: readonly ThreadRow[] = []
 
 export default function AgentScreen() {
   const theme = useTheme()
@@ -25,29 +28,30 @@ export default function AgentScreen() {
     [sessionId, agentId],
   )
 
+  const placeholder = agent.loaded ? undefined : agent.failedToLoad ? (
+    <View style={styles.center}>
+      <Text size={ETextRole.Sm} tone={ETextTone.Destructive}>
+        This sub-agent could not be loaded.
+      </Text>
+    </View>
+  ) : (
+    <SessionSkeleton />
+  )
+
   return (
     <View style={[styles.screen, { backgroundColor: theme.background }]}>
       <Stack.Screen options={{ title: agent.failedToLoad ? '' : (title ?? agent.title) }} />
-      {agent.loaded || agent.failedToLoad ? null : <SessionSkeleton />}
-      {agent.failedToLoad ? (
-        <View style={styles.center}>
-          <Text size={ETextRole.Sm} tone={ETextTone.Destructive}>
-            This sub-agent could not be loaded.
-          </Text>
-        </View>
-      ) : null}
-      {agent.loaded ? (
-        <Transcript
-          rows={agent.rows}
-          working={agent.turnRunning}
-          now={agent.now}
-          threadId={agentId}
-          sessionId={sessionId}
-          onLoadOlder={agent.loadOlder}
-          agentLinks={agent.agentLinks}
-          onOpenAgent={handleOpenAgent}
-        />
-      ) : null}
+      <Transcript
+        rows={agent.loaded ? agent.rows : NO_ROWS}
+        working={agent.loaded && agent.turnRunning}
+        placeholder={placeholder}
+        now={agent.now}
+        threadId={agentId}
+        sessionId={sessionId}
+        onLoadOlder={agent.loadOlder}
+        agentLinks={agent.agentLinks}
+        onOpenAgent={handleOpenAgent}
+      />
     </View>
   )
 }
