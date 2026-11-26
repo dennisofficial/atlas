@@ -131,7 +131,12 @@ export const pluginPodContextOf = (args: {
       ...(deps.mcp === undefined ? {} : { mcp: deps.mcp(deps.sessionId) }),
     }),
     crew: args.crew,
-    messages: heldMessagesOf({ deps, crew: args.crew, selfAgentId: args.selfAgentId }),
+    messages: heldMessagesOf({
+      deps,
+      crew: args.crew,
+      step,
+      ...(args.selfAgentId === undefined ? {} : { selfAgentId: args.selfAgentId }),
+    }),
     classifier: {
       status: () => runtime.classifierStatus,
       classify: (args) => runtime.classifier.classify(args),

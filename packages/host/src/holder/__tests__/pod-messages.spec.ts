@@ -5,10 +5,16 @@ import type { ControlPlane } from '@dltech/atlas-control'
 import type { PodCrew, SubagentSaid } from '@dltech/atlas-plugin-sdk'
 
 import { FIND_IDS, podMessagesOf } from '../pod-messages'
+import type { HostStepPort } from '../record/host-step'
 
 const SESSION = 'session-1'
 
-type PeerCall = { fromSessionId: string; toSessionId: string; text: string }
+type PeerCall = {
+  fromSessionId: string
+  toSessionId: string
+  text: string
+  clientId?: string | undefined
+}
 
 const planeOf = (args: {
   peerRefused?: string | undefined
@@ -203,5 +209,73 @@ describe('send_message from a sub-agent', () => {
       queued: false,
     })
     expect(rig.peer).toHaveLength(1)
+  })
+})
+
+describe('send_message on a call that has a step', () => {
+  const stepOf =
+    (key: string): HostStepPort =>
+    async () => ({ key, replayed: false })
+
+  const rigWithStep = (key: string, saidReply?: SubagentSaid | undefined) => {
+    const said: { agentId: string; text: string; clientId?: string | undefined }[] = []
+    const peer: PeerCall[] = []
+    const reported: { sessionId: string; text: string; clientId?: string | undefined }[] = []
+    return {
+      said,
+      peer,
+      reported,
+      messages: podMessagesOf({
+        sessionId: SESSION,
+        crew: crewOf({ said: saidReply, calls: said, reported: [] }),
+        plane: {
+          messagePeer: async (params) => {
+            peer.push(params)
+            return { inboxId: 1, title: null }
+          },
+          reportToSpawner: async (params) => {
+            reported.push(params)
+            return { inboxId: 1 }
+          },
+        },
+        step: stepOf(key),
+      }),
+    }
+  }
+
+  it('stamps the step key on a message to a session', async () => {
+    const rig = rigWithStep('host.1.messages.h0')
+    await rig.messages.send({ to: 'session-2', text: 'hello' })
+    expect(rig.peer).toEqual([
+      {
+        fromSessionId: SESSION,
+        toSessionId: 'session-2',
+        text: 'hello',
+        clientId: 'host.1.messages.h0',
+      },
+    ])
+  })
+
+  it('stamps the step key on a message to a sub-agent', async () => {
+    const rig = rigWithStep('host.1.messages.h1', { queued: false, snapshot })
+    await rig.messages.send({ to: 'a2', text: 'take the parser' })
+    expect(rig.said).toEqual([
+      { agentId: 'a2', text: 'take the parser', clientId: 'host.1.messages.h1' },
+    ])
+    expect(rig.peer).toEqual([])
+  })
+
+  it('stamps the step key on a report to the spawner', async () => {
+    const rig = rigWithStep('host.1.messages.h2')
+    await rig.messages.send({ to: 'parent', text: 'the parser is green' })
+    expect(rig.reported).toEqual([
+      { sessionId: SESSION, text: 'the parser is green', clientId: 'host.1.messages.h2' },
+    ])
+  })
+
+  it('sends no client id when the call has no step', async () => {
+    const rig = sentOf({})
+    await rig.messages.send({ to: 'session-2', text: 'hello' })
+    expect(rig.peer).toEqual([{ fromSessionId: SESSION, toSessionId: 'session-2', text: 'hello' }])
   })
 })
