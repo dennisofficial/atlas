@@ -6,6 +6,7 @@ export const handleHello = (lane: CallLane, frame: { bootId: string; version: st
   const restart = previousBootId !== undefined && previousBootId !== frame.bootId
   lane.arrived(frame)
   const flushedAcks = lane.flushAcks()
+  lane.flushCancels(frame.bootId)
   if (previousBootId !== undefined) {
     lane.logged({ restart, flushedAcks, pending: lane.listed().length })
   }

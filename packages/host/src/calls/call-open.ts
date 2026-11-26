@@ -28,6 +28,7 @@ export type CallLane = {
   ready(signal?: AbortSignal | undefined): Promise<ReadyReply | undefined>
   arrived(frame: { bootId: string; version: string }): void
   flushAcks(): number
+  flushCancels(bootId: string): void
   logged(fields: { restart: boolean; flushedAcks: number; pending: number }): void
   helloReady(hello: { bootId: string; restart: boolean }): void
   listed(): Pending[]

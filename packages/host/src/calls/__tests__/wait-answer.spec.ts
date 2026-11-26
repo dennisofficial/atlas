@@ -56,6 +56,7 @@ const laneOf = (args: {
       state.bootId = frame.bootId
     },
     flushAcks: () => 0,
+    flushCancels: () => {},
     logged: () => {},
     helloReady: () => {},
     listed: () => [...pending.values()],
