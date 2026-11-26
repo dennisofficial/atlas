@@ -4,9 +4,11 @@ import { ESessionDisplay } from '@dltech/atlas-client/stream'
 import { rowStatusLabelOf, sessionStatusLabelOf } from '../session-status-label'
 
 describe('rowStatusLabelOf', () => {
-  it('leaves working and idle to the status icon', () => {
+  it('leaves working, idle and the pod states to the status icon', () => {
     expect(rowStatusLabelOf(ESessionDisplay.Working)).toBeUndefined()
     expect(rowStatusLabelOf(ESessionDisplay.Idle)).toBeUndefined()
+    expect(rowStatusLabelOf(ESessionDisplay.Starting)).toBeUndefined()
+    expect(rowStatusLabelOf(ESessionDisplay.Parked)).toBeUndefined()
   })
 
   it('keeps the label for the states that ask for attention', () => {
@@ -22,5 +24,6 @@ describe('rowStatusLabelOf', () => {
   it('keeps every label for the session header', () => {
     expect(sessionStatusLabelOf(ESessionDisplay.Working)).toBe('Working')
     expect(sessionStatusLabelOf(ESessionDisplay.Idle)).toBe('Idle')
+    expect(sessionStatusLabelOf(ESessionDisplay.Parked)).toBe('Parked')
   })
 })

@@ -11,8 +11,10 @@ const LABEL: Record<ESessionDisplay, string> = {
 }
 
 const SHOWN_BY_ICON_ALONE: ReadonlySet<ESessionDisplay> = new Set([
+  ESessionDisplay.Starting,
   ESessionDisplay.Working,
   ESessionDisplay.Idle,
+  ESessionDisplay.Parked,
 ])
 
 export const sessionStatusLabelOf = (display: ESessionDisplay | undefined): string | undefined =>
