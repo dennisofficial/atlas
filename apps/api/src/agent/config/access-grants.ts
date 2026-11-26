@@ -11,6 +11,7 @@ import { databaseUrlWithTls } from './database-url'
 import type { AgentHostEnv } from './env'
 
 const QUERY_TIMEOUT_MS = 10_000
+const READ_PARALLEL_QUERIES = 10
 
 const grantOf = (row: AccessGrantRow): AccessGrantRow => ({
   id: row.id,
@@ -30,7 +31,10 @@ export const accessSourceOf = (env: Pick<AgentHostEnv, 'databaseUrl'>): AccessSo
   const connection = (): Db => {
     if (opened !== undefined) return opened
     opened = createDb(
-      createPool(databaseUrlWithTls(env.databaseUrl), { queryTimeoutMs: QUERY_TIMEOUT_MS }),
+      createPool(databaseUrlWithTls(env.databaseUrl), {
+        queryTimeoutMs: QUERY_TIMEOUT_MS,
+        minIdle: READ_PARALLEL_QUERIES,
+      }),
     )
     return opened
   }
