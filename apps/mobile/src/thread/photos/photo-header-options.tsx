@@ -4,15 +4,16 @@ import {
   EButtonVariant,
   EFontWeight,
   ETextRole,
+  ETextTone,
   Text,
 } from '@dltech/atlas-ui-native'
 import type { NativeStackHeaderItem, NativeStackNavigationOptions } from 'expo-router'
-import { Platform } from 'react-native'
+import { Platform, StyleSheet, View } from 'react-native'
 
 import type { TPosture } from '../../layout/posture'
 import { leadingHeaderOptionsOf } from '../../navigation/header-options'
-
-const PHOTO_TITLE_LINES = 2
+import { photoDetailOf } from './photo-detail'
+import type { Photo } from './photo-store'
 
 const HIDDEN_EDGES = { top: 'hidden', bottom: 'hidden', left: 'hidden', right: 'hidden' } as const
 
@@ -34,27 +35,36 @@ const shareItemOf = (onPress: () => void): NativeStackHeaderItem => ({
   hidesSharedBackground: false,
 })
 
-const PhotoTitle = ({ name }: { name: string }) => (
-  <Text
-    size={ETextRole.Sm}
-    weight={EFontWeight.Medium}
-    numberOfLines={PHOTO_TITLE_LINES}
-    ellipsizeMode="middle"
-    accessibilityRole="header"
-  >
-    {name}
-  </Text>
-)
+const PhotoTitle = ({ photo }: { photo: Photo }) => {
+  const detail = photoDetailOf(photo)
+  return (
+    <View style={styles.title} accessibilityRole="header">
+      <Text
+        size={ETextRole.Sm}
+        weight={EFontWeight.Semibold}
+        numberOfLines={1}
+        ellipsizeMode="middle"
+      >
+        {photo.name}
+      </Text>
+      {detail === undefined ? null : (
+        <Text size={ETextRole.Xs} tone={ETextTone.Muted} numberOfLines={1}>
+          {detail}
+        </Text>
+      )}
+    </View>
+  )
+}
 
 export const photoHeaderOptionsOf = ({
-  name,
+  photo,
   posture,
   windowWidth,
   tint,
   onClose,
   onShare,
 }: {
-  name: string | undefined
+  photo: Photo | undefined
   posture: TPosture
   windowWidth: number
   tint: string
@@ -71,7 +81,7 @@ export const photoHeaderOptionsOf = ({
   if (Platform.OS !== 'ios')
     return {
       ...base,
-      title: name ?? 'Photo',
+      title: photo?.name ?? 'Photo',
       headerLeft: () => (
         <Button
           label="Close"
@@ -81,7 +91,7 @@ export const photoHeaderOptionsOf = ({
         />
       ),
       headerRight: () =>
-        name === undefined ? null : (
+        photo === undefined ? null : (
           <Button
             label="Share"
             variant={EButtonVariant.Ghost}
@@ -90,8 +100,8 @@ export const photoHeaderOptionsOf = ({
           />
         ),
     }
-  const shareItems = name === undefined ? [] : [shareItemOf(onShare)]
-  if (name === undefined)
+  const shareItems = photo === undefined ? [] : [shareItemOf(onShare)]
+  if (photo === undefined)
     return {
       ...base,
       title: '',
@@ -100,10 +110,10 @@ export const photoHeaderOptionsOf = ({
     }
   return {
     ...base,
-    title: name,
+    title: photo.name,
     ...leadingHeaderOptionsOf({
       leading: [closeItemOf(onClose)],
-      title: <PhotoTitle name={name} />,
+      title: <PhotoTitle photo={photo} />,
       glassTitle: true,
       titleButtons: 3,
       windowWidth,
@@ -112,3 +122,9 @@ export const photoHeaderOptionsOf = ({
     unstable_headerRightItems: () => shareItems,
   }
 }
+
+const styles = StyleSheet.create({
+  title: {
+    flexShrink: 1,
+  },
+})

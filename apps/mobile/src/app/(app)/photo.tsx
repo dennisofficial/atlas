@@ -35,7 +35,7 @@ const PhotoViewer = () => {
     >
       <Stack.Screen
         options={photoHeaderOptionsOf({
-          name: photo?.name,
+          photo,
           posture,
           windowWidth: width,
           tint: theme.foreground,
