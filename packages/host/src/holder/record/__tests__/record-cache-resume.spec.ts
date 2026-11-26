@@ -1,104 +1,50 @@
 import { describe, expect, it } from 'bun:test'
-import { ControlPlane } from '@dltech/atlas-control'
-import { InMemoryControlStore } from '@dltech/atlas-control/testing'
 import {
   ECompactionAnchor,
-  chainEvents,
+  ERetryReason,
   chainHash,
   toCallId,
-  toRunId,
-  toThreadId,
   type LogHead,
-  type RecordEvent,
-  type RecordEventBody,
 } from '@dltech/atlas-core'
 
 import { RecordCache } from '../record-cache'
 import { RecordResumeCache } from '../record-resume'
-
-const SESSION = 'session-1'
-const THREAD = toThreadId('thread-1')
-const AT = '2026-11-06T12:00:00.000Z'
-
-const said = (text: string): RecordEventBody => ({ type: 'user-said', text })
-const answered = (text: string): RecordEventBody => ({
-  type: 'assistant-said',
-  parts: [{ type: 'text', text }],
-})
-
-const openThread = async (): Promise<{ plane: ControlPlane; epoch: number }> => {
-  const plane = new ControlPlane({ store: new InMemoryControlStore({ clock: () => AT }) })
-  await plane.createSession({
-    sessionId: SESSION,
-    userId: 'user-1',
-    projectId: 'project-1',
-    mainThreadId: THREAD,
-  })
-  const { epoch } = await plane.grant({ sessionId: SESSION, hostId: 1 })
-  return { plane, epoch }
-}
-
-const appendTo = async (args: {
-  plane: ControlPlane
-  epoch: number
-  bodies: readonly RecordEventBody[]
-}): Promise<{ head: LogHead; events: RecordEvent[] }> => {
-  const from = await args.plane.head({ threadId: THREAD })
-  const events = chainEvents({
-    threadId: THREAD,
-    runId: toRunId('run-1'),
-    epoch: args.epoch,
-    at: AT,
-    bodies: args.bodies,
-    from,
-  })
-  const outcome = await args.plane.append({ threadId: THREAD, epoch: args.epoch, events })
-  if (!outcome.ok) throw new Error(`append refused: ${JSON.stringify(outcome.refusal)}`)
-  return { head: outcome.head, events }
-}
-
-type ReadPage = Awaited<ReturnType<ControlPlane['readEvents']>>
-type ReadParams = Parameters<ControlPlane['readEvents']>[0]
-
-type Probe = {
-  plane: ControlPlane
-  reads: number[]
-  head: LogHead | undefined
-  trap: ((page: ReadPage, index: number) => ReadPage) | undefined
-}
-
-const probeOf = (plane: ControlPlane): Probe => {
-  const probe: Probe = { plane, reads: [], head: undefined, trap: undefined }
-  probe.plane = new Proxy(plane, {
-    get: (target, key, receiver) => {
-      if (key === 'head' && probe.head !== undefined) return async () => probe.head
-      if (key !== 'readEvents') return Reflect.get(target, key, receiver)
-      return async (params: ReadParams) => {
-        const index = probe.reads.push(params.afterSeq)
-        const page = await target.readEvents(params)
-        return probe.trap === undefined ? page : probe.trap(page, index)
-      }
-    },
-  })
-  return probe
-}
+import {
+  AT,
+  THREAD,
+  answered,
+  appendSpilled,
+  appendTo,
+  openThread,
+  probeOf,
+  said,
+  transcriptOf,
+} from './resume-fixtures'
 
 const contentOf = (cache: RecordCache) => ({
+  thread: cache.threadId(),
   chain: cache.eventsAfter(0).map((event) => [event.seq, event.type, chainHash(event)]),
+  resolved: cache.eventsAfter(0).map((event) => cache.resolvedEvent(event)),
+  committed: cache.eventsAfter(0).map((event) => cache.committedHashAtSeq(event.seq)),
   visible: cache.visibleEvents().map((event) => event.seq),
   loop: cache.visibleLoopEvents(),
+  loopAfter: cache.loopEventsAfter(0),
   loopState: cache.loopState(),
   queued: cache.queuedSince(),
+  lastUserSaid: cache.bookkeeping().lastUserSaidSeq(),
   dispatched: cache.bookkeeping().findDispatched(toCallId('call-1')),
   fact: cache.bookkeeping().fact('consult:1'),
+  facts: cache.bookkeeping().factsWithPrefix('consult:'),
+  spilled: cache.bookkeeping().fact('resource:1'),
+  retry: cache.bookkeeping().retry('retry-1'),
+  retries: cache.bookkeeping().retriesWithPrefix('retry-'),
+  observation: cache.bookkeeping().lastObservation('repo-1'),
+  workspace: cache.bookkeeping().workspace(),
+  blobs: cache.resolvedBlobBytes(),
+  retained: cache.retainedBytes(),
 })
 
 const viewOf = (cache: RecordCache) => ({ head: cache.currentHead(), ...contentOf(cache) })
-
-const transcriptOf = (count: number): RecordEventBody[] =>
-  Array.from({ length: count }, (_, index) =>
-    index % 2 === 0 ? said(`ask ${index}`) : answered(`reply ${index}`),
-  )
 
 describe('RecordCache resume', () => {
   it('reads only the tail a host already holds', async () => {
@@ -115,7 +61,7 @@ describe('RecordCache resume', () => {
 
     expect(probe.reads[0]).toBe(cachedHead.seq)
     expect(probe.reads.every((afterSeq) => afterSeq >= cachedHead.seq)).toBe(true)
-    expect(resumed).toBe(first)
+    expect(resumed).not.toBe(first)
     expect(contentOf(resumed)).toEqual(
       contentOf(await RecordCache.load({ plane, threadId: THREAD })),
     )
@@ -132,9 +78,11 @@ describe('RecordCache resume', () => {
     const head = resumed.currentHead()
 
     stale.extend({ events: late.events, head: late.head })
+    stale.replaceHead({ seq: 1, hash: late.events[0]?.prevHash ?? head.hash })
 
     expect(resumed.eventsAfter(0).map((event) => event.seq)).toEqual([1, 2])
     expect(resumed.currentHead()).toEqual(head)
+    expect(viewOf(resumed)).toEqual(viewOf(await RecordCache.load({ plane, threadId: THREAD })))
   })
 
   it('refills from the start when the delta rewinds history', async () => {
@@ -186,7 +134,6 @@ describe('RecordCache resume', () => {
     })
     const resumed = await RecordCache.load({ plane, threadId: THREAD, resume })
 
-    expect(resumed).toBe(cached)
     expect(viewOf(resumed)).toEqual(viewOf(await RecordCache.load({ plane, threadId: THREAD })))
   })
 
@@ -241,7 +188,7 @@ describe('RecordCache resume', () => {
     )
   })
 
-  it('resumes to the state a full load reaches', async () => {
+  it('resumes to the state a full load reaches, including a suffix committed after it', async () => {
     const { plane, epoch } = await openThread()
     const resume = new RecordResumeCache()
     await appendTo({
@@ -251,17 +198,42 @@ describe('RecordCache resume', () => {
         said('build the parser'),
         { type: 'tool-dispatched', callId: toCallId('call-1'), name: 'bash' },
         { type: 'fact-recorded', key: 'consult:1', kind: 'consult', value: true },
+        {
+          type: 'retry-scheduled',
+          key: 'retry-1',
+          notBefore: AT,
+          attempt: 1,
+          reason: ERetryReason.Network,
+        },
+        {
+          type: 'branches-observed',
+          repo: 'repo-1',
+          head: 'abc123',
+          defaultBranch: 'main',
+          base: 'main',
+          branches: [{ name: 'main', sha: 'abc123' }],
+          worktrees: [],
+        },
         answered('parser built'),
       ],
+    })
+    await appendSpilled({
+      plane,
+      epoch,
+      body: {
+        type: 'fact-recorded',
+        key: 'resource:1',
+        kind: 'resource',
+        value: { text: 'x'.repeat(512) },
+      },
+      thresholdBytes: 64,
     })
 
     for (let round = 0; round < 3; round += 1) {
       const resumed = await RecordCache.load({ plane, threadId: THREAD, resume })
-      const fresh = await RecordCache.load({ plane, threadId: THREAD })
-      expect(viewOf(resumed)).toEqual(viewOf(fresh))
-      expect(resumed.loopEventsAfter(0)).toEqual(fresh.loopEventsAfter(0))
+      expect(viewOf(resumed)).toEqual(viewOf(await RecordCache.load({ plane, threadId: THREAD })))
 
-      await appendTo({
+      const appended = await appendTo({
         plane,
         epoch,
         bodies: [
@@ -271,6 +243,9 @@ describe('RecordCache resume', () => {
           answered(`done ${round}`),
         ],
       })
+      resumed.extend({ events: appended.events, head: appended.head })
+
+      expect(viewOf(resumed)).toEqual(viewOf(await RecordCache.load({ plane, threadId: THREAD })))
     }
   })
 })
