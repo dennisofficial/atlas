@@ -17,7 +17,7 @@ import { Terminal } from 'lucide-react-native'
 import { StyleSheet, View } from 'react-native'
 
 import { DiagramCard } from '../diagrams/diagram-card'
-import { hasMermaidFence } from '../diagrams/diagram-layout'
+import { hasCodeFence } from '../diagrams/diagram-layout'
 import {
   EMessageAuthor,
   senderLabelOf,
@@ -116,7 +116,7 @@ export const MessageRowView = ({
 
   if (row.command !== undefined) return <CommandMessage command={row.command} at={row.at} />
 
-  const bubbleStyle = hasMermaidFence(row.text) ? styles.diagramBubble : undefined
+  const bubbleStyle = hasCodeFence(row.text) ? styles.wideBubble : undefined
 
   if (row.staged === true) {
     return (
@@ -165,8 +165,8 @@ const styles = StyleSheet.create({
   staged: {
     opacity: 0.45,
   },
-  diagramBubble: {
-    alignSelf: 'stretch',
+  wideBubble: {
+    width: '80%',
   },
   message: {
     gap: space(2),
