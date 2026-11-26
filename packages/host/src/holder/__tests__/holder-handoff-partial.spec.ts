@@ -11,7 +11,7 @@ import {
 } from '@dltech/atlas-core'
 import { LogPort } from '@dltech/atlas-observability'
 
-import { DRAIN_IN_FLIGHT_CAP_MS } from '../drain-cap'
+import { DRAIN_IN_FLIGHT_CAP_MS, DRAIN_STREAM_ABORT_CAP_MS } from '../drain-cap'
 import { flushUntil, makeRig, seedSession, SESSION, THREAD_ID, type HolderRig } from './holder-rig'
 
 const PARTIAL_TEXT = 'partial answer'
@@ -126,13 +126,16 @@ describe('SessionHolder handoff with an open model step (exit 3b)', () => {
     const draining = a.holder.drain()
     await a.flush()
     a.clock.advance(DRAIN_IN_FLIGHT_CAP_MS)
+    await a.flush()
+    a.clock.advance(DRAIN_STREAM_ABORT_CAP_MS)
     await draining
 
     expect(await saids(a)).toEqual([])
     expect(await nudges(a)).toEqual([])
     const caps = log.entries.filter((entry) => entry.source === 'holder.drain')
-    expect(caps).toHaveLength(1)
+    expect(caps).toHaveLength(2)
     expect(caps[0]?.message).toContain('drain cap')
     expect(caps[0]?.message).toContain('model step')
+    expect(caps[1]?.message).toContain('model stream outlived')
   }, 15_000)
 })

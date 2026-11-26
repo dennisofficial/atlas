@@ -139,7 +139,7 @@ export async function takeModelStepWithRetry(args: {
   let wake = new AbortController()
   const stopWatching = args.retry?.clockJumps?.onJump(() => wake.abort())
   const handoff = new AbortController()
-  const stopPause = args.pause?.onPause(() => handoff.abort())
+  const stopPause = args.pause?.onModelAbort(() => handoff.abort())
   const sleepSignal =
     args.pause === undefined ? args.signal : AbortSignal.any([args.signal, handoff.signal])
 
@@ -183,12 +183,18 @@ export async function takeModelStepWithRetry(args: {
           tools: args.tools,
           onChunk,
           assembled,
-          signal: args.signal,
+          signal: sleepSignal,
         })
-      const attempt =
-        args.streamer === undefined
-          ? await run(args.onChunk)
-          : await args.streamer.attempt({ filter: args.onChunk, signal: args.signal, run })
+      const ended = args.pause?.beginModelStep()
+      const attempt = await (async () => {
+        try {
+          return args.streamer === undefined
+            ? await run(args.onChunk)
+            : await args.streamer.attempt({ filter: args.onChunk, signal: sleepSignal, run })
+        } finally {
+          ended?.()
+        }
+      })()
 
       if (attempt.ok) return attempt.stepped
 

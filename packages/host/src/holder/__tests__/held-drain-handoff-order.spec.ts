@@ -1,10 +1,11 @@
 import { describe, expect, it } from 'bun:test'
 
+import { PauseSignal } from '@dltech/atlas-agent'
+
 import { HeldDrain } from '../held-drain'
 import type { HeldEnding } from '../held-ending'
 import type { HeldSessionDeps } from '../held-session-deps'
 import type { HeldTurns } from '../held-turns'
-import type { SessionRuntime } from '../ports'
 
 const drainFor = (order: string[]): HeldDrain =>
   new HeldDrain({
@@ -13,6 +14,7 @@ const drainFor = (order: string[]): HeldDrain =>
       plane: { readInbox: async () => [] },
     } as unknown as HeldSessionDeps,
     sessionId: 'session-1',
+    pause: new PauseSignal(),
     turns: {
       turnRunning: false,
       whenIdle: async () => undefined,
@@ -23,7 +25,6 @@ const drainFor = (order: string[]): HeldDrain =>
       },
     } as unknown as HeldEnding,
     record: () => undefined,
-    runtime: () => ({}) as unknown as SessionRuntime,
     childrenPause: async () => {
       order.push('children-paused')
     },

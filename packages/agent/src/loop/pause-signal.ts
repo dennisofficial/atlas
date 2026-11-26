@@ -2,6 +2,9 @@ export class PauseSignal {
   private isPaused = false
   private waiters: (() => void)[] = []
   private readonly listeners = new Set<() => void>()
+  private readonly modelAborters = new Set<() => void>()
+  private modelSteps = 0
+  private readonly modelIdle: (() => void)[] = []
 
   get paused(): boolean {
     return this.isPaused
@@ -31,6 +34,37 @@ export class PauseSignal {
     this.listeners.add(listener)
     return () => {
       this.listeners.delete(listener)
+    }
+  }
+
+  beginModelStep(): () => void {
+    this.modelSteps += 1
+    let ended = false
+    return () => {
+      if (ended) return
+      ended = true
+      this.modelSteps -= 1
+      if (this.modelSteps > 0) return
+      const idle = this.modelIdle.splice(0)
+      for (const resolve of idle) resolve()
+    }
+  }
+
+  whenModelIdle(): Promise<void> {
+    if (this.modelSteps === 0) return Promise.resolve()
+    return new Promise<void>((resolve) => {
+      this.modelIdle.push(resolve)
+    })
+  }
+
+  abortModelStep(): void {
+    for (const abort of [...this.modelAborters]) abort()
+  }
+
+  onModelAbort(listener: () => void): () => void {
+    this.modelAborters.add(listener)
+    return () => {
+      this.modelAborters.delete(listener)
     }
   }
 }

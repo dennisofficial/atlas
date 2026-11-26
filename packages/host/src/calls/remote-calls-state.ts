@@ -11,13 +11,7 @@ import { handleHello } from './hello-reply'
 import { DaemonLink } from './link'
 import { READY_TIMEOUT_MS, withReadyDeadline } from './ready-deadline'
 import { ReadyGate, type ReadyReply } from './ready-gate'
-import {
-  failedResult,
-  handedOffResult,
-  handleDaemonFrame,
-  rejectPending,
-  type Pending,
-} from './remote-calls-frames'
+import { failedResult, handleDaemonFrame, rejectPending, type Pending } from './remote-calls-frames'
 import type { RemoteCallsArgs } from './remote-calls'
 import { interruptPendingForResize } from './restart-interrupt'
 import { ScopeAcks } from './scope-acks'
@@ -163,10 +157,6 @@ export class RemoteCallsState {
     this.detached = true
     this.args.releaseResize()
     this.answers.refuseAll()
-    for (const call of [...this.pending.values()]) {
-      if (call.done) continue
-      this.settle(call, handedOffResult(call))
-    }
   }
 
   close(): void {

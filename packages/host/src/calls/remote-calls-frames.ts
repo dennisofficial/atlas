@@ -47,26 +47,6 @@ export const failedResult = (args: {
   error: { code: args.code, message: args.message },
 })
 
-export const handedOffResult = (call: Pending): CallResult => {
-  if (call.op.op !== 'exec') {
-    return failedResult({
-      op: call.op.op,
-      code: ECallFailure.Internal,
-      message: interruptedMessage(call.op.op),
-    })
-  }
-  return {
-    status: ECallStatus.Ok,
-    op: 'exec',
-    value: {
-      exitCode: null,
-      signal: 'SIGTERM',
-      outcome: EExecOutcome.TimedOut,
-      outputBytes: call.delivered,
-    },
-  }
-}
-
 export const cancelledResult = (call: Pending): CallResult => {
   if (call.op.op !== 'exec') {
     return failedResult({ op: call.op.op, code: ECallFailure.Cancelled, message: 'cancelled' })

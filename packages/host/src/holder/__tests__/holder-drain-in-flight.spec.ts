@@ -2,6 +2,7 @@ import { describe, expect, it } from 'bun:test'
 
 import {
   EFinishReason,
+  EToolEffect,
   ModelPort,
   toCallId,
   type Assembled,
@@ -13,13 +14,13 @@ import {
 } from '@dltech/atlas-core'
 import { FakeTool, ScriptedModel } from '@dltech/atlas-agent/testing'
 
-import { DRAIN_IN_FLIGHT_CAP_MS } from '../drain-cap'
 import { flushUntil, makeRig, seedSession, SESSION, THREAD_ID, type HolderRig } from './holder-rig'
 
 const STEP_TEXT = 'working'
 
 class GatedTool extends FakeTool {
   started = false
+  runs = 0
   private release: (() => void) | undefined
 
   constructor() {
@@ -32,11 +33,20 @@ class GatedTool extends FakeTool {
 
   override async invoke(): Promise<ToolOutcome> {
     this.started = true
+    this.runs += 1
     await new Promise<void>((resolve) => {
       this.release = resolve
     })
     return { ok: true, output: 'done', modelText: 'done' }
   }
+}
+
+class EffectfulGatedTool extends GatedTool {
+  readonly effect = EToolEffect.Write
+}
+
+class EffectfulTool extends FakeTool {
+  readonly effect = EToolEffect.Write
 }
 
 class CallThenGateModel extends ModelPort {
@@ -121,54 +131,39 @@ describe('SessionHolder drain with work in flight', () => {
     expect(lease.holderHostId).toBeNull()
   }, 15_000)
 
-  it('records a host-side tool that was in flight when the drain began', async () => {
+  it('hands back without waiting for a host-side tool, and writes nothing about it', async () => {
     const model = new ScriptedModel([...script(), { text: 'done' }])
     const tool = new GatedTool()
     const a = await makeRig({ model: () => model, hostTools: [tool] })
     await started(a, 'go')
     expect(await flushUntil({ check: () => tool.started })).toBe(true)
 
-    const draining = a.holder.drain()
+    await a.holder.drain()
     await a.flush()
-    tool.releaseNow()
-    await draining
-
-    const events = await eventsOf(a)
-    const results = events.filter((event) => event.type === 'tool-result')
-    expect(results).toHaveLength(1)
-    expect(results[0]).not.toMatchObject({ interrupted: true })
-    expect(model.requests).toHaveLength(1)
-    expect(typesOf(events)).not.toContain('nudge')
-    const { lease } = await a.plane.currentLease({ sessionId: SESSION })
-    expect(lease.holderHostId).toBeNull()
-  }, 15_000)
-
-  it('marks a call the cap detached so the next host runs it instead of settling a crash', async () => {
-    const model = new ScriptedModel([...script(), { text: 'done' }])
-    const tool = new GatedTool()
-    const a = await makeRig({ model: () => model, hostTools: [tool] })
-    await started(a, 'go')
-    expect(await flushUntil({ check: () => tool.started })).toBe(true)
-
-    const draining = a.holder.drain()
-    await a.flush()
-    a.clock.advance(DRAIN_IN_FLIGHT_CAP_MS)
-
-    const detached = await flushUntil({
-      check: async () =>
-        (await eventsOf(a)).some(
-          (event) => event.type === 'tool-dispatched' && event.detached === true,
-        ),
-    })
-    expect(detached).toBe(true)
-    tool.releaseNow()
-    await a.flush()
-    await draining
 
     const drained = await eventsOf(a)
     expect(drained.filter((event) => event.type === 'tool-result')).toEqual([])
+    expect(drained.filter((event) => event.type === 'tool-dispatched')).toHaveLength(1)
     expect(typesOf(drained)).not.toContain('nudge')
+    const { lease } = await a.plane.currentLease({ sessionId: SESSION })
+    expect(lease.holderHostId).toBeNull()
 
+    tool.releaseNow()
+    await a.flush()
+    expect((await eventsOf(a)).filter((event) => event.type === 'tool-result')).toEqual([])
+  }, 15_000)
+
+  it('leaves the open call to the next host, which settles it exactly once', async () => {
+    const model = new ScriptedModel([...script(), { text: 'done' }])
+    const tool = new EffectfulGatedTool()
+    const a = await makeRig({ model: () => model, hostTools: [tool] })
+    await started(a, 'go')
+    expect(await flushUntil({ check: () => tool.started })).toBe(true)
+
+    await a.holder.drain()
+    await a.flush()
+
+    const bTool = new EffectfulTool('slow', 'done')
     const b = await makeRig({
       plane: a.plane,
       store: a.store,
@@ -176,23 +171,22 @@ describe('SessionHolder drain with work in flight', () => {
       clock: a.clock,
       daemon: a.daemon,
       script: [{ text: 'done' }],
-      hostTools: [new FakeTool('slow', 'done')],
+      hostTools: [bTool],
     })
     await b.holder.start()
     await b.wake()
 
-    const rerun = await flushUntil({
+    const settled = await flushUntil({
       check: async () => (await eventsOf(a)).some((event) => event.type === 'tool-result'),
       attempts: 200,
       clock: a.clock,
     })
-    expect(rerun).toBe(true)
+    expect(settled).toBe(true)
 
     const after = await eventsOf(a)
     expect(after.filter((event) => event.type === 'tool-result')).toHaveLength(1)
-    expect(
-      after.filter((event) => event.type === 'tool-result' && event.interrupted === true),
-    ).toEqual([])
+    expect(after.filter((event) => event.type === 'tool-dispatched')).toHaveLength(1)
+    expect(tool.runs).toBe(1)
     expect(typesOf(after)).not.toContain('nudge')
   }, 20_000)
 })

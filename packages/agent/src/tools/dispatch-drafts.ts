@@ -47,13 +47,6 @@ export async function markDispatchStarted(args: {
   }
 }
 
-export const detachedDispatchDraft = (call: { callId: CallId; name: string }): EventDraft => ({
-  type: 'tool-dispatched',
-  callId: call.callId,
-  name: call.name,
-  detached: true,
-})
-
 export function unknownToolDraft(args: {
   call: DispatchableCall
   available: readonly string[]

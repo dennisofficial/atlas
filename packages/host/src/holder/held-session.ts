@@ -123,10 +123,10 @@ export class HeldSession {
     this.drain = new HeldDrain({
       deps,
       sessionId: this.sessionId,
+      pause: this.pause,
       turns: this.turns,
       ending: this.ending,
       record: () => this.record,
-      runtime: () => this.runtime,
       childrenPause: () => this.crew?.pauseAll(),
       pendingHandoff: () => this.runtime?.remoteCalls.handoff(),
     })
@@ -142,14 +142,7 @@ export class HeldSession {
     this.observation?.drain()
     this.pause.pause()
     this.record?.markDraining()
-    this.abortCallsWaitingOnTheWorkspace()
     this.reconciler?.request()
-  }
-
-  private abortCallsWaitingOnTheWorkspace(): void {
-    if (!this.turns.turnRunning) return
-    if (this.runtime?.workspaceGate?.blocked !== true) return
-    this.turns.abort('handoff')
   }
 
   run(args: { lease: Lease; threadId: ThreadId; claimMs?: number }): Promise<HeldOutcome> {
