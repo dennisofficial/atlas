@@ -1,19 +1,20 @@
 import type { ApiClient } from '@dltech/atlas-api-router'
-import { useEffect, useState } from 'react'
+import { useState } from 'react'
 import { z } from 'zod'
 
-import { listSessions } from '../../sessions/list-sessions'
 import { type IModelOption, type IModelSelection } from '../../composer/model-options'
 import { useModels } from '../../composer/use-models'
 import { usePinnedModels } from '../../composer/use-pinned-models'
 import { useSettings } from '../../settings/settings-provider'
-import { choiceOfSessionRows, modelSetArgsOf, selectionOfChoice } from './session-commands'
+import { choiceOfSessionRows, modelSetArgsOf, selectionOfSessionRows } from './session-commands'
+import { useSessionRows } from './use-session-rows'
 
 export type SessionModelSheet = {
   open: boolean
   onClose: () => void
   models: readonly IModelOption[]
   selection: IModelSelection | null
+  pinnedRef: string | null
   pinned: readonly string[]
   personalId: string
   onPinnedChange: (ids: string[]) => void
@@ -23,35 +24,14 @@ export type SessionModelSheet = {
 export const useSessionModelChoice = (args: {
   api: ApiClient | undefined
   sessionId: string
-  open: boolean
 }): Omit<SessionModelSheet, 'open' | 'onClose'> => {
   const { models } = useModels()
   const { pinned, setPinned } = usePinnedModels()
   const settings = useSettings()
+  const rows = useSessionRows()
   const personalId = settings.read({ key: 'model.id', schema: z.string() })
-  const [current, setCurrent] = useState<IModelSelection | null | undefined>(undefined)
   const [chosen, setChosen] = useState<IModelSelection | null | undefined>(undefined)
-
-  useEffect(() => {
-    if (!args.open || current !== undefined || args.api === undefined) return
-    let cancelled = false
-    void listSessions({ api: args.api })
-      .then((sessions) => {
-        if (cancelled) return
-        setCurrent(
-          selectionOfChoice({
-            models,
-            choice: choiceOfSessionRows(sessions, args.sessionId),
-          }),
-        )
-      })
-      .catch(() => {
-        if (!cancelled) setCurrent(null)
-      })
-    return () => {
-      cancelled = true
-    }
-  }, [args.open, args.api, args.sessionId, current, models])
+  const pinnedRef = choiceOfSessionRows(rows ?? [], args.sessionId)?.ref ?? null
 
   const handleSelect = (selection: IModelSelection | null) => {
     setChosen(selection)
@@ -65,7 +45,8 @@ export const useSessionModelChoice = (args: {
 
   return {
     models,
-    selection: chosen === undefined ? (current ?? null) : chosen,
+    selection: chosen ?? selectionOfSessionRows({ models, rows, sessionId: args.sessionId }),
+    pinnedRef,
     pinned,
     personalId,
     onPinnedChange: setPinned,

@@ -16,6 +16,7 @@ import {
   mobileEntriesOf,
   modelSetArgsOf,
   selectionOfChoice,
+  selectionOfSessionRows,
 } from '../session-commands'
 
 const entryOf = (args: Partial<CommandEntry> & { name: string }): CommandEntry => ({
@@ -140,6 +141,35 @@ describe('selectionOfChoice', () => {
 
   it('has no selection when the session carries no model', () => {
     expect(selectionOfChoice({ models: [MODEL], choice: null })).toBeNull()
+  })
+})
+
+describe('selectionOfSessionRows', () => {
+  const OPUS: IModelOption = {
+    id: 'anthropic/claude-opus-5-5',
+    label: 'Opus 5.5',
+    provider: 'Anthropic',
+    providerId: 'anthropic',
+    monogram: 'A',
+    efforts: ['low', 'medium', 'high'],
+    context: '1M',
+    rate: null,
+    fast: true,
+  }
+  const rows = [{ sessionId: 'ses_1', model: { ref: OPUS.id, effort: 'high', fast: true } }]
+
+  it('resolves the pinned model once the catalogue has loaded', () => {
+    expect(selectionOfSessionRows({ models: [], rows, sessionId: 'ses_1' })).toBeNull()
+    const selection = selectionOfSessionRows({ models: [OPUS], rows, sessionId: 'ses_1' })
+    expect(selection?.model.label).toBe('Opus 5.5')
+    expect(selection?.effort).toBe('high')
+    expect(selection?.fast).toBe(true)
+  })
+
+  it('has no selection before the session rows arrive', () => {
+    expect(
+      selectionOfSessionRows({ models: [OPUS], rows: undefined, sessionId: 'ses_1' }),
+    ).toBeNull()
   })
 })
 

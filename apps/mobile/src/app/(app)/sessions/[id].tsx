@@ -241,6 +241,7 @@ export default function SessionScreen() {
                   <ModelTrigger
                     models={model.models}
                     selection={model.selection}
+                    pinnedRef={model.pinnedRef}
                     onPress={handleOpenModel}
                   />
                   {model.selection === null ? null : (

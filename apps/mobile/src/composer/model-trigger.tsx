@@ -7,14 +7,16 @@ import { type IModelOption, type IModelSelection, modelTriggerLabelOf } from './
 export const ModelTrigger = ({
   models,
   selection,
+  pinnedRef,
   onPress,
 }: {
   models: readonly IModelOption[]
   selection: IModelSelection | null
+  pinnedRef?: string | null
   onPress: () => void
 }) => {
   const theme = useTheme()
-  const label = modelTriggerLabelOf({ models, selection })
+  const label = modelTriggerLabelOf({ models, selection, ref: pinnedRef })
 
   return (
     <Pressable
