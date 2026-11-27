@@ -49,6 +49,16 @@ const pageSchema = z.object({
 const detailOf = ({ body, statusText }: { body: string; statusText: string }): string =>
   body === '' ? statusText : body.slice(0, 500)
 
+export const messageOf = (fault: unknown): string =>
+  fault instanceof Error ? fault.message : String(fault)
+
+export function chunkValues<T>({ values, size }: { values: readonly T[]; size: number }): T[][] {
+  const chunks: T[][] = []
+  for (let index = 0; index < values.length; index += size)
+    chunks.push(values.slice(index, index + size))
+  return chunks
+}
+
 export function createPosthogApi({
   apiKey,
   host = POSTHOG_HOST,

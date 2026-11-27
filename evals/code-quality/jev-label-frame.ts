@@ -2,7 +2,7 @@ import { z } from 'zod'
 
 import { md5Hex, splitRequestState } from './jev-label-state'
 import type { JevLabelFrameRow } from './jev-label-sample'
-import type { PosthogApi } from './posthog-api'
+import { chunkValues, type PosthogApi } from './posthog-api'
 
 export const JEV_LABEL_STATE_BATCH = 10
 
@@ -79,13 +79,6 @@ export function parseFrameRows({
   })
 }
 
-const chunk = <T>({ values, size }: { values: readonly T[]; size: number }): T[][] => {
-  const chunks: T[][] = []
-  for (let index = 0; index < values.length; index += size)
-    chunks.push(values.slice(index, index + size))
-  return chunks
-}
-
 function verifyState({
   content,
   md5,
@@ -113,7 +106,7 @@ export async function fetchVerifiedStates({
 }): Promise<{ states: Map<string, string>; faults: Map<string, string> }> {
   const states = new Map<string, string>()
   const faults = new Map<string, string>()
-  for (const batch of chunk({ values: generationIds, size: JEV_LABEL_STATE_BATCH })) {
+  for (const batch of chunkValues({ values: generationIds, size: JEV_LABEL_STATE_BATCH })) {
     const rows = await api.hogql({ query: stateQuery({ generationIds: batch }) })
     for (const row of rows) {
       const parsed = stateRowSchema.parse(row)

@@ -8,7 +8,7 @@ import {
   selectJevLabelSample,
 } from './jev-label-sample'
 import { itemOf, labelSample, rowOf, type JevLabelItem, type JevLabelRow } from './jev-label-row'
-import type { PosthogApi } from './posthog-api'
+import { messageOf, type PosthogApi } from './posthog-api'
 
 export const JEV_LABEL_DEFAULT_POLICY_ID = 'single-responsibility'
 export const JEV_LABEL_SCORE_DEFINITION_ID = '01a21506-a910-7481-b715-b0ae5e47798c'
@@ -17,9 +17,6 @@ export const JEV_LABEL_REVIEW_QUEUE_ID = '01a21506-aee9-74dd-b7de-2f87c0fdc043'
 export const JEV_LABEL_CONCURRENCY = 8
 
 export type JevLabelRun = { rows: readonly JevLabelRow[]; items: readonly JevLabelItem[] }
-
-const messageOf = (fault: unknown): string =>
-  fault instanceof Error ? fault.message : String(fault)
 
 export async function runWithConcurrency<T, R>({
   values,
