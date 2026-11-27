@@ -5,7 +5,9 @@ import { join } from 'node:path'
 export type TestPackage = { dir: string; name: string; script: string; specs: number }
 export type ShardCommand = { name: string; dir: string; command: string }
 
-const PARALLEL = /\s--parallel(\s|=|$)/
+const PARALLEL = /\s--parallel(?=\s|$)/
+const PARALLEL_FLAG = /\s--parallel(=\d+)?(?=\s|$)/
+export const API_WORKERS = 2
 
 const SHARDABLE = /^bun test(\s[^&|;]*)?$/
 const WORKSPACE_GLOBS = ['packages/*/package.json', 'plugins/*/package.json', 'apps/*/package.json']
@@ -21,7 +23,10 @@ export function shardCommands(args: {
   const largestFirst = [...packages].sort((left, right) => right.specs - left.specs)
   return largestFirst.flatMap((pkg) => {
     if (SHARDABLE.test(pkg.script)) {
-      return [{ name: pkg.name, dir: pkg.dir, command: `${pkg.script} --shard=${shard}/${total}` }]
+      const script = pkg.script.replace(PARALLEL, (match) =>
+        match.replace('--parallel', `--parallel=${API_WORKERS}`),
+      )
+      return [{ name: pkg.name, dir: pkg.dir, command: `${script} --shard=${shard}/${total}` }]
     }
     return shard === 1 ? [{ name: pkg.name, dir: pkg.dir, command: pkg.script }] : []
   })
@@ -69,7 +74,7 @@ export async function runPooled<T>(args: {
 }
 
 export const coresHeldBy = (command: ShardCommand, cores: number) =>
-  PARALLEL.test(command.command) ? cores : 1
+  PARALLEL_FLAG.test(command.command) ? cores : 1
 
 function testPackages(root: string): TestPackage[] {
   const manifests = [

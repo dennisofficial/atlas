@@ -12,7 +12,11 @@ describe('shardCommands', () => {
   test('every plain bun test script runs its own slice of files on each shard, largest first', () => {
     const commands = shardCommands({ packages, shard: 2, total: 4 })
     expect(commands).toEqual([
-      { name: 'api', dir: '/r/apps/api', command: 'bun test --parallel --no-isolate --shard=2/4' },
+      {
+        name: 'api',
+        dir: '/r/apps/api',
+        command: 'bun test --parallel=2 --no-isolate --shard=2/4',
+      },
       { name: 'core', dir: '/r/packages/core', command: 'bun test --shard=2/4' },
     ])
   })
