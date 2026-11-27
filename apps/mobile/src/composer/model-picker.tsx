@@ -101,7 +101,9 @@ const ModelListBody = ({
         <Input
           bare
           accessibilityLabel="Search models"
+          autoCapitalize="none"
           autoCorrect={false}
+          spellCheck={false}
           placeholder="Search models"
           value={query}
           onChangeText={setQuery}
