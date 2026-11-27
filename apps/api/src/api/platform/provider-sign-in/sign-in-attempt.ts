@@ -3,7 +3,14 @@ import { EOauthProvider } from '@dltech/atlas-wire'
 import { z } from 'zod'
 import type { SecretCipherService } from '../../../_lib/crypto/secret-cipher.service'
 
+export enum ESignInAttempt {
+  Paste = 'paste',
+  Device = 'device',
+  Loopback = 'loopback',
+}
+
 const pasteAttemptSchema = z.object({
+  kind: z.literal(ESignInAttempt.Paste),
   provider: z.literal(EOauthProvider.Anthropic),
   userId: z.string(),
   expiresAtMs: z.number(),
@@ -13,6 +20,7 @@ const pasteAttemptSchema = z.object({
 })
 
 const deviceAttemptSchema = z.object({
+  kind: z.literal(ESignInAttempt.Device),
   provider: z.literal(EOauthProvider.OpenAI),
   userId: z.string(),
   expiresAtMs: z.number(),
@@ -20,10 +28,26 @@ const deviceAttemptSchema = z.object({
   userCode: z.string(),
 })
 
-const attemptSchema = z.discriminatedUnion('provider', [pasteAttemptSchema, deviceAttemptSchema])
+const loopbackAttemptSchema = z.object({
+  kind: z.literal(ESignInAttempt.Loopback),
+  provider: z.enum(EOauthProvider),
+  userId: z.string(),
+  expiresAtMs: z.number(),
+  verifier: z.string(),
+  challenge: z.string(),
+  state: z.string(),
+  redirectUri: z.string(),
+})
+
+const attemptSchema = z.discriminatedUnion('kind', [
+  pasteAttemptSchema,
+  deviceAttemptSchema,
+  loopbackAttemptSchema,
+])
 
 export type PasteAttempt = z.infer<typeof pasteAttemptSchema>
 export type DeviceAttempt = z.infer<typeof deviceAttemptSchema>
+export type LoopbackAttempt = z.infer<typeof loopbackAttemptSchema>
 export type SignInAttempt = z.infer<typeof attemptSchema>
 
 export const ATTEMPT_PREFIX = 'psi_'

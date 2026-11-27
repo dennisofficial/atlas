@@ -22,11 +22,15 @@ const HTML = 'text/html; charset=utf-8'
 
 export type LoopbackAccepted<T> = { page: ReturnOutcome; value: T }
 
-export type LoopbackSpec<T> = {
-  state: string
+export type LoopbackListenerSpec<T> = {
   path: string
-  hrefOf: (port: number) => string
+  hosts?: readonly string[] | undefined
   readReturn: (url: string) => LoopbackAccepted<T> | undefined
+}
+
+export type LoopbackSpec<T> = LoopbackListenerSpec<T> & {
+  state: string
+  hrefOf: (port: number) => string
 }
 
 type LoopbackServe = {
@@ -39,14 +43,22 @@ export type LoopbackStart = LoopbackServe & { url: string }
 
 export type LoopbackWait<T> = LoopbackServe & { spec: LoopbackSpec<T> }
 
-export type LoopbackReturn<T = ReturnOutcome> = {
+export type LoopbackListener<T> = {
   port: number
-  href: string
   outcome: Promise<T | undefined>
   stop: () => void
 }
 
-const serveLoopback = <T>(args: LoopbackServe & { spec: LoopbackSpec<T> }): LoopbackReturn<T> => {
+export type LoopbackBind<T> = {
+  copy: LoopbackCopy
+  port?: number | undefined
+  timeoutMs?: number | undefined
+  spec: LoopbackListenerSpec<T>
+}
+
+export type LoopbackReturn<T = ReturnOutcome> = LoopbackListener<T> & { href: string }
+
+export const startLoopbackListener = <T>(args: LoopbackBind<T>): LoopbackListener<T> => {
   const { spec } = args
   let settle: (value: T | undefined) => void = () => undefined
   const outcome = new Promise<T | undefined>((resolve) => {
@@ -66,7 +78,7 @@ const serveLoopback = <T>(args: LoopbackServe & { spec: LoopbackSpec<T> }): Loop
 
   const server = Bun.serve({
     hostname: LOOPBACK_HOST,
-    port: 0,
+    port: args.port ?? 0,
     fetch: (request, host) => {
       const address = host.requestIP(request)?.address
       if (
@@ -76,6 +88,7 @@ const serveLoopback = <T>(args: LoopbackServe & { spec: LoopbackSpec<T> }): Loop
           url: request.url,
           port,
           path: spec.path,
+          ...(spec.hosts === undefined ? {} : { hosts: spec.hosts }),
         })
       )
         return new Response(NOT_FOUND_BODY, { status: NOT_FOUND })
@@ -95,29 +108,43 @@ const serveLoopback = <T>(args: LoopbackServe & { spec: LoopbackSpec<T> }): Loop
   }
 
   port = boundPort
+  timer = setTimeout(() => close(undefined), args.timeoutMs ?? LOOPBACK_TIMEOUT_MS)
+  timer.unref?.()
 
-  const startOpened = (): { href: string; launched: unknown } => {
-    try {
-      const href = spec.hrefOf(port)
-      timer = setTimeout(() => close(undefined), args.timeoutMs ?? LOOPBACK_TIMEOUT_MS)
-      timer.unref?.()
-      return { href, launched: args.open(href) }
-    } catch (error) {
-      close(undefined)
-      throw error
-    }
+  return { port, outcome, stop: () => close(undefined) }
+}
+
+const serveLoopback = <T>(args: LoopbackServe & { spec: LoopbackSpec<T> }): LoopbackReturn<T> => {
+  const { spec } = args
+  const listener = startLoopbackListener({
+    copy: args.copy,
+    spec,
+    ...(args.timeoutMs === undefined ? {} : { timeoutMs: args.timeoutMs }),
+  })
+  let href: string
+  try {
+    href = spec.hrefOf(listener.port)
+  } catch (error) {
+    listener.stop()
+    throw error
   }
 
-  const { href, launched } = startOpened()
+  let launched: unknown
+  try {
+    launched = args.open(href)
+  } catch (error) {
+    listener.stop()
+    throw error
+  }
 
   void Promise.resolve(launched).then(
     (started) => {
-      if (started === false) close(undefined)
+      if (started === false) listener.stop()
     },
-    () => close(undefined),
+    () => listener.stop(),
   )
 
-  return { port, href, outcome, stop: () => close(undefined) }
+  return { port: listener.port, href, outcome: listener.outcome, stop: listener.stop }
 }
 
 const cardSpecOf = (args: LoopbackStart): LoopbackSpec<ReturnOutcome> => {
