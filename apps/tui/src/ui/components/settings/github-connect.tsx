@@ -22,6 +22,7 @@ const STATUS_LABEL: Readonly<Record<ESettingsLogin, string | null>> = {
   [ESettingsLogin.Idle]: null,
   [ESettingsLogin.Asking]: 'asking GitHub for a code…',
   [ESettingsLogin.Prompting]: 'code below — waiting for approval…',
+  [ESettingsLogin.Browser]: 'waiting for your browser…',
   [ESettingsLogin.Finishing]: 'connecting…',
 }
 

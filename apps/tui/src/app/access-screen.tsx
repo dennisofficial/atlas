@@ -1,6 +1,6 @@
 import React from 'react'
 
-import type { DeviceSignInControl } from './account/use-device-sign-in'
+import type { SignInControl } from './account/use-sign-in'
 import { EScreen, type ScreenState } from './app-screen'
 import { AwaitingAccessScreen } from './awaiting-access-screen'
 import { SignInScreen } from './sign-in-screen'
@@ -8,7 +8,7 @@ import { SignInScreen } from './sign-in-screen'
 export function AccessScreen(props: {
   screen: ScreenState
   width: number
-  signIn: DeviceSignInControl
+  signIn: SignInControl
   openUrl: (url: string) => void
   onSignOut: () => void
 }): React.ReactNode {
@@ -19,6 +19,7 @@ export function AccessScreen(props: {
         state={props.signIn.state}
         reason={props.screen.reason}
         onSignIn={props.signIn.begin}
+        onUseCode={props.signIn.switchToCode}
         onOpenUrl={props.openUrl}
       />
     )

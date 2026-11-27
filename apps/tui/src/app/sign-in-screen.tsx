@@ -2,7 +2,7 @@ import React from 'react'
 
 import { CloudSignInPrompt, CloudSignInRow } from '../ui/components/settings/cloud-sign-in'
 import { Spans } from '../ui/components/spans'
-import type { SettingsLoginState } from '../ui/settings-login-model'
+import { ESettingsLogin, type SettingsLoginState } from '../ui/settings-login-model'
 import { theme } from '../ui/theme'
 
 const MAX_COLUMN_CELLS = 76
@@ -20,6 +20,7 @@ export function SignInScreen(props: {
   state: SettingsLoginState
   reason?: string | null
   onSignIn: () => void
+  onUseCode: () => void
   onOpenUrl: (url: string) => void
 }): React.ReactNode {
   const column = Math.min(props.width, MAX_COLUMN_CELLS)
@@ -50,6 +51,11 @@ export function SignInScreen(props: {
           <text fg={theme.warn}>{props.reason}</text>
         )}
         {props.state.failure === null ? null : <text fg={theme.warn}>{props.state.failure}</text>}
+        {props.state.status === ESettingsLogin.Browser ? (
+          <text>
+            <Spans spans={[{ text: 'press c to use a code instead', fg: theme.hint }]} />
+          </text>
+        ) : null}
         <text> </text>
         <text>
           <Spans spans={[{ text: HINTS, fg: theme.hint }]} />

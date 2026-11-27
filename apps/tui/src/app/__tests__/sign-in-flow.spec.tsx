@@ -20,6 +20,8 @@ const VERIFY_URL = 'https://byatlas.io/device?code=ABCD-1234'
 
 const WITHIN = 30_000
 
+const SSH_ENV = { SSH_CONNECTION: '10.0.0.1 51000 10.0.0.2 22' }
+
 const fakeCreateClient: SessionClientFactory = (args) =>
   fakeSessionClient({ onAuthLost: args.onAuthLost })
 
@@ -60,7 +62,7 @@ const signInFetch = (): typeof fetch => {
 
 describe('the sign-in flow', () => {
   test(
-    'shows the device code, stores the token, then lists the account',
+    'shows the device code over ssh, stores the token, then lists the account',
     async () => {
       const home = mkdtempSync(join(tmpdir(), 'atlas-sign-in-'))
       const accountPath = join(home, 'account.json')
@@ -72,6 +74,7 @@ describe('the sign-in flow', () => {
           initialAccount={null}
           apiUrl={API_URL}
           clientVersion="test"
+          env={SSH_ENV}
           openUrl={(url) => opened.push(url)}
           fetchFn={signInFetch()}
           createClient={fakeCreateClient}

@@ -10,9 +10,11 @@ import {
   accountPathOf,
   apiUrlOf,
   DEFAULT_API_URL,
+  DEFAULT_WEB_ORIGIN,
   deleteAccount,
   parseAccount,
   readAccount,
+  webOriginOf,
   withLastSession,
   withPreferences,
   writeAccount,
@@ -122,6 +124,14 @@ describe('account paths', () => {
     )
     expect(apiUrlOf({ env: {} })).toBe(DEFAULT_API_URL)
     expect(apiUrlOf({ env: { ATLAS_API_URL: '' } })).toBe(DEFAULT_API_URL)
+  })
+
+  test('webOriginOf prefers ATLAS_WEB_ORIGIN and strips trailing slashes', () => {
+    expect(webOriginOf({ env: { ATLAS_WEB_ORIGIN: 'https://staging.example.test//' } })).toBe(
+      'https://staging.example.test',
+    )
+    expect(webOriginOf({ env: {} })).toBe(DEFAULT_WEB_ORIGIN)
+    expect(webOriginOf({ env: { ATLAS_WEB_ORIGIN: '' } })).toBe(DEFAULT_WEB_ORIGIN)
   })
 
   test('accountPathOf prefers ATLAS_HOME over the home directory', () => {
