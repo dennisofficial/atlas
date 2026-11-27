@@ -19,7 +19,7 @@
               "GCC_ENABLE_CPP_EXCEPTIONS": "YES"
             },
             "libraries": [
-              "-L<(module_root_dir)/build/swift",
+              "-L<(module_root_dir)/lib",
               "-lAtlasNativeUI",
               "-L/usr/lib/swift",
               "-lswiftCore",

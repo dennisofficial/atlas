@@ -4,7 +4,7 @@ import { join } from 'node:path'
 const appRoot = join(import.meta.dir, '..')
 const native = join(appRoot, 'native')
 const swiftSources = join(native, 'src')
-const swiftLibrary = join(native, 'build', 'swift', 'libAtlasNativeUI.a')
+const swiftLibrary = join(native, 'lib', 'libAtlasNativeUI.a')
 const product = join(native, 'prebuilds', 'darwin-arm64', 'atlas_native.node')
 
 if (process.platform !== 'darwin' || process.arch !== 'arm64') {
@@ -26,7 +26,7 @@ if (typeof electron !== 'string') {
   process.exit(1)
 }
 
-mkdirSync(join(native, 'build', 'swift'), { recursive: true })
+mkdirSync(join(native, 'lib'), { recursive: true })
 mkdirSync(join(native, 'prebuilds', 'darwin-arm64'), { recursive: true })
 
 const sources = readdirSync(swiftSources)
