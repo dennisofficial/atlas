@@ -7,13 +7,14 @@ import {
   ignoreSafeArea,
   padding,
 } from '@expo/ui/swift-ui/modifiers'
-import { radius, space } from '@dltech/atlas-ui/tokens'
+import { radius } from '@dltech/atlas-ui/tokens'
 import { useState } from 'react'
 import { Pressable, StyleSheet } from 'react-native'
 
 import { EffortGauge } from './effort-gauge'
 import { effortAtIndex, effortIndexIn, effortSliderMaxOf } from './effort-slider-model'
 import { effortChoicesOf, effortLabelOf, type IModelSelection } from './model-options'
+import { COMPOSER_TRIGGER_INSET } from '../thread/composer/composer-shape'
 
 const TRIGGER_HEIGHT = 28
 
@@ -116,6 +117,6 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     height: TRIGGER_HEIGHT,
     justifyContent: 'center',
-    paddingHorizontal: space(2),
+    paddingHorizontal: COMPOSER_TRIGGER_INSET,
   },
 })

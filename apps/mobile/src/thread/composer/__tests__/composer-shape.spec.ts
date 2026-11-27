@@ -9,7 +9,9 @@ import {
   CHIP_THUMB_RADIUS,
   CHIP_THUMB_SIZE,
   COMPOSER_INSET,
+  COMPOSER_ITEM_GAP,
   COMPOSER_RADIUS,
+  COMPOSER_TRIGGER_INSET,
   concentricRadiusOf,
 } from '../composer-shape'
 
@@ -35,5 +37,11 @@ describe('composer shape', () => {
   test('centres a video thumbnail in the chip and curves it with the chip corner', () => {
     expect(CHIP_THUMB_SIZE + 2 * CHIP_THUMB_INSET).toBe(CHIP_SIZE)
     expect(CHIP_THUMB_RADIUS + CHIP_THUMB_INSET).toBe(CHIP_RADIUS)
+  })
+})
+
+describe('COMPOSER_TRIGGER_INSET', () => {
+  test('two neighbouring triggers sit one item gap apart, like the usage and context readings', () => {
+    expect(2 * COMPOSER_TRIGGER_INSET).toBe(COMPOSER_ITEM_GAP)
   })
 })
