@@ -1,3 +1,5 @@
 export * from './settings-pages'
 export * from './project-sections'
 export * from './group-sections'
+export * from './instructions'
+export * from './memory'
