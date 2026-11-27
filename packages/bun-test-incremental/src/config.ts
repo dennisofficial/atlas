@@ -65,7 +65,10 @@ export function loadConfig(params: {
   const summaryFile =
     env.BUN_TEST_INCREMENTAL_SUMMARY?.trim() ||
     (summaryDir
-      ? join(summaryDir, `${relative(root, projectRoot).replace(/[^\w.-]+/g, '-') || 'root'}.json`)
+      ? join(
+          summaryDir,
+          `${relative(root, projectRoot).replace(/[^\w.-]+/g, '-') || 'root'}-${process.pid}.json`,
+        )
       : undefined)
   return {
     mode,
