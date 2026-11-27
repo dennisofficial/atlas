@@ -51,21 +51,21 @@ describe('sessionHeaderLeadingOf', () => {
 
 describe('leadingTitleWidthOf', () => {
   it('gives the title the bar width left after the buttons', () => {
-    expect(leadingTitleWidthOf({ windowWidth: 470, buttons: 2 })).toBe(
+    expect(leadingTitleWidthOf({ barWidth: 470, buttons: 2 })).toBe(
       470 - HEADER_BUTTON_SLOT * 2 - HEADER_EDGE_SLACK,
     )
   })
 
   it('fits a lone glass title inside the bar of a closed Duo', () => {
-    const contentWidth = 466
+    const barWidth = 466
     const barMargins = 2 * 16
     const glassInset = 8
-    const pill = leadingTitleWidthOf({ windowWidth: contentWidth, buttons: 0 }) + glassInset
-    expect(pill).toBeLessThanOrEqual(contentWidth - barMargins)
-    expect(contentWidth - barMargins - pill).toBeLessThanOrEqual(16)
+    const pill = leadingTitleWidthOf({ barWidth, buttons: 0 }) + glassInset
+    expect(pill).toBeLessThanOrEqual(barWidth - barMargins)
+    expect(barWidth - barMargins - pill).toBeLessThanOrEqual(16)
   })
 
   it('never shrinks the title below its minimum on a very narrow window', () => {
-    expect(leadingTitleWidthOf({ windowWidth: 200, buttons: 2 })).toBe(HEADER_TITLE_MIN_WIDTH)
+    expect(leadingTitleWidthOf({ barWidth: 200, buttons: 2 })).toBe(HEADER_TITLE_MIN_WIDTH)
   })
 })

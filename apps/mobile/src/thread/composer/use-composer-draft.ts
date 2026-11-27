@@ -1,10 +1,9 @@
 import { createDraftSync, type DraftContent, type DraftSync } from '@dltech/atlas-client/session'
 import type { Attachment } from '@dltech/atlas-core'
-import { useCallback, useEffect, useRef, useState } from 'react'
+import { useCallback, useEffect, useRef } from 'react'
 import { AppState } from 'react-native'
 
 import { useAuth } from '../../auth/auth-provider'
-import { draftContentOf } from './composer-draft-content'
 
 export function useComposerDraft(args: {
   sessionId: string | null | undefined
@@ -15,7 +14,6 @@ export function useComposerDraft(args: {
   const { sessionId, text, attachments } = args
   const { api } = useAuth()
   const syncRef = useRef<DraftSync | null>(null)
-  const [carried, setCarried] = useState<readonly Attachment[]>([])
   const onRestoreRef = useRef(args.onRestore)
   useEffect(() => {
     onRestoreRef.current = args.onRestore
@@ -23,7 +21,6 @@ export function useComposerDraft(args: {
 
   useEffect(() => {
     if (sessionId === undefined || api === undefined) return
-    setCarried([])
     const sync = createDraftSync({
       put: (content) =>
         api.sessionDrafts.put.mutate({
@@ -39,7 +36,6 @@ export function useComposerDraft(args: {
       .then(({ draft }) => {
         const restored = sync.loaded(draft)
         if (restored === null) return
-        setCarried(restored.attachments)
         onRestoreRef.current(restored)
       })
       .catch(() => sync.loaded(null))
@@ -51,8 +47,8 @@ export function useComposerDraft(args: {
   }, [api, sessionId])
 
   useEffect(() => {
-    syncRef.current?.change(draftContentOf({ text, carried, attachments }))
-  }, [attachments, carried, text])
+    syncRef.current?.change({ text, attachments })
+  }, [attachments, text])
 
   useEffect(() => {
     const subscription = AppState.addEventListener('change', (state) => {
@@ -63,7 +59,6 @@ export function useComposerDraft(args: {
   }, [])
 
   const handleSent = useCallback((sentText: string) => {
-    setCarried([])
     syncRef.current?.handleSent(sentText)
   }, [])
 

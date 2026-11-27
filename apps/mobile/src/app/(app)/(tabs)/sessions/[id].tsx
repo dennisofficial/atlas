@@ -12,16 +12,11 @@ import { space } from '@dltech/atlas-ui/tokens'
 import { router, Stack, useFocusEffect, useLocalSearchParams } from 'expo-router'
 import { PanelLeft } from 'lucide-react-native'
 import { useCallback, useMemo, useState } from 'react'
-import {
-  type LayoutChangeEvent,
-  Platform,
-  StyleSheet,
-  useWindowDimensions,
-  View,
-} from 'react-native'
+import { type LayoutChangeEvent, Platform, StyleSheet, View } from 'react-native'
 import { useAuth } from '../../../../auth/auth-provider'
 import { KeyboardDock } from '../../../../layout/keyboard-dock'
 import { transcriptInsetOf } from '../../../../layout/transcript-inset'
+import { useContentWidth } from '../../../../layout/use-content-width'
 import { useKeyboard } from '../../../../layout/use-keyboard'
 import { usePosture } from '../../../../layout/use-posture'
 import { GlassSurface } from '../../../../navigation/glass-surface'
@@ -55,7 +50,7 @@ const NO_ROWS: readonly ThreadRow[] = []
 export default function SessionScreen() {
   const theme = useTheme()
   const posture = usePosture()
-  const { width: windowWidth } = useWindowDimensions()
+  const contentWidth = useContentWidth()
   const { id, title } = useLocalSearchParams<{ id: string; title?: string }>()
   const session = useSessionScreen({ sessionId: id, fallbackTitle: title })
   const attachments = useAttachments()
@@ -128,9 +123,9 @@ export default function SessionScreen() {
             glassTitle: true,
             fillsBar: true,
             titleButtons: 0,
-            windowWidth: paneWidthOf({
+            barWidth: paneWidthOf({
               listLayout: posture.sessionsList,
-              windowWidth,
+              width: contentWidth,
               drawerOpen,
             }),
           }),

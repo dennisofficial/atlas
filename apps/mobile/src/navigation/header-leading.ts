@@ -20,10 +20,10 @@ export const sessionHeaderLeadingOf = ({
     : [EHeaderLeadingItem.Sessions]
 
 export const leadingTitleWidthOf = ({
-  windowWidth,
+  barWidth,
   buttons,
 }: {
-  windowWidth: number
+  barWidth: number
   buttons: number
 }): number =>
-  Math.max(HEADER_TITLE_MIN_WIDTH, windowWidth - HEADER_BUTTON_SLOT * buttons - HEADER_EDGE_SLACK)
+  Math.max(HEADER_TITLE_MIN_WIDTH, barWidth - HEADER_BUTTON_SLOT * buttons - HEADER_EDGE_SLACK)

@@ -16,15 +16,33 @@ export const WindowInsetsProvider = ({ children }: { children: ReactNode }) => (
   </WindowInsetsContext.Provider>
 )
 
-export const SideInsetFrame = ({ children }: { children: ReactNode }) => {
+export const useWindowInsets = (): TInsets => {
   const windowInsets = useContext(WindowInsetsContext)
   const measured = useSafeAreaInsets()
-  const insets = windowInsets ?? measured
+  return windowInsets ?? measured
+}
+
+export const SideInsetFrame = ({
+  children,
+  background,
+}: {
+  children: ReactNode
+  background?: string
+}) => {
+  const insets = useWindowInsets()
   const side = sideColumnInsetOf(insets)
   const contentInsets = useMemo(() => ({ ...insets, right: insets.right - side }), [insets, side])
   return (
     <SafeAreaInsetsContext.Provider value={contentInsets}>
-      <View style={[styles.root, { paddingRight: side }]}>{children}</View>
+      <View
+        style={[
+          styles.root,
+          { paddingRight: side },
+          background === undefined ? null : { backgroundColor: background },
+        ]}
+      >
+        {children}
+      </View>
     </SafeAreaInsetsContext.Provider>
   )
 }

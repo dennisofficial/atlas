@@ -34,7 +34,7 @@ export const leadingHeaderOptionsOf = ({
   glassTitle = false,
   fillsBar = false,
   titleButtons,
-  windowWidth,
+  barWidth,
 }: {
   leading?: NativeStackHeaderItem[]
   lead?: ReactNode
@@ -42,10 +42,10 @@ export const leadingHeaderOptionsOf = ({
   glassTitle?: boolean
   fillsBar?: boolean
   titleButtons: number
-  windowWidth: number
+  barWidth: number
 }): NativeStackNavigationOptions => {
   const iosLead = Platform.OS === 'ios' ? lead : undefined
-  const titleWidth = leadingTitleWidthOf({ windowWidth, buttons: titleButtons })
+  const titleWidth = leadingTitleWidthOf({ barWidth, buttons: titleButtons })
   const titleElement = (
     <View
       style={[
@@ -94,10 +94,10 @@ export const leadingHeaderOptionsOf = ({
 
 export const tabHeaderOptionsOf = ({
   title,
-  windowWidth,
+  barWidth,
 }: {
   title: string
-  windowWidth: number
+  barWidth: number
 }): NativeStackNavigationOptions => ({
   title,
   ...leadingHeaderOptionsOf({
@@ -105,7 +105,7 @@ export const tabHeaderOptionsOf = ({
     title: <TabHeaderTitle title={title} />,
     glassTitle: true,
     titleButtons: 2,
-    windowWidth,
+    barWidth,
   }),
   headerLeft: Platform.OS === 'ios' ? undefined : () => <AccountButton />,
   headerRight: Platform.OS === 'ios' ? undefined : () => <NewSessionButton />,

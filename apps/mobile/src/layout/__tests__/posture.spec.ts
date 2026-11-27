@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'bun:test'
 
-import { ESessionsListLayout, postureOf, sideColumnInsetOf } from '../posture'
+import { contentWidthOf, ESessionsListLayout, postureOf, sideColumnInsetOf } from '../posture'
 
 const insets = (edges: Partial<{ top: number; right: number; bottom: number; left: number }>) => ({
   top: 0,
@@ -56,5 +56,15 @@ describe('sideColumnInsetOf', () => {
 
   it('ignores an inset too small to be the system column', () => {
     expect(sideColumnInsetOf(insets({ right: 34 }))).toBe(0)
+  })
+})
+
+describe('contentWidthOf', () => {
+  it('keeps the system column out of the width a tab stack is laid out in', () => {
+    expect(contentWidthOf({ windowWidth: 700, insets: insets({ right: 80 }) })).toBe(620)
+  })
+
+  it('keeps the full window on an iPhone in portrait', () => {
+    expect(contentWidthOf({ windowWidth: 440, insets: insets({ top: 62, bottom: 34 }) })).toBe(440)
   })
 })
