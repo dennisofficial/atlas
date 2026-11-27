@@ -33,7 +33,7 @@ export class PrepareSpan {
     const at = producedAtMs ?? this.args.now()
     this.attemptStartedAt ??= at
     if (report.state === EWorkspaceStepState.Started) {
-      this.started.set(report.step, at)
+      if (!this.started.has(report.step)) this.started.set(report.step, at)
       return
     }
     const startedAt = this.started.get(report.step)

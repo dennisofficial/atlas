@@ -73,6 +73,27 @@ describe('holder.prepare span', () => {
     expect(recorded?.fields.timings).toEqual({ sandbox: 200, clone: 100, prepare: 900 })
   })
 
+  it('times a step from its first start report when progress reports repeat it', async () => {
+    const trace = new RecordingTracer()
+    const span = new PrepareSpan({
+      trace,
+      sessionId: SESSION,
+      threadId: THREAD_ID,
+      attempt: 1,
+      preparedBefore: false,
+      promptWaiting: true,
+      now: () => 9_000,
+    })
+    span.step({ step: EWorkspaceStep.Clone, state: EWorkspaceStepState.Started }, 1_000)
+    span.step({ step: EWorkspaceStep.Clone, state: EWorkspaceStepState.Started }, 1_100)
+    span.step({ step: EWorkspaceStep.Clone, state: EWorkspaceStepState.Started }, 8_400)
+    span.step({ step: EWorkspaceStep.Clone, state: EWorkspaceStepState.Done }, 9_000)
+    await span.begin(async () => ({ failed: false }))
+
+    const [recorded] = trace.named(ESpan.Prepare)
+    expect(recorded?.fields.timings).toEqual({ clone: 8_000, prepare: 8_000 })
+  })
+
   it('attributes a step reported only when done to the wait since the last closed step', async () => {
     const trace = new RecordingTracer()
     const span = new PrepareSpan({

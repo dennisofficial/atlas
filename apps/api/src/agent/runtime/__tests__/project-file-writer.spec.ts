@@ -84,16 +84,25 @@ class RecordingFileSystemPort extends FileSystemPort {
   }
 }
 
+type GitRepo = {
+  inWorkTree?: boolean
+  tracked?: readonly string[]
+  ignored?: readonly string[]
+  failing?: 'ls-files' | 'check-ignore'
+}
+
+const pathsAfterDashes = (cmd: readonly string[]): string[] => cmd.slice(cmd.indexOf('--') + 1)
+
 class GitProcessPort extends ProcessPort {
   readonly spawned: string[][] = []
 
-  constructor(private readonly exitCodeOf: (cmd: readonly string[]) => number) {
+  constructor(private readonly repo: GitRepo = {}) {
     super()
   }
 
   override spawn(args: SpawnCommand): ProcessHandle {
     this.spawned.push([...args.cmd])
-    const stdout = args.cmd.includes('--git-path') ? '/repo/.git/info/exclude' : ''
+    const { code, stdout } = this.answer(args.cmd)
     return {
       stdout: new ReadableStream<Uint8Array>({
         start: (sink) => {
@@ -102,13 +111,30 @@ class GitProcessPort extends ProcessPort {
         },
       }),
       stderr: new ReadableStream<Uint8Array>({ start: (sink) => sink.close() }),
-      exited: Promise.resolve(this.exitCodeOf(args.cmd)),
+      exited: Promise.resolve(code),
       terminate: () => {},
     }
   }
 
   override which(): string | null {
     return null
+  }
+
+  private answer(cmd: readonly string[]): { code: number; stdout: string } {
+    if (this.repo.inWorkTree === false) return { code: 128, stdout: '' }
+    if (cmd.includes('--is-inside-work-tree')) return { code: 0, stdout: 'true\n' }
+    if (cmd.includes('--git-path')) return { code: 0, stdout: '.git/info/exclude\n' }
+    if (cmd.includes('ls-files')) {
+      if (this.repo.failing === 'ls-files') return { code: 128, stdout: '' }
+      const asked = pathsAfterDashes(cmd)
+      const hits = (this.repo.tracked ?? []).filter((entry) =>
+        asked.some((path) => entry === path || entry.startsWith(`${path}/`)),
+      )
+      return { code: 0, stdout: hits.map((path) => `${path}\0`).join('') }
+    }
+    if (this.repo.failing === 'check-ignore') return { code: 128, stdout: '' }
+    const hits = cmd.slice(4).filter((path) => this.repo.ignored?.includes(path))
+    return { code: hits.length === 0 ? 1 : 0, stdout: hits.map((path) => `${path}\0`).join('') }
   }
 }
 
@@ -117,9 +143,7 @@ const roots = { repositoryDir: '/repo', home: '/home/user', atlasHome: '/atlas/h
 describe('writeProjectFiles', () => {
   it('writes an untracked, unignored file with its mode and excludes it locally', async () => {
     const files = new RecordingFileSystemPort()
-    const processes = new GitProcessPort((cmd) =>
-      cmd.includes('--is-inside-work-tree') || cmd.includes('--git-path') ? 0 : 1,
-    )
+    const processes = new GitProcessPort()
 
     const outcomes = await writeProjectFiles({
       mounts: [{ path: 'apps/api/.env.keys', contents: 'KEY=1', mode: 0o600 }],
@@ -142,9 +166,7 @@ describe('writeProjectFiles', () => {
 
   it('keeps a wider mode than the staged file', async () => {
     const files = new RecordingFileSystemPort()
-    const processes = new GitProcessPort((cmd) =>
-      cmd.includes('--is-inside-work-tree') || cmd.includes('--git-path') ? 0 : 1,
-    )
+    const processes = new GitProcessPort()
 
     await writeProjectFiles({
       mounts: [{ path: '.env', contents: 'KEY=1', mode: 0o644 }],
@@ -159,9 +181,7 @@ describe('writeProjectFiles', () => {
   it('appends to an existing exclude file once', async () => {
     const files = new RecordingFileSystemPort()
     files.contents.set('/repo/.git/info/exclude', '/.env\n')
-    const processes = new GitProcessPort((cmd) =>
-      cmd.includes('--is-inside-work-tree') || cmd.includes('--git-path') ? 0 : 1,
-    )
+    const processes = new GitProcessPort()
 
     await writeProjectFiles({
       mounts: [{ path: '.env.keys', contents: 'KEY=1', mode: 0o600 }],
@@ -175,7 +195,7 @@ describe('writeProjectFiles', () => {
 
   it('leaves a tracked file alone', async () => {
     const files = new RecordingFileSystemPort()
-    const processes = new GitProcessPort(() => 0)
+    const processes = new GitProcessPort({ tracked: ['README.md'] })
 
     const outcomes = await writeProjectFiles({
       mounts: [{ path: 'README.md', contents: 'KEY=1', mode: 0o600 }],
@@ -190,9 +210,7 @@ describe('writeProjectFiles', () => {
 
   it('writes an ignored file without touching the exclude file', async () => {
     const files = new RecordingFileSystemPort()
-    const processes = new GitProcessPort((cmd) =>
-      cmd.includes('rev-parse') ? 0 : cmd.includes('ls-files') ? 1 : 0,
-    )
+    const processes = new GitProcessPort({ ignored: ['.env'] })
 
     const outcomes = await writeProjectFiles({
       mounts: [{ path: '.env', contents: 'KEY=1', mode: 0o600 }],
@@ -203,12 +221,12 @@ describe('writeProjectFiles', () => {
 
     expect(outcomes).toEqual([{ path: '.env', state: EProjectFileState.Written }])
     expect(files.contents.get('/repo/.env')).toBe('KEY=1')
-    expect(processes.spawned.some((cmd) => cmd.includes('--git-path'))).toBe(false)
+    expect(files.contents.has('/repo/.git/info/exclude')).toBe(false)
   })
 
   it('writes a home file without asking git', async () => {
     const files = new RecordingFileSystemPort()
-    const processes = new GitProcessPort(() => 0)
+    const processes = new GitProcessPort()
 
     const outcomes = await writeProjectFiles({
       mounts: [{ path: '~/notes.md', contents: 'x', mode: 0o600 }],
@@ -224,7 +242,7 @@ describe('writeProjectFiles', () => {
 
   it('skips every repository mount when the launch directory is not a work tree', async () => {
     const files = new RecordingFileSystemPort()
-    const processes = new GitProcessPort(() => 1)
+    const processes = new GitProcessPort({ inWorkTree: false })
 
     const outcomes = await writeProjectFiles({
       mounts: [{ path: '.env.keys', contents: 'x', mode: 0o600 }],
@@ -234,6 +252,69 @@ describe('writeProjectFiles', () => {
     })
 
     expect(outcomes).toEqual([{ path: '.env.keys', state: EProjectFileState.SkippedNoRepository }])
+    expect(files.writes).toEqual([])
+  })
+
+  it('asks git once per repository however many files it mounts', async () => {
+    const files = new RecordingFileSystemPort()
+    const processes = new GitProcessPort({ ignored: ['apps/api/.env.keys'] })
+
+    const outcomes = await writeProjectFiles({
+      mounts: [
+        { path: 'apps/api/.env.keys', contents: 'A=1', mode: 0o600 },
+        { path: 'apps/trigger/.env.keys', contents: 'B=1', mode: 0o600 },
+        { path: 'scripts/.env.keys', contents: 'C=1', mode: 0o600 },
+      ],
+      files,
+      processes,
+      roots,
+    })
+
+    expect(processes.spawned).toHaveLength(4)
+    expect(outcomes).toEqual([
+      { path: 'apps/api/.env.keys', state: EProjectFileState.Written },
+      { path: 'apps/trigger/.env.keys', state: EProjectFileState.WrittenLocallyExcluded },
+      { path: 'scripts/.env.keys', state: EProjectFileState.WrittenLocallyExcluded },
+    ])
+    expect(files.contents.get('/repo/.git/info/exclude')).toBe(
+      '/apps/trigger/.env.keys\n/scripts/.env.keys\n',
+    )
+    expect(files.writes.filter((write) => write.path.endsWith('exclude'))).toHaveLength(1)
+  })
+
+  it('leaves a path alone when git tracks files beneath it', async () => {
+    const files = new RecordingFileSystemPort()
+    const processes = new GitProcessPort({ tracked: ['config/app.json'] })
+
+    const outcomes = await writeProjectFiles({
+      mounts: [{ path: 'config', contents: 'x', mode: 0o600 }],
+      files,
+      processes,
+      roots,
+    })
+
+    expect(outcomes).toEqual([{ path: 'config', state: EProjectFileState.SkippedTracked }])
+    expect(files.writes).toEqual([])
+  })
+
+  it('fails a mount without writing it when git cannot check it', async () => {
+    const files = new RecordingFileSystemPort()
+    const processes = new GitProcessPort({ failing: 'check-ignore' })
+
+    const outcomes = await writeProjectFiles({
+      mounts: [{ path: '.env', contents: 'x', mode: 0o600 }],
+      files,
+      processes,
+      roots,
+    })
+
+    expect(outcomes).toEqual([
+      {
+        path: '.env',
+        state: EProjectFileState.Failed,
+        reason: 'git could not check whether the path is ignored',
+      },
+    ])
     expect(files.writes).toEqual([])
   })
 })
