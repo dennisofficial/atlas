@@ -360,19 +360,30 @@ it. A pathological 900 KB single-line change is still skipped as `oversized_requ
 
 ### 6.2 Each routine run (every other day, "Quality: maintain Jev")
 
-1. **Sample** since the last run, from `quality scope assessed` and its `$ai_generation`:
-   every nudge; every near-miss up to 20; 20 random from the rest. Record the stratum and the
-   inclusion probability. Skip `code_withheld` calls.
-2. **Label blind.** Two labeller sub-agents get only the path, before, after, diff and the rubric
-   (`evals/code-quality/AGENTS.md`), not Jev's answer. When they agree, write the trace review.
-   When they disagree, write `unsure` and put the trace in a review queue
-   (`llma-review-queue-*`) for Dennis.
-3. **Grow the set.** Add each agreed item to `jev-<policy>-real`.
+Two commands do the whole loop. The routine runs them instead of spawning a labelling sub-agent
+per scope and hand-copying code through the PostHog MCP tool.
+1. **Sample and label blind:** `bun run --cwd evals eval:jev-label --since <iso> --out-dir <scratch>`.
+   It samples from `quality scope assessed` joined to its `$ai_generation` since the last run: every
+   nudge, every near-miss up to 20, 20 random from the rest; one item per trace, keyed by a seeded
+   hash. It skips `code_withheld` calls and traces that already carry a review on the score
+   definition, records each item's stratum and inclusion probability, fetches the recorded state
+   verbatim (md5 checked, never re-serialised) and labels it with two model families,
+   `anthropic/claude-opus-5.5` and `openai/gpt-5.5`. Each labeller sees only the path, before,
+   after, diff, dependency context and `evals/code-quality/srp-label-rubric.md`, never Jev's answer.
+   Two families rather than two samples of one model is what makes their agreement evidence.
+   `--out-dir` holds real code and stays outside the repository.
+2. **Publish:** `bun run --cwd evals eval:jev-publish --dir <scratch> --results <results.jsonl>`.
+   Agreement writes the trace review on the generation trace. A disagreement puts the trace in the
+   review queue for Dennis instead of a review: PostHog refuses to queue a trace that already holds
+   a review, and it clears a pending queue item when a review is saved, so the two cannot both
+   exist. The person who resolves the queue item writes the label. Agreed items join
+   `jev-<policy>-real` through `client_item_id`, so a retry skips what the dataset already holds.
+3. **Replay:** `bun run --cwd evals eval:jev-real --items <scratch>/items.jsonl --out <results.jsonl>`
+   runs the current classifier and thresholds on every labelled item, then `eval:jev-publish
+   --results` records that run as an offline experiment on the suite `single-responsibility-real`
+   with the pinned scorer version (`typesafe-ai/jev-1.14.0`, run source `scheduled`). This shows a
+   threshold or rule change on all labelled real code, not only on new traffic.
 4. **Measure.** Live precision, weighted recall and agreement (§6.3), in the report and the dashboard.
-5. **Replay.** `bun run eval:jev-real --policy <id>` (new, `evals/code-quality`) loads the
-   dataset through the PostHog API, runs the current classifier and thresholds, and publishes
-   the run as an offline experiment with the pinned scorer version. This shows a threshold or rule
-   change on all labelled real code, not only on new traffic.
 
 ### 6.3 Measures
 

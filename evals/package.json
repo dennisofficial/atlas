@@ -15,7 +15,9 @@
     "eval:import-history": "bun run src/cli.ts import-history",
     "eval:compare": "bun run src/cli.ts compare",
     "eval:efficacy": "bun run src/cli.ts efficacy-report",
-    "eval:jev-real": "bun run src/cli.ts jev-real"
+    "eval:jev-real": "bun run src/cli.ts jev-real",
+    "eval:jev-label": "bun run src/cli.ts jev-label",
+    "eval:jev-publish": "bun run src/cli.ts jev-publish"
   },
   "devDependencies": {
     "@types/bun": "latest",
