@@ -2,8 +2,18 @@ import { SQLiteStorage } from 'expo-sqlite/kv-store'
 
 import type { JsonStore } from './json-store'
 
-export const kvJsonStore = ({ database }: { database: string }): JsonStore => {
+const storages = new Map<string, SQLiteStorage>()
+
+const storageOf = (database: string): SQLiteStorage => {
+  const existing = storages.get(database)
+  if (existing !== undefined) return existing
   const storage = new SQLiteStorage(database)
+  storages.set(database, storage)
+  return storage
+}
+
+export const kvJsonStore = ({ database }: { database: string }): JsonStore => {
+  const storage = storageOf(database)
   return {
     read: async (name) => {
       const raw = await storage.getItemAsync(name)
