@@ -9,6 +9,8 @@ export const ACCOUNT_FILE_VERSION = 1
 
 export const DEFAULT_API_URL = 'https://api.byatlas.io'
 
+export const DEFAULT_WEB_ORIGIN = 'https://byatlas.io'
+
 const FILE_MODE = 0o600
 
 export type AccountFile = {
@@ -27,6 +29,9 @@ const stripTrailingSlashes = (url: string): string => url.replace(/\/+$/, '')
 
 export const apiUrlOf = (args: { env: Record<string, string | undefined> }): string =>
   stripTrailingSlashes(asked(args.env.ATLAS_API_URL) ?? DEFAULT_API_URL)
+
+export const webOriginOf = (args: { env: Record<string, string | undefined> }): string =>
+  stripTrailingSlashes(asked(args.env.ATLAS_WEB_ORIGIN) ?? DEFAULT_WEB_ORIGIN)
 
 export const accountHomeOf = (args: {
   env: Record<string, string | undefined>

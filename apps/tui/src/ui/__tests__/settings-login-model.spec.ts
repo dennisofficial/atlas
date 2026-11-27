@@ -9,6 +9,7 @@ import {
   isSettlingLogin,
   promptingLogin,
   signedInLogin,
+  waitingLogin,
 } from '../settings-login-model'
 
 describe('the settings sign-in flow', () => {
@@ -33,6 +34,17 @@ describe('the settings sign-in flow', () => {
 
     expect(state.status).toBe(ESettingsLogin.Prompting)
     expect(state.prompt).toEqual({ url: 'http://localhost:3400/device', userCode: 'WXYZ-1234' })
+  })
+
+  it('waits for the browser with no code to type', () => {
+    const state = waitingLogin('https://byatlas.io/desktop/authorize?state=s')
+
+    expect(state.status).toBe(ESettingsLogin.Browser)
+    expect(state.prompt).toEqual({
+      url: 'https://byatlas.io/desktop/authorize?state=s',
+      userCode: null,
+    })
+    expect(state.failure).toBeNull()
   })
 
   it('clears the prompt while the session is being finished', () => {
@@ -60,6 +72,7 @@ describe('the settings sign-in flow', () => {
     expect(isSettlingLogin(ESettingsLogin.Idle)).toBe(false)
     expect(isSettlingLogin(ESettingsLogin.Asking)).toBe(true)
     expect(isSettlingLogin(ESettingsLogin.Prompting)).toBe(true)
+    expect(isSettlingLogin(ESettingsLogin.Browser)).toBe(true)
     expect(isSettlingLogin(ESettingsLogin.Finishing)).toBe(true)
   })
 })

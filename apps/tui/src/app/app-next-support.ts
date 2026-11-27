@@ -1,5 +1,7 @@
 import type { KeyEvent } from '@opentui/core'
 
+import type { AppNextProps } from './app-next-props'
+
 import type { FollowedSessionList } from '@dltech/atlas-client/stream'
 import { refKey } from '@dltech/atlas-core'
 import type { SessionModelChoice } from '@dltech/atlas-protocol'
@@ -60,3 +62,16 @@ export const modelPickOf = (args: {
   const next = choiceToSessionChoice(args.picked)
   return next === null ? null : screenOnNew({ model: next })
 }
+
+export const accountFlowArgsOf = (props: AppNextProps) => ({
+  accountPath: props.accountPath,
+  apiUrl: props.apiUrl,
+  webOrigin: props.webOrigin,
+  env: props.env,
+  platform: props.platform,
+  initialAccount: props.initialAccount,
+  openUrl: props.openUrl,
+  fetchFn: props.fetchFn,
+  exchangeLogin: props.exchangeLogin,
+  startLoopbackWait: props.startLoopbackWait,
+})

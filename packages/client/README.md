@@ -28,7 +28,7 @@ The headless client library that web, the TUI and the mobile app share.
 | `@dltech/atlas-client/chat`                     | The chat transport, the step chunks and the step messages.                                                                                                     |
 | `@dltech/atlas-client/crew`                     | The crew readout, the sub-agent state and the background work.                                                                                                 |
 | `@dltech/atlas-client/session`                  | The session create input, the rewind, the summarise, the image upload, the composer attachments, the message input, the draft sync and the sandbox start view. |
-| `@dltech/atlas-client/account`                  | The Atlas Cloud device-code login.                                                                                                                             |
+| `@dltech/atlas-client/account`                  | The Atlas Cloud device-code login and the PKCE pair a browser sign-in needs.                                                                                   |
 | `@dltech/atlas-client/settings`                 | The settings page and section lists that every surface lists and filters: user, project and group scope.                                                       |
 | `@dltech/atlas-client/browser-return`           | The outcomes a browser sign-in brought back, held by the state of its start link.                                                                              |
 | `@dltech/atlas-client/transcript`               | The transcript rows, the tool runs and the turn rows.                                                                                                          |
@@ -140,6 +140,9 @@ The headless client library that web, the TUI and the mobile app share.
 
 - `beginCloudLogin(args)`, `pollCloudLogin(args)`: the device-code ticket and the poll outcome.
   `CLOUD_CLIENT_ID`, `CloudLoginTicket`, `ECloudLoginPoll` and `CloudLoginOutcome` are the grant and its types. `DeviceLoginError` carries the HTTP `status`, `0` when the host is unreachable.
+- `createPkcePair()`: `{ verifier, challenge, state }` for an RFC 7636 sign-in — a 32-byte verifier
+  and its S256 challenge, both unpadded base64url, from Web Crypto so every surface can mint one.
+  `pkceChallengeOf(verifier)` computes the challenge alone.
 
 ### Keep a browser return
 
