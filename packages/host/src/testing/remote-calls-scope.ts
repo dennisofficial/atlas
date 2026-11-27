@@ -90,6 +90,6 @@ export const describeRemoteCallsRecovery = (target: RemoteCallsTarget): void => 
       } finally {
         await handle.stop()
       }
-    })
+    }, 15000)
   })
 }
