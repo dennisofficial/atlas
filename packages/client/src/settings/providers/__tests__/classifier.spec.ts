@@ -1,3 +1,5 @@
+import { EAuthProvider } from '@dltech/atlas-core'
+import { EProviderId } from '../catalogue'
 import { describe, expect, it } from 'bun:test'
 
 import {
@@ -13,8 +15,8 @@ import {
   classifierTestLineOf,
   credentialOfAccounts,
   providerIdOf,
-} from '../classifier-copy'
-import type { Account } from '../../../data/personal/accounts-api'
+} from '../classifier'
+import type { Account } from '../accounts'
 
 const GATEWAY_KEY = 'gateway/typesafe-ai/jev'
 const TYPESAFE_DIRECT = 'typesafe/jev-latest'
@@ -37,15 +39,15 @@ describe('credentialOfAccounts', () => {
       account({ id: 'acc_plan', provider: 'openai', kind: 'oauth' }),
       account({ id: 'acc_key', provider: 'openai', kind: 'api-key' }),
     ])
-    expect(credentialOf('openai')).toEqual({ kind: 'api-key', accountId: 'acc_key' })
+    expect(credentialOf(EAuthProvider.OpenAI)).toEqual({ kind: 'api-key', accountId: 'acc_key' })
   })
 
   it('answers a plan account and null when nothing is held', () => {
     const credentialOf = credentialOfAccounts([
       account({ id: 'acc_plan', provider: 'openai', kind: 'oauth' }),
     ])
-    expect(credentialOf('openai')).toEqual({ kind: 'plan', accountId: 'acc_plan' })
-    expect(credentialOf('gateway')).toBeNull()
+    expect(credentialOf(EAuthProvider.OpenAI)).toEqual({ kind: 'plan', accountId: 'acc_plan' })
+    expect(credentialOf(EAuthProvider.Gateway)).toBeNull()
   })
 })
 
@@ -180,10 +182,10 @@ describe('classifier settings draft', () => {
 
 describe('providerIdOf', () => {
   it('maps every decision provider to its API-key provider id', () => {
-    expect(providerIdOf('typesafe')).toBe('typesafe')
-    expect(providerIdOf('gateway')).toBe('gateway')
-    expect(providerIdOf('openai')).toBe('openai')
-    expect(providerIdOf('anthropic')).toBe('anthropic')
+    expect(providerIdOf('typesafe')).toBe(EProviderId.Typesafe)
+    expect(providerIdOf('gateway')).toBe(EProviderId.Gateway)
+    expect(providerIdOf('openai')).toBe(EProviderId.OpenAI)
+    expect(providerIdOf('anthropic')).toBe(EProviderId.Anthropic)
     expect(() => providerIdOf('nope')).toThrow()
   })
 })

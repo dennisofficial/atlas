@@ -88,6 +88,14 @@ The headless client library that web, the TUI and the mobile app share.
   `memoryKeyInput(key)`, `formatMemoryDate(updatedAt)`: the memory scopes, their rows, and the copy
   around them.
 
+### Provider accounts and classifier
+
+- `PROVIDER_CATALOGUE`, `providerGroupsOf`, `providerAccountDetailOf`, `providerKeyMaskOf`, `planNameOf`: provider choices, account groups and account labels.
+- `EKeyDialogMode`, `providerKeyReady`, `providerKeyResult`: API-key form validation and trimmed save values.
+- `createProviderSignIn`, `EProviderSignInState`, `pollSignInUntilSettled`: the paste-code and device-code sign-in state machine, with surface-supplied API, browser and clock ports.
+- `providerUsageWindowsOf`, `providerUsageAgeOf`: plan usage meter values and stale-read text.
+- `classifierSettingsFrom`, `classifierChanges`, `classifierModelItems`, `classifierAvailabilityIn`, `classifierStatusOf`, `classifierSuggestionOf`, `classifierFeaturesOf`, `classifierTestLineOf`: classifier drafts, availability, suggestions and status text.
+
 ### Read an account and its signed-in devices
 
 - `createAuthAccountApi({ baseUrl, token, fetchFn })`: the better-auth REST calls a surface makes

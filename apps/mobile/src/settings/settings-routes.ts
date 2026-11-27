@@ -30,6 +30,10 @@ export const SETTINGS_STACK_SCREENS: readonly ISettingsStackScreen[] = [
   { name: 'settings/quality', title: 'Code Quality' },
   { name: 'settings/experimental', title: 'Experimental' },
   { name: 'settings/appearance', title: 'Appearance' },
+  { name: 'settings/providers', title: 'Providers' },
+  { name: 'settings/provider-account', title: 'Provider account' },
+  { name: 'settings/provider-key', title: 'API key', presentation: 'modal' },
+  { name: 'settings/classifier', title: 'Classifier' },
   { name: 'settings/instructions', title: 'Instructions' },
   { name: 'settings/memory', title: 'Memory' },
   { name: 'settings/memory-entry', title: 'Memory', sheet: { detents: [0.75, 1] } },
@@ -52,6 +56,8 @@ export const IOS_SETTINGS_ROUTES: Partial<Record<ESettingsPage, Href>> = {
   [ESettingsPage.Quality]: '/settings/quality',
   [ESettingsPage.Experimental]: '/settings/experimental',
   [ESettingsPage.Appearance]: '/settings/appearance',
+  [ESettingsPage.Providers]: '/settings/providers',
+  [ESettingsPage.Classifier]: '/settings/classifier',
   [ESettingsPage.Instructions]: '/settings/instructions',
   [ESettingsPage.Memory]: '/settings/memory',
 }
@@ -77,8 +83,6 @@ export const IOS_GROUP_SECTION_ROUTES: Partial<Record<TGroupSection, TRouteOfId>
 export const IOS_PENDING_PAGES: ReadonlySet<ESettingsPage> = new Set([
   ESettingsPage.Integrations,
   ESettingsPage.Skills,
-  ESettingsPage.Providers,
-  ESettingsPage.Classifier,
   ESettingsPage.Access,
   ESettingsPage.Notifications,
 ])

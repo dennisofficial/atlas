@@ -15,15 +15,13 @@ import {
 import { Input } from '@dltech/atlas-ui/components/input'
 import { Label } from '@dltech/atlas-ui/components/label'
 
-import { DEFAULT_API_KEY_LABEL } from '../data/personal/accounts-api'
-
-export enum EKeyDialogMode {
-  Add = 'add',
-  Replace = 'replace',
-  Rename = 'rename',
-}
-
-export type KeyDialogResult = { name: string; key: string; use: boolean }
+import {
+  EKeyDialogMode,
+  providerKeyReady,
+  providerKeyResult,
+  type KeyDialogResult,
+} from '@dltech/atlas-client/settings'
+export { EKeyDialogMode, type KeyDialogResult } from '@dltech/atlas-client/settings'
 
 const TITLES: Record<EKeyDialogMode, string> = {
   [EKeyDialogMode.Add]: 'Add API key',
@@ -57,16 +55,12 @@ function KeyForm({
   const [failure, setFailure] = useState<string | null>(null)
   const asksName = mode !== EKeyDialogMode.Replace
   const asksKey = mode !== EKeyDialogMode.Rename
-  const ready = asksKey ? key.trim().length > 0 : name.trim().length > 0
+  const ready = providerKeyReady({ mode, name, key })
 
   const handleSave = async () => {
     setSaving(true)
     setFailure(null)
-    const failureText = await onSave({
-      name: name.trim() || DEFAULT_API_KEY_LABEL,
-      key: key.trim(),
-      use: offerUse && use,
-    })
+    const failureText = await onSave(providerKeyResult({ name, key, use, offerUse }))
     setSaving(false)
     if (failureText !== null) {
       setFailure(failureText.length > 0 ? failureText : NOT_ACCEPTED)
