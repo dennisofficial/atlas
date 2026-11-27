@@ -5,7 +5,12 @@ import type {
   SkillSummary,
 } from '@dltech/atlas-wire/web'
 
-import { bytesOfBase64, toBase64Utf8 } from '@dltech/atlas-client/settings'
+import {
+  base64OfBytes,
+  bytesOfBase64,
+  fromBase64Utf8,
+  toBase64Utf8,
+} from '@dltech/atlas-client/settings'
 
 import { api, cloudCall } from '@/lib/api-client'
 import { CloudApiError } from '@/lib/cloud-api'

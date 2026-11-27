@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'bun:test'
-import type { SkillSummary } from '@dltech/atlas-wire/web'
+import { ESkillOrigin, type SkillSummary } from '@dltech/atlas-wire/web'
 
 import { matchesSkill } from '../skill-filter'
 
@@ -10,7 +10,7 @@ const SKILL: SkillSummary = {
   sizeBytes: 120,
   updatedAt: '2026-11-01T00:00:00Z',
   usage: { usedCount30d: 0, lastUsedAt: null },
-  origin: 'personal',
+  origin: ESkillOrigin.Personal,
   overridesBuiltIn: false,
 }
 

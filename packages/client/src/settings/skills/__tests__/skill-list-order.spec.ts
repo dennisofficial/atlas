@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'bun:test'
-import type { SkillSummary } from '@dltech/atlas-wire/web'
+import { ESkillOrigin, type SkillSummary } from '@dltech/atlas-wire/web'
 
 import {
   ariaSortOf,
@@ -17,7 +17,7 @@ function summary(name: string, usedCount30d: number): SkillSummary {
     sizeBytes: 10,
     updatedAt: '2026-11-01T00:00:00Z',
     usage: { usedCount30d, lastUsedAt: null },
-    origin: 'personal',
+    origin: ESkillOrigin.Personal,
     overridesBuiltIn: false,
   }
 }

@@ -1,4 +1,5 @@
 import { describe, expect, it } from 'bun:test'
+import { ESkillSortKey, ESortDirection } from '@dltech/atlas-client/settings'
 import { EConfigLayer } from '@dltech/atlas-core'
 import { ESkillOrigin, ESkillScope, type SkillSummary } from '@dltech/atlas-wire/web'
 
@@ -38,20 +39,20 @@ describe('sortOfChoice', () => {
   it('maps every menu choice to the shared sort model', () => {
     expect(sortOfChoice(ESkillSortChoice.Default)).toBeNull()
     expect(sortOfChoice(ESkillSortChoice.NameAscending)).toEqual({
-      key: 'name',
-      direction: 'ascending',
+      key: ESkillSortKey.Name,
+      direction: ESortDirection.Ascending,
     })
     expect(sortOfChoice(ESkillSortChoice.NameDescending)).toEqual({
-      key: 'name',
-      direction: 'descending',
+      key: ESkillSortKey.Name,
+      direction: ESortDirection.Descending,
     })
     expect(sortOfChoice(ESkillSortChoice.UsageDescending)).toEqual({
-      key: 'usage',
-      direction: 'descending',
+      key: ESkillSortKey.Usage,
+      direction: ESortDirection.Descending,
     })
     expect(sortOfChoice(ESkillSortChoice.UsageAscending)).toEqual({
-      key: 'usage',
-      direction: 'ascending',
+      key: ESkillSortKey.Usage,
+      direction: ESortDirection.Ascending,
     })
   })
 })
@@ -98,7 +99,7 @@ describe('selection', () => {
   })
 
   it('keeps built-in skills out of the selection', () => {
-    expect(skillIsSelectable(summary('commit', 1, { origin: 'built-in' }))).toBe(false)
+    expect(skillIsSelectable(summary('commit', 1, { origin: ESkillOrigin.BuiltIn }))).toBe(false)
     expect(skillIsSelectable(summary('tdd', 1))).toBe(true)
   })
 })
