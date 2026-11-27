@@ -1,16 +1,12 @@
-import { EControlsPlacement, ESessionsListLayout, type TPosture } from '../layout/posture'
+import { ESessionsListLayout, type TPosture } from '../layout/posture'
 
 export enum EHeaderLeadingItem {
-  Account = 'account',
   Sessions = 'sessions',
 }
 
 export const HEADER_BUTTON_SLOT = 52
 export const HEADER_EDGE_SLACK = 48
 export const HEADER_TITLE_MIN_WIDTH = 120
-
-export const tabHeaderLeadingOf = ({ posture }: { posture: TPosture }): EHeaderLeadingItem[] =>
-  posture.controls === EControlsPlacement.BottomBar ? [EHeaderLeadingItem.Account] : []
 
 export const sessionHeaderLeadingOf = ({
   posture,
@@ -25,14 +21,9 @@ export const sessionHeaderLeadingOf = ({
 
 export const leadingTitleWidthOf = ({
   windowWidth,
-  posture,
   buttons,
 }: {
   windowWidth: number
-  posture: TPosture
   buttons: number
 }): number =>
-  Math.max(
-    HEADER_TITLE_MIN_WIDTH,
-    windowWidth - posture.railWidth - HEADER_BUTTON_SLOT * buttons - HEADER_EDGE_SLACK,
-  )
+  Math.max(HEADER_TITLE_MIN_WIDTH, windowWidth - HEADER_BUTTON_SLOT * buttons - HEADER_EDGE_SLACK)

@@ -1,6 +1,6 @@
 import type { HeaderBarButtonItem, SearchBarProps } from 'react-native-screens'
 
-import { EControlsPlacement, ESessionsListLayout } from '../layout/posture'
+import { ESessionsListLayout } from '../layout/posture'
 
 export const usesNativeSearchOf = ({ listLayout }: { listLayout: ESessionsListLayout }): boolean =>
   listLayout !== ESessionsListLayout.Panel
@@ -28,9 +28,6 @@ const hideSessionsBarItemOf = ({ onPress }: { onPress: () => void }): HeaderBarB
   onPress,
   type: 'button',
 })
-
-export const showsAccountViewOf = ({ controls }: { controls: EControlsPlacement }): boolean =>
-  controls === EControlsPlacement.BottomBar
 
 export const drawerBarItemsOf = ({
   onNewSession,
