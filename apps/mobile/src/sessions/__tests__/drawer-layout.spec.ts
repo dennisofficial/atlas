@@ -11,6 +11,7 @@ import {
   drawerScopeOf,
   drawerSwipeEnabledOf,
   opensDrawerWithoutSessionOf,
+  paneWidthOf,
   showsHideSessionsButtonOf,
 } from '../drawer-layout'
 
@@ -141,5 +142,25 @@ describe('drawerDockedOf', () => {
     expect(drawerDockedOf({ geometry: panel, open: true })).toBe(true)
     expect(drawerDockedOf({ geometry: panel, open: false })).toBe(false)
     expect(drawerDockedOf({ geometry: { permanent: false, width: 430 }, open: true })).toBe(false)
+  })
+})
+
+describe('paneWidthOf', () => {
+  it('leaves the session pane the window minus the docked panel', () => {
+    expect(
+      paneWidthOf({ listLayout: ESessionsListLayout.Panel, windowWidth: 956, drawerOpen: true }),
+    ).toBe(956 - PANEL_WIDTH)
+  })
+
+  it('gives the pane the whole window when the panel is hidden or the list floats', () => {
+    expect(
+      paneWidthOf({ listLayout: ESessionsListLayout.Panel, windowWidth: 956, drawerOpen: false }),
+    ).toBe(956)
+    expect(
+      paneWidthOf({ listLayout: ESessionsListLayout.Overlay, windowWidth: 744, drawerOpen: true }),
+    ).toBe(744)
+    expect(
+      paneWidthOf({ listLayout: ESessionsListLayout.Stacked, windowWidth: 440, drawerOpen: true }),
+    ).toBe(440)
   })
 })

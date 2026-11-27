@@ -26,7 +26,7 @@ const WorkLine = ({ header }: { header: SessionHeader }) => {
 
 export const SessionTitle = ({ header }: { header: SessionHeader }) => (
   <View style={styles.root} accessibilityRole="header">
-    <Text size={ETextRole.Sm} weight={EFontWeight.Medium} numberOfLines={1}>
+    <Text size={ETextRole.Base} weight={EFontWeight.Semibold} numberOfLines={1}>
       {header.title}
     </Text>
     <WorkLine header={header} />

@@ -58,6 +58,13 @@ describe('envDigest', () => {
     expect(envDigest(['A'], { A: '1', B: '' })).toBe(envDigest(['A'], { A: '1' }))
   })
 
+  test('a parallel worker id never invalidates a test that enumerates process.env', () => {
+    const keys = ['A', ENV_NAMES_MARKER]
+    const serial = envDigest(keys, { A: '1' })
+    expect(envDigest(keys, { A: '1', BUN_TEST_WORKER_ID: '1', JEST_WORKER_ID: '1' })).toBe(serial)
+    expect(envDigest(keys, { A: '1', BUN_TEST_WORKER_ID: '2', JEST_WORKER_ID: '2' })).toBe(serial)
+  })
+
   test('per-run CI context never invalidates a test that enumerates process.env', () => {
     const keys = ['A', ENV_NAMES_MARKER]
     const base = envDigest(keys, {

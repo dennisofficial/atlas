@@ -148,18 +148,24 @@ jobs:
           NODE_ENV: production
         run: bun run --cwd apps/web build
 
-  # Every test suite in one job, made incremental by bun-test-incremental (a bun:test preload): a spec
+  # Every test suite, made incremental by bun-test-incremental (a bun:test preload): a spec
   # runs only when it has no cached pass for its exact current inputs (fingerprint pass-cache; a
   # failure is never cached, so it runs again until green). The pass-cache decides alone, and there is
   # no git-diff pre-filter: `bun test --changed` selects by the static import graph, so a boundary
   # spec that reads the source tree at runtime (`src/api/architecture.spec.ts`) imports no repo
-  # module and a diff to the code it scans never selected it. There is no paths filter and no
-  # sharding either. Each run saves a new immutable cache keyed by run id; restore picks the newest
-  # for this ref, then main's. GitHub scopes caches by ref, so a PR reads main's cache but main never
+  # module and a diff to the code it scans never selected it. There is no paths filter. The fault
+  # specs are CPU-bound on one 4-core runner, so the files are split across four shard jobs by
+  # `bun test --shard`; every file still runs on exactly one shard. Each shard saves its own
+  # immutable cache keyed by shard and run id; each restore picks the newest for its shard and this
+  # ref, then main's. GitHub scopes caches by ref, so a PR reads main's cache but main never
   # reads a PR's — never move this to pull_request_target.
   # tests-nightly.yml runs everything nightly and fails if the cache ever hid a failure.
   test:
     runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        shard: [1, 2, 3, 4]
     env:
       BUN_TEST_INCREMENTAL: ${{ github.event_name == 'workflow_dispatch' && 'force' || '1' }}
       ATLAS_TEST_DATABASE_URL: postgresql://atlas:atlas@localhost:55441/atlas_test
@@ -203,15 +209,45 @@ jobs:
 
       - run: bun install
 
-      - name: restore incremental test cache
+      # `bun test --shard` deals files round-robin by sorted index, so adding one spec moves most of
+      # its package's files to another shard. Every shard therefore restores all four caches into
+      # one directory: a file finds its cached pass whichever shard it lands on.
+      - name: restore shard 1's incremental test cache
         id: restore
         uses: actions/cache/restore@v6
         with:
           path: .cache/incremental-tests
-          key: incremental-tests-${{ github.ref }}-${{ github.run_id }}-${{ github.run_attempt }}
+          key: incremental-tests-s1-${{ github.ref }}-${{ github.run_id }}-${{ github.run_attempt }}
           restore-keys: |
-            incremental-tests-${{ github.ref }}-
-            incremental-tests-refs/heads/main-
+            incremental-tests-s1-${{ github.ref }}-
+            incremental-tests-s1-refs/heads/main-
+
+      - name: restore shard 2's incremental test cache
+        uses: actions/cache/restore@v6
+        with:
+          path: .cache/incremental-tests
+          key: incremental-tests-s2-${{ github.ref }}-${{ github.run_id }}-${{ github.run_attempt }}
+          restore-keys: |
+            incremental-tests-s2-${{ github.ref }}-
+            incremental-tests-s2-refs/heads/main-
+
+      - name: restore shard 3's incremental test cache
+        uses: actions/cache/restore@v6
+        with:
+          path: .cache/incremental-tests
+          key: incremental-tests-s3-${{ github.ref }}-${{ github.run_id }}-${{ github.run_attempt }}
+          restore-keys: |
+            incremental-tests-s3-${{ github.ref }}-
+            incremental-tests-s3-refs/heads/main-
+
+      - name: restore shard 4's incremental test cache
+        uses: actions/cache/restore@v6
+        with:
+          path: .cache/incremental-tests
+          key: incremental-tests-s4-${{ github.ref }}-${{ github.run_id }}-${{ github.run_attempt }}
+          restore-keys: |
+            incremental-tests-s4-${{ github.ref }}-
+            incremental-tests-s4-refs/heads/main-
 
       # Each package's `test` script is `bun test` run from the package, so its bunfig.toml preload
       # (bun-test.setup.ts + the bun-test-incremental preload + any test-home-setup.ts) applies. A
@@ -220,20 +256,24 @@ jobs:
       # is set, and each package writes one summary JSON to the summary dir.
       # bun-test-incremental's own suite drives child `bun test` runs, so it must never run
       # incrementally against itself; it is excluded here and run in its own step below.
+      # scripts/ci-test-shard.ts starts every package at once with this shard's slice of its files
+      # (`bun run --filter` would wait on workspace dependencies, and `bun run --parallel` drops the
+      # --shard argument). A script that is not a plain `bun test` runs whole on shard 1.
       - name: test
-        run: bun run --filter './packages/*' --filter './plugins/*' --filter './commands' --filter './apps/*' --filter './evals' --filter '!@dltech/bun-test-incremental' test
+        run: bun scripts/ci-test-shard.ts ${{ matrix.shard }}/4
         env:
           BUN_TEST_INCREMENTAL_SUMMARY_DIR: ${{ runner.temp }}/summaries
 
       # scripts/ is not a workspace member, so the filtered `test` above never reaches it. Its specs
       # are plain bun:test files that need no bunfig preload; run them from the root.
       - name: test scripts
+        if: matrix.shard == 1
         run: bun test ./scripts
 
       # The incremental package's own suite spawns child `bun test` runs, so it runs with
       # BUN_TEST_INCREMENTAL unset (the child runs set it themselves as the thing under test).
       - name: test the incremental package itself
-        if: always() && steps.restore.outcome == 'success'
+        if: always() && matrix.shard == 1 && steps.restore.outcome == 'success'
         working-directory: packages/bun-test-incremental
         run: bun test
         env:
@@ -249,7 +289,7 @@ jobs:
         uses: actions/cache/save@v6
         with:
           path: .cache/incremental-tests
-          key: incremental-tests-${{ github.ref }}-${{ github.run_id }}-${{ github.run_attempt }}
+          key: incremental-tests-s${{ matrix.shard }}-${{ github.ref }}-${{ github.run_id }}-${{ github.run_attempt }}
 
   # Unsigned rehearsal of the mac build on PRs: proves the web export, the OTA payload, the host
   # bundle and electron-builder packaging still work without touching a secret, so fork PRs run it

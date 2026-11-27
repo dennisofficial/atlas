@@ -1,4 +1,3 @@
-import { space } from '@dltech/atlas-ui/tokens'
 import type { ReactNode } from 'react'
 import { ScrollView, StyleSheet, View } from 'react-native'
 import { LayoutAnimationConfig } from 'react-native-reanimated'
@@ -87,6 +86,5 @@ const styles = StyleSheet.create({
   },
   slotContent: {
     alignItems: 'center',
-    gap: space(1),
   },
 })

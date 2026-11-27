@@ -23,7 +23,7 @@ const terminatePresence = async (args: { url: string; hostId: number }): Promise
       `SELECT pg_terminate_backend(l.pid) FROM pg_locks l
        JOIN pg_stat_activity a ON a.pid = l.pid
        WHERE l.locktype = 'advisory' AND l.classid = $1 AND l.objid = $2
-         AND a.application_name = $3`,
+         AND a.application_name = $3 AND a.datname = current_database()`,
       [PG_PRESENCE_LOCK_NAMESPACE, args.hostId, PRESENCE_APPLICATION_NAME],
     )
     return result.rowCount ?? 0

@@ -30,6 +30,7 @@ import { leadingHeaderOptionsOf } from '../../../navigation/header-options'
 import { SessionsButton } from '../../../navigation/sessions-button'
 import { CommandListSheet } from '../../../thread/composer/command-list-sheet'
 import { Composer } from '../../../thread/composer/composer'
+import { COMPOSER_ITEM_GAP } from '../../../thread/composer/composer-shape'
 import { ContextReading } from '../../../thread/composer/context-reading'
 import { PlanUsage } from '../../../thread/composer/plan-usage'
 import { StaleCard } from '../../../thread/composer/stale-card'
@@ -42,6 +43,7 @@ import { StartFailedCard } from '../../../thread/components/start-failed-card'
 import { SessionSkeleton } from '../../../thread/components/session-skeleton'
 import { Transcript } from '../../../thread/components/transcript'
 import { selectedSessionStore } from '../../../sessions/selected-session'
+import { paneWidthOf } from '../../../sessions/drawer-layout'
 import { useSessionsDrawer } from '../../../sessions/sessions-drawer-state'
 import { SessionModelControls } from '../../../thread/session/session-model-controls'
 import { useSessionScreen } from '../../../thread/session/use-session-screen'
@@ -124,8 +126,13 @@ export default function SessionScreen() {
             lead: showsSessions ? <SessionsButton onPress={handleOpenSessions} /> : undefined,
             title: <SessionTitle header={session.header} />,
             glassTitle: true,
+            fillsBar: true,
             titleButtons: 0,
-            windowWidth,
+            windowWidth: paneWidthOf({
+              listLayout: posture.sessionsList,
+              windowWidth,
+              drawerOpen,
+            }),
             posture,
           }),
           headerBackVisible: false,
@@ -285,6 +292,6 @@ const styles = StyleSheet.create({
   trailing: {
     alignItems: 'center',
     flexDirection: 'row',
-    gap: space(1.5),
+    gap: COMPOSER_ITEM_GAP,
   },
 })

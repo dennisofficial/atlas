@@ -5,7 +5,7 @@ import { EContextSlot } from '@dltech/atlas-core'
 import { expect } from 'bun:test'
 
 import type { HostProcess, ReadEvent } from '../../testing/fault-rig'
-import { describeHandoff, waitUntil } from '../../testing/handoff-suite'
+import { describeHandoff, POD_EFFECT_WAIT_MS, waitUntil } from '../../testing/handoff-suite'
 import { callIdOf } from './fault-support'
 import { FIXTURE_INSTRUCTIONS } from './mcp-instructions-fixture'
 
@@ -97,13 +97,13 @@ describeHandoff({
       await waitUntil({
         what: 'the server to record its instructions once',
         check: async () => instructionsOf(await ctx.record()).length === 1,
-        timeoutMs: 90_000,
+        timeoutMs: POD_EFFECT_WAIT_MS,
       })
       await waitUntil({
         what: 'the bash call to be dispatched',
         check: async () => dispatchesOf(await ctx.record()).length === 1,
       })
-      await ctx.waitFor('started', 30_000)
+      await ctx.waitFor('started', POD_EFFECT_WAIT_MS)
       return hostA
     } catch (error: unknown) {
       const message = error instanceof Error ? error.message : String(error)
@@ -130,6 +130,7 @@ describeHandoff({
           const output = (row.event as { output?: { stdout?: string } }).output
           return output?.stdout?.includes('done') === true
         }),
+      timeoutMs: POD_EFFECT_WAIT_MS,
     })
     const rows = await ctx.record()
     expectRecordedOnce(rows)
@@ -151,7 +152,7 @@ describeHandoff({
         if (first === undefined || last === undefined) return false
         return snapshots.length >= 2 && last.fingerprint !== first.fingerprint
       },
-      timeoutMs: 90_000,
+      timeoutMs: POD_EFFECT_WAIT_MS,
     })
     expectRecordedOnce(await ctx.record())
   },
