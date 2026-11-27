@@ -20,6 +20,8 @@ export interface IComposerDictationState {
   handleSelection: (selection: { start: number; end: number }) => void
 }
 
+const SETTLE_TIMEOUT_MS = 4000
+
 const joinInto = ({ before, spoken, after }: { before: string; spoken: string; after: string }) => {
   if (spoken === '') return `${before}${after}`
   const lead = before === '' || /\s$/.test(before) ? '' : ' '
@@ -41,6 +43,8 @@ export const useComposerDictation = ({
   const settlingRef = useRef(false)
   const resolveSettledRef = useRef<((next: string) => void) | null>(null)
   const spoken = transcriptTextOf(dictation.transcript)
+  const displayRef = useRef(text)
+  displayRef.current = joinInto({ before: split.before, spoken, after: split.after })
 
   const handleSelection = useCallback(({ start }: { start: number; end: number }) => {
     cursorRef.current = start
@@ -63,8 +67,11 @@ export const useComposerDictation = ({
     const settled = new Promise<string>((resolve) => {
       resolveSettledRef.current = resolve
     })
+    const expired = new Promise<string>((resolve) => {
+      setTimeout(() => resolve(displayRef.current), SETTLE_TIMEOUT_MS)
+    })
     dictation.stop()
-    return settled
+    return Promise.race([settled, expired])
   }, [dictation, text])
 
   useEffect(() => {
