@@ -30,7 +30,11 @@ reaches the API through this package. No client imports `apps/api`.
   returns an `ApiClient`. It speaks to `<baseUrl>/v1/trpc` over HTTP, and it uses an SSE
   subscription link for a subscription procedure. `credentials` is `'omit'`, `'same-origin'` or
   `'include'`.
-- `ApiClient`, `ApiClientOptions`: the client type and its options.
+- `ApiClient`, `ApiClientOptions`: the client type and its options. `skills.list` and
+  `skills.layered` return summaries with `usagePending: true` and a legacy-compatible zero usage
+  object. Load `skills.usage` separately with the same scope to get counts by skill name. Its
+  failure does not prevent rendering the list; web gives this non-blocking scan its own 30 s
+  client while keeping the normal 10 s deadline for lists and all other API calls.
 - `QUERY_DEADLINE_MS` (`10_000`): a query is an HTTP `GET`, and it is aborted once this long passes,
   body read included, so a query on a dead socket settles and the caller's retry can run. A
   mutation is never aborted, because a slow write must finish. `queryDeadlineMs` on the client

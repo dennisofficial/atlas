@@ -64,6 +64,10 @@ The headless client library that web, the TUI and the mobile app share.
 - `INSTRUCTIONS_CHAR_LIMIT`, `instructionsOf({ files, path?, decode })`, `charCountOf({ length, limit })`,
   `canSaveInstructions(args)`: one instructions document, its character budget, and whether a save is
   allowed. The page descriptions travel with them.
+- `skillUsageKeyOf(target)`, `skillUsageTargetOf(layer)`, `withSkillUsage({ skills, usage })`:
+  cache keys and scope mapping for the separate `skills.usage` query. Merge counts without
+  blocking the list or losing inherited-layer metadata. Pending or failed usage leaves each
+  summary's `usagePending` marker intact; a received count clears it. Built-ins use personal usage.
 - `EMemoryScope`, `EMemoryType`, `MemoryEntry`, `MemoryScopeGroup`, `MEMORY_TYPE_LABELS`,
   `buildMemoryGroups({ memories, groupNames })`, `memoryMatchesFilter({ entry, query, type })`,
   `memoryScopeOptionsOf(groups)`, `memoryScopeHintOf(group)`, `memoryClearDescriptionOf(group)`,
