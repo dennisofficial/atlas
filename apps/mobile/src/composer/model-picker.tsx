@@ -9,8 +9,10 @@ import {
 } from '@dltech/atlas-ui-native'
 import { radius, space } from '@dltech/atlas-ui/tokens'
 import { Search } from 'lucide-react-native'
-import { useState } from 'react'
-import { Modal, Pressable, ScrollView, StyleSheet, View } from 'react-native'
+import { useRef, useState } from 'react'
+import { ScrollView, StyleSheet, View, type ViewInstance } from 'react-native'
+
+import { AnchoredDropdown } from '../layout/anchored-dropdown'
 
 import {
   type IModelOption,
@@ -23,8 +25,8 @@ import {
   togglePinnedModel,
   withoutPinned,
 } from './model-options'
-import { ModelMenu } from './model-menu'
 import { DefaultRow, ModelRow } from './model-picker-rows'
+import { ModelTrigger } from './model-trigger'
 
 type Props = {
   models: readonly IModelOption[]
@@ -36,7 +38,7 @@ type Props = {
   onSelect: (selection: IModelSelection | null) => void
 }
 
-const SheetBody = ({
+const DropdownBody = ({
   models,
   selection,
   pinned,
@@ -138,110 +140,47 @@ const SheetBody = ({
   )
 }
 
-export const ModelSheet = ({
-  open,
-  onClose,
-  models,
-  selection,
-  pinned,
-  personalId,
-  defaultRow,
-  onPinnedChange,
-  onSelect,
-}: Props & { open: boolean; onClose: () => void }) => {
-  const theme = useTheme()
-  return (
-    <Modal transparent animationType="fade" visible={open} onRequestClose={onClose}>
-      <View
-        style={[styles.overlay, { backgroundColor: withAlpha({ color: '#000000', alpha: 0.35 }) }]}
-      >
-        <Pressable
-          accessibilityRole="button"
-          accessibilityLabel="Close the model menu"
-          onPress={onClose}
-          style={StyleSheet.absoluteFill}
-        />
-        <View
-          style={[
-            styles.sheet,
-            {
-              backgroundColor: theme.popover,
-              borderColor: withAlpha({ color: theme.foreground, alpha: 0.1 }),
-            },
-          ]}
-        >
-          <SheetBody
-            models={models}
-            selection={selection}
-            pinned={pinned}
-            personalId={personalId}
-            defaultRow={defaultRow}
-            onPinnedChange={onPinnedChange}
-            onSelect={onSelect}
-            onClose={onClose}
-          />
-        </View>
-      </View>
-    </Modal>
-  )
-}
-
 export const ModelSelect = ({
-  models,
-  selection,
-  pinned,
-  personalId,
-  defaultRow,
-  onPinnedChange,
-  onSelect,
-}: Props) => {
-  const [open, setOpen] = useState(false)
+  pinnedRef,
+  open: controlledOpen,
+  onOpenChange,
+  ...body
+}: Props & {
+  pinnedRef?: string | null | undefined
+  open?: boolean | undefined
+  onOpenChange?: ((open: boolean) => void) | undefined
+}) => {
+  const [ownOpen, setOwnOpen] = useState(false)
+  const anchorRef = useRef<ViewInstance>(null)
+  const open = controlledOpen ?? ownOpen
+
+  const handleOpenChange = (next: boolean) => {
+    setOwnOpen(next)
+    onOpenChange?.(next)
+  }
+
+  const handleOpen = () => handleOpenChange(true)
+
+  const handleClose = () => handleOpenChange(false)
 
   return (
     <>
-      <ModelMenu
-        models={models}
-        selection={selection}
-        pinned={pinned}
-        defaultRow={defaultRow}
-        onSelect={onSelect}
-        onOpenAll={() => setOpen(true)}
+      <ModelTrigger
+        ref={anchorRef}
+        models={body.models}
+        selection={body.selection}
+        pinnedRef={pinnedRef}
+        expanded={open}
+        onPress={handleOpen}
       />
-      <ModelSheet
-        open={open}
-        onClose={() => setOpen(false)}
-        models={models}
-        selection={selection}
-        pinned={pinned}
-        personalId={personalId}
-        defaultRow={defaultRow}
-        onPinnedChange={onPinnedChange}
-        onSelect={onSelect}
-      />
+      <AnchoredDropdown open={open} anchorRef={anchorRef} label="model menu" onClose={handleClose}>
+        <DropdownBody {...body} onClose={handleClose} />
+      </AnchoredDropdown>
     </>
   )
 }
 
 const styles = StyleSheet.create({
-  overlay: {
-    alignItems: 'center',
-    flex: 1,
-    justifyContent: 'flex-end',
-    padding: space(3),
-  },
-  sheet: {
-    borderRadius: radius(1.2),
-    borderWidth: 1,
-    elevation: 8,
-    maxHeight: 460,
-    maxWidth: 480,
-    padding: space(1),
-    shadowColor: '#000000',
-    shadowOffset: { width: 0, height: 8 },
-    shadowOpacity: 0.18,
-    shadowRadius: 24,
-    width: '100%',
-  },
   search: {
     alignItems: 'center',
     borderRadius: radius(0.8),
