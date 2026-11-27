@@ -172,6 +172,10 @@ const styles = StyleSheet.create({
     overflow: 'hidden',
   },
   lines: {
+    left: 0,
+    position: 'absolute',
+    right: 0,
+    top: 0,
     alignItems: 'center',
     flexDirection: 'row',
     gap: space(3),
