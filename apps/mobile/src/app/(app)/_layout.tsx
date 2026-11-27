@@ -69,7 +69,8 @@ const AppStack = () => {
         options={{
           presentation: 'formSheet',
           headerShown: false,
-          sheetAllowedDetents: [0.55, 1],
+          sheetAllowedDetents: [0.55],
+          sheetExpandsWhenScrolledToEdge: false,
           sheetGrabberVisible: true,
           contentStyle: { backgroundColor: usesGlassHeader() ? 'transparent' : theme.background },
         }}
