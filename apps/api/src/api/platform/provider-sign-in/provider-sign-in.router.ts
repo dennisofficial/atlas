@@ -33,6 +33,8 @@ export class ProviderSignInRouter {
     return this.signIn.begin({
       userId: ctx.auth.userId,
       provider: input.provider,
+      flow: input.flow,
+      redirectUri: input.redirectUri,
     })
   }
 

@@ -21,6 +21,7 @@ import {
 } from '../ui/accounts-model'
 import { pastedText } from '../ui/pasted-text'
 import { isPrintable, providerRowsOf, reasonOf } from './accounts-api'
+import type { ELoginFlow } from './account/login-flow'
 import type { SessionApi } from './session-api'
 import { useAccountFlows } from './use-account-flows'
 
@@ -49,6 +50,7 @@ export function useAccounts(args: {
   onChanged: () => void
   onProblem: (reason: string) => void
   minPollIntervalMs?: number | undefined
+  flow: ELoginFlow
 }): AccountsControl {
   const { api } = args
   const [state, setState] = useState<AccountsState | null>(null)
@@ -106,6 +108,7 @@ export function useAccounts(args: {
     refresh,
     openUrl: args.openUrl,
     onChanged: args.onChanged,
+    flow: args.flow,
     ...(args.minPollIntervalMs === undefined ? {} : { minPollIntervalMs: args.minPollIntervalMs }),
   })
 
@@ -123,6 +126,7 @@ export function useAccounts(args: {
   const handleDismiss = useCallback(() => {
     flows.clearTicket()
     flows.stopPoll()
+    flows.stopBrowser()
     put(null)
   }, [flows, put])
 
@@ -184,6 +188,7 @@ export function useAccounts(args: {
         }
         flows.clearTicket()
         flows.stopPoll()
+        flows.stopBrowser()
         put(backToList(current))
         return
       }

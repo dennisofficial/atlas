@@ -4,6 +4,7 @@ import { useCallback, useState } from 'react'
 import type { SettingsResolution } from '@dltech/atlas-core'
 
 import { EPanel } from './app-screen'
+import { loginFlowOf } from './account/login-flow'
 import { onboardingDue } from './onboarding-rows'
 import type { SessionApi } from './session-api'
 import { useAccounts, type AccountsControl } from './use-accounts'
@@ -23,6 +24,8 @@ export function useAppOverlays(args: {
   openUrl: (url: string) => void
   onChanged: () => void
   onProblem: (reason: string) => void
+  env?: Record<string, string | undefined> | undefined
+  platform?: string | undefined
   resolution: SettingsResolution
   onChooseModel: (id: string) => void
   settingsOpen: boolean
@@ -36,6 +39,10 @@ export function useAppOverlays(args: {
     openUrl: args.openUrl,
     onChanged: args.onChanged,
     onProblem: args.onProblem,
+    flow: loginFlowOf({
+      env: args.env ?? process.env,
+      platform: args.platform ?? process.platform,
+    }),
   })
 
   const openAccounts = useCallback(() => {
