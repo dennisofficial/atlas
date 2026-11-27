@@ -57,6 +57,7 @@ const styles = StyleSheet.create({
     gap: space(2),
     height: FIELD_HEIGHT,
     marginBottom: space(2),
+    marginTop: space(4),
     marginHorizontal: space(3),
     paddingHorizontal: space(3),
   },

@@ -1,6 +1,6 @@
 import { ETextRole, ETextTone, Text } from '@dltech/atlas-ui-native'
 import { space } from '@dltech/atlas-ui/tokens'
-import { SectionList, StyleSheet } from 'react-native'
+import { SectionList, StyleSheet, View } from 'react-native'
 
 import {
   hasModelMatchesOf,
@@ -21,6 +21,8 @@ import { ModelTrigger } from './model-trigger'
 
 const INITIAL_ROWS = 12
 
+export type TRowInsets = { left: number; right: number }
+
 type Props = {
   models: readonly IModelOption[]
   selection: IModelSelection | null
@@ -36,10 +38,17 @@ export const ModelListBody = ({
   onPinnedChange,
   onSelect,
   query,
+  rowInsets,
   onQueryChange,
   onClose,
-}: Props & { query: string; onQueryChange: (query: string) => void; onClose: () => void }) => {
+}: Props & {
+  query: string
+  rowInsets: TRowInsets
+  onQueryChange: (query: string) => void
+  onClose: () => void
+}) => {
   const sections = modelListSectionsOf({ models, pinned, query })
+  const insetStyle = { marginLeft: rowInsets.left, marginRight: rowInsets.right }
 
   const handleModel = (model: IModelOption) => {
     const next = selectionOf({
@@ -56,17 +65,19 @@ export const ModelListBody = ({
   const handlePin = (id: string) => onPinnedChange(togglePinnedModel({ pinned, id }))
 
   const renderItem = ({ item }: { item: TModelListItem }) => (
-    <ModelRow
-      model={item.model}
-      selected={item.model.id === selection?.model.id}
-      pinned={pinned.includes(item.model.id)}
-      onTogglePin={() => handlePin(item.model.id)}
-      onPress={() => handleModel(item.model)}
-    />
+    <View style={insetStyle}>
+      <ModelRow
+        model={item.model}
+        selected={item.model.id === selection?.model.id}
+        pinned={pinned.includes(item.model.id)}
+        onTogglePin={() => handlePin(item.model.id)}
+        onPress={() => handleModel(item.model)}
+      />
+    </View>
   )
 
   const renderSectionHeader = ({ section }: { section: TModelListSection }) => (
-    <Text size={ETextRole.Xs} tone={ETextTone.Muted} style={styles.group}>
+    <Text size={ETextRole.Xs} tone={ETextTone.Muted} style={[styles.group, insetStyle]}>
       {section.title}
     </Text>
   )
@@ -90,7 +101,7 @@ export const ModelListBody = ({
       ListHeaderComponent={<ModelSearchField query={query} onQueryChange={onQueryChange} />}
       ListFooterComponent={
         hasModelMatchesOf(sections) ? undefined : (
-          <Text size={ETextRole.Sm} tone={ETextTone.Muted} style={styles.empty}>
+          <Text size={ETextRole.Sm} tone={ETextTone.Muted} style={[styles.empty, insetStyle]}>
             {emptyNote}
           </Text>
         )
