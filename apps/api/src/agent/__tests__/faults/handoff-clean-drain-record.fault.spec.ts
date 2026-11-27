@@ -7,13 +7,14 @@ import { afterAll, beforeAll, describe, expect, it } from 'bun:test'
 import { useTestDatabase } from '@dltech/atlas-db/testing'
 
 import { startRig, type FaultRig, type ReadEvent } from '../../testing/fault-rig'
-import { waitUntil } from '../../testing/handoff-suite'
+import { POD_EFFECT_WAIT_MS, waitUntil } from '../../testing/handoff-suite'
 import { callIdOf, makeFifo, PORT_BAND, portBandOf, waitForFile } from './fault-support'
 
 const REDIS_URL = process.env.ATLAS_TEST_REDIS_URL
 const CALL_ID = 'c1'
 const PORT = portBandOf(PORT_BAND.cleanDrainRecord)
 const SERVICE = 'a-gated-service'
+const TEST_TIMEOUT_MS = 2 * POD_EFFECT_WAIT_MS
 
 const rowsOf = async (args: { rig: FaultRig; threadId: string }): Promise<ReadEvent[]> => {
   const page = await args.rig.plane.readEvents({
@@ -50,57 +51,61 @@ describe.skipIf(REDIS_URL === undefined)('a clean drain mid plugin call', () => 
     rmSync(root, { recursive: true, force: true })
   })
 
-  it('writes no result and no detached dispatch for the call it hands over', async () => {
-    const sessionId = 'fault-drain-plugin-1'
-    const workspace = join(root, 'workspace')
-    const started = join(workspace, 'started')
-    const gate = join(workspace, 'gate')
-    mkdirSync(workspace, { recursive: true })
-    makeFifo({ path: gate })
+  it(
+    'writes no result and no detached dispatch for the call it hands over',
+    async () => {
+      const sessionId = 'fault-drain-plugin-1'
+      const workspace = join(root, 'workspace')
+      const started = join(workspace, 'started')
+      const gate = join(workspace, 'gate')
+      mkdirSync(workspace, { recursive: true })
+      makeFifo({ path: gate })
 
-    const threadId = await rig.newSession({ sessionId, text: 'start the service' })
-    const daemon = await rig.spawnDaemonFor({ sessionId })
-    const hostA = await rig.spawnHost({
-      label: 'host-a',
-      daemonUrl: daemon.url,
-      workspace,
-      knobs: { plugins: true, drainCapMs: 1_000 },
-      scripts: {
-        [sessionId]: [
-          {
-            calls: [
-              {
-                callId: CALL_ID,
-                name: 'service',
-                input: {
-                  action: 'start',
-                  command: `touch ${started}; cat ${gate}`,
-                  description: SERVICE,
-                  workdir: workspace,
-                  port: PORT,
-                  readyTimeoutMs: 60_000,
+      const threadId = await rig.newSession({ sessionId, text: 'start the service' })
+      const daemon = await rig.spawnDaemonFor({ sessionId })
+      const hostA = await rig.spawnHost({
+        label: 'host-a',
+        daemonUrl: daemon.url,
+        workspace,
+        knobs: { plugins: true, drainCapMs: 1_000 },
+        scripts: {
+          [sessionId]: [
+            {
+              calls: [
+                {
+                  callId: CALL_ID,
+                  name: 'service',
+                  input: {
+                    action: 'start',
+                    command: `touch ${started}; cat ${gate}`,
+                    description: SERVICE,
+                    workdir: workspace,
+                    port: PORT,
+                    readyTimeoutMs: 60_000,
+                  },
                 },
-              },
-            ],
-          },
-        ],
-      },
-    })
-    await rig.claim({ sessionId, label: 'host-a', timeoutMs: 30_000 })
-    await waitUntil({
-      what: 'the service call to be dispatched',
-      check: async () =>
-        (await rowsWithCallOf({ rig, threadId, type: 'tool-dispatched' })).length === 1,
-    })
-    await waitForFile({ path: started, timeoutMs: 30_000 })
-    expect(await rowsWithCallOf({ rig, threadId, type: 'tool-result' })).toEqual([])
+              ],
+            },
+          ],
+        },
+      })
+      await rig.claim({ sessionId, label: 'host-a', timeoutMs: 30_000 })
+      await waitUntil({
+        what: 'the service call to be dispatched',
+        check: async () =>
+          (await rowsWithCallOf({ rig, threadId, type: 'tool-dispatched' })).length === 1,
+      })
+      await waitForFile({ path: started, timeoutMs: POD_EFFECT_WAIT_MS })
+      expect(await rowsWithCallOf({ rig, threadId, type: 'tool-result' })).toEqual([])
 
-    hostA.kill('SIGTERM')
-    await hostA.exited
+      hostA.kill('SIGTERM')
+      await hostA.exited
 
-    const drained = await rowsOf({ rig, threadId })
-    expect(drained.filter((row) => row.type === 'tool-dispatched')).toHaveLength(1)
-    expect(drained.filter((row) => row.type === 'tool-result')).toEqual([])
-    expect(drained.filter((row) => row.type === 'tool-dispatched' && detachedOf(row))).toEqual([])
-  }, 90_000)
+      const drained = await rowsOf({ rig, threadId })
+      expect(drained.filter((row) => row.type === 'tool-dispatched')).toHaveLength(1)
+      expect(drained.filter((row) => row.type === 'tool-result')).toEqual([])
+      expect(drained.filter((row) => row.type === 'tool-dispatched' && detachedOf(row))).toEqual([])
+    },
+    TEST_TIMEOUT_MS,
+  )
 })
