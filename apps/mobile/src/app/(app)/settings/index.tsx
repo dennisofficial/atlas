@@ -14,7 +14,6 @@ import { Alert, Linking, Platform } from 'react-native'
 
 import { useAuth } from '../../../auth/auth-provider'
 import { pushRegistrationLabelOf } from '../../../push/push-registration'
-import { ModelDefaultsSection } from '../../../settings/model-defaults-section'
 import { ActionRow, EActionTone, NavRow, Row, Section } from '../../../settings/settings-parts'
 import { SettingsScroll } from '../../../settings/settings-scroll'
 import { IOS_SETTINGS_ROUTES } from '../../../settings/settings-routes'
@@ -83,7 +82,6 @@ export default function SettingsScreen() {
           })}
         </Section>
       ))}
-      <ModelDefaultsSection />
       <Section title="Notifications">
         {permissionStatus === 'denied' ? (
           <CardRow>

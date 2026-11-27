@@ -2,14 +2,7 @@ import { EBrand } from '@dltech/atlas-ui/components/brand-mark'
 
 export const INSTRUCTIONS_CHAR_LIMIT = 8000
 
-export enum EBuiltInAgentType {
-  Builder = 'builder',
-  Explore = 'explore',
-  GeneralPurpose = 'general-purpose',
-  Preview = 'preview',
-  Researcher = 'researcher',
-  Reviewer = 'reviewer',
-}
+export { EBuiltInAgentType } from '@dltech/atlas-client/settings'
 
 export enum EProviderId {
   Anthropic = 'anthropic',

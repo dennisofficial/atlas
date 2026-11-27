@@ -2,9 +2,9 @@ import { describe, expect, it } from 'bun:test'
 
 import { EEffort, EModelRole, refKey } from '@dltech/atlas-core'
 
-import { FALLBACK_MODEL, MAIN_MODEL, optionsFixture, STALE_MODEL } from './model-options-fixture'
+import { FALLBACK_MODEL, MAIN_MODEL, optionsFixture, STALE_MODEL } from './model-catalog-fixture'
 import { choiceOf, PAGE_ROLES, resolveRoles, staleOwnerOf } from '../model-roles'
-import { modelsDraftFrom } from '../models-settings'
+import { modelsDraftFrom, type IModelsDraft } from '../models-settings'
 
 const saved = () => modelsDraftFrom(new Map())
 
@@ -32,7 +32,10 @@ describe('resolveRoles', () => {
   })
 
   it('lets an agent type follow subagents unless it has its own model', () => {
-    const draft = { ...saved(), subagents: { model: MAIN_MODEL, effort: 'medium', fast: false } }
+    const draft: IModelsDraft = {
+      ...saved(),
+      subagents: { model: MAIN_MODEL, effort: 'medium', fast: false },
+    }
     const choices = resolveRoles({ draft, models: optionsFixture() })
     const builder = choiceOf({ choices, role: { agentType: 'builder' } })
     expect(refKey(builder.ref)).toBe(MAIN_MODEL)
