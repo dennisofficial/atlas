@@ -1,9 +1,10 @@
 import { useTheme } from '@dltech/atlas-ui-native'
 import { usePathname } from 'expo-router'
 import { type ReactNode, useMemo } from 'react'
-import { StyleSheet, useWindowDimensions } from 'react-native'
+import { StyleSheet } from 'react-native'
 import { Drawer } from 'react-native-drawer-layout'
 
+import { useContentWidth } from '../layout/use-content-width'
 import { usePosture } from '../layout/use-posture'
 import { applyNavigation } from '../navigation/apply-navigation'
 import { sessionOpenOf } from '../navigation/root-navigation'
@@ -22,7 +23,7 @@ import { useSessionsDrawer } from './sessions-drawer-state'
 export const SessionsDrawer = ({ children }: { children: ReactNode }) => {
   const theme = useTheme()
   const posture = usePosture()
-  const { width } = useWindowDimensions()
+  const width = useContentWidth()
   const pathname = usePathname()
   const selected = useSelectedSession()
   const { open, setOpen } = useSessionsDrawer()

@@ -1,8 +1,8 @@
 import { useTheme } from '@dltech/atlas-ui-native'
 import { Stack } from 'expo-router'
-import { useWindowDimensions } from 'react-native'
 
 import { SideInsetFrame } from '../layout/side-inset-frame'
+import { useContentWidth } from '../layout/use-content-width'
 import { tabHeaderOptionsOf } from './header-options'
 
 export const TabRootStack = ({
@@ -13,19 +13,18 @@ export const TabRootStack = ({
   offersNewSession?: boolean
 }) => {
   const theme = useTheme()
-  const { width: windowWidth } = useWindowDimensions()
+  const contentWidth = useContentWidth()
   return (
-    <Stack
-      screenOptions={{ contentStyle: { backgroundColor: theme.sidebar } }}
-      screenLayout={SideInsetFrame}
-    >
-      <Stack.Screen
-        name="index"
-        options={{
-          ...tabHeaderOptionsOf({ title, windowWidth, offersNewSession }),
-          animation: 'none',
-        }}
-      />
-    </Stack>
+    <SideInsetFrame background={theme.sidebar}>
+      <Stack screenOptions={{ contentStyle: { backgroundColor: theme.sidebar } }}>
+        <Stack.Screen
+          name="index"
+          options={{
+            ...tabHeaderOptionsOf({ title, barWidth: contentWidth, offersNewSession }),
+            animation: 'none',
+          }}
+        />
+      </Stack>
+    </SideInsetFrame>
   )
 }

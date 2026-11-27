@@ -3,6 +3,7 @@ import type { NativeStackHeaderItem, NativeStackNavigationOptions } from 'expo-r
 import { router } from 'expo-router'
 import type { ReactNode } from 'react'
 import { Platform, StyleSheet, View } from 'react-native'
+import { ScrollToTopGuard } from 'react-native-screens/experimental'
 
 import { GlassSurface } from './glass-surface'
 import { leadingTitleWidthOf } from './header-leading'
@@ -33,7 +34,7 @@ export const leadingHeaderOptionsOf = ({
   glassTitle = false,
   fillsBar = false,
   titleButtons,
-  windowWidth,
+  barWidth,
 }: {
   leading?: NativeStackHeaderItem[]
   lead?: ReactNode
@@ -41,38 +42,42 @@ export const leadingHeaderOptionsOf = ({
   glassTitle?: boolean
   fillsBar?: boolean
   titleButtons: number
-  windowWidth: number
+  barWidth: number
 }): NativeStackNavigationOptions => {
   const iosLead = Platform.OS === 'ios' ? lead : undefined
-  const titleWidth = leadingTitleWidthOf({ windowWidth, buttons: titleButtons })
+  const titleWidth = leadingTitleWidthOf({ barWidth, buttons: titleButtons })
   const titleElement = (
-    <View
-      style={[
-        styles.title,
-        glassTitle ? styles.glassTitle : null,
-        glassTitle && iosLead !== undefined ? styles.glassTitleWithLead : null,
-        { maxWidth: titleWidth },
-      ]}
-    >
-      {iosLead}
-      <View style={styles.titleText}>{title}</View>
-    </View>
+    <ScrollToTopGuard>
+      <View
+        style={[
+          styles.title,
+          glassTitle ? styles.glassTitle : null,
+          glassTitle && iosLead !== undefined ? styles.glassTitleWithLead : null,
+          { maxWidth: titleWidth },
+        ]}
+      >
+        {iosLead}
+        <View style={styles.titleText}>{title}</View>
+      </View>
+    </ScrollToTopGuard>
   )
   if (fillsBar && Platform.OS === 'ios') {
     return {
       headerTitle: () => (
-        <GlassSurface
-          style={[
-            styles.title,
-            styles.glassTitle,
-            styles.barPill,
-            iosLead === undefined ? null : styles.glassTitleWithLead,
-            { width: titleWidth },
-          ]}
-        >
-          {iosLead}
-          <View style={styles.fillText}>{title}</View>
-        </GlassSurface>
+        <ScrollToTopGuard>
+          <GlassSurface
+            style={[
+              styles.title,
+              styles.glassTitle,
+              styles.barPill,
+              iosLead === undefined ? null : styles.glassTitleWithLead,
+              { width: titleWidth },
+            ]}
+          >
+            {iosLead}
+            <View style={styles.fillText}>{title}</View>
+          </GlassSurface>
+        </ScrollToTopGuard>
       ),
       unstable_headerLeftItems: () => [...leading],
     }
@@ -93,11 +98,11 @@ export const leadingHeaderOptionsOf = ({
 
 export const tabHeaderOptionsOf = ({
   title,
-  windowWidth,
+  barWidth,
   offersNewSession = true,
 }: {
   title: string
-  windowWidth: number
+  barWidth: number
   offersNewSession?: boolean
 }): NativeStackNavigationOptions => ({
   title,
@@ -105,7 +110,7 @@ export const tabHeaderOptionsOf = ({
     title: <TabHeaderTitle title={title} />,
     glassTitle: true,
     titleButtons: offersNewSession ? 1 : 0,
-    windowWidth,
+    barWidth,
   }),
   headerRight: Platform.OS !== 'ios' && offersNewSession ? () => <NewSessionButton /> : undefined,
   unstable_headerRightItems:

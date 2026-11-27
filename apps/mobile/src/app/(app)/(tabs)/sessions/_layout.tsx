@@ -15,7 +15,6 @@ const SessionsStack = () => {
         gestureEnabled: false,
         contentStyle: { backgroundColor: theme.background },
       }}
-      screenLayout={SideInsetFrame}
     >
       <Stack.Screen
         name="index"
@@ -41,9 +40,12 @@ const SessionsStack = () => {
 }
 
 export default function SessionsLayout() {
+  const theme = useTheme()
   return (
-    <SessionsDrawer>
-      <SessionsStack />
-    </SessionsDrawer>
+    <SideInsetFrame background={theme.sidebar}>
+      <SessionsDrawer>
+        <SessionsStack />
+      </SessionsDrawer>
+    </SideInsetFrame>
   )
 }
