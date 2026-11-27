@@ -23,9 +23,12 @@ A spec earns its place by failing when the behaviour it names breaks. A good uni
 ## Backlog
 
 Ordered by value. Each item fits in one sitting. Rechecked 2026-11-27.
-1. **Confirm the cache fix on main.** The first main run after the store change is a full run (the
-   package is a global input). From the second run on, `changed: env` and one-time file changes
-   must stop rerunning on shards 1–7. If they still do, read the `since the pass of` date.
+1. **`changed: env` still reruns ~90 api specs on about half the shards.** On the PR rerun
+   (run 45997420162, attempt 2) shards 3, 4, 7 and 8 reused everything, but shards 1, 2, 5 and 6
+   each reran 86–92 specs, compared with the attempt-1 pass of the same shard 7 minutes before.
+   These specs enumerate `process.env`, so some variable differs between runner VMs. Unconfirmed
+   guess: the runner's `STATS_*` flags. First make an env miss name the variables whose presence
+   changed (`store.ts` `firstChangedInput`), then add the culprit to `SESSION_ONLY_ENV`.
 2. **`follow-live.spec.ts` "resumes after reconnect" hit `deadlock detected` (40P01)** on main run
    45988514717, shard 6: an AccessExclusiveLock against an AccessShareLock, so two specs share
    tables in the test database. Find the spec that truncates or drops while it reads.
@@ -90,17 +93,14 @@ Ordered by value. Each item fits in one sitting. Rechecked 2026-11-27.
 - **Convention drift:** no `.test.ts(x)`, no Vitest outside `evals/`, `noFocusedTests` blocks
   focused tests. Specs outside `__tests__/` are sanctioned by `apps/api/AGENTS.md`.
 
-- **`changed: env` on a spec that reads ~90–140 variables** is not a per-job variable. Those specs
-  enumerate `process.env`, and the record they were compared to was a stale one (fixed 2026-11-27).
 
 ## 2026-11-27
 
 - **Only shard 8's records survived in CI.** Each shard restores all eight caches in order, and
   shard 8's archive holds a stale copy of every record file, so it replaced what shards 1–7 wrote:
   62% of api files reran (7,130 of 11,507 in 4 runs); 59 dependants of one change reran every run.
-- **Fix:** one record per file, named by its content (`store.ts`), so a stale copy cannot replace a
-  newer record. A miss now names the pass it compared to. A two-shard tar replay reran shard 1 on
-  every run on main and reused everything with the fix.
+- **Fix:** one record per file, named by its content (`store.ts`). A miss names the pass it compared
+  to. A PR rerun reused all files on 4 shards; the other 4 still rerun ~90 `env` specs (backlog 1).
 - Main test job, last 4 runs: 3m27s–4m18s per shard. Main 45988514717 red on a follow-live deadlock.
 - Audit of 135 specs changed since 11-26: no new skips or assertion-free bodies, 2 new clock bounds.
 - Mutation checks: 4 store breaks, each turned `store.spec.ts` red. They are listed in the PR.
