@@ -91,24 +91,24 @@ export class HeldDrain {
   }
 
   private async settleInFlight(): Promise<boolean> {
-    if (!this.args.pause.modelStepRunning) return false
+    if (!this.args.pause.stepSettling) return false
     const startedAt = this.args.deps.timers.now()
     const settled = await settledWithin({
       timers: this.args.deps.timers,
       ms: this.args.deps.drainCapMs,
-      done: this.args.pause.whenModelIdle(),
+      done: this.args.pause.whenStepSettled(),
     })
     if (settled) return false
-    this.logCap({ startedAt })
+    this.logCap({ startedAt, streaming: this.args.pause.modelStepRunning })
     this.args.pause.abortModelStep()
     const aborted = await settledWithin({
       timers: this.args.deps.timers,
       ms: DRAIN_STREAM_ABORT_CAP_MS,
-      done: this.args.pause.whenModelIdle(),
+      done: this.args.pause.whenStepSettled(),
     })
     if (!aborted) {
       this.warn({
-        message: `the model stream outlived the ${DRAIN_STREAM_ABORT_CAP_MS}ms abort; handing back without it`,
+        message: `the step outlived its ${DRAIN_STREAM_ABORT_CAP_MS}ms abort; handing back without it`,
       })
     }
     return true
@@ -137,10 +137,13 @@ export class HeldDrain {
     })
   }
 
-  private logCap(args: { startedAt: number }): void {
+  private logCap(args: { startedAt: number; streaming: boolean }): void {
+    const spentMs = this.args.deps.timers.now() - args.startedAt
     this.args.deps.log?.warn({
       source: 'holder.drain',
-      message: `session ${this.args.sessionId} ran the model step for ${this.args.deps.timers.now() - args.startedAt}ms, past the ${this.args.deps.drainCapMs}ms drain cap; aborting the model stream`,
+      message: args.streaming
+        ? `session ${this.args.sessionId} ran the model stream for ${spentMs}ms, past the ${this.args.deps.drainCapMs}ms drain cap; aborting it`
+        : `session ${this.args.sessionId} spent ${spentMs}ms recording the step it streamed, past the ${this.args.deps.drainCapMs}ms drain cap; handing back without it`,
     })
   }
 }

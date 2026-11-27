@@ -5,6 +5,8 @@ export class PauseSignal {
   private readonly modelAborters = new Set<() => void>()
   private modelSteps = 0
   private readonly modelIdle: (() => void)[] = []
+  private stepSettles = 0
+  private readonly stepSettledWaiters: (() => void)[] = []
 
   get paused(): boolean {
     return this.isPaused
@@ -59,6 +61,30 @@ export class PauseSignal {
     if (this.modelSteps === 0) return Promise.resolve()
     return new Promise<void>((resolve) => {
       this.modelIdle.push(resolve)
+    })
+  }
+
+  beginStepSettle(): () => void {
+    this.stepSettles += 1
+    let released = false
+    return () => {
+      if (released) return
+      released = true
+      this.stepSettles -= 1
+      if (this.stepSettles > 0) return
+      const settled = this.stepSettledWaiters.splice(0)
+      for (const resolve of settled) resolve()
+    }
+  }
+
+  get stepSettling(): boolean {
+    return this.stepSettles > 0
+  }
+
+  whenStepSettled(): Promise<void> {
+    if (this.stepSettles === 0) return Promise.resolve()
+    return new Promise<void>((resolve) => {
+      this.stepSettledWaiters.push(resolve)
     })
   }
 

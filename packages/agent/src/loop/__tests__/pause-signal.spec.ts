@@ -45,6 +45,33 @@ describe('a pause signal', () => {
     expect(pause.modelStepRunning).toBe(true)
   })
 
+  it('stays settling until the step it began is released, once', async () => {
+    const pause = new PauseSignal()
+    expect(await settled(pause.whenStepSettled())).toBe(true)
+
+    const release = pause.beginStepSettle()
+    expect(pause.stepSettling).toBe(true)
+    const stepSettled = pause.whenStepSettled()
+    expect(await settled(stepSettled)).toBe(false)
+
+    release()
+    release()
+    expect(await settled(stepSettled)).toBe(true)
+    expect(pause.stepSettling).toBe(false)
+  })
+
+  it('waits for every in-flight step, whatever the model streams', async () => {
+    const pause = new PauseSignal()
+    const release = pause.beginStepSettle()
+    const ended = pause.beginModelStep()
+    ended?.()
+    const stepSettled = pause.whenStepSettled()
+
+    expect(await settled(stepSettled)).toBe(false)
+    release()
+    expect(await settled(stepSettled)).toBe(true)
+  })
+
   it('aborts the model step without telling the pause listeners, and the other way round', async () => {
     const pause = new PauseSignal()
     const aborts: string[] = []
