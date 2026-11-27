@@ -1,58 +1,53 @@
-import { BookOpenTextIcon, type LucideIcon } from 'lucide-react'
-
 import {
+  EGroupSettingsSection,
   EProjectSettingsSection,
-  PROJECT_NAV,
-} from '@/features/project-settings/project-settings-nav'
+  GROUP_SECTIONS as SHARED_GROUP_SECTIONS,
+  type TGroupSection,
+} from '@dltech/atlas-client/settings'
+import {
+  BookOpenTextIcon,
+  BoxIcon,
+  LayoutDashboardIcon,
+  LockKeyholeIcon,
+  PlugIcon,
+  SparklesIcon,
+  type LucideIcon,
+} from 'lucide-react'
 
-export enum EGroupSettingsSection {
-  Instructions = 'instructions',
-}
-
-const GROUP_NAV_SECTIONS = [
-  EProjectSettingsSection.Overview,
-  EGroupSettingsSection.Instructions,
-  EProjectSettingsSection.Sandbox,
-  EProjectSettingsSection.Access,
-  EProjectSettingsSection.Skills,
-  EProjectSettingsSection.Mcp,
-] as const
-
-export type GroupSection = (typeof GROUP_NAV_SECTIONS)[number]
+export { EGroupSettingsSection, type TGroupSection as GroupSection }
 
 export type GroupNavItem = {
-  section: GroupSection
+  section: TGroupSection
   label: string
   icon: LucideIcon
 }
 
-const NAV_BY_SECTION = new Map(PROJECT_NAV.map((item) => [item.section, item]))
-
-const INSTRUCTIONS_NAV: GroupNavItem = {
-  section: EGroupSettingsSection.Instructions,
-  label: 'Instructions',
-  icon: BookOpenTextIcon,
+const ICONS: Record<TGroupSection, LucideIcon> = {
+  [EProjectSettingsSection.Overview]: LayoutDashboardIcon,
+  [EGroupSettingsSection.Instructions]: BookOpenTextIcon,
+  [EProjectSettingsSection.Sandbox]: BoxIcon,
+  [EProjectSettingsSection.Access]: LockKeyholeIcon,
+  [EProjectSettingsSection.Skills]: SparklesIcon,
+  [EProjectSettingsSection.Mcp]: PlugIcon,
 }
 
-const navOf = (section: GroupSection): GroupNavItem => {
-  if (section === EGroupSettingsSection.Instructions) return INSTRUCTIONS_NAV
-  const item = NAV_BY_SECTION.get(section)
-  if (item === undefined) throw new Error(`no project nav item for ${section}`)
-  return { section, label: item.label, icon: item.icon }
-}
+export const GROUP_NAV: readonly GroupNavItem[] = SHARED_GROUP_SECTIONS.map((item) => ({
+  ...item,
+  icon: ICONS[item.section],
+}))
 
-export const GROUP_NAV: readonly GroupNavItem[] = GROUP_NAV_SECTIONS.map(navOf)
-
-export const GROUP_SECTIONS: readonly GroupSection[] = GROUP_NAV_SECTIONS
+export const GROUP_SECTIONS: readonly TGroupSection[] = SHARED_GROUP_SECTIONS.map(
+  (item) => item.section,
+)
 
 const GROUP_SETTINGS_PATH = /^\/groups\/[^/]+\/settings\/([^/]+)/
 
-export const groupSectionOfPath = (pathname: string): GroupSection | null => {
+export const groupSectionOfPath = (pathname: string): TGroupSection | null => {
   const segment = GROUP_SETTINGS_PATH.exec(pathname)?.[1]
   return GROUP_SECTIONS.find((section) => section === segment) ?? null
 }
 
-export const hrefOfGroupSection = (args: { groupId: string; section: GroupSection }): string =>
+export const hrefOfGroupSection = (args: { groupId: string; section: TGroupSection }): string =>
   `/groups/${encodeURIComponent(args.groupId)}/settings/${args.section}`
 
 export const GROUPS_HREF = '/settings/groups'

@@ -1,3 +1,4 @@
+import { EProjectSettingsSection, PROJECT_SECTIONS } from '@dltech/atlas-client/settings'
 import {
   BoxIcon,
   GitPullRequestIcon,
@@ -8,14 +9,7 @@ import {
   type LucideIcon,
 } from 'lucide-react'
 
-export enum EProjectSettingsSection {
-  Overview = 'overview',
-  Sandbox = 'sandbox',
-  Access = 'access',
-  Skills = 'skills',
-  Mcp = 'mcp',
-  PullRequests = 'pull-requests',
-}
+export { EProjectSettingsSection }
 
 export type ProjectNavItem = {
   section: EProjectSettingsSection
@@ -23,18 +17,19 @@ export type ProjectNavItem = {
   icon: LucideIcon
 }
 
-export const PROJECT_NAV: readonly ProjectNavItem[] = [
-  { section: EProjectSettingsSection.Overview, label: 'Overview', icon: LayoutDashboardIcon },
-  { section: EProjectSettingsSection.Sandbox, label: 'Sandbox', icon: BoxIcon },
-  { section: EProjectSettingsSection.Access, label: 'Access', icon: LockKeyholeIcon },
-  { section: EProjectSettingsSection.Skills, label: 'Skills', icon: SparklesIcon },
-  { section: EProjectSettingsSection.Mcp, label: 'MCP', icon: PlugIcon },
-  {
-    section: EProjectSettingsSection.PullRequests,
-    label: 'Pull requests',
-    icon: GitPullRequestIcon,
-  },
-]
+const ICONS: Record<EProjectSettingsSection, LucideIcon> = {
+  [EProjectSettingsSection.Overview]: LayoutDashboardIcon,
+  [EProjectSettingsSection.Sandbox]: BoxIcon,
+  [EProjectSettingsSection.Access]: LockKeyholeIcon,
+  [EProjectSettingsSection.Skills]: SparklesIcon,
+  [EProjectSettingsSection.Mcp]: PlugIcon,
+  [EProjectSettingsSection.PullRequests]: GitPullRequestIcon,
+}
+
+export const PROJECT_NAV: readonly ProjectNavItem[] = PROJECT_SECTIONS.map((item) => ({
+  ...item,
+  icon: ICONS[item.section],
+}))
 
 const PROJECT_SETTINGS_PATH = /^\/projects\/[^/]+\/settings\/([^/]+)/
 

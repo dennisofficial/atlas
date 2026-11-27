@@ -5,28 +5,26 @@ import {
   ETextRole,
   ETextTone,
   Input,
-  Spinner,
   Text,
-  useTheme,
 } from '@dltech/atlas-ui-native'
 import { space } from '@dltech/atlas-ui/tokens'
 import type { Project, ProjectUpdate } from '@dltech/atlas-wire/web'
 import { useLocalSearchParams } from 'expo-router'
 import { useState } from 'react'
-import { ScrollView, StyleSheet, View } from 'react-native'
+import { StyleSheet, View } from 'react-native'
 
-import { useAuth } from '../../../auth/auth-provider'
+import { useAuth } from '../../../../auth/auth-provider'
 import {
   draftIsDirty,
   draftIsValid,
   draftOf,
   type IProjectDraft,
   updatePayloadOf,
-} from '../../../project-settings/project-settings-draft'
-import { EProjectLoad, useProjectSettings } from '../../../project-settings/use-project-settings'
-import { Row, Section } from '../../../settings/settings-parts'
-
-const COMING_SOON_SECTIONS = ['Sandbox', 'Access', 'Skills', 'MCP', 'Pull requests'] as const
+} from '../../../../project-settings/project-settings-draft'
+import { EProjectLoad, useProjectSettings } from '../../../../project-settings/use-project-settings'
+import { EResourceState } from '../../../../settings/api-resource-state'
+import { Row, Section, StatusRows } from '../../../../settings/settings-parts'
+import { SettingsScroll } from '../../../../settings/settings-scroll'
 
 const ProjectForm = ({
   project,
@@ -118,62 +116,34 @@ const ProjectForm = ({
         <Row label="GitHub repository" value={project.repo ?? 'None'} mono />
         <Row label="Base branch" value={project.baseBranch ?? 'Repository default'} mono />
       </Section>
-      <Section title="More settings">
-        {COMING_SOON_SECTIONS.map((label) => (
-          <Row key={label} label={label} value="Coming soon" />
-        ))}
-      </Section>
     </>
   )
 }
 
-export default function ProjectSettingsScreen() {
-  const theme = useTheme()
+const resourceStateOf = (load: EProjectLoad): EResourceState => {
+  if (load === EProjectLoad.Ready) return EResourceState.Ready
+  if (load === EProjectLoad.Failed) return EResourceState.Failed
+  return EResourceState.Loading
+}
+
+export default function ProjectOverviewScreen() {
   const { api } = useAuth()
   const { projectId } = useLocalSearchParams<{ projectId: string }>()
   const { project, load, retry, save } = useProjectSettings({ api, projectId })
 
   return (
-    <ScrollView
-      style={{ backgroundColor: theme.background }}
-      contentContainerStyle={styles.scroll}
-      contentInsetAdjustmentBehavior="automatic"
-      keyboardShouldPersistTaps="handled"
-    >
-      {load === EProjectLoad.Loading ? (
-        <View style={styles.status}>
-          <Spinner color={theme.primary} size={20} />
-        </View>
-      ) : null}
-      {load === EProjectLoad.Failed ? (
-        <View style={styles.status}>
-          <Text size={ETextRole.Sm} tone={ETextTone.Destructive}>
-            This project could not be loaded.
-          </Text>
-          <Text size={ETextRole.Sm} tone={ETextTone.Muted} onPress={retry}>
-            Tap to try again.
-          </Text>
-        </View>
-      ) : null}
+    <SettingsScroll>
+      <StatusRows
+        state={resourceStateOf(load)}
+        onRetry={retry}
+        failure="This project could not be loaded."
+      />
       {project === null ? null : <ProjectForm key={project.id} project={project} onSave={save} />}
-    </ScrollView>
+    </SettingsScroll>
   )
 }
 
 const styles = StyleSheet.create({
-  scroll: {
-    alignSelf: 'center',
-    gap: space(6),
-    maxWidth: 720,
-    padding: space(4),
-    paddingBottom: space(10),
-    width: '100%',
-  },
-  status: {
-    alignItems: 'center',
-    gap: space(2),
-    paddingTop: space(10),
-  },
   section: {
     gap: space(2),
   },

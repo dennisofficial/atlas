@@ -1,4 +1,11 @@
 import {
+  ESettingsPage,
+  filterNav,
+  type INavGroup,
+  labelOfPage,
+  SETTINGS_NAV as SHARED_SETTINGS_NAV,
+} from '@dltech/atlas-client/settings'
+import {
   BellIcon,
   BookOpenTextIcon,
   BotIcon,
@@ -18,24 +25,7 @@ import {
   type LucideIcon,
 } from 'lucide-react'
 
-export enum ESettingsPage {
-  Account = 'account',
-  Integrations = 'integrations',
-  Instructions = 'instructions',
-  Skills = 'skills',
-  Memory = 'memory',
-  ModelsEffort = 'models-effort',
-  Providers = 'providers',
-  Classifier = 'classifier',
-  Access = 'access',
-  Groups = 'groups',
-  Appearance = 'appearance',
-  Notifications = 'notifications',
-  Security = 'security',
-  Agent = 'agent',
-  Experimental = 'experimental',
-  Quality = 'quality',
-}
+export { ESettingsPage, filterNav, labelOfPage }
 
 export type SettingsNavItem = {
   page: ESettingsPage
@@ -43,76 +33,31 @@ export type SettingsNavItem = {
   icon: LucideIcon
 }
 
-export type SettingsNavGroup = {
-  label?: string
-  items: SettingsNavItem[]
+export type SettingsNavGroup = INavGroup<SettingsNavItem>
+
+const ICONS: Record<ESettingsPage, LucideIcon> = {
+  [ESettingsPage.Account]: UserIcon,
+  [ESettingsPage.Integrations]: PlugIcon,
+  [ESettingsPage.Instructions]: BookOpenTextIcon,
+  [ESettingsPage.Skills]: SparklesIcon,
+  [ESettingsPage.Memory]: BrainIcon,
+  [ESettingsPage.ModelsEffort]: GaugeIcon,
+  [ESettingsPage.Providers]: BotIcon,
+  [ESettingsPage.Classifier]: ScaleIcon,
+  [ESettingsPage.Agent]: WrenchIcon,
+  [ESettingsPage.Quality]: ShieldCheckIcon,
+  [ESettingsPage.Experimental]: FlaskConicalIcon,
+  [ESettingsPage.Access]: LockKeyholeIcon,
+  [ESettingsPage.Groups]: FolderIcon,
+  [ESettingsPage.Appearance]: PaletteIcon,
+  [ESettingsPage.Notifications]: BellIcon,
+  [ESettingsPage.Security]: ShieldIcon,
 }
 
-export const SETTINGS_NAV: SettingsNavGroup[] = [
-  {
-    items: [
-      { page: ESettingsPage.Account, label: 'Account', icon: UserIcon },
-      { page: ESettingsPage.Integrations, label: 'Integrations & MCP', icon: PlugIcon },
-    ],
-  },
-  {
-    label: 'Agent',
-    items: [
-      { page: ESettingsPage.Instructions, label: 'Instructions', icon: BookOpenTextIcon },
-      { page: ESettingsPage.Skills, label: 'Skills', icon: SparklesIcon },
-      { page: ESettingsPage.Memory, label: 'Memory', icon: BrainIcon },
-      { page: ESettingsPage.ModelsEffort, label: 'Models & Effort', icon: GaugeIcon },
-      { page: ESettingsPage.Providers, label: 'Providers', icon: BotIcon },
-      { page: ESettingsPage.Classifier, label: 'Classifier', icon: ScaleIcon },
-      { page: ESettingsPage.Agent, label: 'Agent', icon: WrenchIcon },
-      { page: ESettingsPage.Quality, label: 'Code Quality', icon: ShieldCheckIcon },
-      { page: ESettingsPage.Experimental, label: 'Experimental', icon: FlaskConicalIcon },
-    ],
-  },
-  {
-    label: 'Library',
-    items: [
-      { page: ESettingsPage.Access, label: 'Access', icon: LockKeyholeIcon },
-      { page: ESettingsPage.Groups, label: 'Groups', icon: FolderIcon },
-    ],
-  },
-  {
-    label: 'Interface',
-    items: [
-      { page: ESettingsPage.Appearance, label: 'Appearance', icon: PaletteIcon },
-      { page: ESettingsPage.Notifications, label: 'Notifications', icon: BellIcon },
-    ],
-  },
-  {
-    label: 'Security',
-    items: [{ page: ESettingsPage.Security, label: 'Devices & Sessions', icon: ShieldIcon }],
-  },
-]
-
-export function labelOfPage(page: ESettingsPage): string {
-  const all = SETTINGS_NAV.flatMap((group) => group.items)
-  return all.find((item) => item.page === page)?.label ?? page
-}
-
-export function filterNav({
-  groups,
-  query,
-}: {
-  groups: SettingsNavGroup[]
-  query: string
-}): SettingsNavGroup[] {
-  const needle = query.trim().toLowerCase()
-  if (!needle) return groups
-  return groups
-    .map((group) => {
-      const groupMatches = group.label?.toLowerCase().includes(needle) ?? false
-      const items = groupMatches
-        ? group.items
-        : group.items.filter((item) => item.label.toLowerCase().includes(needle))
-      return { ...group, items }
-    })
-    .filter((group) => group.items.length > 0)
-}
+export const SETTINGS_NAV: SettingsNavGroup[] = SHARED_SETTINGS_NAV.map((group) => ({
+  ...(group.label === undefined ? {} : { label: group.label }),
+  items: group.items.map((item) => ({ ...item, icon: ICONS[item.page] })),
+}))
 
 export function settingsPageOfPath(pathname: string): ESettingsPage | null {
   if (!pathname.startsWith('/settings/')) return null
