@@ -74,6 +74,14 @@ const searchOf = (args: { state: string; outcome: ReturnOutcome; base?: URLSearc
   return `?${params.toString()}`
 }
 
+const ROOT_PATH = '/'
+
+const localPathOf = (args: { path: string; origin: string }): string => {
+  if (!args.path.startsWith('/') || args.path.startsWith('//') || args.path.includes('\\'))
+    return ROOT_PATH
+  return new URL(args.path, args.origin).origin === args.origin ? args.path : ROOT_PATH
+}
+
 export type ReturnLink =
   | { kind: 'redirect'; url: string }
   | { kind: 'app'; url: string; webUrl: string }
@@ -85,7 +93,8 @@ export const returnLinkOf = (args: {
   state: string
   outcome: ReturnOutcome
 }): ReturnLink => {
-  const web = new URL(args.path, new URL(args.webOrigin).origin)
+  const origin = new URL(args.webOrigin).origin
+  const web = new URL(localPathOf({ path: args.path, origin }), origin)
   const search = searchOf({ state: args.state, outcome: args.outcome, base: web.searchParams })
   const webUrl = `${web.origin}${web.pathname}${search}`
   if (args.target.surface === EReturnSurface.Tui && args.target.port !== undefined)

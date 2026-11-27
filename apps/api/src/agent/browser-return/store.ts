@@ -55,13 +55,16 @@ export class BrowserReturnStore {
     })
   }
 
-  async take(args: { state: string }): Promise<BrowserReturnRow | null> {
+  async take(args: { state: string; now: Date }): Promise<BrowserReturnRow | null> {
     const row = await this.db.orm.public.BrowserReturnPending.select(
       ...BROWSER_RETURN_COLUMNS,
     ).first({ state: args.state })
     if (row === null) return null
-    await this.db.orm.public.BrowserReturnPending.where({ state: args.state }).deleteAndCount()
-    return row
+    const deleted = await this.db.orm.public.BrowserReturnPending.where({
+      state: args.state,
+    }).deleteAndCount()
+    if (deleted !== 1) return null
+    return row.expiresAt.getTime() <= args.now.getTime() ? null : row
   }
 }
 

@@ -152,6 +152,19 @@ describe('returnLinkOf', () => {
     ).toBe('http://127.0.0.1:53682/atlas-return?atlasReturn=connected&atlasState=state-1')
   })
 
+  it('never leaves the web origin', () => {
+    for (const path of [
+      '//attacker.example/collect',
+      'https://attacker.example/collect',
+      '/\\attacker.example/collect',
+      'collect',
+    ])
+      expect(
+        returnLinkOf({ ...base, path, target: { surface: EReturnSurface.Web }, outcome: CONNECTED })
+          .url,
+      ).toBe('https://byatlas.io/?atlasReturn=connected&atlasState=state-1')
+  })
+
   it('keeps a query the page already has', () => {
     expect(
       returnLinkOf({

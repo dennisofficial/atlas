@@ -269,4 +269,38 @@ describe('BrowserReturnService.answer', () => {
     expect(second.location).toContain('/fallback?')
     expect(await rowOf()).toBeNull()
   })
+
+  it('hands the row to one of two callbacks that race', async () => {
+    await beginOf(serviceOf())
+    const answerOnce = () =>
+      serviceOf().answer({
+        state: 'state-1',
+        cookieHeader: undefined,
+        outcome: CONNECTED,
+        fallbackWebPath: '/fallback',
+      })
+
+    const answers = await Promise.all([answerOnce(), answerOnce(), answerOnce()])
+
+    const located = answers.map((answer) => (answer.kind === 'redirect' ? answer.location : ''))
+    expect(located.filter((location) => location.includes('/settings/integrations?'))).toHaveLength(
+      1,
+    )
+  })
+
+  it('answers an expired row on the fallback path', async () => {
+    const service = serviceOf()
+    await beginOf(service)
+    await service.start({ state: 'state-1', surface: 'desktop' })
+
+    const answer = await serviceOf({ now: () => new Date(NOW.getTime() + 60 * 60_000) }).answer({
+      state: 'state-1',
+      cookieHeader: undefined,
+      outcome: CONNECTED,
+      fallbackWebPath: '/fallback',
+    })
+
+    if (answer.kind !== 'redirect') throw new Error('an expired row must fall back to the web')
+    expect(answer.location).toContain('https://byatlas.io/fallback?')
+  })
 })

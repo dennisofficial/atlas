@@ -33,7 +33,7 @@ loopback needs a browser on the same machine, so the flow decides, not the frame
 
 Web, Mac and iOS open the start link in a browser they do not control. The browser returns to a
 page of the app, and the client reads the outcome from the return params.
-- `openBrowserReturn({ url })` (`apps/web/src/features/browser-return/open-browser-return.ts`)
+- `openBrowserReturn({ url })` (`apps/web/src/features/auth/browser-return/open-browser-return.ts`)
   opens `startLinkFor({ surface })` in a window named `atlas-return-<state>`, with
   `noopener,noreferrer`. The surface is `web` in a browser and `desktop` on the Mac host
   (`isDesktopHost`). Mac sends every `window.open` to the system browser: `setWindowOpenHandler`

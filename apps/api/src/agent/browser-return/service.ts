@@ -128,7 +128,7 @@ export class BrowserReturnService {
   }
 
   async answer(request: BrowserReturnAnswerRequest): Promise<BrowserReturnCallbackAnswer> {
-    const row = await this.store.take({ state: request.state })
+    const row = await this.store.take({ state: request.state, now: this.now() })
     const target = returnTargetOf({
       state: request.state,
       cookie: returnCookieIn({ cipher: this.args.cipher, header: request.cookieHeader }),
