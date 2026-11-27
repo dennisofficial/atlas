@@ -13,6 +13,14 @@ export const SIDE_COLUMN_MIN_INSET = 44
 export const sideColumnInsetOf = (insets: TInsets): number =>
   insets.right >= SIDE_COLUMN_MIN_INSET && insets.right > insets.left ? insets.right : 0
 
+export const contentWidthOf = ({
+  windowWidth,
+  insets,
+}: {
+  windowWidth: number
+  insets: TInsets
+}): number => windowWidth - sideColumnInsetOf(insets)
+
 export type TPosture = {
   sessionsList: ESessionsListLayout
 }

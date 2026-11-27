@@ -35,6 +35,11 @@ web spinner), never `ActivityIndicator`.
   of room moves low-priority items into a "…" overflow menu, and a custom view shows nothing there.
   expo-router 58 drops the prop for a `custom` item, so `patches/expo-router@58.0.30.patch` passes
   it through. Keep the patch, or confirm upstream passes the prop, when expo-router is upgraded.
+- **Header taps:** from iOS 27 on iPhone, a tap anywhere on the native bar scrolls the screen's
+  scroll view to the top, a tap on a custom header view included
+  (facebook/react-native#56061). `leadingHeaderOptionsOf` wraps its title views in
+  `ScrollToTopGuard` (`react-native-screens/experimental`) so a tap on them does not scroll. Wrap
+  any other custom header view the same way.
 - **Back:** the native back button and the swipe-back gesture. Do not add a JS back button on iOS.
 - **Search:** use `headerSearchBarOptions` with `placement: 'integratedButton'` on a screen that
   has a native bar, so search is a round bar button that expands into the field. Keep the JS
@@ -57,10 +62,15 @@ web spinner), never `ActivityIndicator`.
 - Safe areas come from `react-native-safe-area-context`. Never hard-code a status bar or notch size.
 - On iPhone Duo the native tab bar sits in the system column on the right. iOS places the bar but
   does not keep screen content out of the column: `SideInsetFrame`
-  (`src/layout/side-inset-frame.tsx`) pads every screen's content by `sideColumnInsetOf`
-  (`src/layout/posture.ts:12`) and gives its children the reduced inset. It arrives through the
-  stack `screenLayout` prop, so it never wraps `NativeTabs` or a native header. Do not add right
-  padding on a single screen, and do not draw a bar of your own there.
+  (`src/layout/side-inset-frame.tsx`) pads the tab's whole `Stack` by `sideColumnInsetOf`
+  (`src/layout/posture.ts:12`), and for sessions the `SessionsDrawer` too, so the native header,
+  the drawer list and the screen content all stop at the column. It wraps the tab's stack in the
+  tab's `_layout.tsx`, never `screenLayout`: `screenLayout` sits inside the native screen, which
+  leaves the native header and a drawer rendered beside the stack at full width. It never wraps
+  `NativeTabs`, and the root stack keeps `screenLayout={SideInsetLayout}`, because a frame there
+  would push `NativeTabs` out of the column. Do not add right padding on a single screen, and do
+  not draw a bar of your own there. Width-dependent layout (`useContentWidth`,
+  `src/layout/use-content-width.ts`) measures the padded frame, not the window.
 - A `fullScreenModal` draws over the tab bar and its column. It wraps itself in its own
   `SafeAreaProvider` so its insets follow the window while it is open, and pads itself by
   `sideColumnInsetOf` of those insets. See `src/app/(app)/photo/index.tsx`.

@@ -68,12 +68,20 @@ export const Composer = ({
   const [sending, setSending] = useState(false)
   const [failed, setFailed] = useState(false)
   const [choosing, setChoosing] = useState(false)
+  const attachmentsRef = useRef(attachments)
+  attachmentsRef.current = attachments
+
   const { handleSent } = useComposerDraft({
     sessionId: draftSessionId,
     text: draft,
     attachments: attachments?.attachments ?? [],
-    onRestore: (restoredDraft) =>
-      setDraft((current) => mergeIntoDraft({ withdrawn: restoredDraft.text, draft: current })),
+    onRestore: (restoredDraft) => {
+      setDraft((current) => mergeIntoDraft({ withdrawn: restoredDraft.text, draft: current }))
+      attachmentsRef.current?.restore({
+        attachments: restoredDraft.attachments,
+        sessionId: draftSessionId,
+      })
+    },
   })
 
   const held = attachments?.held ?? []
@@ -86,9 +94,6 @@ export const Composer = ({
   const canSend = sendable && sendState.canSend && !isUploading(held) && !hasFailed(held)
   const showsStop = sendState.showsStop && onStop !== undefined
   const candidates = menuCandidatesOf({ draft, entries })
-
-  const attachmentsRef = useRef(attachments)
-  attachmentsRef.current = attachments
 
   useEffect(() => {
     if (restored === undefined) return
