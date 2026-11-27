@@ -1,4 +1,6 @@
 import {
+  EBootStep,
+  EBootStepState,
   EWorkspaceRepoState,
   EWorkspaceStep,
   EWorkspaceStepOutcome,
@@ -9,7 +11,6 @@ import {
   type RecordEvent,
   type WorkspaceStepStatus,
 } from '@dltech/atlas-core'
-import { EBootStep, EBootStepState } from '@dltech/atlas-wire/web'
 
 import type { SessionSnapshot } from '../stream'
 

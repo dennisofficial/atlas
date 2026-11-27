@@ -1,5 +1,7 @@
 import { describe, expect, it } from 'bun:test'
 
+import * as core from '@dltech/atlas-core'
+
 import {
   BOOT_STEP_ORDER,
   EBootStep,
@@ -25,5 +27,14 @@ describe('setup boot step', () => {
       },
     ])
     expect(folded[EBootStep.Setup].outcome).toBe(EBootStepOutcome.SetupScriptFailed)
+  })
+})
+
+describe('boot step vocabulary', () => {
+  it('re-exports the core enums and order instead of a copy', () => {
+    expect(EBootStep).toBe(core.EBootStep)
+    expect(EBootStepState).toBe(core.EBootStepState)
+    expect(EBootStepOutcome).toBe(core.EBootStepOutcome)
+    expect(BOOT_STEP_ORDER).toBe(core.BOOT_STEP_ORDER)
   })
 })

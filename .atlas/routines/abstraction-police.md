@@ -3,11 +3,12 @@
 ## Backlog (ranked)
 
 1. `packages/plugin-sdk` type-depends upward on `agent` (`slots.ts:1`, `compose-pod.ts:1`), `client/transcript` (`slots.ts:2`), `control` (`slots.ts:18`). Move the shapes down or make slots generic.
-2. `packages/client/src/channel/*` (~15 files) and `transcript/events-from-wire.ts` import `@dltech/atlas-wire/web`. Retarget onto `protocol` or split out a v1-compat module. Large.
-3. `apps/tui` imports `@dltech/atlas-wire` in 12 production files. `wire` survived the v1 deletion, so this is a live retarget onto `protocol`. Low value.
-4. `packages/api-router/src/generated/server.ts:16` pulls ~200 wire schemas.
-5. Test-only deep relative imports across package roots: `apps/api` specs → `packages/api-router/src/generated/server`, `apps/tui/scripts`, `apps/mac/scripts/pack-host.ts:4`. Add `exports` subpaths.
-6. `packages/host/__tests__/remote-calls-real.spec.ts:7` imports app `@dltech/atlas-daemon/testing`.
+2. `packages/client/src/channel/*` (~15 files) and `transcript/events-from-wire.ts` import `@dltech/atlas-wire/web` (`ERuntimePhase`, `ETurnStatus`, `EStepEnd`, `BOOT_STEP_EVENT_TYPE`, runtime checkpoint). Move each vocabulary to core in small slices, as done for boot steps.
+3. `apps/web` and `apps/mobile` import `EBootStep*` from `@dltech/atlas-wire/web` (`boot-view.ts`, `sandbox-boot-props.ts`, `boot-display.ts`); core owns them since 2026-11-27. Retarget.
+4. `apps/tui` imports `@dltech/atlas-wire` in 12 production files. Live retarget onto `protocol`. Low value.
+5. `packages/api-router/src/generated/server.ts:16` pulls ~200 wire schemas.
+6. Test-only deep relative imports across package roots: `apps/api` specs → `packages/api-router/src/generated/server`, `apps/tui/scripts`, `apps/mac/scripts/pack-host.ts:4`. Add `exports` subpaths.
+7. `packages/host/__tests__/remote-calls-real.spec.ts:7` imports app `@dltech/atlas-daemon/testing`.
 
 ## Ruled out
 
@@ -21,6 +22,12 @@
 - `packages/plugin-sdk/src/memory.ts` duplicating the memory summary shape as string unions: structural, kept so plugins need no core enums.
 
 ## Log
+
+### 2026-11-27
+
+- Fixed: `packages/client/src/session/session-boot-view.ts` (v2 boot view, shared by web and mobile) took `EBootStep`/`EBootStepState` from v1 `@dltech/atlas-wire/web`. Moved `EBootStep`, `EBootStepState`, `EBootStepOutcome` and `BOOT_STEP_ORDER` to `packages/core/src/workspace/boot-steps.ts`; wire re-exports them; client session code no longer imports wire.
+- Pinned in `core/src/workspace/__tests__/boot-steps.spec.ts` (written against wire on main first, then moved) plus a wire/core identity check in `boot-fold-setup.spec.ts`. Mutations: step name, dropped state, order, dropped outcome (each fails 1 core spec); wire own state copy (fails 1 wire spec); client interrupted→running and failed repo→done (each fails 2 client specs).
+- Plugin-sdk (backlog 1) skipped again: it needs a design choice on where slot shapes live.
 
 ### 2026-11-26
 
