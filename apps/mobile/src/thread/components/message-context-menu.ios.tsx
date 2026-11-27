@@ -25,6 +25,7 @@ export const MessageContextMenu = ({
   return (
     <Host
       matchContents={{ vertical: true }}
+      ignoreSafeArea="all"
       colorScheme={dark ? 'dark' : 'light'}
       style={styles.row}
     >
