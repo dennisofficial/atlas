@@ -1,13 +1,9 @@
 import { randomBytes } from 'node:crypto'
 import { dirname, resolve } from 'node:path'
 
-import {
-  EProcessOutcome,
-  outcomeOf,
-  type FileSystemPort,
-  type ProcessPort,
-} from '@dltech/atlas-core'
+import type { FileSystemPort, ProcessPort } from '@dltech/atlas-core'
 
+import { isTracked, repositoryFactsOf, type RepositoryFacts } from './project-file-git'
 import {
   EProjectFileState,
   projectFilePlanOf,
@@ -20,65 +16,30 @@ import {
 const messageOf = (error: unknown): string =>
   error instanceof Error ? error.message : 'it failed for a reason it did not name'
 
-const gitExitCode = async (args: {
-  processes: ProcessPort
-  cwd: string
-  argv: readonly string[]
-  signal?: AbortSignal | undefined
-}): Promise<number> => {
-  const handle = args.processes.spawn({ cmd: ['git', ...args.argv], cwd: args.cwd })
-  args.signal?.addEventListener('abort', () => handle.terminate(), { once: true })
-  const [outcome] = await Promise.all([
-    outcomeOf(handle),
-    new Response(handle.stdout).text(),
-    new Response(handle.stderr).text(),
-  ])
-  return outcome.kind === EProcessOutcome.Exited ? outcome.code : 1
-}
-
 const excludeLineOf = (relativePath: string): string =>
   `/${relativePath
     .replace(/[\\*?[]/g, (character) => `\\${character}`)
     .replace(/^[#!]/, (character) => `\\${character}`)
     .replace(/ +$/, (spaces) => spaces.replace(/ /g, '\\ '))}`
 
-const excludeFileOf = async (args: {
-  processes: ProcessPort
-  root: string
-  signal?: AbortSignal | undefined
-}): Promise<string> => {
-  const handle = args.processes.spawn({
-    cmd: ['git', 'rev-parse', '--git-path', 'info/exclude'],
-    cwd: args.root,
-  })
-  args.signal?.addEventListener('abort', () => handle.terminate(), { once: true })
-  const [outcome, path] = await Promise.all([
-    outcomeOf(handle),
-    new Response(handle.stdout).text(),
-    new Response(handle.stderr).text(),
-  ])
-  if (outcome.kind !== EProcessOutcome.Exited || outcome.code !== 0 || path.trim() === '') {
-    throw new Error('git did not name its exclude file')
-  }
-  return resolve(args.root, path.trim())
-}
-
 const excludeLocally = async (args: {
   files: FileSystemPort
-  processes: ProcessPort
-  root: string
-  relativePath: string
-  signal?: AbortSignal | undefined
+  excludeFile: string | null
+  relativePaths: readonly string[]
 }): Promise<void> => {
-  const file = await excludeFileOf(args)
-  const existing = await args.files.readFile({ path: file }).catch(() => '')
-  const line = excludeLineOf(args.relativePath)
-  if (existing.split('\n').some((entry) => entry.replace(/\r$/, '') === line)) {
-    return
-  }
-  await args.files.mkdir({ path: dirname(file) })
+  if (args.excludeFile === null) throw new Error('git did not name its exclude file')
+  const existing = await args.files.readFile({ path: args.excludeFile }).catch(() => '')
+  const present = new Set(existing.split('\n').map((entry) => entry.replace(/\r$/, '')))
+  const missing = [...new Set(args.relativePaths.map(excludeLineOf))].filter(
+    (line) => !present.has(line),
+  )
+  if (missing.length === 0) return
+  await args.files.mkdir({ path: dirname(args.excludeFile) })
   const separator = existing === '' || existing.endsWith('\n') ? '' : '\n'
-  await args.files.writeFile({ path: file, content: `${existing}${separator}${line}\n` })
+  await args.files.writeFile({
+    path: args.excludeFile,
+    content: `${existing}${separator}${missing.map((line) => `${line}\n`).join('')}`,
+  })
 }
 
 const writeAtomically = async (args: {
@@ -109,58 +70,76 @@ const writeOne = async (args: {
   }
 }
 
-const writeInRepository = async (args: {
-  files: FileSystemPort
-  processes: ProcessPort
+const refusalOf = (args: {
+  facts: RepositoryFacts
   write: ProjectFileWrite
-  signal?: AbortSignal | undefined
-}): Promise<ProjectFileOutcome> => {
-  const { files, processes, write } = args
-  const git = async (argv: readonly string[]): Promise<number> =>
-    await gitExitCode({
-      processes,
-      cwd: write.root,
-      argv,
-      ...(args.signal === undefined ? {} : { signal: args.signal }),
-    })
-  if ((await git(['rev-parse', '--is-inside-work-tree'])) !== 0) {
-    return { path: write.path, state: EProjectFileState.SkippedNoRepository }
-  }
-  const tracked = await git(['ls-files', '--error-unmatch', '--', write.relativePath])
-  if (tracked > 1) {
+}): ProjectFileOutcome | null => {
+  const { facts, write } = args
+  if (!facts.inWorkTree) return { path: write.path, state: EProjectFileState.SkippedNoRepository }
+  if (facts.tracked === null) {
     return {
       path: write.path,
       state: EProjectFileState.Failed,
       reason: 'git could not check whether the path is tracked',
     }
   }
-  if (tracked === 0) return { path: write.path, state: EProjectFileState.SkippedTracked }
-  const ignored = await git(['check-ignore', '-q', '--', write.relativePath])
-  if (ignored > 1) {
+  if (isTracked({ tracked: facts.tracked, path: write.relativePath })) {
+    return { path: write.path, state: EProjectFileState.SkippedTracked }
+  }
+  if (facts.ignored === null) {
     return {
       path: write.path,
       state: EProjectFileState.Failed,
       reason: 'git could not check whether the path is ignored',
     }
   }
-  const written = await writeOne({ files, write })
-  if (written.state !== EProjectFileState.Written || ignored === 0) return written
-  try {
-    await excludeLocally({
-      files,
-      processes,
-      root: write.root,
-      relativePath: write.relativePath,
-      ...(args.signal === undefined ? {} : { signal: args.signal }),
-    })
-    return { path: write.path, state: EProjectFileState.WrittenLocallyExcluded }
-  } catch (error) {
-    return {
-      path: write.path,
-      state: EProjectFileState.WrittenNotExcluded,
-      reason: messageOf(error),
-    }
-  }
+  return null
+}
+
+const writeInRepository = async (args: {
+  files: FileSystemPort
+  processes: ProcessPort
+  root: string
+  writes: readonly ProjectFileWrite[]
+  signal?: AbortSignal | undefined
+}): Promise<ProjectFileOutcome[]> => {
+  const { files, writes } = args
+  const facts = await repositoryFactsOf({
+    processes: args.processes,
+    root: args.root,
+    relativePaths: writes.map((write) => write.relativePath),
+    signal: args.signal,
+  })
+  const written = await Promise.all(
+    writes.map((write) => refusalOf({ facts, write }) ?? writeOne({ files, write })),
+  )
+  const toExclude = writes.filter(
+    (write, index) =>
+      written[index]?.state === EProjectFileState.Written &&
+      facts.ignored?.has(write.relativePath) === false,
+  )
+  if (toExclude.length === 0) return written
+  const failure = await excludeLocally({
+    files,
+    excludeFile: facts.excludeFile,
+    relativePaths: toExclude.map((write) => write.relativePath),
+  }).then(
+    (): string | undefined => undefined,
+    (error: unknown) => messageOf(error),
+  )
+  const excludedPaths = new Set(toExclude.map((write) => write.path))
+  return written.map((outcome) => {
+    if (!excludedPaths.has(outcome.path)) return outcome
+    return failure === undefined
+      ? { path: outcome.path, state: EProjectFileState.WrittenLocallyExcluded }
+      : { path: outcome.path, state: EProjectFileState.WrittenNotExcluded, reason: failure }
+  })
+}
+
+const byRoot = (writes: readonly ProjectFileWrite[]): Map<string, ProjectFileWrite[]> => {
+  const groups = new Map<string, ProjectFileWrite[]>()
+  for (const write of writes) groups.set(write.root, [...(groups.get(write.root) ?? []), write])
+  return groups
 }
 
 export const writeProjectFiles = async (args: {
@@ -172,20 +151,25 @@ export const writeProjectFiles = async (args: {
 }): Promise<readonly ProjectFileOutcome[]> => {
   if (args.mounts.length === 0) return []
   const plan = projectFilePlanOf({ mounts: args.mounts, roots: args.roots })
-  const outcomes: ProjectFileOutcome[] = [...plan.outcomes]
-  for (const write of plan.writes) {
-    if (!write.repository) {
-      outcomes.push(await writeOne({ files: args.files, write }))
-      continue
-    }
-    outcomes.push(
-      await writeInRepository({
-        files: args.files,
-        processes: args.processes,
-        write,
-        ...(args.signal === undefined ? {} : { signal: args.signal }),
-      }),
-    )
-  }
-  return outcomes
+  const outcomeOf = new Map<ProjectFileWrite, ProjectFileOutcome>()
+  const repositoryGroups = [...byRoot(plan.writes.filter((write) => write.repository))]
+  await Promise.all([
+    ...plan.writes
+      .filter((write) => !write.repository)
+      .map(async (write) => outcomeOf.set(write, await writeOne({ files: args.files, write }))),
+    ...repositoryGroups.map(async ([root, writes]) => {
+      const outcomes = await writeInRepository({ ...args, root, writes })
+      writes.forEach((write, index) => {
+        const outcome = outcomes[index]
+        if (outcome !== undefined) outcomeOf.set(write, outcome)
+      })
+    }),
+  ])
+  return [
+    ...plan.outcomes,
+    ...plan.writes.flatMap((write) => {
+      const outcome = outcomeOf.get(write)
+      return outcome === undefined ? [] : [outcome]
+    }),
+  ]
 }

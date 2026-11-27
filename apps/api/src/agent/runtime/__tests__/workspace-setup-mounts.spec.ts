@@ -23,7 +23,7 @@ const stdoutOf = (cmd: readonly string[]): string => {
 }
 
 const exitCodeOf = (cmd: readonly string[]): number =>
-  cmd.includes('ls-files') || cmd.includes('check-ignore') ? 1 : 0
+  cmd[0] === 'sh' && cmd[2]?.includes('git check-ignore') === true ? 1 : 0
 
 class OrderedProcesses extends ProcessPort {
   constructor(private readonly log: string[]) {

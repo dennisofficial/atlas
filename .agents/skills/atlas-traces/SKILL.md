@@ -66,7 +66,12 @@ Two more root spans carry the same service:
 ```
 prompt.post                     one per tRPC send, from apps/api
 holder.takeover                 one per take-over of a session in the holder
+holder.prepare                  one per workspace prepare attempt (sandbox wake to setup start)
 ```
+
+A new session's first prompt waits for `holder.prepare`, so it dominates cold `queuedMs`.
+`prepareMs` minus the step laps is work the steps do not cover (token, signing, secrets, Cloud
+file mounts, `mise install`).
 
 A sub-agent's turn is its own trace, not a child of the tool call that spawned it. Join them on
 the `turn` span's `threadId`.
@@ -111,6 +116,7 @@ one back.
 | `sessionId`, `inboxId`, `hasMedia` | `prompt.post` | The session, the inbox row the post wrote, and whether the message carried an attachment |
 | `clientToApiMs` | `prompt.post` | Client `sentAt` to API receipt, dropped when negative or over a minute (clock skew) |
 | `claimMs`, `configMs`, `recordMs`, `<lap>Ms`, `firstStepMs` | `holder.takeover` | The take-over's own timings: the claim wait, building the runtime, loading the record, each lap (`branches`, `commands`, `decide`, `settle`), and the stretch to the first step |
+| `sandboxMs`, `daemonMs`, `cloneMs`, `setupMs`, `stepsMs`, `seedMs`, `recordMs`, `setupEndMs`, `prepareMs` | `holder.prepare` | Each workspace step from its first start report to done, the holder phases after it, and the whole attempt; with `attempt`, `outcome`, `preparedBefore`, `promptWaiting` |
 | `error.class` | any failed span | Error constructor name only; the message is never exported |
 | `service.version` | resource | The Atlas release. Read it as `resource_attributes['service.version']` |
 
