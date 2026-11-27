@@ -3,15 +3,10 @@ import { afterEach, describe, expect, it } from 'bun:test'
 
 import { McpServerReader } from '../../config/mcp-servers'
 import { seedGroup, seedOwner } from '../../config/__tests__/config-reader.fixture'
-import { mcpOauthCallbackOf, type CallbackHandler } from '../callback'
-import { returnPathOf } from '../redirect'
-import type { McpReturnTarget } from '../types'
-import type { Db } from '@dltech/atlas-db'
+import { answerOf, callOf, failingReason, seedPending, tokenFetch } from './callback.fixture'
 import {
-  REDIRECT_URI,
   SERVER_URL,
   TOKEN_ENDPOINT,
-  WEB_ORIGIN,
   cipher,
   json,
   restoreFetch,
@@ -23,109 +18,18 @@ const testDb = useTestDatabase()
 
 afterEach(restoreFetch)
 
-const CALLBACK = 'https://api.byatlas.io/mcp-oauth/callback'
-
-const SESSION_ON_WEB: McpReturnTarget = {
-  surface: 'web',
-  screen: { kind: 'session', id: 'ses_1' },
-}
-
-const pendingSealed = (target: McpReturnTarget = SESSION_ON_WEB): string =>
-  cipher.encrypt(
-    JSON.stringify({
-      codeVerifier: 'verifier-1',
-      clientInfo: { clientId: 'client-1' },
-      tokenEndpoint: TOKEN_ENDPOINT,
-      redirectUri: REDIRECT_URI,
-      authMethods: ['none'],
-      returnTarget: target,
-    }),
-  )
-
-const seedPending = async (args: {
-  db: Db
-  id: string
-  mcpServerId: string
-  userId?: string
-  serverUrl?: string
-  expiresAt?: Date
-  target?: McpReturnTarget
-}): Promise<void> => {
-  const target = args.target ?? SESSION_ON_WEB
-  await args.db.orm.public.McpOauthPending.create({
-    id: args.id,
-    userId: args.userId ?? 'user-1',
-    serverUrl: args.serverUrl ?? SERVER_URL,
-    sealed: pendingSealed(target),
-    returnTo: returnPathOf(target.screen),
-    returnSurface: target.surface,
-    expiresAt: args.expiresAt ?? new Date(Date.now() + 60_000),
-    mcpServerId: args.mcpServerId,
-  })
-}
-
-const respondOf = (answer: Awaited<ReturnType<CallbackHandler>>): Response =>
-  answer.kind === 'redirect'
-    ? new Response(null, { status: 302, headers: { location: answer.location } })
-    : new Response(answer.html, {
-        status: 200,
-        headers: { 'content-type': 'text/html; charset=utf-8' },
-      })
-
-const handlerOver = (db: Db) => {
-  const callback: CallbackHandler = mcpOauthCallbackOf({
-    db,
-    cipher,
-    webOrigin: WEB_ORIGIN,
-    allowLocalTargets: true,
-  })
-  return async (request: Request): Promise<Response> =>
-    respondOf(await callback({ query: new URL(request.url).searchParams }))
-}
-
-const callOf = async (args: {
-  db: Db
-  query: string
-}): Promise<{ status: number; params: URLSearchParams } | null> => {
-  const answer = await answerOf(args)
-  if (answer === null) return null
-  return { status: answer.status, params: new URL(answer.location).searchParams }
-}
-
-const answerOf = async (args: {
-  db: Db
-  query: string
-}): Promise<{ status: number; location: string; body: string } | null> => {
-  const response = await handlerOver(args.db)(new Request(`${CALLBACK}?${args.query}`))
-  if (response === null) return null
-  return {
-    status: response.status,
-    location: response.headers.get('location') ?? '',
-    body: await response.text(),
-  }
-}
-
-const failingReason = async (args: { db: Db; query: string }): Promise<string | undefined> => {
-  const answer = await callOf(args)
-  expect(answer?.status).toBe(302)
-  expect(answer?.params.get('mcpOauth')).toBe('failed')
-  return answer?.params.get('mcpReason') ?? undefined
-}
-
-const tokenFetch = () =>
-  stubFetch((call) =>
-    call.url === TOKEN_ENDPOINT
-      ? json({ access_token: 'at-1', refresh_token: 'rt-1', expires_in: 3600 })
-      : new Response('not found', { status: 404 }),
-  )
-
 describe('the mcp oauth callback', () => {
   it('seals nothing and reports an unknown state', async () => {
     const { db } = testDb()
     await seedOwner(db)
     await seedCloudServer({ db, name: 'posthog' })
 
-    expect(await failingReason({ db, query: 'state=nope&code=c' })).toBe('unknown_state')
+    const answer = await answerOf({ db, query: 'state=nope&code=c' })
+
+    const location = new URL(answer.location)
+    expect(location.pathname).toBe('/settings/integrations')
+    expect(location.searchParams.get('mcpOauth')).toBe('failed')
+    expect(location.searchParams.get('mcpReason')).toBe('unknown_state')
     const row = await db.orm.public.McpServer.first({ id: 'srv-posthog' })
     expect(row?.oauthSealed).toBeNull()
   })
@@ -192,9 +96,9 @@ describe('the mcp oauth callback', () => {
 
     const answer = await callOf({ db, query: 'state=state-good&code=code-1' })
 
-    expect(answer?.status).toBe(302)
-    expect(answer?.params.get('mcpOauth')).toBe('connected')
-    expect(answer?.params.get('mcpServer')).toBe(SERVER_URL)
+    expect(answer.status).toBe(302)
+    expect(answer.params.get('atlasReturn')).toBe('connected')
+    expect(answer.params.get('atlasState')).toBe('state-good')
     expect(calls.find((call) => call.url === TOKEN_ENDPOINT)?.body).toContain(
       'code_verifier=verifier-1',
     )
@@ -225,117 +129,6 @@ describe('the mcp oauth callback', () => {
     ])
   })
 
-  it('returns to the session the sign-in started from', async () => {
-    const { db } = testDb()
-    await seedOwner(db)
-    await seedCloudServer({ db, name: 'posthog' })
-    await seedPending({ db, id: 'state-session', mcpServerId: 'srv-posthog' })
-    tokenFetch()
-
-    const answer = await answerOf({ db, query: 'state=state-session&code=code-1' })
-
-    expect(answer?.status).toBe(302)
-    const location = new URL(answer?.location ?? '')
-    expect(location.origin).toBe(WEB_ORIGIN)
-    expect(location.pathname).toBe('/sessions/ses_1')
-    expect(location.searchParams.get('mcpOauth')).toBe('connected')
-    expect(location.searchParams.get('mcpServer')).toBe(SERVER_URL)
-  })
-
-  it('returns to the project settings page the flow started from', async () => {
-    const { db } = testDb()
-    await seedOwner(db)
-    await seedCloudServer({ db, name: 'posthog' })
-    await seedPending({
-      db,
-      id: 'state-project',
-      mcpServerId: 'srv-posthog',
-      target: { surface: 'web', screen: { kind: 'settings', scope: 'project', id: 'proj_9' } },
-    })
-    tokenFetch()
-
-    const answer = await answerOf({ db, query: 'state=state-project&code=code-1' })
-
-    expect(answer?.status).toBe(302)
-    const location = new URL(answer?.location ?? '')
-    expect(location.origin).toBe(WEB_ORIGIN)
-    expect(location.pathname).toBe('/projects/proj_9/settings/mcp')
-    expect(location.searchParams.get('mcpOauth')).toBe('connected')
-  })
-
-  it('returns to the user settings page the flow started from', async () => {
-    const { db } = testDb()
-    await seedOwner(db)
-    await seedCloudServer({ db, name: 'posthog' })
-    await seedPending({
-      db,
-      id: 'state-user',
-      mcpServerId: 'srv-posthog',
-      target: { surface: 'web', screen: { kind: 'settings', scope: 'user' } },
-    })
-    tokenFetch()
-
-    const answer = await answerOf({ db, query: 'state=state-user&code=code-1' })
-
-    expect(new URL(answer?.location ?? '').pathname).toBe('/settings/integrations')
-  })
-
-  it('hands a desktop flow back to the app, with the web page as a fallback', async () => {
-    const { db } = testDb()
-    await seedOwner(db)
-    await seedCloudServer({ db, name: 'posthog' })
-    await seedPending({
-      db,
-      id: 'state-desktop',
-      mcpServerId: 'srv-posthog',
-      target: { surface: 'desktop', screen: { kind: 'session', id: 'ses_1' } },
-    })
-    tokenFetch()
-
-    const answer = await answerOf({ db, query: 'state=state-desktop&code=code-1' })
-
-    expect(answer?.status).toBe(200)
-    expect(answer?.body).toContain('atlas://open/sessions/ses_1?mcpOauth=connected')
-    expect(answer?.body).toContain('Continue in the browser')
-    expect(answer?.body).toContain(WEB_ORIGIN)
-  })
-
-  it('hands an ios session flow to the app', async () => {
-    const { db } = testDb()
-    await seedOwner(db)
-    await seedCloudServer({ db, name: 'posthog' })
-    await seedPending({
-      db,
-      id: 'state-ios',
-      mcpServerId: 'srv-posthog',
-      target: { surface: 'ios', screen: { kind: 'session', id: 'ses_1' } },
-    })
-    tokenFetch()
-
-    const answer = await answerOf({ db, query: 'state=state-ios&code=code-1' })
-
-    expect(answer?.status).toBe(200)
-    expect(answer?.body).toContain('atlas:///sessions/ses_1?mcpOauth=connected')
-  })
-
-  it('keeps an ios settings flow on the web page, which the app has no route for', async () => {
-    const { db } = testDb()
-    await seedOwner(db)
-    await seedCloudServer({ db, name: 'posthog' })
-    await seedPending({
-      db,
-      id: 'state-ios-settings',
-      mcpServerId: 'srv-posthog',
-      target: { surface: 'ios', screen: { kind: 'settings', scope: 'user' } },
-    })
-    tokenFetch()
-
-    const answer = await answerOf({ db, query: 'state=state-ios-settings&code=code-1' })
-
-    expect(answer?.status).toBe(302)
-    expect(new URL(answer?.location ?? '').pathname).toBe('/settings/integrations')
-  })
-
   it('reports an expired state on the screen the flow started from', async () => {
     const { db } = testDb()
     await seedOwner(db)
@@ -349,10 +142,10 @@ describe('the mcp oauth callback', () => {
 
     const answer = await answerOf({ db, query: 'state=state-expired&code=c' })
 
-    const location = new URL(answer?.location ?? '')
+    const location = new URL(answer.location)
     expect(location.pathname).toBe('/sessions/ses_1')
-    expect(location.searchParams.get('mcpOauth')).toBe('failed')
-    expect(location.searchParams.get('mcpReason')).toBe('expired')
+    expect(location.searchParams.get('atlasReturn')).toBe('failed')
+    expect(location.searchParams.get('atlasReason')).toBe('expired')
   })
 
   it('answers a repeated callback with the same success and re-exchanges nothing', async () => {
@@ -365,10 +158,9 @@ describe('the mcp oauth callback', () => {
     const first = await callOf({ db, query: 'state=state-repeat&code=code-1' })
     const second = await callOf({ db, query: 'state=state-repeat&code=code-2' })
 
-    expect(first?.params.get('mcpOauth')).toBe('connected')
-    expect(second?.status).toBe(302)
-    expect(second?.params.get('mcpOauth')).toBe('connected')
-    expect(second?.params.get('mcpServer')).toBe(SERVER_URL)
+    expect(first.params.get('atlasReturn')).toBe('connected')
+    expect(second.status).toBe(302)
+    expect(second.params.get('atlasReturn')).toBe('connected')
     expect(calls.filter((call) => call.url === TOKEN_ENDPOINT)).toHaveLength(1)
     const row = await db.orm.public.McpServer.first({ id: 'srv-posthog' })
     expect(row?.oauthGeneration).toBe(1)
@@ -388,7 +180,8 @@ describe('the mcp oauth callback', () => {
     expect(await failingReason({ db, query: 'state=state-redo&code=code-1' })).toBe(
       'exchange_failed',
     )
-    expect(await failingReason({ db, query: 'state=state-redo&code=code-2' })).toBe('unknown_state')
+    const again = await callOf({ db, query: 'state=state-redo&code=code-2' })
+    expect(again.params.get('mcpReason')).toBe('unknown_state')
     expect(calls.filter((call) => call.url === TOKEN_ENDPOINT)).toHaveLength(1)
   })
 
@@ -398,7 +191,7 @@ describe('the mcp oauth callback', () => {
 
     const answer = await answerOf({ db, query: 'state=nowhere&code=c' })
 
-    const location = new URL(answer?.location ?? '')
+    const location = new URL(answer.location)
     expect(location.pathname).toBe('/settings/integrations')
     expect(location.searchParams.get('mcpReason')).toBe('unknown_state')
   })
@@ -426,16 +219,17 @@ describe('the mcp oauth callback', () => {
     await seedOwner(db)
     await seedGroup(db)
     await seedCloudServer({ db, name: 'posthog', scope: { groupId: 'grp-1' } })
-    const target: McpReturnTarget = {
-      surface: 'web',
-      screen: { kind: 'settings', scope: 'group', id: 'grp-1' },
-    }
-    await seedPending({ db, id: 'state-group', mcpServerId: 'srv-posthog', target })
+    await seedPending({
+      db,
+      id: 'state-group',
+      mcpServerId: 'srv-posthog',
+      target: { surface: 'web', screen: { kind: 'settings', scope: 'group', id: 'grp-1' } },
+    })
     tokenFetch()
 
     const answer = await answerOf({ db, query: 'state=state-group&code=code-1' })
 
-    const location = new URL(answer?.location ?? '')
+    const location = new URL(answer.location)
     expect(location.pathname).toBe('/groups/grp-1/settings/mcp')
     expect(location.searchParams.get('mcpOauth')).toBe('connected')
     const row = await db.orm.public.McpServer.first({ id: 'srv-posthog' })

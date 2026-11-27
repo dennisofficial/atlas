@@ -1,6 +1,6 @@
 import { afterAll, beforeAll, describe, expect, it } from 'bun:test'
 
-import { startHttpApp, type RunningHttpApp } from './http-app'
+import { CLEARED_RETURN_COOKIE, startHttpApp, type RunningHttpApp } from './http-app'
 
 const CALLBACK_PATH = '/mcp-oauth/callback'
 
@@ -26,27 +26,21 @@ describe('the agent host http surface', () => {
     expect(await page.text()).toContain('<p>connected</p>')
   })
 
-  it('starts a sign-in with a surface cookie scoped to the callback, and clears it there', async () => {
-    const start = await fetch(`${app.url}/mcp-oauth/start/state-1?surface=ios`, {
-      redirect: 'manual',
-    })
+  it('clears the return cookie the framework set, on the callback', async () => {
     const callback = await fetch(`${app.url}${CALLBACK_PATH}?state=state-1`, {
       redirect: 'manual',
-      headers: { cookie: 'atlas_mcp_sign_in=ios' },
+      headers: { cookie: 'atlas_return=sealed' },
     })
 
-    expect(start.status).toBe(302)
-    expect(start.headers.get('location')).toBe('https://provider.example/authorize?state=state-1')
-    expect(start.headers.get('set-cookie')).toContain('atlas_mcp_sign_in=ios')
-    expect(start.headers.get('cache-control')).toBe('no-store')
-    expect(callback.headers.get('set-cookie')).toContain('atlas_mcp_sign_in=; Max-Age=0')
+    expect(callback.headers.get('set-cookie')).toBe(CLEARED_RETURN_COOKIE)
   })
 
-  it('answers an expired start link with 410', async () => {
-    const gone = await fetch(`${app.url}/mcp-oauth/start/gone`, { redirect: 'manual' })
+  it('answers the retired mcp sign-in start link with 404', async () => {
+    const retired = await fetch(`${app.url}/mcp-oauth/start/state-1?surface=ios`, {
+      redirect: 'manual',
+    })
 
-    expect(gone.status).toBe(410)
-    expect(await gone.text()).toContain('expired')
+    expect(retired.status).toBe(404)
   })
 
   it('answers the retired websocket stream path with 404', async () => {

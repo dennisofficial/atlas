@@ -3,51 +3,32 @@ import type { Db } from '@dltech/atlas-db'
 
 import type { AgentHostEnv } from '../config/env'
 import { mcpOauthCallbackOf } from '../mcp-oauth/callback'
-import { mcpOauthStartOf } from '../mcp-oauth/start'
 import { BrowserReturnService } from '../browser-return/service'
+import { browserReturnsOf, WEB_ORIGIN_FALLBACK } from '../browser-return/from-env'
 import { BrowserReturnController } from '../browser-return/controller'
 import type { SecretCipher } from '@dltech/atlas-pods/config/secret-cipher'
 import { DaemonBundleController } from '../http/daemon-bundle.controller'
 import { HealthController } from '../http/health.controller'
 import { McpOauthCallbackController } from '../http/mcp-oauth.controller'
 import { CoreModule } from './core.module'
-import {
-  AGENT_HOST_ENV,
-  BROWSER_RETURN,
-  CIPHER,
-  DB,
-  MCP_OAUTH_CALLBACK,
-  MCP_OAUTH_START,
-} from './tokens'
-
-const WEB_ORIGIN_FALLBACK = 'https://byatlas.io'
+import { AGENT_HOST_ENV, BROWSER_RETURN, CIPHER, DB, MCP_OAUTH_CALLBACK } from './tokens'
 
 const mcpOauthCallbackProvider: Provider = {
   provide: MCP_OAUTH_CALLBACK,
-  useFactory: (db: Db, cipher: SecretCipher, env: AgentHostEnv) =>
+  useFactory: (db: Db, cipher: SecretCipher, env: AgentHostEnv, returns: BrowserReturnService) =>
     mcpOauthCallbackOf({
       db,
       cipher,
       webOrigin: env.trustedOrigins[0] ?? WEB_ORIGIN_FALLBACK,
+      returns,
     }),
-  inject: [DB, CIPHER, AGENT_HOST_ENV],
-}
-
-const mcpOauthStartProvider: Provider = {
-  provide: MCP_OAUTH_START,
-  useFactory: (db: Db, cipher: SecretCipher) => mcpOauthStartOf({ db, cipher }),
-  inject: [DB, CIPHER],
+  inject: [DB, CIPHER, AGENT_HOST_ENV, BROWSER_RETURN],
 }
 
 const browserReturnProvider: Provider = {
   provide: BROWSER_RETURN,
   useFactory: (db: Db, cipher: SecretCipher, env: AgentHostEnv) =>
-    new BrowserReturnService({
-      db,
-      cipher,
-      publicUrl: env.publicUrl,
-      webOrigin: env.trustedOrigins[0] ?? WEB_ORIGIN_FALLBACK,
-    }),
+    browserReturnsOf({ db, cipher, env }),
   inject: [DB, CIPHER, AGENT_HOST_ENV],
 }
 
@@ -59,6 +40,6 @@ const browserReturnProvider: Provider = {
     McpOauthCallbackController,
     BrowserReturnController,
   ],
-  providers: [mcpOauthCallbackProvider, mcpOauthStartProvider, browserReturnProvider],
+  providers: [mcpOauthCallbackProvider, browserReturnProvider],
 })
 export class HttpModule {}

@@ -57,6 +57,7 @@ function DerivedTranscript(props: {
   accountLabel?: string
   attention?: RunAttention | null
   onRetry?: () => void
+  onRetrySignIn?: (server: string) => void
   onDismissFailure?: () => void
   onResume?: () => void
   opened?: ReadonlySet<string>
@@ -182,6 +183,7 @@ function DerivedTranscript(props: {
                 }
               : {})}
             onToggle={handleToggle}
+            {...(props.onRetrySignIn === undefined ? {} : { onRetrySignIn: props.onRetrySignIn })}
             cwd={props.cwd}
             continues={model.entries[index - 1]?.kind === EEntryKind.ToolsRan}
           />

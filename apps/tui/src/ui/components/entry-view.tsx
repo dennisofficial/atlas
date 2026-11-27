@@ -6,6 +6,7 @@ import type { EMark } from '../tool-marks'
 import { AssistantBlock } from './blocks/assistant-block'
 import { CompactedBlock } from './blocks/compacted-block'
 import { NoticeBlock } from './blocks/notice-block'
+import { SignInCard } from './blocks/sign-in-card'
 import { SystemContextBlock } from './blocks/system-context-block'
 import { ThinkingBlock } from './blocks/thinking-block'
 import { TldrBlock } from './blocks/tldr-block'
@@ -46,6 +47,7 @@ function DerivedEntryView(props: {
   continues?: boolean
   /** How loudly a tool row's gutter should speak. Defaults to the shipped style. */
   mark?: EMark
+  onRetrySignIn?: (server: string) => void
 }): React.ReactNode {
   const { entry, onToggle } = props
 
@@ -268,11 +270,7 @@ function DerivedEntryView(props: {
       )
 
     case EEntryKind.SignIn:
-      return (
-        <box flexDirection="row" marginBottom={1} flexShrink={0}>
-          <text fg={entry.result === 'failed' ? theme.warn : theme.dim}>{entry.text}</text>
-        </box>
-      )
+      return <SignInCard entry={entry} width={props.width} onRetry={props.onRetrySignIn} />
 
     case EEntryKind.OperatorInput:
     case EEntryKind.OperatorRequest:

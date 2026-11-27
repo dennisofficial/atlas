@@ -55,6 +55,8 @@ const entryOfRun = (run: SignInRun): SignInEntry => {
   }
 }
 
+export const signInRetryTextOf = (server: string): string => `Sign in to ${server} again`
+
 /** Two events per sign-in: the row is keyed by the one that drew the card, so it redraws when the other lands. */
 export const mcpSignInEntries = (
   events: readonly (Event | RecordEvent)[],

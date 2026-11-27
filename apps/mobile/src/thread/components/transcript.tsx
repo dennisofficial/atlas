@@ -32,6 +32,7 @@ import { BackgroundWaitRow } from './background-wait-row'
 import { BootRowView } from './boot-row'
 import { QueuedTurns, type QueuedTurnsProps } from './queued-turns'
 import { ThreadRowView } from './thread-row'
+import type { SignInAgainHandler } from './sign-in-row'
 
 const NEAR_TOP_PX = 400
 
@@ -87,6 +88,7 @@ export const Transcript = ({
   queued,
   background,
   messageActions,
+  onSignInAgain,
 }: {
   rows: readonly ThreadRow[]
   working: boolean
@@ -104,6 +106,7 @@ export const Transcript = ({
   queued?: QueuedTurnsProps | undefined
   background?: BackgroundWait | null | undefined
   messageActions?: MessageActionHandlers | undefined
+  onSignInAgain?: SignInAgainHandler | undefined
 }) => {
   const listRef = useRef<FlatList<ThreadRow>>(null)
   const tail = useRef<TTailFollow>(FOLLOWING_TAIL)
@@ -131,10 +134,11 @@ export const Transcript = ({
           sessionNameOf={sessionNameOf}
           onOpenAgent={onOpenAgent}
           messageActions={messageActions}
+          onSignInAgain={onSignInAgain}
         />
       </View>
     ),
-    [threadId, sessionId, agentLinks, sessionNameOf, onOpenAgent, messageActions],
+    [threadId, sessionId, agentLinks, sessionNameOf, onOpenAgent, messageActions, onSignInAgain],
   )
 
   const pinToTail = () => {

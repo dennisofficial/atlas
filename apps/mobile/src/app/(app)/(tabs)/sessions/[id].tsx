@@ -9,6 +9,7 @@ import {
   Spinner,
 } from '@dltech/atlas-ui-native'
 import { space } from '@dltech/atlas-ui/tokens'
+import { signInRetryTextOf } from '@dltech/atlas-plugin-mcp/client'
 import { router, Stack, useFocusEffect, useLocalSearchParams } from 'expo-router'
 import { PanelLeft } from 'lucide-react-native'
 import { useCallback, useMemo, useState } from 'react'
@@ -97,6 +98,13 @@ export default function SessionScreen() {
     [id],
   )
 
+  const handleSignInAgain = useCallback(
+    async (server: string) => {
+      await session.send({ text: signInRetryTextOf(server), attachments: [] })
+    },
+    [session.send],
+  )
+
   const showsSessions = sessionHeaderLeadingOf({ posture, drawerOpen }).includes(
     EHeaderLeadingItem.Sessions,
   )
@@ -160,6 +168,7 @@ export default function SessionScreen() {
           queued={session.loaded ? queuedTurns : undefined}
           background={session.loaded ? session.background : undefined}
           messageActions={session.messageActions}
+          onSignInAgain={handleSignInAgain}
         />
         {session.loaded ? (
           <KeyboardDock overlay>
