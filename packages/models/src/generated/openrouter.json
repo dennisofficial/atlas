@@ -1000,9 +1000,9 @@
     ],
     "maxOutputTokens": 384000,
     "cost": {
-      "inputPerMillion": 0.06,
-      "outputPerMillion": 0.18,
-      "cacheReadPerMillion": 0.015
+      "inputPerMillion": 0.047,
+      "outputPerMillion": 0.3,
+      "cacheReadPerMillion": 0.035
     },
     "effort": {
       "off": "none",
@@ -1024,11 +1024,11 @@
       "text",
       "image"
     ],
-    "maxOutputTokens": 393216,
+    "maxOutputTokens": 262144,
     "cost": {
-      "inputPerMillion": 0.44,
-      "outputPerMillion": 1.32,
-      "cacheReadPerMillion": 0.028
+      "inputPerMillion": 0.2156,
+      "outputPerMillion": 0.6468,
+      "cacheReadPerMillion": 0.00686
     },
     "effort": {
       "off": "none",
@@ -1073,11 +1073,11 @@
     "inputModalities": [
       "text"
     ],
-    "maxOutputTokens": 384000,
+    "maxOutputTokens": 393216,
     "cost": {
-      "inputPerMillion": 0.111,
-      "outputPerMillion": 4.44,
-      "cacheReadPerMillion": 0.097
+      "inputPerMillion": 0.0999,
+      "outputPerMillion": 5,
+      "cacheReadPerMillion": 0.0999
     },
     "effort": {
       "off": "none",
@@ -1918,6 +1918,26 @@
   {
     "ref": {
       "providerId": "openrouter",
+      "modelId": "inclusionai/lingsante-3.1-air-vl"
+    },
+    "label": "LingSante 3.1 Air VL",
+    "api": "openai-completions",
+    "contextWindow": 131072,
+    "imageTier": "standard",
+    "inputModalities": [
+      "text",
+      "image"
+    ],
+    "maxOutputTokens": 32768,
+    "cost": {
+      "inputPerMillion": 0.06,
+      "outputPerMillion": 0.18,
+      "cacheReadPerMillion": 0.012
+    }
+  },
+  {
+    "ref": {
+      "providerId": "openrouter",
       "modelId": "kt/midm-k-3.0-pro"
     },
     "label": "Mi:dm K 3.0 Pro",
@@ -2039,11 +2059,11 @@
     "inputModalities": [
       "text"
     ],
-    "maxOutputTokens": 4096,
+    "maxOutputTokens": 32768,
     "cost": {
-      "inputPerMillion": 0.71,
-      "outputPerMillion": 0.71,
-      "cacheReadPerMillion": 0.71
+      "inputPerMillion": 0.59,
+      "outputPerMillion": 0.79,
+      "cacheReadPerMillion": 0.295
     }
   },
   {
@@ -2130,10 +2150,10 @@
       "text",
       "image"
     ],
-    "maxOutputTokens": 131072,
+    "maxOutputTokens": 16384,
     "cost": {
-      "inputPerMillion": 0.35,
-      "outputPerMillion": 1.5,
+      "inputPerMillion": 0.3,
+      "outputPerMillion": 1.2,
       "cacheReadPerMillion": 0.04
     },
     "effort": {
@@ -2790,6 +2810,42 @@
   {
     "ref": {
       "providerId": "openrouter",
+      "modelId": "moonshotai/kimi-k2"
+    },
+    "label": "Kimi K2 0711",
+    "api": "openai-completions",
+    "contextWindow": 131072,
+    "imageTier": "standard",
+    "inputModalities": [
+      "text"
+    ],
+    "maxOutputTokens": 98304,
+    "cost": {
+      "inputPerMillion": 0.57,
+      "outputPerMillion": 2.3
+    }
+  },
+  {
+    "ref": {
+      "providerId": "openrouter",
+      "modelId": "moonshotai/kimi-k2-0905"
+    },
+    "label": "Kimi K2 Instruct 0905",
+    "api": "openai-completions",
+    "contextWindow": 262144,
+    "imageTier": "standard",
+    "inputModalities": [
+      "text"
+    ],
+    "maxOutputTokens": 98304,
+    "cost": {
+      "inputPerMillion": 0.6,
+      "outputPerMillion": 2.5
+    }
+  },
+  {
+    "ref": {
+      "providerId": "openrouter",
       "modelId": "moonshotai/kimi-k2.5"
     },
     "label": "Kimi K2.5",
@@ -2800,11 +2856,10 @@
       "text",
       "image"
     ],
-    "maxOutputTokens": 262144,
+    "maxOutputTokens": 131072,
     "cost": {
-      "inputPerMillion": 0.5,
-      "outputPerMillion": 2.5,
-      "cacheReadPerMillion": 0.15
+      "inputPerMillion": 0.6,
+      "outputPerMillion": 3
     }
   },
   {
@@ -4693,7 +4748,7 @@
       "text",
       "image"
     ],
-    "maxOutputTokens": 131072,
+    "maxOutputTokens": 943718,
     "cost": {
       "inputPerMillion": 0.07,
       "outputPerMillion": 0.5,
@@ -4722,7 +4777,7 @@
       "text",
       "image"
     ],
-    "maxOutputTokens": 131072,
+    "maxOutputTokens": 943718,
     "cost": {
       "inputPerMillion": 0,
       "outputPerMillion": 0
@@ -5444,11 +5499,11 @@
       "image",
       "video"
     ],
-    "maxOutputTokens": 131072,
+    "maxOutputTokens": 32768,
     "cost": {
-      "inputPerMillion": 0.035,
-      "outputPerMillion": 1.5,
-      "cacheReadPerMillion": 0.0175
+      "inputPerMillion": 0.06,
+      "outputPerMillion": 1.96,
+      "cacheReadPerMillion": 0.059
     },
     "effort": {
       "off": "none",
@@ -6355,8 +6410,8 @@
     "inputModalities": [
       "text",
       "image",
-      "video",
-      "audio"
+      "audio",
+      "video"
     ],
     "maxOutputTokens": 32768,
     "cost": {
@@ -6455,7 +6510,7 @@
     },
     "label": "GLM-4.6",
     "api": "openai-completions",
-    "contextWindow": 204800,
+    "contextWindow": 202752,
     "imageTier": "standard",
     "inputModalities": [
       "text"
@@ -6908,11 +6963,11 @@
     "inputModalities": [
       "text"
     ],
-    "maxOutputTokens": 943718,
+    "maxOutputTokens": 393216,
     "cost": {
-      "inputPerMillion": 0.111,
-      "outputPerMillion": 4.44,
-      "cacheReadPerMillion": 0.097
+      "inputPerMillion": 0.0999,
+      "outputPerMillion": 5,
+      "cacheReadPerMillion": 0.0999
     },
     "effort": {
       "off": "none",
