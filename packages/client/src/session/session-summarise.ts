@@ -1,11 +1,11 @@
 import { summaryPointsOf, type SummariseReach, type RecordEvent } from '@dltech/atlas-core'
 import type { SessionCommandInput, SessionCommandOutput } from '@dltech/atlas-protocol'
 
-import type { SummariseCopy } from '@/features/threads/data/summarise'
-
 export type SummariseApi = {
   command(input: SessionCommandInput): Promise<SessionCommandOutput>
 }
+
+export type SummariseCopy = { title: string; description: string }
 
 export const summarisePointsOf = (
   events: readonly RecordEvent[],

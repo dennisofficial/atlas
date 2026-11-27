@@ -159,6 +159,7 @@ export default function SessionScreen() {
           bottomInset={bottomInset}
           queued={session.loaded ? queuedTurns : undefined}
           background={session.loaded ? session.background : undefined}
+          messageActions={session.messageActions}
         />
         {session.loaded ? (
           <KeyboardDock overlay>

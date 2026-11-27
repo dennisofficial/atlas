@@ -58,8 +58,6 @@ export const useSessionCommands = (args: {
           presentModelSheet({
             models: latestModel.current.models,
             selection: latestModel.current.selection,
-            personalId: latestModel.current.personalId,
-            defaultRow: true,
             onSelect: latestModel.current.onSelect,
           }),
         openCommandList: () => setListOpen(true),

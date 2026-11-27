@@ -25,8 +25,6 @@ const ModelSheetBody = () => {
         models={request.models}
         selection={request.selection}
         pinned={pinned}
-        personalId={request.personalId}
-        defaultRow={request.defaultRow}
         onPinnedChange={setPinned}
         onSelect={request.onSelect}
         onClose={handleClose}

@@ -7,7 +7,7 @@ export const EFFORT_LADDER = ['off', 'minimal', 'low', 'medium', 'high', 'xhigh'
 
 export const DEFAULT_EFFORT = 'medium'
 
-export const NO_MODEL_LABEL = 'Default'
+export const NO_MODEL_LABEL = 'Model'
 
 const CLAUDE_PREFIX = 'Claude '
 
@@ -133,14 +133,6 @@ export const togglePinnedModel = ({
   pinned: readonly string[]
   id: string
 }): string[] => (pinned.includes(id) ? pinned.filter((entry) => entry !== id) : [...pinned, id])
-
-export const personalModelLabelOf = ({
-  models,
-  personalId,
-}: {
-  models: readonly IModelOption[]
-  personalId: string
-}): string | null => models.find((model) => model.id === personalId)?.label ?? null
 
 export const defaultModelIdOf = ({
   models,

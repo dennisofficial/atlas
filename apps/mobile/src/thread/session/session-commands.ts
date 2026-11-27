@@ -44,19 +44,11 @@ export const composerActionsOf = (args: {
   [EClientAction.Shells]: () => args.reportHidden('shells'),
 })
 
-export const modelSetArgsOf = (args: {
-  selection: IModelSelection | null
-  personalId: string
-}): ModelSetArgs | null => {
-  if (args.selection === null) {
-    return args.personalId === '' ? null : { model: args.personalId }
-  }
-  return {
-    model: args.selection.model.id,
-    effort: args.selection.effort,
-    ...(args.selection.fast ? { fast: true } : {}),
-  }
-}
+export const modelSetArgsOf = (selection: IModelSelection): ModelSetArgs => ({
+  model: selection.model.id,
+  effort: selection.effort,
+  ...(selection.fast ? { fast: true } : {}),
+})
 
 export const selectionOfChoice = (args: {
   models: readonly IModelOption[]

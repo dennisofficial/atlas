@@ -3,6 +3,7 @@ import {
   durableEntries,
   EEntryKind,
   EThinkingVisibility,
+  eventIdOfEntryKey,
   type InFlightStep,
   type OperatorRequestState,
   type OperatorSaidEntry,
@@ -164,11 +165,11 @@ function textItemOf(args: {
               text: entry.text,
               repairs: repairsForMessage({
                 byMessage: args.repairs,
-                messageId: eventIdOf(entry.key),
+                messageId: eventIdOfEntryKey(entry.key),
               }),
             }),
             streaming: entry.streaming,
-            ...(fastEvents.has(eventIdOf(entry.key)) ? { fast: true as const } : {}),
+            ...(fastEvents.has(eventIdOfEntryKey(entry.key)) ? { fast: true as const } : {}),
             ...(entry.stopped === true ? { stopped: true as const } : {}),
           }
     case EEntryKind.SignIn:
@@ -248,8 +249,6 @@ function rowsOfTools(args: {
   })
 }
 
-export const eventIdOf = (key: string): string => key.split('#')[0] ?? key
-
 function stamped(args: { row: TranscriptRow; at: string | undefined }): TranscriptRow {
   return args.at === undefined || args.row.at !== undefined
     ? args.row
@@ -262,7 +261,7 @@ function atOf(args: {
 }): string | undefined {
   const { row } = args
   if (row.kind === ETranscriptKind.Tools) return row.calls[0]?.at
-  return args.stamps.get(eventIdOf(row.id))
+  return args.stamps.get(eventIdOfEntryKey(row.id))
 }
 
 export type DurableTranscript = {
