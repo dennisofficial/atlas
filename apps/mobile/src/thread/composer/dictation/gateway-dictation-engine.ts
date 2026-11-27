@@ -13,33 +13,41 @@ import {
   recordingFailedMessageOf,
   type TDictationEvent,
 } from './dictation-engine'
-import { type IDictationStep, startScriptOf } from './dictation-script'
-import { micLevelOfBuffer } from './mic-level'
-
-export const MIC_SAMPLE_RATE = 16000
+import {
+  type DictationTokenRequest,
+  type IGatewaySession,
+  startGatewaySession,
+} from './gateway-session'
 
 const RECORDING_MODE = { allowsRecording: true, playsInSilentMode: true }
 
 const PLAYBACK_MODE = { allowsRecording: false, playsInSilentMode: true }
+
+const NO_MICROPHONE_MESSAGE = 'Dictation is available on the iPhone app.'
 
 const SILENT_SESSION: IDictationSession = {
   stop: async () => undefined,
   cancel: () => undefined,
 }
 
-export class MicDictationEngine implements IDictationEngine {
-  private readonly stream: AudioStream
-  private readonly steps: readonly IDictationStep[]
-  private listener: ((event: TDictationEvent) => void) | undefined
+export class GatewayDictationEngine implements IDictationEngine {
+  private readonly stream: AudioStream | null
+  private readonly requestToken: DictationTokenRequest
+  private session: IGatewaySession | undefined
 
-  constructor({ stream, steps }: { stream: AudioStream; steps: readonly IDictationStep[] }) {
+  constructor({
+    stream,
+    requestToken,
+  }: {
+    stream: AudioStream | null
+    requestToken: DictationTokenRequest
+  }) {
     this.stream = stream
-    this.steps = steps
+    this.requestToken = requestToken
   }
 
   handleBuffer = (buffer: AudioStreamBuffer): void => {
-    if (this.listener === undefined) return
-    this.listener({ type: EDictationEvent.Level, level: micLevelOfBuffer({ data: buffer.data }) })
+    this.session?.acceptBuffer(buffer)
   }
 
   start = async ({
@@ -47,6 +55,11 @@ export class MicDictationEngine implements IDictationEngine {
   }: {
     onEvent: (event: TDictationEvent) => void
   }): Promise<IDictationSession> => {
+    const stream = this.stream
+    if (stream === null) {
+      onEvent({ type: EDictationEvent.Error, message: NO_MICROPHONE_MESSAGE })
+      return SILENT_SESSION
+    }
     const permission = await requestRecordingPermissionsAsync()
     if (!permission.granted) {
       onEvent({ type: EDictationEvent.Error, message: MICROPHONE_DENIED_MESSAGE })
@@ -54,27 +67,27 @@ export class MicDictationEngine implements IDictationEngine {
     }
     try {
       await setAudioModeAsync(RECORDING_MODE)
-      await this.stream.start()
+      this.session = await startGatewaySession({
+        stream,
+        requestToken: this.requestToken,
+        onEvent,
+      })
     } catch (error) {
+      stream.stop()
       await setAudioModeAsync(PLAYBACK_MODE)
       onEvent({ type: EDictationEvent.Error, message: recordingFailedMessageOf(error) })
       return SILENT_SESSION
     }
-    this.listener = onEvent
-    const script = startScriptOf({ steps: this.steps, onEvent })
-    const release = async () => {
-      this.listener = undefined
-      this.stream.stop()
-      await setAudioModeAsync(PLAYBACK_MODE)
-    }
     return {
       stop: async () => {
-        await script.stop()
-        await release()
+        await this.session?.stop()
+        this.session = undefined
+        await setAudioModeAsync(PLAYBACK_MODE)
       },
       cancel: () => {
-        script.cancel()
-        void release()
+        this.session?.cancel()
+        this.session = undefined
+        void setAudioModeAsync(PLAYBACK_MODE)
       },
     }
   }

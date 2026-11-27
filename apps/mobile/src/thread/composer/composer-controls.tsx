@@ -7,7 +7,7 @@ import { AttachButton } from './attach-button'
 import type { EAttachSource } from './attach-sources'
 import type { IComposerDictation } from './dictation/composer-dictation'
 import { DictationButton } from './dictation/dictation-button'
-import { composerDictationMotionOf } from './dictation/dictation-motion'
+import { COMPOSER_DICTATION_MOTION } from './dictation/dictation-motion'
 import { DictationWaveform } from './dictation/dictation-waveform'
 import { SendButton } from './send-button'
 import {
@@ -78,7 +78,7 @@ export const ComposerControls = ({
     )
   }
 
-  const motion = composerDictationMotionOf(dictation.transition)
+  const motion = COMPOSER_DICTATION_MOTION
 
   const handleDictation = () => {
     if (dictation.active) dictation.onStop()

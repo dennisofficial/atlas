@@ -40,6 +40,7 @@ import { ProjectGroupsModule } from './cloud/project-groups/project-groups.modul
 import { ProjectsModule } from './cloud/projects/projects.module'
 import { AccessGrantsModule } from './cloud/access-grants/access-grants.module'
 import { ComposerUploadsModule } from './cloud/composer-uploads/composer-uploads.module'
+import { DictationModule } from './cloud/dictation/dictation.module'
 import { SecretsModule } from './cloud/secrets/secrets.module'
 import { HarnessSecretsModule } from './cloud/harness-secrets/harness-secrets.module'
 import { SettingsModule } from './cloud/settings/settings.module'
@@ -102,6 +103,7 @@ import { SessionTitlerModule } from './cloud/thread-titling/session-titler.modul
     MemoriesModule,
     ArtifactsModule,
     ComposerUploadsModule,
+    DictationModule,
     GithubRealtimeModule,
     Agent37WebhookModule,
     ControlPlaneModule,

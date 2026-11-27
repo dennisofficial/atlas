@@ -23,9 +23,9 @@ describe('fakeTranscriptStepsOf', () => {
     expect(spokenOfSteps(fakeTranscriptStepsOf({ timeline, commitEvery: 2 }))).toEqual([
       { type: EDictationEvent.Partial, text: 'a' },
       { type: EDictationEvent.Final, text: 'a b' },
-      { type: EDictationEvent.Partial, text: 'c' },
-      { type: EDictationEvent.Final, text: 'c d' },
-      { type: EDictationEvent.Final, text: 'e' },
+      { type: EDictationEvent.Partial, text: 'a b c' },
+      { type: EDictationEvent.Final, text: 'a b c d' },
+      { type: EDictationEvent.Final, text: 'a b c d e' },
     ])
   })
 

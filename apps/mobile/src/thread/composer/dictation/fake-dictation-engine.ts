@@ -34,18 +34,16 @@ export const fakeTranscriptStepsOf = ({
   commitEvery?: number
 } = {}): readonly IDictationStep[] => {
   const steps: IDictationStep[] = []
-  let commitFrom = 0
   timeline.forEach((entry, index) => {
     const last = index === timeline.length - 1
     const finalized = last || (index + 1) % commitEvery === 0
-    const text = wordsOf({ timeline, from: commitFrom, to: index + 1 })
+    const text = wordsOf({ timeline, from: 0, to: index + 1 })
     steps.push({
       atMs: entry.startMs,
       event: finalized
         ? { type: EDictationEvent.Final, text }
         : { type: EDictationEvent.Partial, text },
     })
-    if (finalized) commitFrom = index + 1
   })
   return steps
 }

@@ -26,10 +26,10 @@ export const applyFinalOf = ({
 }: {
   transcript: ITranscript
   final: string
-}): ITranscript => ({
-  committed: joinWords({ head: transcript.committed, word: final }),
-  interim: '',
-})
+}): ITranscript =>
+  final.trim() === ''
+    ? { committed: transcript.committed, interim: '' }
+    : { committed: final.trim(), interim: '' }
 
 export const transcriptTextOf = (transcript: ITranscript): string =>
   joinWords({ head: transcript.committed, word: transcript.interim })

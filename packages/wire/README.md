@@ -52,6 +52,8 @@ response payloads, the constants that both sides must agree on, and the sandbox 
 ### Share an HTTP payload
 
 - `threadMessageRequestSchema`, `threadMessageReplySchema`: the send of a message to a thread.
+- `dictationTokenReplySchema`: the single-use Gateway transcription token a phone dictates with,
+  with the socket `url` it opens and the `DICTATION_MODEL` it is bound to.
 - `modelsResponseSchema`: the model list of the providers, with the live error.
 - `classifierTestOutputSchema`: the outcome of a classifier connection test, a pass with its model
   and duration or a fault with its detail.

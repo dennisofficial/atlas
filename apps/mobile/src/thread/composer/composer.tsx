@@ -17,6 +17,8 @@ import { mergeIntoDraft } from '../session/staged-send'
 import { GlassSurface } from '../../navigation/glass-surface'
 import { AttachmentChips } from './attachment-chips'
 import { COMPOSER_FIELD_BORDER, COMPOSER_INSET, COMPOSER_RADIUS } from './composer-shape'
+import { DictationField } from './dictation/dictation-field'
+import { useComposerDictation } from './dictation/use-composer-dictation'
 import { AttachMenu } from './attach-menu'
 import type { EAttachSource } from './attach-sources'
 import { ComposerControls } from './composer-controls'
@@ -68,6 +70,7 @@ export const Composer = ({
   const [sending, setSending] = useState(false)
   const [failed, setFailed] = useState(false)
   const [choosing, setChoosing] = useState(false)
+  const dictation = useComposerDictation({ text: draft, onChangeText: setDraft })
   const attachmentsRef = useRef(attachments)
   attachmentsRef.current = attachments
 
@@ -86,7 +89,7 @@ export const Composer = ({
 
   const held = attachments?.held ?? []
   const sendState = composerSendStateOf({
-    text: draft,
+    text: dictation.displayText,
     attached: readyAttachments(held).length > 0,
     working,
     sending,
@@ -106,18 +109,19 @@ export const Composer = ({
 
   const handleSend = async () => {
     if (!canSend) return
+    const spoken = dictation.active ? await dictation.finish() : draft
     if (clientActions !== undefined) {
-      const action = clientActionOfEntries({ text: draft, entries })
+      const action = clientActionOfEntries({ text: spoken, entries })
       if (action !== null) {
         clientActions[action]()
         setDraft('')
-        handleSent(draft)
+        handleSent(spoken)
         return
       }
     }
     setSending(true)
     setFailed(false)
-    const text = draft.trim()
+    const text = spoken.trim()
     const sent = await onSend({ text, attachments: attachments?.attachments ?? [] })
     setSending(false)
     if (!sent) {
@@ -129,11 +133,13 @@ export const Composer = ({
     attachments?.clear()
   }
 
-  const notice = failed
-    ? 'That message could not be sent.'
-    : (refusal ??
-      attachments?.notice ??
-      (attachments?.failed === true ? REMOVE_FAILED_FILES : null))
+  const notice =
+    dictation.error ??
+    (failed
+      ? 'That message could not be sent.'
+      : (refusal ??
+        attachments?.notice ??
+        (attachments?.failed === true ? REMOVE_FAILED_FILES : null)))
 
   const handleCommand = (entry: CommandEntry) => {
     const action = pickActionOf(entry)
@@ -170,6 +176,12 @@ export const Composer = ({
       onSend={() => void handleSend()}
       trailing={trailing}
       trailingPressable={trailingPressable}
+      dictation={{
+        active: dictation.active,
+        history: dictation.history,
+        onStart: dictation.start,
+        onStop: dictation.stop,
+      }}
     >
       {children}
     </ComposerControls>
@@ -198,17 +210,29 @@ export const Composer = ({
           controls={controls}
         >
           <TextInputWrapper onPaste={attachments === undefined ? undefined : handlePaste}>
-            <Input
-              bare
-              multiline
-              accessibilityLabel="Message Atlas"
-              autoFocus={autoFocus}
-              editable={!sending}
-              placeholder={placeholder}
-              value={draft}
-              onChangeText={setDraft}
-              style={styles.input}
-            />
+            {dictation.active ? (
+              <DictationField
+                before={dictation.before}
+                transcript={dictation.transcript}
+                after={dictation.after}
+                style={styles.dictation}
+              />
+            ) : (
+              <Input
+                bare
+                multiline
+                accessibilityLabel="Message Atlas"
+                autoFocus={autoFocus}
+                editable={!sending}
+                placeholder={placeholder}
+                value={draft}
+                onChangeText={setDraft}
+                onSelectionChange={(event) =>
+                  dictation.handleSelection(event.nativeEvent.selection)
+                }
+                style={styles.input}
+              />
+            )}
           </TextInputWrapper>
         </ComposerDropZone>
       </GlassSurface>
@@ -242,6 +266,11 @@ const styles = StyleSheet.create({
     paddingHorizontal: 0,
     paddingVertical: 0,
     textAlignVertical: 'top',
+  },
+  dictation: {
+    fontFamily: 'Geist_400Regular',
+    fontSize: readingType.body.fontSize,
+    lineHeight: readingType.body.lineHeight,
   },
   notice: {
     paddingBottom: space(1),

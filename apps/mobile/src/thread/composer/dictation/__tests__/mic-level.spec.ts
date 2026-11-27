@@ -1,12 +1,14 @@
 import { describe, expect, it } from 'bun:test'
 
-import { MIC_GAIN, micLevelOf, micLevelOfBuffer } from '../mic-level'
+import { MIC_GAIN, micLevelOf } from '../mic-level'
 
-const samplesOf = (values: readonly number[]): Float32Array => Float32Array.from(values)
+const samplesOf = (values: readonly number[]): Int16Array => Int16Array.from(values)
 
-const toneOf = ({ peak, count }: { peak: number; count: number }): Float32Array =>
-  samplesOf(
-    Array.from({ length: count }, (_, index) => peak * Math.sin((index / count) * Math.PI * 2)),
+const toneOf = ({ peak, count }: { peak: number; count: number }): Int16Array =>
+  Int16Array.from(
+    Array.from({ length: count }, (_, index) =>
+      Math.round(32768 * peak * Math.sin((index / count) * Math.PI * 2)),
+    ),
   )
 
 describe('micLevelOf', () => {
@@ -29,11 +31,5 @@ describe('micLevelOf', () => {
     const loud = micLevelOf({ samples: toneOf({ peak: 0.5, count: 512 }) })
     expect(quiet).toBeCloseTo(0.01 * MIC_GAIN * Math.SQRT1_2, 3)
     expect(loud).toBe(1)
-  })
-
-  it('reads a PCM buffer', () => {
-    const tone = toneOf({ peak: 0.5, count: 256 })
-    const buffer: ArrayBuffer = new Float32Array(tone).buffer
-    expect(micLevelOfBuffer({ data: buffer })).toBeCloseTo(micLevelOf({ samples: tone }), 5)
   })
 })
