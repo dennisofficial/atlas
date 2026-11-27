@@ -17,7 +17,6 @@ const drainFor = (order: string[]): HeldDrain =>
     pause: new PauseSignal(),
     turns: {
       turnRunning: false,
-      whenIdle: async () => undefined,
     } as unknown as HeldTurns,
     ending: {
       handBack: async () => {

@@ -1,5 +1,4 @@
 import type { PauseSignal } from '@dltech/atlas-agent'
-import { crashedCallsOf } from '@dltech/atlas-core'
 import { logFieldsOf } from '@dltech/atlas-observability'
 
 import { settledWithin } from './crew/child-turns'
@@ -48,12 +47,12 @@ export class HeldDrain {
   }
 
   private async settleInFlight(): Promise<void> {
-    if (!this.args.turns.turnRunning) return
+    if (!this.args.pause.modelStepRunning) return
     const startedAt = this.args.deps.timers.now()
     const settled = await settledWithin({
       timers: this.args.deps.timers,
       ms: this.args.deps.drainCapMs,
-      done: this.args.turns.whenIdle(),
+      done: this.args.pause.whenModelIdle(),
     })
     if (settled) return
     this.logCap({ startedAt })
@@ -94,12 +93,9 @@ export class HeldDrain {
   }
 
   private logCap(args: { startedAt: number }): void {
-    const state = this.args.record()?.eventCache().loopState()
-    const call = state === undefined ? undefined : crashedCallsOf(state)[0]
-    const inFlight = call === undefined ? 'an in-flight model step' : `the tool call ${call.name}`
     this.args.deps.log?.warn({
       source: 'holder.drain',
-      message: `session ${this.args.sessionId} ran ${inFlight} for ${this.args.deps.timers.now() - args.startedAt}ms, past the ${this.args.deps.drainCapMs}ms drain cap; aborting the model stream`,
+      message: `session ${this.args.sessionId} ran the model step for ${this.args.deps.timers.now() - args.startedAt}ms, past the ${this.args.deps.drainCapMs}ms drain cap; aborting the model stream`,
     })
   }
 }

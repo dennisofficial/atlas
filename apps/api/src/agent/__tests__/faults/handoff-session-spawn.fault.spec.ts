@@ -43,7 +43,6 @@ const openGate = (): void => {
 describeHandoff({
   name: 'a spawned session whose host is killed after the spawn',
   prompt: 'spawn a peer session and tell me its id',
-  drain: false,
   podRestart: 'survives',
   knobs: KNOBS,
   start: async (ctx) => {

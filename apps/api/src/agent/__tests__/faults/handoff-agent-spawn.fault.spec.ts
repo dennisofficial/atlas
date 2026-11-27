@@ -64,7 +64,6 @@ const briefsOf = (events: readonly RecordEvent[]): number =>
 describeHandoff({
   name: 'a sub-agent spawned before its host is killed comes back to the same child',
   prompt: PROMPT,
-  drain: false,
   podRestart: 'survives',
   knobs: KNOBS,
 
