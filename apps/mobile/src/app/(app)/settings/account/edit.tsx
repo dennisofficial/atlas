@@ -101,7 +101,7 @@ const EditForm = ({
 export default function AccountEditScreen() {
   const authApi = useAccountApi()
   const { state, data, reload } = useApiResource({
-    load: () => {
+    load: async () => {
       if (authApi === undefined) throw new Error('You are signed out')
       return authApi.getCurrentSession()
     },

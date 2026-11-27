@@ -130,7 +130,7 @@ const DeviceRows = ({
 export default function SecurityScreen() {
   const authApi = useAccountApi()
   const { state, data, reload } = useApiResource({
-    load: () => {
+    load: async () => {
       if (authApi === undefined) throw new Error('You are signed out')
       return loadDevices(authApi)
     },

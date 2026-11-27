@@ -160,7 +160,7 @@ export default function AccountScreen() {
   const { api } = useAuth()
   const authApi = useAccountApi()
   const { state, data, reload } = useApiResource({
-    load: () => {
+    load: async () => {
       if (api === undefined || authApi === undefined) throw new Error('You are signed out')
       return loadAccountData({ api, authApi })
     },
