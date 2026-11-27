@@ -5,6 +5,7 @@ import { describe, expect, it } from 'bun:test'
 import {
   NO_MODEL_LABEL,
   defaultModelIdOf,
+  effortChoicesOf,
   effortLabelOf,
   knownEffortOf,
   modelGroupsOf,
@@ -136,10 +137,68 @@ describe('searchModelsOf', () => {
   })
 })
 
+describe('context window labels', () => {
+  const windows: readonly (readonly [number, string])[] = [
+    [8_191, '8k'],
+    [128_500, '129k'],
+    [999_999, '1000k'],
+    [1_000_000, '1M'],
+    [1_048_576, '1M'],
+    [1_500_000, '1.5M'],
+    [2_000_000, '2M'],
+  ]
+
+  it('labels thousands as k and millions as M to one decimal', () => {
+    const options = modelOptionsOf({
+      providers: [
+        {
+          id: 'openai',
+          label: 'OpenAI',
+          status: EModelProviderStatus.Connected,
+          live: true,
+          models: windows.map(([contextWindow], index) => ({
+            id: `window-${index}`,
+            label: `Window ${index}`,
+            contextWindow,
+            efforts: [],
+          })),
+        },
+      ],
+    })
+
+    expect(options.map((option) => option.context)).toEqual(windows.map(([, label]) => label))
+  })
+})
+
 describe('effortLabelOf', () => {
-  it('spells out the taller rungs', () => {
-    expect(effortLabelOf('xhigh')).toBe('Extra high')
-    expect(effortLabelOf('medium')).toBe('Medium')
+  it('names every rung of the ladder', () => {
+    expect(['off', 'minimal', 'low', 'medium', 'high', 'xhigh', 'max'].map(effortLabelOf)).toEqual([
+      'Off',
+      'Minimal',
+      'Low',
+      'Medium',
+      'High',
+      'Extra high',
+      'Max',
+    ])
+  })
+
+  it('capitalises an effort off the ladder', () => {
+    expect(effortLabelOf('turbo')).toBe('Turbo')
+  })
+})
+
+describe('effortChoicesOf', () => {
+  it('lists the offered efforts in ladder order', () => {
+    const model = modelOptionsOf(response)[0]
+    if (model === undefined) throw new Error('no model')
+    const offered = { ...model, efforts: ['max', 'off', 'xhigh', 'minimal', 'bogus'] }
+    expect(effortChoicesOf({ model: offered, effort: 'off', fast: false })).toEqual([
+      'off',
+      'minimal',
+      'xhigh',
+      'max',
+    ])
   })
 })
 
@@ -254,6 +313,8 @@ describe('defaultModelIdOf', () => {
 describe('knownEffortOf', () => {
   it('keeps a ladder effort and drops anything else', () => {
     expect(knownEffortOf('high')).toBe('high')
+    expect(knownEffortOf('xhigh')).toBe('xhigh')
+    expect(knownEffortOf('none')).toBeNull()
     expect(knownEffortOf('')).toBeNull()
   })
 })

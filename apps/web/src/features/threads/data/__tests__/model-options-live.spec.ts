@@ -167,3 +167,36 @@ describe('modelOptionsFromResponse', () => {
     expect(offered.models.filter((model) => model.id === 'openai/gpt-live')).toHaveLength(1)
   })
 })
+
+describe('context window labels', () => {
+  const windows: readonly (readonly [number, string])[] = [
+    [8_191, '8k'],
+    [128_500, '129k'],
+    [999_999, '1000k'],
+    [1_000_000, '1M'],
+    [1_048_576, '1M'],
+    [1_500_000, '1.5M'],
+    [2_000_000, '2M'],
+  ]
+
+  it('labels thousands as k and millions as M to one decimal', () => {
+    const { models } = modelOptionsFromResponse({
+      response: response([
+        {
+          id: 'openai',
+          label: 'Codex Plan',
+          status: EModelProviderStatus.Connected,
+          live: true,
+          models: windows.map(([contextWindow], index) => ({
+            id: `openai/window-${index}`,
+            label: `Window ${index}`,
+            contextWindow,
+            efforts: [],
+          })),
+        },
+      ]),
+    })
+
+    expect(models.map((model) => model.context)).toEqual(windows.map(([, label]) => label))
+  })
+})

@@ -1,9 +1,14 @@
-import { findCard, outputPriceLabel, parseRef } from '@dltech/atlas-core'
+import {
+  contextWindowLabel,
+  EFFORT_LADDER,
+  EFFORT_RUNG_LABEL,
+  findCard,
+  outputPriceLabel,
+  parseRef,
+} from '@dltech/atlas-core'
 import { defaultModelId, generatedCatalogue } from '@dltech/atlas-models'
 import { brandOfProvider, type EBrand } from '@dltech/atlas-ui/brand'
 import type { ModelsResponse } from '@dltech/atlas-wire/web'
-
-export const EFFORT_LADDER = ['off', 'minimal', 'low', 'medium', 'high', 'xhigh', 'max'] as const
 
 export const DEFAULT_EFFORT = 'medium'
 
@@ -11,18 +16,10 @@ export const NO_MODEL_LABEL = 'Model'
 
 const CLAUDE_PREFIX = 'Claude '
 
-const EFFORT_LABELS: Record<string, string> = {
-  off: 'Off',
-  minimal: 'Minimal',
-  low: 'Low',
-  medium: 'Medium',
-  high: 'High',
-  xhigh: 'Extra high',
-  max: 'Max',
-}
+const EFFORT_LABELS: ReadonlyMap<string, string> = new Map(Object.entries(EFFORT_RUNG_LABEL))
 
 export const effortLabelOf = (name: string): string =>
-  EFFORT_LABELS[name] ?? `${name.charAt(0).toUpperCase()}${name.slice(1)}`
+  EFFORT_LABELS.get(name) ?? `${name.charAt(0).toUpperCase()}${name.slice(1)}`
 
 export interface IModelOption {
   id: string
@@ -52,9 +49,6 @@ export interface IModelGroup {
 const labelOf = (label: string): string =>
   label.startsWith(CLAUDE_PREFIX) ? label.slice(CLAUDE_PREFIX.length) : label
 
-const contextLabelOf = (tokens: number): string =>
-  tokens >= 1_000_000 ? `${Math.round(tokens / 100_000) / 10}M` : `${Math.round(tokens / 1_000)}k`
-
 const rateOf = (model: {
   inputPerMillion?: number | undefined
   outputPerMillion?: number | undefined
@@ -81,7 +75,7 @@ export const modelOptionsOf = (response: ModelsResponse): IModelOption[] =>
         monogram: provider.label.charAt(0).toUpperCase(),
         ...(brand === undefined ? {} : { brand }),
         efforts: model.efforts,
-        context: contextLabelOf(model.contextWindow),
+        context: contextWindowLabel(model.contextWindow),
         rate: rateOf(model),
         fast: model.fast === true,
       }))
