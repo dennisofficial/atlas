@@ -18,6 +18,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 
 import { useAuth } from '../../auth/auth-provider'
 import { dismissPresentedForSession } from '../../push/notification-handler'
+import type { MessageActionHandlers } from '../message-actions'
 import type { SessionNameOf, ThreadRow } from '../rows'
 import { agentLinksOf, type AgentLinks } from './agent-links'
 import type { ContextMeter } from '../composer/context-reading'
@@ -34,6 +35,8 @@ import { useThreadView } from './use-thread-view'
 import { useSessionCommands, type SessionCommands } from './use-session-commands'
 import { useOperatorRequest, type OperatorRequestControl } from './use-operator-request'
 import { useQueuedWithdraw } from './use-queued-withdraw'
+import { useRestoredDraft } from './use-restored-draft'
+import { useSessionMessageActions } from './use-session-message-actions'
 import type { QueuedRestore } from './withdraw-queued'
 
 const TICK_MS = 1_000
@@ -58,6 +61,7 @@ export type SessionScreen = ThreadView & {
   stagedRows: ThreadRow[]
   commands: SessionCommands
   operator: OperatorRequestControl
+  messageActions: MessageActionHandlers
   restored: { token: number; text: string; attachments: readonly Attachment[] } | undefined
   notice: string | undefined
   loadOlder: () => Promise<number>
@@ -106,11 +110,8 @@ export function useSessionScreen(args: {
   )
   const [staged, setStaged] = useState<readonly StagedSend[]>([])
   const agentLinks = useMemo(() => agentLinksOf({ events: snapshot.events }), [snapshot.events])
-  const [restored, setRestored] = useState<
-    { token: number; text: string; attachments: readonly Attachment[] } | undefined
-  >(undefined)
+  const { restored, restore } = useRestoredDraft()
   const retryClientId = useRef<string | undefined>(undefined)
-  const restoreToken = useRef(0)
   const sent = useRef<ReadonlySet<string>>(new Set())
   const unread = useMemo(
     () =>
@@ -144,23 +145,28 @@ export function useSessionScreen(args: {
       sessionId,
       rewindEventIds: pending.map((entry) => entry.rewindEventId),
     })
-    restoreToken.current += 1
-    setRestored({
-      token: restoreToken.current,
+    restore({
       text: pending.map((entry) => entry.text).join('\n\n'),
       attachments: pending.flatMap((entry) => [...entry.attachments]),
     })
-  }, [snapshot.quickStops, sessionId])
+  }, [snapshot.quickStops, sessionId, restore])
 
   const stagedRows = useMemo(
     () => (staged.length === 0 ? [] : stagedRowsOf({ snapshot, staged, now })),
     [snapshot, staged, now],
   )
-  const restoreQueued = useCallback((restored: QueuedRestore) => {
-    restoreToken.current += 1
-    setRestored({ token: restoreToken.current, ...restored })
-  }, [])
+  const restoreQueued = useCallback(
+    (queued: QueuedRestore) => restore({ text: queued.text, attachments: queued.attachments }),
+    [restore],
+  )
   const reportNotice = useCallback((notice: string) => setNotice(notice), [])
+  const messageActions = useSessionMessageActions({
+    sessionId,
+    events: snapshot.foldable,
+    api,
+    onRestore: restore,
+    onNotice: reportNotice,
+  })
   const withdraw = useQueuedWithdraw({
     api,
     sessionId,
@@ -187,15 +193,13 @@ export function useSessionScreen(args: {
     }
     setStaged(settlement.kept)
     if (settlement.restored.length > 0) {
-      restoreToken.current += 1
-      setRestored({
-        token: restoreToken.current,
+      restore({
         text: settlement.restored.map((entry) => entry.text).join('\n\n'),
         attachments: settlement.restored.flatMap((entry) => [...entry.attachments]),
       })
     }
     if (settlement.notices.length > 0) setNotice(settlement.notices.join('\n'))
-  }, [staged, snapshot.events, unread, withdraw.ownedInboxIds])
+  }, [staged, snapshot.events, unread, withdraw.ownedInboxIds, restore])
   const queued = useMemo(
     () => queuedTranscriptOf({ snapshot, staged, now, hiddenInboxIds: withdraw.hiddenInboxIds }),
     [snapshot, staged, now, withdraw.hiddenInboxIds],
@@ -282,6 +286,7 @@ export function useSessionScreen(args: {
     stagedRows,
     commands,
     operator,
+    messageActions,
     restored,
     notice,
     loadOlder,

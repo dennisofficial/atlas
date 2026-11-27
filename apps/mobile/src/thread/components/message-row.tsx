@@ -7,17 +7,16 @@ import {
   Icon,
   type IRenderDiagramArgs,
   Markdown,
-  MessageFooter,
   Text,
   useTheme,
 } from '@dltech/atlas-ui-native'
-import { messageTimeOf } from '@dltech/atlas-client/transcript'
 import { space } from '@dltech/atlas-ui/tokens'
 import { Terminal } from 'lucide-react-native'
 import { StyleSheet, View } from 'react-native'
 
 import { DiagramCard } from '../diagrams/diagram-card'
 import { hasCodeFence } from '../diagrams/diagram-layout'
+import type { EMessageAction, MessageActionHandlers } from '../message-actions'
 import {
   EMessageAuthor,
   senderLabelOf,
@@ -27,27 +26,17 @@ import {
 } from '../rows'
 import { InboundBubble } from './inbound-bubble'
 import { MessageAttachments } from './message-attachments'
+import { MessageContextMenu } from './message-context-menu'
+import { MessageRowFooter } from './message-footer'
+import { useMessageActions } from './use-message-actions'
+
+const NO_ACTIONS: readonly EMessageAction[] = []
+
+const ignoreAction = () => undefined
 
 const renderDiagram = ({ source, closed }: IRenderDiagramArgs) => (
   <DiagramCard source={source} closed={closed} />
 )
-
-const SentAt = ({ at, align }: { at: string | undefined; align?: 'start' | 'end' }) => {
-  const clock = messageTimeOf({ at, now: Date.now() })
-  if (clock === undefined) return null
-  return (
-    <MessageFooter align={align ?? 'start'}>
-      <Text
-        size={ETextRole.Xs}
-        weight={EFontWeight.Medium}
-        tone={ETextTone.Muted}
-        style={styles.timestamp}
-      >
-        {clock}
-      </Text>
-    </MessageFooter>
-  )
-}
 
 const splitOf = (text: string): { name: string; argument: string } => {
   const at = text.indexOf(' ')
@@ -75,7 +64,13 @@ const CommandMessage = ({ command, at }: { command: CommandRow; at: string | und
           {argument}
         </Text>
       </View>
-      <SentAt at={at} align="end" />
+      <MessageRowFooter
+        at={at}
+        align="end"
+        actions={NO_ACTIONS}
+        copied={false}
+        onAction={ignoreAction}
+      />
     </View>
   )
 }
@@ -86,25 +81,41 @@ export const MessageRowView = ({
   sessionId,
   sessionNameOf,
   queuedLabel,
+  messageActions,
 }: {
   row: MessageRow
   threadId: string | undefined
   sessionId: string | undefined
   sessionNameOf?: SessionNameOf | undefined
   queuedLabel?: string | undefined
+  messageActions?: MessageActionHandlers | undefined
 }) => {
+  const { actions, copied, handleAction } = useMessageActions({
+    row,
+    queued: queuedLabel !== undefined,
+    handlers: messageActions,
+  })
+
   if (row.author === EMessageAuthor.Atlas) {
     const caption = senderLabelOf({ row, sessionNameOf })
     return (
       <View style={styles.message}>
-        {caption === undefined ? (
-          <Markdown value={row.text} selectable renderDiagram={renderDiagram} />
-        ) : (
-          <InboundBubble caption={caption}>
+        <MessageContextMenu actions={actions} onAction={handleAction}>
+          {caption === undefined ? (
             <Markdown value={row.text} selectable renderDiagram={renderDiagram} />
-          </InboundBubble>
-        )}
-        <SentAt at={row.at} />
+          ) : (
+            <InboundBubble caption={caption}>
+              <Markdown value={row.text} selectable renderDiagram={renderDiagram} />
+            </InboundBubble>
+          )}
+        </MessageContextMenu>
+        <MessageRowFooter
+          at={row.at}
+          align="start"
+          actions={actions}
+          copied={copied}
+          onAction={handleAction}
+        />
       </View>
     )
   }
@@ -134,24 +145,20 @@ export const MessageRowView = ({
     <View style={styles.you}>
       <MessageAttachments threadId={threadId} sessionId={sessionId} attachments={row.attachments} />
       {row.text.trim().length > 0 ? (
-        <Bubble style={bubbleStyle}>
-          <Markdown value={row.text} breaks selectable renderDiagram={renderDiagram} />
-        </Bubble>
+        <MessageContextMenu actions={actions} onAction={handleAction} align="end">
+          <Bubble style={bubbleStyle}>
+            <Markdown value={row.text} breaks selectable renderDiagram={renderDiagram} />
+          </Bubble>
+        </MessageContextMenu>
       ) : null}
-      {queuedLabel === undefined ? (
-        <SentAt at={row.at} align="end" />
-      ) : (
-        <MessageFooter align="end">
-          <Text
-            size={ETextRole.Xs}
-            weight={EFontWeight.Medium}
-            tone={ETextTone.Muted}
-            style={styles.timestamp}
-          >
-            {queuedLabel}
-          </Text>
-        </MessageFooter>
-      )}
+      <MessageRowFooter
+        at={row.at}
+        align="end"
+        queuedLabel={queuedLabel}
+        actions={actions}
+        copied={copied}
+        onAction={handleAction}
+      />
     </View>
   )
 }
@@ -177,8 +184,5 @@ const styles = StyleSheet.create({
   },
   commandText: {
     flexShrink: 1,
-  },
-  timestamp: {
-    fontVariant: ['tabular-nums'],
   },
 })
