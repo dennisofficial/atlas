@@ -39,7 +39,7 @@ const rowsOf = () =>
 const waitForBlockedWriter = async (pool: Pool): Promise<void> => {
   for (let attempt = 0; attempt < 200; attempt += 1) {
     const waiting = await pool.query(
-      "SELECT 1 FROM pg_stat_activity WHERE wait_event_type = 'Lock' AND query LIKE 'UPDATE \"Memory\"%'",
+      "SELECT 1 FROM pg_stat_activity WHERE datname = current_database() AND wait_event_type = 'Lock' AND query LIKE 'UPDATE \"Memory\"%'",
     )
     if (waiting.rowCount === 1) return
     await new Promise((resolve) => setTimeout(resolve, 10))
