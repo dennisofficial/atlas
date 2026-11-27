@@ -1,12 +1,14 @@
 import { describe, expect, it } from 'bun:test'
 
-import { ESessionStatus } from '@dltech/atlas-core'
+import { EServiceStatus, ESessionStatus } from '@dltech/atlas-core'
+import type { ServiceRow } from '@dltech/atlas-plugin-services/core'
 import type { SessionViewOutput } from '@dltech/atlas-protocol'
 
 import { checksTallyOf } from '@/features/threads/data/header-model'
 
 import {
   contextOfView,
+  groupedServiceRows,
   pullRequestEntryOf,
   rowPullRequestEntryOf,
   sessionViewModelOf,
@@ -265,6 +267,97 @@ describe('sessionViewModelOf', () => {
     expect(model.previews).toEqual([
       { serviceId: 'svc1', label: 'web', port: 4321, url: 'https://4321-abc.byatlas.dev' },
     ])
+  })
+})
+
+describe('groupedServiceRows', () => {
+  const serviceRow = (overrides: Partial<ServiceRow> = {}): ServiceRow => ({
+    serviceId: 'svc1',
+    name: 'web',
+    command: 'bun run dev',
+    root: '/work/atlas',
+    branch: 'main',
+    declarationHash: 'hash-a',
+    status: EServiceStatus.Running,
+    ready: true,
+    changedAt: '2026-11-27T16:00:00.000Z',
+    ...overrides,
+  })
+
+  it('keeps one row per declared service, the newest of its launches', () => {
+    const rows = groupedServiceRows([
+      serviceRow({
+        serviceId: 'svc1',
+        status: EServiceStatus.Exited,
+        changedAt: '2026-11-27T16:43:00.000Z',
+      }),
+      serviceRow({ serviceId: 'svc2', changedAt: '2026-11-27T16:54:00.000Z' }),
+    ])
+    expect(rows.map((row) => row.serviceId)).toEqual(['svc2'])
+  })
+
+  it('keeps a running launch over a newer ended one', () => {
+    const rows = groupedServiceRows([
+      serviceRow({
+        serviceId: 'svc2',
+        status: EServiceStatus.Killed,
+        changedAt: '2026-11-27T16:54:00.000Z',
+      }),
+      serviceRow({ serviceId: 'svc1', changedAt: '2026-11-27T16:00:00.000Z' }),
+    ])
+    expect(rows.map((row) => row.serviceId)).toEqual(['svc1'])
+  })
+
+  it('keeps services of another root or branch apart', () => {
+    const rows = groupedServiceRows([
+      serviceRow(),
+      serviceRow({ serviceId: 'svc2', branch: 'dennis/other' }),
+      serviceRow({ serviceId: 'svc3', root: '/work/other' }),
+    ])
+    expect(rows.map((row) => row.serviceId)).toEqual(['svc1', 'svc2', 'svc3'])
+  })
+
+  it('keeps every undeclared service as its own row', () => {
+    const rows = groupedServiceRows([
+      serviceRow({ serviceId: 'svc1', name: undefined, declarationHash: undefined }),
+      serviceRow({ serviceId: 'svc2', name: undefined, declarationHash: undefined }),
+    ])
+    expect(rows.map((row) => row.serviceId)).toEqual(['svc1', 'svc2'])
+  })
+
+  it('puts running services before ended ones', () => {
+    const rows = groupedServiceRows([
+      serviceRow({
+        serviceId: 'svc1',
+        name: 'web',
+        status: EServiceStatus.Killed,
+        changedAt: '2026-11-27T16:54:00.000Z',
+      }),
+      serviceRow({ serviceId: 'svc2', name: 'build', changedAt: '2026-11-27T16:00:00.000Z' }),
+    ])
+    expect(rows.map((row) => row.name)).toEqual(['build', 'web'])
+  })
+
+  it('gives the session view one row per declared service', () => {
+    const first = {
+      serviceId: 'svc1',
+      name: 'web',
+      command: 'bun run dev',
+      root: '/work/atlas',
+      branch: 'main',
+      declarationHash: 'hash-a',
+      status: 'killed',
+      ready: true,
+      changedAt: '2026-11-27T16:43:00.000Z',
+    }
+    const second = {
+      ...first,
+      serviceId: 'svc2',
+      status: 'running',
+      changedAt: '2026-11-27T16:54:00.000Z',
+    }
+    const model = sessionViewModelOf(viewOf({ pluginViews: { services: [first, second] } }))
+    expect(model.serviceRows.map((row) => row.serviceId)).toEqual(['svc2'])
   })
 })
 

@@ -3,7 +3,7 @@ import { describe, expect, it } from 'bun:test'
 import type { CommandContext } from '@dltech/atlas-commands'
 
 import { serviceHandlerOf } from '../commands'
-import { invoke, rig, serviceIdOf } from './support'
+import { invoke, rig, serviceIdOf, writeDeclared } from './support'
 
 const contextOf = (args: unknown): CommandContext<unknown> => ({
   args,
@@ -114,5 +114,27 @@ describe('the outcome the service pod command records', () => {
   it('records no outcome when the stop fails', async () => {
     const harness = rig()
     expect(await appendedOf({ harness, input: { action: 'stop', serviceId: 'ghost' } })).toEqual([])
+  })
+})
+
+describe('a second restart of a declared service before the first ending is recorded', () => {
+  it('restarts the replacement instead of refusing on the stopped id', async () => {
+    const harness = rig()
+    writeDeclared(
+      harness,
+      ['services:', '  web:', '    command: listen', '    port: 8090'].join('\n'),
+    )
+    const first = serviceIdOf(
+      await invoke({ ctx: harness.ctx, name: 'service', input: { action: 'start', name: 'web' } }),
+    )
+    const handle = serviceHandlerOf(harness.ctx)
+
+    const once = await handle(contextOf({ action: 'restart', serviceId: first }))
+    const twice = await handle(contextOf({ action: 'restart', serviceId: first }))
+
+    const stops = harness.calls.flatMap((call) => (call.op === 'services.stop' ? [call] : []))
+    expect([once, twice]).toEqual([{ kind: 'done' }, { kind: 'done' }])
+    expect(stops).toHaveLength(2)
+    expect(stops[1]?.serviceId).not.toBe(first)
   })
 })

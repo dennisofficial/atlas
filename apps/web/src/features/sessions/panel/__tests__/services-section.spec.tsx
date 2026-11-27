@@ -74,7 +74,7 @@ describe('SessionServicesSection', () => {
     expect(html).toContain('aria-label="Open the web log"')
   })
 
-  it('marks a running service paused and hides its actions while the pod is asleep', () => {
+  it('marks a running service paused but still offers its preview while the pod is asleep', () => {
     const base = valueOf()
     const html = render({
       ...base,
@@ -86,7 +86,7 @@ describe('SessionServicesSection', () => {
     expect(html).toContain('paused')
     expect(html).toContain('bg-warning')
     expect(html).not.toContain('data-service-stop')
-    expect(html).not.toContain('aria-label="Open web"')
+    expect(html).toContain('aria-label="Open web"')
   })
 
   it('keeps a running service live while the pod is stopping', () => {

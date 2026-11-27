@@ -5,8 +5,6 @@ import type { Root } from 'react-dom/client'
 
 import { EPreviewStatus, type PreviewPort } from '@dltech/atlas-ui/ai/preview-browser'
 
-import { activeTabOf, currentUrlOf } from '@/features/threads/data/preview-browser/browser-model'
-import { usePreviewBrowser } from '@/features/threads/data/preview-browser/use-preview-browser'
 import type { PreviewsState } from '@/features/threads/data/use-previews'
 import { usePreviewsContext } from '@/features/threads/panel/previews-context'
 
@@ -36,32 +34,20 @@ const port = (serviceId: string): PreviewPort => ({
   status: EPreviewStatus.Live,
 })
 
-let mounts = 0
-
-async function mount(onOpened: () => void) {
-  const sessionId = `provider-${++mounts}`
+async function mount(onOpen: (url: string) => void) {
   const { createRoot } = await import('react-dom/client')
   const root = createRoot(document.createElement('div'))
   roots.add(root)
-  let latest: { context: PreviewsState; url: string | undefined } = {
+  let latest: { context: PreviewsState } = {
     context: { ports: [], loaded: false, openUrl: () => undefined },
-    url: undefined,
   }
   function Probe() {
-    const context = usePreviewsContext()
-    const { state } = usePreviewBrowser(sessionId)
-    const active = activeTabOf(state)
-    latest = { context, url: active === undefined ? undefined : currentUrlOf(active) }
+    latest = { context: usePreviewsContext() }
     return null
   }
   await act(async () =>
     root.render(
-      <SessionPreviewsProvider
-        sessionId={sessionId}
-        ports={[port('svc-web')]}
-        loaded
-        onOpened={onOpened}
-      >
+      <SessionPreviewsProvider ports={[port('svc-web')]} loaded onOpen={onOpen}>
         <Probe />
       </SessionPreviewsProvider>,
     ),
@@ -76,13 +62,10 @@ describe('SessionPreviewsProvider', () => {
     expect(state().context.loaded).toBe(true)
   })
 
-  it('opens a link in the session browser and tells the pane to show it', async () => {
-    let calls = 0
-    const state = await mount(() => {
-      calls += 1
-    })
+  it('opens a transcript link through the session pane, which wakes a sleeping pod first', async () => {
+    const opened: string[] = []
+    const state = await mount((url) => opened.push(url))
     await act(async () => state().context.openUrl('http://localhost:4321/files'))
-    expect(state().url).toBe('http://localhost:4321/files')
-    expect(calls).toBe(1)
+    expect(opened).toEqual(['http://localhost:4321/files'])
   })
 })

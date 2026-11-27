@@ -112,6 +112,20 @@ export const orderedServiceRows = (rows: readonly ServiceRow[]): readonly Servic
       RUNNING_FIRST(left.status) - RUNNING_FIRST(right.status) || newestFirst(left, right),
   )
 
+const serviceIdentityOf = (row: ServiceRow): string =>
+  row.name === undefined || row.declarationHash === undefined
+    ? `service:${row.serviceId}`
+    : `declared:${row.name}\u0000${row.root ?? ''}\u0000${row.branch ?? ''}`
+
+export const groupedServiceRows = (rows: readonly ServiceRow[]): readonly ServiceRow[] => {
+  const kept = new Map<string, ServiceRow>()
+  for (const row of orderedServiceRows(rows)) {
+    const identity = serviceIdentityOf(row)
+    if (!kept.has(identity)) kept.set(identity, row)
+  }
+  return [...kept.values()]
+}
+
 export const shellTailTextOf = (
   shells: Readonly<Record<string, { text: string }>>,
 ): Record<string, string> =>
@@ -147,7 +161,7 @@ export const sessionViewModelOf = (view: SessionViewOutput | undefined): Session
     }),
     shells: shellRosterOf(view.pluginViews),
     shellRows: orderedShellRows(shellsOfView(view.pluginViews)),
-    serviceRows: orderedServiceRows(servicesOfView(view.pluginViews)),
+    serviceRows: groupedServiceRows(servicesOfView(view.pluginViews)),
     crew: crewRosterOf(view.pluginViews),
     crewRows: crewOfView(view.pluginViews),
     previews: previewsOfView(view.pluginViews),
