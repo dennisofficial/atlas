@@ -1,31 +1,13 @@
-import { z } from 'zod'
-
 import { apiUrl } from '@/lib/api-base-url'
 import { UNREACHABLE } from '@/lib/auth-api'
 import { CloudApiError } from '@/lib/cloud-api'
-
-import { EDeviceKind, type SignedInDevice } from '../../fixtures/settings-security'
-import { relativeTime } from './relative-time'
-
-const sessionSchema = z.object({
-  id: z.string(),
-  token: z.string(),
-  userAgent: z.string().nullish(),
-  ipAddress: z.string().nullish(),
-  createdAt: z.string(),
-  updatedAt: z.string().optional(),
-  expiresAt: z.string(),
-})
-
-const currentSchema = z.object({
-  session: z.object({ token: z.string() }).nullable(),
-  user: z
-    .object({ name: z.string(), email: z.string(), createdAt: z.string().optional() })
-    .nullable(),
-})
-
-export type AuthSession = z.infer<typeof sessionSchema>
-export type CurrentSession = z.infer<typeof currentSchema>
+import {
+  type IAuthSession,
+  type ICurrentSession,
+  currentSessionSchema,
+  sessionSchema,
+} from '@dltech/atlas-client/settings'
+import { z } from 'zod'
 
 async function authRequest(args: { path: string; body?: unknown }): Promise<unknown> {
   let response: Response
@@ -52,12 +34,12 @@ async function authRequest(args: { path: string; body?: unknown }): Promise<unkn
   throw new CloudApiError({ message, status: response.status })
 }
 
-export async function fetchSessions(): Promise<AuthSession[]> {
+export async function fetchSessions(): Promise<IAuthSession[]> {
   return z.array(sessionSchema).parse(await authRequest({ path: '/api/auth/list-sessions' }))
 }
 
-export async function fetchCurrentSession(): Promise<CurrentSession> {
-  return currentSchema.parse(await authRequest({ path: '/api/auth/get-session' }))
+export async function fetchCurrentSession(): Promise<ICurrentSession> {
+  return currentSessionSchema.parse(await authRequest({ path: '/api/auth/get-session' }))
 }
 
 export async function revokeSession(token: string): Promise<void> {
@@ -70,54 +52,4 @@ export async function revokeOtherSessions(): Promise<void> {
 
 export async function updateName(name: string): Promise<void> {
   await authRequest({ path: '/api/auth/update-user', body: { name } })
-}
-
-const BROWSERS: [RegExp, string][] = [
-  [/Edg\//, 'Edge'],
-  [/Firefox\//, 'Firefox'],
-  [/Chrome\//, 'Chrome'],
-  [/Safari\//, 'Safari'],
-  [/curl\//, 'curl'],
-]
-const PLATFORMS: [RegExp, string][] = [
-  [/iPhone|iPad/, 'iOS'],
-  [/Android/, 'Android'],
-  [/Mac OS X|Macintosh/, 'macOS'],
-  [/Windows/, 'Windows'],
-  [/Linux/, 'Linux'],
-]
-
-export function deviceNameOf(userAgent: string | null | undefined): string {
-  if (!userAgent) return 'Unknown device'
-  if (/^atlas/i.test(userAgent)) return userAgent
-  const browser = BROWSERS.find(([pattern]) => pattern.test(userAgent))?.[1]
-  const platform = PLATFORMS.find(([pattern]) => pattern.test(userAgent))?.[1]
-  if (browser === undefined) return userAgent.slice(0, 40)
-  return platform === undefined ? browser : `${browser} on ${platform}`
-}
-
-export function deviceKindOf(userAgent: string | null | undefined): EDeviceKind {
-  return userAgent && /^atlas|curl\//i.test(userAgent) ? EDeviceKind.Cli : EDeviceKind.Browser
-}
-
-export function toDevice(args: {
-  session: AuthSession
-  currentToken: string | null
-  now?: number
-}): SignedInDevice {
-  const { session } = args
-  const active = relativeTime({
-    from: session.updatedAt ?? session.createdAt,
-    ...(args.now === undefined ? {} : { now: args.now }),
-  })
-  const meta = [session.ipAddress ? session.ipAddress : null, `Last active ${active}`]
-    .filter((part) => part !== null)
-    .join(' · ')
-  return {
-    id: session.token,
-    kind: deviceKindOf(session.userAgent),
-    name: deviceNameOf(session.userAgent),
-    meta,
-    current: session.token === args.currentToken,
-  }
 }

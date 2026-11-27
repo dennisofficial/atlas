@@ -1,16 +1,16 @@
 import { describe, expect, it } from 'bun:test'
 
-import { routineSettingsChanges, routineTimezoneOf } from '../routine-settings'
+import { routineSettingsChanges, routineSettingsFrom } from '../routine-settings'
 
-describe('routineTimezoneOf', () => {
-  it('uses the stored zone', () => {
-    expect(routineTimezoneOf('Asia/Tokyo')).toBe('Asia/Tokyo')
+describe('routineSettingsFrom', () => {
+  it('reads the stored zone', () => {
+    expect(routineSettingsFrom(new Map([['web.routine.timezone', 'Asia/Tokyo']]))).toEqual({
+      timezone: 'Asia/Tokyo',
+    })
   })
 
-  it('falls back to this device when nothing is stored', () => {
-    const zone = routineTimezoneOf('')
-    expect(zone.length).toBeGreaterThan(0)
-    expect(zone).not.toBe('')
+  it('reads an empty zone when nothing is stored', () => {
+    expect(routineSettingsFrom(new Map())).toEqual({ timezone: '' })
   })
 })
 

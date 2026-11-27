@@ -1,8 +1,8 @@
 import { describe, expect, it } from 'bun:test'
 
-import { EEffort } from '@dltech/atlas-core'
+import { EEffort, EModelRole } from '@dltech/atlas-core'
 
-import { MAIN_MODEL, optionsFixture, SMALL_MODEL } from './model-options-fixture'
+import { MAIN_MODEL, optionsFixture, SMALL_MODEL } from './model-catalog-fixture'
 import { choiceOf, resolveRoles } from '../model-roles'
 import {
   effortDraft,
@@ -43,14 +43,14 @@ describe('modelsChanges', () => {
     expect(modelsChanges({ saved: base, draft: base })).toEqual({})
     const changes = modelsChanges({
       saved: base,
-      draft: effortDraft({ draft: base, role: 'main', effort: EEffort.High }),
+      draft: effortDraft({ draft: base, role: EModelRole.Main, effort: EEffort.High }),
     })
     expect(changes).toEqual({ 'model.effort': 'high' })
   })
 
   it('follow clears the role to empty values', () => {
     const base = { ...saved(), main: { model: MAIN_MODEL, effort: 'high', fast: true } }
-    const cleared = followedDraft({ draft: base, role: 'main' })
+    const cleared = followedDraft({ draft: base, role: EModelRole.Main })
     expect(modelsChanges({ saved: base, draft: cleared })).toEqual({
       'model.id': '',
       'model.effort': '',
@@ -60,7 +60,7 @@ describe('modelsChanges', () => {
 
   it('writes a fast change for a role that owns a model', () => {
     const base = { ...saved(), main: { model: MAIN_MODEL, effort: 'high', fast: false } }
-    const changed = fastDraft({ draft: base, role: 'main', fast: true })
+    const changed = fastDraft({ draft: base, role: EModelRole.Main, fast: true })
     expect(modelsChanges({ saved: base, draft: changed })).toEqual({ 'model.fast': true })
   })
 })
@@ -72,10 +72,10 @@ describe('pickedModelDraft', () => {
     const choices = resolveRoles({ draft: base, models })
     const picked = pickedModelDraft({
       draft: base,
-      role: 'main',
+      role: EModelRole.Main,
       model: SMALL_MODEL,
       option: models.find((model) => model.id === SMALL_MODEL),
-      inherited: choiceOf({ choices, role: 'main' }),
+      inherited: choiceOf({ choices, role: EModelRole.Main }),
     })
     expect(picked.main).toEqual({ model: SMALL_MODEL, effort: 'medium', fast: false })
   })
@@ -84,12 +84,12 @@ describe('pickedModelDraft', () => {
     const models = optionsFixture()
     const base = { ...saved(), main: { model: MAIN_MODEL, effort: 'high', fast: true } }
     const choices = resolveRoles({ draft: base, models })
-    const inherited = choiceOf({ choices, role: 'subagents' })
+    const inherited = choiceOf({ choices, role: EModelRole.Subagents })
     expect(inherited.effort).toBe(EEffort.High)
     expect(inherited.fast).toBe(true)
     const picked = pickedModelDraft({
       draft: base,
-      role: 'subagents',
+      role: EModelRole.Subagents,
       model: MAIN_MODEL,
       option: models.find((model) => model.id === MAIN_MODEL),
       inherited,
