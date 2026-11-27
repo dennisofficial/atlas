@@ -89,7 +89,7 @@ const DrawerScreen = ({ activeId, onOpen }: TDrawerScreenProps) => {
         children: (
           <>
             {glass ? (
-              <ScreenStackHeaderLeftView hidesSharedBackground={false}>
+              <ScreenStackHeaderLeftView hidesSharedBackground={false} visibilityPriority="high">
                 <View style={[styles.glassTitle, showsAccount ? styles.glassTitleWithLead : null]}>
                   {showsAccount ? <AccountButton /> : null}
                   <TabHeaderTitle title={SESSIONS_TITLE} />
