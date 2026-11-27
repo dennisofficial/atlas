@@ -24,8 +24,8 @@ export const MessageContextMenu = ({
   if (actions.length === 0) return children
   return (
     <Host
-      matchContents={{ vertical: true }}
       colorScheme={dark ? 'dark' : 'light'}
+      alignment={align === 'end' ? 'topTrailing' : 'topLeading'}
       style={align === 'end' ? styles.end : styles.start}
     >
       <ContextMenu>
@@ -40,7 +40,9 @@ export const MessageContextMenu = ({
           ))}
         </ContextMenu.Items>
         <ContextMenu.Trigger>
-          <RNHostView matchContents={{ vertical: true }}>{children}</RNHostView>
+          <RNHostView matchContents boundedByHost>
+            {children}
+          </RNHostView>
         </ContextMenu.Trigger>
       </ContextMenu>
     </Host>
