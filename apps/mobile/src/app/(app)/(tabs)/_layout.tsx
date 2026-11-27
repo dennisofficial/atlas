@@ -34,6 +34,12 @@ export default function TabsLayout() {
           {APP_TAB_ITEMS[EAppTab.Artifacts].label}
         </NativeTabs.Trigger.Label>
       </NativeTabs.Trigger>
+      <NativeTabs.Trigger name={EAppTab.Settings}>
+        <NativeTabs.Trigger.Icon
+          sf={{ default: 'person.crop.circle', selected: 'person.crop.circle.fill' }}
+        />
+        <NativeTabs.Trigger.Label>{APP_TAB_ITEMS[EAppTab.Settings].label}</NativeTabs.Trigger.Label>
+      </NativeTabs.Trigger>
     </NativeTabs>
   )
 }

@@ -18,6 +18,14 @@ export const drawerGeometryOf = ({
   return { permanent: false, width }
 }
 
+export const drawerColumnReachOf = ({
+  listLayout,
+  columnInset,
+}: {
+  listLayout: ESessionsListLayout
+  columnInset: number
+}): number => (listLayout === ESessionsListLayout.Stacked ? columnInset : 0)
+
 export const opensDrawerWithoutSessionOf = ({
   listLayout,
   selected,

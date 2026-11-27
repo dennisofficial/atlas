@@ -6,6 +6,7 @@ import {
   FolderKanban,
   type LucideIcon,
   MessagesSquare,
+  UserRound,
 } from 'lucide-react-native'
 import { StyleSheet, View } from 'react-native'
 
@@ -16,6 +17,7 @@ const TAB_ICONS: Record<EAppTab, LucideIcon> = {
   [EAppTab.Routines]: CalendarClock,
   [EAppTab.Projects]: FolderKanban,
   [EAppTab.Artifacts]: AppWindow,
+  [EAppTab.Settings]: UserRound,
 }
 
 export const InProgressScreen = ({ tab }: { tab: EAppTab }) => {

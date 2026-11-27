@@ -14,16 +14,16 @@ import { router } from 'expo-router'
 import { ChevronRight } from 'lucide-react-native'
 import { Alert, Platform, Pressable, ScrollView, StyleSheet } from 'react-native'
 
-import { useAuth } from '../../auth/auth-provider'
-import { pushRegistrationLabelOf } from '../../push/push-registration'
-import { ModelDefaultsSection } from '../../settings/model-defaults-section'
-import { Row, Section } from '../../settings/settings-parts'
+import { useAuth } from '../../../../auth/auth-provider'
+import { pushRegistrationLabelOf } from '../../../../push/push-registration'
+import { ModelDefaultsSection } from '../../../../settings/model-defaults-section'
+import { Row, Section } from '../../../../settings/settings-parts'
 import {
   ETestResult,
   usePermissionStatus,
   useTestNotification,
   useUpdateInfo,
-} from '../../settings/use-settings'
+} from '../../../../settings/use-settings'
 
 const confirmSignOut = (signOut: () => void) => {
   if (Platform.OS !== 'web') {

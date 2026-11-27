@@ -153,7 +153,7 @@ What the web bundle cannot prove:
   through the stack `screenLayout` prop of `(app)/_layout.tsx:35`, `tab-root-stack.tsx:14` and
   `(tabs)/sessions/_layout.tsx:18`.
 - `apps/mobile/src/app/(app)/_layout.tsx:33` keeps every screen on a native stack header; the
-  screens pushed above the tabs (`agents/[agentId]`, `settings`, `diagram`) share
+  screens pushed above the tabs (`agents/[agentId]`, `dictation-lab`, `diagram`) share
   `pushedHeaderOptions` (`:24`) so the system clock and our title sit in one row.
 
 ## Gaps

@@ -44,10 +44,11 @@ web spinner), never `ActivityIndicator`.
 - **Search:** use `headerSearchBarOptions` with `placement: 'integratedButton'` on a screen that
   has a native bar, so search is a round bar button that expands into the field. Keep the JS
   `SearchField` only where there is no native bar, for example the sessions panel inside a session.
-- **Tabs:** the four destinations are `NativeTabs` triggers under `src/app/(app)/(tabs)/`. Each tab
-  root is its own `Stack` (`TabRootStack`, `src/navigation/tab-root-stack.tsx`) with
-  `animation: 'none'` and no back button, so only a nested page slides in. Settings is pushed from
-  the avatar button in every tab's header, and a tab bar holds destinations only.
+- **Tabs:** the four destinations and Settings are `NativeTabs` triggers under
+  `src/app/(app)/(tabs)/`. Each tab root is its own `Stack` (`TabRootStack`,
+  `src/navigation/tab-root-stack.tsx`) with `animation: 'none'` and no back button, so only a nested
+  page slides in. Settings is a tab, so on the iPhone Duo it sits in the system column with the
+  others; a header holds no avatar button.
 - **Scroll edge effect:** iOS 26+ attaches the bar's scroll edge effect to the first scroll view it
   finds when the screen opens. Render the list from the first frame. Show loading, error and empty
   states inside the list, and never in a view that the list replaces later.
@@ -63,8 +64,10 @@ web spinner), never `ActivityIndicator`.
 - On iPhone Duo the native tab bar sits in the system column on the right. iOS places the bar but
   does not keep screen content out of the column: `SideInsetFrame`
   (`src/layout/side-inset-frame.tsx`) pads the tab's whole `Stack` by `sideColumnInsetOf`
-  (`src/layout/posture.ts:12`), and for sessions the `SessionsDrawer` too, so the native header,
-  the drawer list and the screen content all stop at the column. It wraps the tab's stack in the
+  (`src/layout/posture.ts:12`), so the native header and the screen content stop at the column.
+  The one exception is the full-width sessions drawer: it reaches under the column on purpose
+  (`useDrawerColumnReach`, `src/sessions/use-drawer-column-reach.ts`), because iOS then moves its
+  trailing bar buttons (`+`, hide) into the column. Its list pads itself by that reach. It wraps the tab's stack in the
   tab's `_layout.tsx`, never `screenLayout`: `screenLayout` sits inside the native screen, which
   leaves the native header and a drawer rendered beside the stack at full width. It never wraps
   `NativeTabs`, and the root stack keeps `screenLayout={SideInsetLayout}`, because a frame there

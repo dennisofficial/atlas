@@ -19,11 +19,12 @@ import type { ISessionEntry } from './session-groups'
 import { useSelectedSession } from './selected-session'
 import { SessionsDrawerShell } from './sessions-drawer-shell'
 import { useSessionsDrawer } from './sessions-drawer-state'
+import { useDrawerColumnReach } from './use-drawer-column-reach'
 
 export const SessionsDrawer = ({ children }: { children: ReactNode }) => {
   const theme = useTheme()
   const posture = usePosture()
-  const width = useContentWidth()
+  const width = useContentWidth() + useDrawerColumnReach()
   const pathname = usePathname()
   const selected = useSelectedSession()
   const { open, setOpen } = useSessionsDrawer()
