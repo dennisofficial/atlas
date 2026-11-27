@@ -1,15 +1,12 @@
 'use client'
 
+import { GOOGLE_UNLINKED, PASSWORD_REMOVED, SETUP_LINK_SENT } from '@dltech/atlas-client/settings'
 import { useCallback } from 'react'
 
 import { requestPasswordReset } from '@/lib/auth-api'
 import { linkGoogleUrl, unlinkSignInMethod, type SignInMethodIds } from '@/lib/auth-accounts'
 
 import { useSaveAction } from './use-save-action'
-
-export const SETUP_LINK_SENT = 'Check your email to set a password.'
-export const GOOGLE_UNLINKED = 'Google unlinked'
-export const PASSWORD_REMOVED = 'Password removed'
 
 export function useSignInMethodActions(args: {
   email: string

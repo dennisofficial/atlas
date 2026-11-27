@@ -17,12 +17,18 @@ export type TRouteOfId = (args: { id: string }) => Href
 
 export const SETTINGS_STACK_SCREENS: readonly ISettingsStackScreen[] = [
   { name: 'settings/index', title: 'Settings' },
+  { name: 'settings/account', title: 'Account' },
+  { name: 'settings/account/edit', title: 'Edit profile' },
+  { name: 'settings/security', title: 'Devices & Sessions' },
   { name: 'project-settings/[projectId]/index', title: 'Project settings' },
   { name: 'project-settings/[projectId]/overview', title: 'Overview' },
   { name: 'group-settings/[groupId]/index', title: 'Group settings' },
 ]
 
-export const IOS_SETTINGS_ROUTES: Partial<Record<ESettingsPage, Href>> = {}
+export const IOS_SETTINGS_ROUTES: Partial<Record<ESettingsPage, Href>> = {
+  [ESettingsPage.Account]: '/settings/account',
+  [ESettingsPage.Security]: '/settings/security',
+}
 
 export const IOS_PROJECT_SECTION_ROUTES: Partial<Record<EProjectSettingsSection, TRouteOfId>> = {
   [EProjectSettingsSection.Overview]: ({ id }) =>
@@ -32,7 +38,6 @@ export const IOS_PROJECT_SECTION_ROUTES: Partial<Record<EProjectSettingsSection,
 export const IOS_GROUP_SECTION_ROUTES: Partial<Record<TGroupSection, TRouteOfId>> = {}
 
 export const IOS_PENDING_PAGES: ReadonlySet<ESettingsPage> = new Set([
-  ESettingsPage.Account,
   ESettingsPage.Integrations,
   ESettingsPage.Instructions,
   ESettingsPage.Skills,
@@ -44,7 +49,6 @@ export const IOS_PENDING_PAGES: ReadonlySet<ESettingsPage> = new Set([
   ESettingsPage.Groups,
   ESettingsPage.Appearance,
   ESettingsPage.Notifications,
-  ESettingsPage.Security,
   ESettingsPage.Agent,
   ESettingsPage.Experimental,
   ESettingsPage.Quality,

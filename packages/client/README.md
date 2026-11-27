@@ -62,6 +62,19 @@ The headless client library that web, the TUI and the mobile app share.
 - `EGroupSettingsSection`, `GROUP_SECTIONS`: the group settings sections, which inherit the project
   sections and add the group-only ones.
 
+### Read an account and its signed-in devices
+
+- `createAuthAccountApi({ baseUrl, token, fetchFn })`: the better-auth REST calls a surface makes
+  with a bearer token — the current session, the name, the sessions, the sign-in methods, the unlink,
+  the revoke and the reset-link request. `AuthAccountError` carries the status and the code.
+- `relativeTime({ from, now })`, `shortDate(iso)`, `monthYear(iso)`: elapsed and calendar labels.
+- `deviceNameOf(userAgent)`, `deviceKindOf(userAgent)`, `toDevice(args)`, `signedInDevicesOf(args)`
+  and `EDeviceKind`: one session row, its device name and kind, and the current device first.
+- `signInMethodsOf(accounts)`, `signInMethodRowsOf({ methods, busy })`, `ESignInMethodAction` and
+  `ESignInMethodProvider`: which methods a user has, and the two rows a settings page shows.
+- `linkReturnOf(params)`, `ELinkReturnKind`: the outcome a Google link came back with.
+- `unlinkRefusalOf(args)`, `SESSION_NOT_FRESH`, `UNREACHABLE`: the refusals a settings page names.
+
 ### Keep the log and the view
 
 - `memorySessionLog()`, `browserSessionLog(eventSchema)`, `createIndexedDbSessionLog(args)`: the
