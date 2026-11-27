@@ -1,11 +1,17 @@
 import { space } from '@dltech/atlas-ui/tokens'
-import { Button, EButtonSize, EButtonVariant } from '@dltech/atlas-ui-native'
-import { ArrowUp, Square } from 'lucide-react-native'
 import type { ReactNode } from 'react'
 import { ScrollView, StyleSheet, View } from 'react-native'
+import { LayoutAnimationConfig } from 'react-native-reanimated'
 
 import { AttachButton } from './attach-button'
 import type { EAttachSource } from './attach-sources'
+import { SendButton } from './send-button'
+import {
+  CONTROLS_GAP,
+  CONTROLS_PADDING_BOTTOM,
+  CONTROLS_PADDING_TOP,
+  ESendAction,
+} from './send-press'
 
 export const ComposerControls = ({
   attach,
@@ -14,6 +20,7 @@ export const ComposerControls = ({
   onStop,
   onSend,
   trailing,
+  trailingPressable,
   children,
 }: {
   attach:
@@ -24,6 +31,7 @@ export const ComposerControls = ({
   onStop: (() => void) | undefined
   onSend: () => void
   trailing?: ReactNode
+  trailingPressable: boolean
   children?: ReactNode
 }) => (
   <View style={styles.bar}>
@@ -42,26 +50,25 @@ export const ComposerControls = ({
       </ScrollView>
     )}
     {trailing}
-    {onStop !== undefined ? (
-      <Button
-        label="Stop"
-        icon={Square}
-        size={EButtonSize.IconSm}
-        variant={EButtonVariant.Secondary}
-        round
-        onPress={onStop}
-      />
-    ) : (
-      <Button
-        label={sending ? 'Sending…' : 'Send'}
-        icon={ArrowUp}
-        size={EButtonSize.IconSm}
-        round
-        disabled={!canSend}
-        loading={sending}
-        onPress={onSend}
-      />
-    )}
+    <LayoutAnimationConfig skipEntering>
+      {onStop !== undefined ? (
+        <SendButton
+          key="stop"
+          action={ESendAction.Stop}
+          besidePressable={trailingPressable}
+          onPress={onStop}
+        />
+      ) : (
+        <SendButton
+          key="send"
+          action={ESendAction.Send}
+          disabled={!canSend}
+          loading={sending}
+          besidePressable={trailingPressable}
+          onPress={onSend}
+        />
+      )}
+    </LayoutAnimationConfig>
   </View>
 )
 
@@ -69,10 +76,10 @@ const styles = StyleSheet.create({
   bar: {
     alignItems: 'center',
     flexDirection: 'row',
-    gap: space(2),
+    gap: CONTROLS_GAP,
     justifyContent: 'space-between',
-    paddingBottom: space(2),
-    paddingTop: space(1.5),
+    paddingBottom: CONTROLS_PADDING_BOTTOM,
+    paddingTop: CONTROLS_PADDING_TOP,
   },
   slot: {
     flex: 1,
