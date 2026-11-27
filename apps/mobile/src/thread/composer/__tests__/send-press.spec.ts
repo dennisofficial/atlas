@@ -33,17 +33,18 @@ describe('sendHitSlopOf', () => {
 })
 
 describe('the press bounce', () => {
-  test('squeezes a little, not like a ball', () => {
-    expect(PRESSED_SCALE).toBeGreaterThanOrEqual(0.92)
+  test('grows a little while held', () => {
+    expect(PRESSED_SCALE).toBeGreaterThan(1)
+    expect(PRESSED_SCALE).toBeLessThanOrEqual(1.1)
   })
 
-  test('presses in without overshoot', () => {
-    expect(dampingRatioOf(PRESS_IN_SPRING)).toBeGreaterThanOrEqual(0.9)
-  })
-
-  test('springs back with one small overshoot and no ringing', () => {
-    const ratio = dampingRatioOf(RELEASE_SPRING)
+  test('bounces once as it grows, without ringing', () => {
+    const ratio = dampingRatioOf(PRESS_IN_SPRING)
     expect(ratio).toBeGreaterThanOrEqual(0.55)
-    expect(ratio).toBeLessThan(1)
+    expect(ratio).toBeLessThan(0.8)
+  })
+
+  test('settles back on release without overshoot', () => {
+    expect(dampingRatioOf(RELEASE_SPRING)).toBeGreaterThanOrEqual(0.95)
   })
 })

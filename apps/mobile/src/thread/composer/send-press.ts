@@ -31,9 +31,9 @@ export interface ISpring {
 export const dampingRatioOf = (spring: ISpring): number =>
   spring.damping / (2 * Math.sqrt(spring.stiffness * spring.mass))
 
-export const PRESSED_SCALE = 0.94
-export const PRESS_IN_SPRING: ISpring = { damping: 30, stiffness: 500, mass: 0.5 }
-export const RELEASE_SPRING: ISpring = { damping: 16, stiffness: 320, mass: 0.5 }
+export const PRESSED_SCALE = 1.08
+export const PRESS_IN_SPRING: ISpring = { damping: 17, stiffness: 400, mass: 0.5 }
+export const RELEASE_SPRING: ISpring = { damping: 28, stiffness: 400, mass: 0.5 }
 
 export enum ESendAction {
   Send = 'send',
