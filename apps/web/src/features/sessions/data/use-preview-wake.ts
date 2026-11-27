@@ -1,6 +1,6 @@
 'use client'
 
-import { useCallback, useEffect, useRef, useState } from 'react'
+import { useCallback, useEffect, useRef } from 'react'
 
 import type { EPodPowerPhase } from '@dltech/atlas-core'
 import type { PreviewPort } from '@dltech/atlas-ui/ai/preview-browser'
@@ -8,9 +8,8 @@ import type { PreviewPort } from '@dltech/atlas-ui/ai/preview-browser'
 import {
   EPreviewWait,
   previewNeedsWake,
-  previewOpensOnReady,
+  previewReloadsOnWake,
   previewWaitOf,
-  previewWaitsForPod,
   reloadedPreviews,
 } from '@/features/threads/data/preview-browser/preview-wake'
 import { updatePreviewBrowser } from '@/features/threads/data/preview-browser/use-preview-browser'
@@ -25,41 +24,28 @@ export function usePreviewWake(args: {
   sessionId: string
   power: EPodPowerPhase | undefined
   ports: readonly PreviewPort[]
-  readyAt: string | undefined
   open: (url: string) => void
 }): (url: string) => void {
-  const { sessionId, power, ports, readyAt, open } = args
+  const { sessionId, power, ports, open } = args
   const wait = previewWaitOf(power)
-  const [pending, setPending] = useState<string | undefined>(undefined)
-  const seenReady = useRef(readyAt)
   const wake = useCallback(() => requestWake(sessionId), [sessionId])
   const { wakePod } = usePodWake({ sessionId, live: wait === EPreviewWait.Awake, wake })
+  const before = useRef(wait)
 
   useEffect(() => {
-    if (!previewOpensOnReady({ seen: seenReady.current, now: readyAt })) return
-    seenReady.current = readyAt
+    const reload = previewReloadsOnWake({ before: before.current, now: wait })
+    before.current = wait
+    if (!reload) return
     updatePreviewBrowser({
       threadId: sessionId,
-      change: ({ state }) =>
-        reloadedPreviews({
-          state,
-          ports: [...ports],
-          ...(pending === undefined ? {} : { except: pending }),
-        }),
+      change: ({ state }) => reloadedPreviews({ state, ports: [...ports] }),
     })
-    if (pending === undefined) return
-    setPending(undefined)
-    open(pending)
-  }, [readyAt, pending, sessionId, ports, open])
+  }, [wait, sessionId, ports])
 
   return useCallback(
     (url: string) => {
-      if (!previewWaitsForPod(wait)) {
-        open(url)
-        return
-      }
-      setPending(url)
       if (previewNeedsWake(wait)) wakePod()
+      open(url)
     },
     [wait, open, wakePod],
   )

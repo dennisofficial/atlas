@@ -31,14 +31,7 @@ export const previewsResultSchemas = [
   okResultSchema({ op: 'previews.status', value: previewTunnelStatusSchema }),
 ] as const
 
-export const previewsReadyEventSchema = z
-  .object({ type: z.literal('previews.ready'), at: z.string().min(1) })
-  .strict()
-
-export const previewsEventSchemas = [previewsReadyEventSchema] as const
-
 export type PreviewsEnsureOp = z.infer<typeof previewsEnsureOpSchema>
 export type PreviewsStatusOp = z.infer<typeof previewsStatusOpSchema>
 export type PreviewTunnelState = z.infer<typeof previewTunnelStateSchema>
 export type PreviewTunnelStatus = z.infer<typeof previewTunnelStatusSchema>
-export type PreviewsReadyEvent = z.infer<typeof previewsReadyEventSchema>

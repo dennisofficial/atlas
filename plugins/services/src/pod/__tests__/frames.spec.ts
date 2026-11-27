@@ -170,30 +170,3 @@ describe('recordServiceFrame', () => {
     })
   })
 })
-
-describe('recordServiceFrame for the preview tunnel', () => {
-  const readyFrameOf = (at: string): DaemonEventFrame => ({
-    kind: 'event',
-    event: { type: 'previews.ready', at },
-  })
-
-  it('appends one previews-ready for a repeated registration', async () => {
-    const harness = rig()
-    await record(harness, readyFrameOf('at-1'))
-    await record(harness, readyFrameOf('at-1'))
-    expect(harness.log).toMatchObject([{ type: 'previews-ready' }])
-  })
-
-  it('appends each new registration', async () => {
-    const harness = rig()
-    await record(harness, readyFrameOf('at-1'))
-    await record(harness, readyFrameOf('at-2'))
-    expect(harness.log).toMatchObject([{ type: 'previews-ready' }, { type: 'previews-ready' }])
-  })
-
-  it('records the tunnel without waking the assistant', async () => {
-    const harness = rig()
-    await record(harness, readyFrameOf('at-1'))
-    expect(harness.notices).toEqual([])
-  })
-})

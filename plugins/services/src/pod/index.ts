@@ -4,7 +4,6 @@ import { service } from '../core/commands'
 import { serviceHandlerOf } from './commands'
 import { ServicesFragment } from './fragment'
 import { recordServiceFrame } from './frames'
-import { reconcilePreviewsReady } from './previews-ready'
 import { reconcileServices } from './reconcile'
 import { resumeDeclaredServices } from './resume'
 import { stateFor } from './state'
@@ -21,7 +20,6 @@ export const servicesPod: PodSlot = {
     const state = stateFor(ctx)
     ctx.onDaemonEvent((frame) => void recordServiceFrame({ ctx, state, frame }))
     void reconcileServices({ ctx, state })
-    void reconcilePreviewsReady({ ctx, state })
     return {}
   },
   onDaemonReady: ({ ctx }) => {

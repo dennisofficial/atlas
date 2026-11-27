@@ -1,34 +1,8 @@
 import { describe, expect, it } from 'bun:test'
 
-import { isTurnTakingType, type RecordEvent } from '@dltech/atlas-core'
+import { isTurnTakingType } from '@dltech/atlas-core'
 
-import { hasPreviewsReady, latestPreviewsReadyAt, previewsReadySchema } from '../previews-event'
-
-const ready = (n: number): RecordEvent =>
-  ({
-    type: 'previews-ready',
-    at: `at-${n}`,
-    seq: n,
-    id: `e${n}`,
-    threadId: 't1',
-  }) as unknown as RecordEvent
-
-describe('latestPreviewsReadyAt', () => {
-  it('reports the newest tunnel registration the journal holds', () => {
-    expect(latestPreviewsReadyAt([ready(1), ready(2)])).toBe('at-2')
-  })
-
-  it('reports nothing when the tunnel never registered', () => {
-    expect(latestPreviewsReadyAt([])).toBeUndefined()
-  })
-})
-
-describe('hasPreviewsReady', () => {
-  it('matches one registration, not another', () => {
-    expect(hasPreviewsReady({ events: [ready(1)], at: 'at-1' })).toBe(true)
-    expect(hasPreviewsReady({ events: [ready(1)], at: 'at-2' })).toBe(false)
-  })
-})
+import { previewsReadySchema } from '../previews-event'
 
 describe('previewsReadySchema', () => {
   it('accepts a registration and rejects a missing time', () => {

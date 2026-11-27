@@ -2,7 +2,6 @@ import type { PluginPodContext } from '@dltech/atlas-plugin-sdk'
 import type { DaemonEventFrame } from '@dltech/atlas-protocol'
 
 import { readServiceLog } from './daemon'
-import { recordPreviewsReady } from './previews-ready'
 import type { ServicePodState } from './state'
 import { hasEnded, hasReady, outcomeOf, startedOf } from './status'
 
@@ -45,10 +44,6 @@ export const recordServiceFrame = async (args: {
       state.readies.delete(serviceId)
       ctx.log(`services: recording ${serviceId} ready failed: ${String(error)}`)
     }
-    return
-  }
-  if (frame.event.type === 'previews.ready') {
-    await recordPreviewsReady({ ctx, state, at: frame.event.at })
     return
   }
   if (frame.event.type !== 'services.ended') return
