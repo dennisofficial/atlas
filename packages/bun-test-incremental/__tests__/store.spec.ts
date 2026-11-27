@@ -33,10 +33,13 @@ function validEntry(): CacheEntry {
   }
 }
 
-/** Writes a raw cache file where the store expects the record for TEST_PATH. */
+const STEM = sha256(TEST_PATH, 24)
+const recordName = (entry: CacheEntry) => `${STEM}.${sha256(JSON.stringify(entry))}.json`
+
+/** Writes a raw cache file where the store looks for the records of TEST_PATH. */
 function writeRaw(content: string) {
   mkdirSync(storeDir, { recursive: true })
-  writeFileSync(join(storeDir, `${sha256(TEST_PATH, 24)}.json`), content)
+  writeFileSync(join(storeDir, `${STEM}.raw.json`), content)
 }
 
 function writeFile(overrides: { entry?: unknown; test?: string; schema?: number } = {}) {
@@ -44,10 +47,23 @@ function writeFile(overrides: { entry?: unknown; test?: string; schema?: number 
     JSON.stringify({
       schema: overrides.schema ?? SCHEMA,
       test: overrides.test ?? TEST_PATH,
-      entries: ['entry' in overrides ? overrides.entry : validEntry()],
+      entry: 'entry' in overrides ? overrides.entry : validEntry(),
     }),
   )
 }
+
+function filesOnDisk() {
+  return new Map(readdirSync(storeDir).map((name) => [name, readFileSync(join(storeDir, name))]))
+}
+
+function entriesOnDisk() {
+  const entries = [...filesOnDisk().values()].map(
+    (raw) => (JSON.parse(raw.toString('utf8')) as { entry: CacheEntry }).entry,
+  )
+  return entries.sort((left, right) => right.passedAt.localeCompare(left.passedAt))
+}
+
+const passedAt = (minute: number) => `2026-10-20T00:${String(minute).padStart(2, '0')}:00.000Z`
 
 function lookup() {
   return new ResultStore(storeDir).lookup(TEST_PATH, new Hasher(root), ENV)
@@ -92,7 +108,10 @@ describe('ResultStore.lookup', () => {
     const entry = validEntry()
     writeFile({ entry: { ...entry, deps: { ...entry.deps, 'x:future': 'some-hash' } } })
     // Loaded and validated like any other key: its hash differs, so it is a normal miss.
-    expect(lookup()).toEqual({ status: 'miss', reason: 'changed: x:future' })
+    expect(lookup()).toEqual({
+      status: 'miss',
+      reason: `changed: x:future, since the pass of ${entry.passedAt}`,
+    })
   })
 
   test('fails open when hashing throws', () => {
@@ -125,28 +144,37 @@ describe('ResultStore.write', () => {
 
   test('returns false and removes the temp file when the rename fails', () => {
     // The target path is a non-empty directory, so the rename cannot replace it.
-    const target = join(storeDir, `${sha256(TEST_PATH, 24)}.json`)
-    mkdirSync(join(target, 'blocker'), { recursive: true })
+    mkdirSync(join(storeDir, recordName(validEntry()), 'blocker'), { recursive: true })
     expect(new ResultStore(storeDir).write(TEST_PATH, validEntry())).toBe(false)
     expect(readdirSync(storeDir).filter((name) => name.endsWith('.tmp'))).toEqual([])
   })
 
-  test('keeps newest first, dedupes identical inputs and caps at 4 entries', () => {
-    const store = new ResultStore(storeDir)
+  test('keeps the newest 4 records across runs, dropping older ones with identical inputs', () => {
     const base = validEntry()
     for (let i = 0; i < 6; i++) {
-      expect(store.write(TEST_PATH, { ...base, envDigest: `digest-${i}` })).toBe(true)
+      const entry = { ...base, envDigest: `digest-${i}`, passedAt: passedAt(i) }
+      expect(new ResultStore(storeDir).write(TEST_PATH, entry)).toBe(true)
     }
-    expect(store.write(TEST_PATH, { ...base, envDigest: 'digest-4', tests: 99 })).toBe(true)
-    const raw = readFileSync(join(storeDir, `${sha256(TEST_PATH, 24)}.json`), 'utf8')
-    const file: { entries: CacheEntry[] } = JSON.parse(raw)
-    expect(file.entries.map((e) => [e.envDigest, e.tests])).toEqual([
+    const rerun = { ...base, envDigest: 'digest-4', passedAt: passedAt(6), tests: 99 }
+    const store = new ResultStore(storeDir)
+    expect(store.write(TEST_PATH, rerun)).toBe(true)
+    expect(entriesOnDisk().map((e) => [e.envDigest, e.tests])).toEqual([
       ['digest-4', 99],
       ['digest-5', 3],
       ['digest-3', 3],
       ['digest-2', 3],
     ])
     expect(store.size()).toBe(1)
+  })
+
+  test('keeps a new record when a stale copy of the cache is restored over it', () => {
+    const earlier = { ...validEntry(), envDigest: 'earlier-env', passedAt: passedAt(1) }
+    new ResultStore(storeDir).write(TEST_PATH, earlier)
+    const staleShardCache = filesOnDisk()
+    const fresh = { ...validEntry(), passedAt: passedAt(2) }
+    new ResultStore(storeDir).write(TEST_PATH, fresh)
+    for (const [name, content] of staleShardCache) writeFileSync(join(storeDir, name), content)
+    expect(lookup()).toEqual({ status: 'hit', entry: fresh })
   })
 })
 
