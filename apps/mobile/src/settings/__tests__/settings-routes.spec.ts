@@ -42,9 +42,11 @@ describe('ios project sections', () => {
     }
   })
 
-  it('routes overview first', () => {
+  it('routes overview, sandbox and pull requests, in nav order', () => {
     expect(routedProjectSections().map((item) => item.section)).toEqual([
       EProjectSettingsSection.Overview,
+      EProjectSettingsSection.Sandbox,
+      EProjectSettingsSection.PullRequests,
     ])
   })
 })
@@ -57,10 +59,12 @@ describe('ios group sections', () => {
     }
   })
 
-  it('routes the group instructions and pends the rest', () => {
+  it('routes group overview, instructions and sandbox', () => {
     expect(IOS_PENDING_GROUP_SECTIONS.has(EGroupSettingsSection.Instructions)).toBe(false)
     expect(routedGroupSections().map((item) => item.section)).toEqual([
+      EProjectSettingsSection.Overview,
       EGroupSettingsSection.Instructions,
+      EProjectSettingsSection.Sandbox,
     ])
   })
 })

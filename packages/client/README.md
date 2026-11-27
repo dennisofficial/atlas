@@ -21,21 +21,21 @@ The headless client library that web, the TUI and the mobile app share.
 
 ## Entry points
 
-| Import                                          | Use it for                                                                                                                                                                                                                                                                    |
-| ----------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `@dltech/atlas-client/stream`                   | The stream connection, the session follower, the log, the window and the overlay.                                                                                                                                                                                             |
-| `@dltech/atlas-client/channel`                  | The pod delta channel, the frame codecs and the tool requests.                                                                                                                                                                                                                |
-| `@dltech/atlas-client/chat`                     | The chat transport, the step chunks and the step messages.                                                                                                                                                                                                                    |
-| `@dltech/atlas-client/crew`                     | The crew readout, the sub-agent state and the background work.                                                                                                                                                                                                                |
-| `@dltech/atlas-client/session`                  | The session create input, the rewind, the summarise, the image upload, the composer attachments, the message input, the draft sync and the sandbox start view.                                                                                                                |
-| `@dltech/atlas-client/account`                  | The Atlas Cloud device-code login and the PKCE pair a browser sign-in needs.                                                                                                                                                                                                  |
-| `@dltech/atlas-client/settings`                 | The settings page and section lists that every surface lists and filters: user, project and group scope. The settings values, drafts and payloads of the agent, models, appearance, quality and experimental pages, plus the instructions and memory logic those pages share. |
-| `@dltech/atlas-client/browser-return`           | The outcomes a browser sign-in brought back, held by the state of its start link.                                                                                                                                                                                             |
-| `@dltech/atlas-client/transcript`               | The transcript rows, the tool runs and the turn rows.                                                                                                                                                                                                                         |
-| `@dltech/atlas-client/stream-fixture`           | A fake scheduler and transport, and the event factories, for a spec.                                                                                                                                                                                                          |
-| `@dltech/atlas-client/transcript-fixture`       | The event drafts and the step signals of a transcript, for a spec.                                                                                                                                                                                                            |
-| `@dltech/atlas-client/transcript-tool-fixture`  | The tool call and result drafts, for a spec.                                                                                                                                                                                                                                  |
-| `@dltech/atlas-client/transcript-tools-fixture` | A sample tool call and shell call, for a spec or a prototype.                                                                                                                                                                                                                 |
+| Import                                          | Use it for                                                                                                                                                     |
+| ----------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `@dltech/atlas-client/stream`                   | The stream connection, the session follower, the log, the window and the overlay.                                                                              |
+| `@dltech/atlas-client/channel`                  | The pod delta channel, the frame codecs and the tool requests.                                                                                                 |
+| `@dltech/atlas-client/chat`                     | The chat transport, the step chunks and the step messages.                                                                                                     |
+| `@dltech/atlas-client/crew`                     | The crew readout, the sub-agent state and the background work.                                                                                                 |
+| `@dltech/atlas-client/session`                  | The session create input, the rewind, the summarise, the image upload, the composer attachments, the message input, the draft sync and the sandbox start view. |
+| `@dltech/atlas-client/account`                  | The Atlas Cloud device-code login and the PKCE pair a browser sign-in needs.                                                                                   |
+| `@dltech/atlas-client/settings`                 | The settings page and section lists, and the agent, models, appearance, instructions, memory, project, group, sandbox and pull-request settings logic.         |
+| `@dltech/atlas-client/browser-return`           | The outcomes a browser sign-in brought back, held by the state of its start link.                                                                              |
+| `@dltech/atlas-client/transcript`               | The transcript rows, the tool runs and the turn rows.                                                                                                          |
+| `@dltech/atlas-client/stream-fixture`           | A fake scheduler and transport, and the event factories, for a spec.                                                                                           |
+| `@dltech/atlas-client/transcript-fixture`       | The event drafts and the step signals of a transcript, for a spec.                                                                                             |
+| `@dltech/atlas-client/transcript-tool-fixture`  | The tool call and result drafts, for a spec.                                                                                                                   |
+| `@dltech/atlas-client/transcript-tools-fixture` | A sample tool call and shell call, for a spec or a prototype.                                                                                                  |
 
 ## Capabilities
 
@@ -87,6 +87,24 @@ The headless client library that web, the TUI and the mobile app share.
   `memoryScopeOptionsOf(groups)`, `memoryScopeHintOf(group)`, `memoryClearDescriptionOf(group)`,
   `memoryKeyInput(key)`, `formatMemoryDate(updatedAt)`: the memory scopes, their rows, and the copy
   around them.
+
+### Edit a project or a group
+
+- `overviewDraftOf(project)`, `overviewSaveBodyOf({ project, draft })`, `overviewDraftsEqual`,
+  `overviewDraftIsValid`, `identityOf(project)`, `shipOptionsOf(behavior)`: the project overview
+  draft, its save body and its ship-behavior options, legacy merge included.
+- `additionalRepositoryProblem({ value })`, `canAddAdditionalRepository`,
+  `addAdditionalRepository`, `editAdditionalRepository`, `removeAdditionalRepository`: the
+  additional-repositories list, capped at the wire limit.
+- `groupNameProblem({ name })`, `groupMembersOf`, `groupCandidatesOf`, `groupMemberSummaryOf`,
+  `GROUP_DESCRIPTION`, `GROUP_DELETE_DESCRIPTION`: a group's name rule and its membership.
+- `SANDBOX_SETTING_KEYS`, `inheritedSandboxOf`, `ownValuesOf`, `sandboxOfValues`,
+  `sizeSettingValuesOf`, `diskSettingValuesOf`: a sandbox's own and inherited size and disk.
+  `savedSizeValueOf`, `sizeValueToSave`, `savedDiskValueOf`, `diskValueToSave`,
+  `sandboxSizeOptionsOf`, `sandboxDiskOptionsOf`: its selections and the options including the
+  account default. `DEFAULT_SANDBOX_SIZE`, `defaultDiskGbOf`, `sizeKeyOf`, `INHERIT_VALUE`.
+- `prCommentEditorsOf(values)`, `prCommentEditorChanges({ draft })`, `MUTED_EDITORS_KEY`,
+  `URGENT_EDITORS_KEY`, `settingChangeOf`: the muted and urgent pull-request comment editors.
 
 ### Keep the log and the view
 
