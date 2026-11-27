@@ -209,12 +209,9 @@ export default function SessionScreen() {
               {session.startFailure === undefined ? null : (
                 <StartFailedCard reason={session.startFailure.reason} onRetry={session.retry} />
               )}
-              {session.blocking === undefined ? null : (
-                <BlockingStrip command={session.blocking} now={session.now} />
-              )}
+              <BlockingStrip command={session.blocking} now={session.now} />
               <Composer
                 working={session.working}
-                joined={session.blocking !== undefined}
                 attachments={attachments}
                 onSend={session.send}
                 onStop={session.stop}

@@ -3,44 +3,38 @@ import {
   type BlockingCommand,
   elapsedClockOf,
 } from '@dltech/atlas-client/stream'
-import {
-  EFontFamily,
-  ETextRole,
-  ETextTone,
-  Text,
-  useTheme,
-  withAlpha,
-} from '@dltech/atlas-ui-native'
-import { radius, space } from '@dltech/atlas-ui/tokens'
-import { useEffect, useState } from 'react'
-import { AccessibilityInfo, type LayoutChangeEvent, StyleSheet, View } from 'react-native'
+import { EFontFamily, ETextRole, ETextTone, Text, useTheme } from '@dltech/atlas-ui-native'
+import { space } from '@dltech/atlas-ui/tokens'
+import { isLiquidGlassAvailable } from 'expo-glass-effect'
+import { useCallback, useEffect, useState } from 'react'
+import { type LayoutChangeEvent, StyleSheet, View } from 'react-native'
 import Animated, {
   cancelAnimation,
   Easing,
   useAnimatedStyle,
   useSharedValue,
   withRepeat,
+  withSpring,
   withTiming,
 } from 'react-native-reanimated'
+import { scheduleOnRN } from 'react-native-worklets'
+
+import { GlassSurface } from '../../navigation/glass-surface'
+import { COMPOSER_INSET, COMPOSER_RADIUS } from '../composer/composer-shape'
+import {
+  HIDDEN_STRIP,
+  presenceOf,
+  STRIP_RISE_SPRING,
+  STRIP_SINK_MS,
+  STRIP_TUCK,
+  settledPresenceOf,
+  stripLabelOf,
+  stripRiseOf,
+} from './blocking-strip-model'
+import { useReduceMotion } from './use-reduce-motion'
 
 const PULSE_MS = 1_200
-const SHIMMER_MS = 2_200
-
-const useReduceMotion = (): boolean => {
-  const [reduced, setReduced] = useState(false)
-  useEffect(() => {
-    let live = true
-    void AccessibilityInfo.isReduceMotionEnabled().then((enabled) => {
-      if (live) setReduced(enabled)
-    })
-    const subscription = AccessibilityInfo.addEventListener('reduceMotionChanged', setReduced)
-    return () => {
-      live = false
-      subscription.remove()
-    }
-  }, [])
-  return reduced
-}
+const COMPOSER_DOCK_TOP = space(2)
 
 const Pulse = ({ reduced, color }: { reduced: boolean; color: string }) => {
   const progress = useSharedValue(0)
@@ -69,87 +63,122 @@ const Pulse = ({ reduced, color }: { reduced: boolean; color: string }) => {
   )
 }
 
-const Shimmer = ({ reduced, color, track }: { reduced: boolean; color: string; track: string }) => {
-  const [width, setWidth] = useState(0)
-  const progress = useSharedValue(0)
+const StripCard = ({
+  command,
+  leaving,
+  now,
+  onLeft,
+}: {
+  command: BlockingCommand
+  leaving: boolean
+  now: number
+  onLeft: () => void
+}) => {
+  const theme = useTheme()
+  const reduced = useReduceMotion()
+  const [height, setHeight] = useState(0)
+  const shown = useSharedValue(0)
+  const rise = stripRiseOf({ height, reduced })
+  const glass = isLiquidGlassAvailable()
+
   useEffect(() => {
-    if (reduced || width === 0) {
-      cancelAnimation(progress)
-      progress.value = 0
-      return undefined
+    if (leaving && height === 0) {
+      onLeft()
+      return
     }
-    progress.value = withRepeat(withTiming(1, { duration: SHIMMER_MS, easing: Easing.linear }), -1)
-    return () => cancelAnimation(progress)
-  }, [progress, reduced, width])
-  const glow = useAnimatedStyle(() => ({
-    opacity: reduced ? 0 : 0.7,
-    transform: [{ translateX: -width * 0.35 + progress.value * width }],
+    if (height === 0) return
+    if (leaving) {
+      shown.value = withTiming(
+        0,
+        { duration: STRIP_SINK_MS, easing: Easing.in(Easing.quad) },
+        (finished) => {
+          if (finished) scheduleOnRN(onLeft)
+        },
+      )
+      return
+    }
+    shown.value = withSpring(1, STRIP_RISE_SPRING)
+  }, [height, leaving, onLeft, shown])
+
+  const cardStyle = useAnimatedStyle(() => ({
+    opacity: glass ? 1 : Math.min(shown.value, 1),
+    transform: [{ translateY: (1 - shown.value) * rise }],
   }))
-  const handleLayout = (event: LayoutChangeEvent) => setWidth(event.nativeEvent.layout.width)
+  const contentStyle = useAnimatedStyle(() => ({ opacity: Math.min(shown.value, 1) }))
+  const handleLayout = (event: LayoutChangeEvent) => setHeight(event.nativeEvent.layout.height)
+
   return (
-    <View style={[styles.track, { backgroundColor: track }]} onLayout={handleLayout}>
-      <Animated.View style={[styles.glow, { backgroundColor: color }, glow]} />
+    <View style={styles.slot} onLayout={handleLayout} pointerEvents="none">
+      <Animated.View style={cardStyle}>
+        <GlassSurface materialized={!leaving && height > 0} style={styles.card}>
+          <Animated.View
+            accessible
+            accessibilityLabel={stripLabelOf({ command, now })}
+            style={contentStyle}
+          >
+            <View style={styles.head}>
+              <Pulse reduced={reduced} color={theme.primary} />
+              <Text size={ETextRole.Xs} numberOfLines={1} style={styles.label}>
+                {command.copy.label}
+              </Text>
+              <Text
+                size={ETextRole.Xs}
+                family={EFontFamily.Mono}
+                tone={ETextTone.Muted}
+                style={styles.clock}
+              >
+                {elapsedClockOf({ startedAt: command.startedAt, now })}
+              </Text>
+            </View>
+            <Text size={ETextRole.Xs} tone={ETextTone.Muted} numberOfLines={1} style={styles.note}>
+              {BLOCKING_SEND_NOTE}
+            </Text>
+          </Animated.View>
+        </GlassSurface>
+      </Animated.View>
     </View>
   )
 }
 
-export const BlockingStrip = ({ command, now }: { command: BlockingCommand; now: number }) => {
-  const theme = useTheme()
-  const reduced = useReduceMotion()
-  const clock = elapsedClockOf({ startedAt: command.startedAt, now })
+export const BlockingStrip = ({
+  command,
+  now,
+}: {
+  command: BlockingCommand | undefined
+  now: number
+}) => {
+  const [presence, setPresence] = useState(HIDDEN_STRIP)
+  useEffect(() => {
+    setPresence((current) => presenceOf({ presence: current, command }))
+  }, [command])
+  const handleLeft = useCallback(() => setPresence(settledPresenceOf), [])
+  if (presence.command === undefined) return null
   return (
-    <View style={styles.slot}>
-      <View
-        accessible
-        accessibilityLabel={`${command.copy.label}, ${clock}. ${BLOCKING_SEND_NOTE}`}
-        style={[styles.strip, { backgroundColor: theme.card, borderColor: theme.input }]}
-      >
-        <View style={styles.head}>
-          <Pulse reduced={reduced} color={theme.primary} />
-          <Text size={ETextRole.Xs} numberOfLines={1} style={styles.label}>
-            {command.copy.label}
-          </Text>
-          <Text
-            size={ETextRole.Xs}
-            family={EFontFamily.Mono}
-            tone={ETextTone.Muted}
-            style={styles.clock}
-          >
-            {clock}
-          </Text>
-        </View>
-        <Text size={ETextRole.Xs} tone={ETextTone.Muted} numberOfLines={1} style={styles.note}>
-          {BLOCKING_SEND_NOTE}
-        </Text>
-        <Shimmer
-          reduced={reduced}
-          color={theme.primary}
-          track={withAlpha({ color: theme.foreground, alpha: 0.08 })}
-        />
-      </View>
-    </View>
+    <StripCard
+      command={presence.command}
+      leaving={presence.leaving}
+      now={now}
+      onLeft={handleLeft}
+    />
   )
 }
 
 const styles = StyleSheet.create({
   slot: {
+    marginBottom: -(COMPOSER_DOCK_TOP + STRIP_TUCK),
     paddingHorizontal: space(4),
   },
-  strip: {
-    borderBottomLeftRadius: 0,
-    borderBottomRightRadius: 0,
-    borderTopLeftRadius: radius(1),
-    borderTopRightRadius: radius(1),
-    borderWidth: 1,
-    overflow: 'hidden',
+  card: {
+    borderCurve: 'continuous',
+    borderRadius: COMPOSER_RADIUS,
+    paddingBottom: STRIP_TUCK + space(2.5),
+    paddingHorizontal: COMPOSER_INSET + space(1),
+    paddingTop: space(3),
   },
   head: {
     alignItems: 'center',
     flexDirection: 'row',
     gap: space(2),
-    paddingHorizontal: space(3),
-    paddingTop: space(2),
-    paddingBottom: space(1),
   },
   pulse: {
     alignItems: 'center',
@@ -176,19 +205,7 @@ const styles = StyleSheet.create({
     marginLeft: 'auto',
   },
   note: {
-    paddingBottom: space(2),
-    paddingHorizontal: space(3),
-    paddingLeft: space(7),
-  },
-  track: {
-    height: 2,
-    overflow: 'hidden',
-    width: '100%',
-  },
-  glow: {
-    bottom: 0,
-    position: 'absolute',
-    top: 0,
-    width: '35%',
+    paddingLeft: space(4),
+    paddingTop: space(0.5),
   },
 })

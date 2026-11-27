@@ -42,7 +42,6 @@ export const Composer = ({
   refusal,
   entries = [],
   clientActions,
-  joined = false,
   trailing,
   trailingPressable = true,
   children,
@@ -59,7 +58,6 @@ export const Composer = ({
   refusal?: string | undefined
   entries?: readonly CommandEntry[]
   clientActions?: Record<EClientAction, () => void> | undefined
-  joined?: boolean
   trailing?: ReactNode
   trailingPressable?: boolean
   children?: ReactNode
@@ -171,7 +169,7 @@ export const Composer = ({
   )
 
   return (
-    <View style={[styles.dock, joined ? styles.joinedDock : null]}>
+    <View style={styles.dock}>
       {menuQueryOf(draft) === null || candidates.length === 0 ? null : (
         <SlashMenu entries={candidates} onPick={handleCommand} />
       )}
@@ -186,7 +184,7 @@ export const Composer = ({
           </Text>
         )}
         <ComposerDropZone
-          style={[styles.field, joined ? styles.joinedField : null]}
+          style={styles.field}
           borderColor="transparent"
           onFiles={attachments?.attachFiles}
           controls={controls}
@@ -226,14 +224,6 @@ const styles = StyleSheet.create({
   surface: {
     borderCurve: 'continuous',
     borderRadius: COMPOSER_RADIUS,
-  },
-  joinedDock: {
-    paddingTop: 0,
-  },
-  joinedField: {
-    borderTopLeftRadius: 0,
-    borderTopRightRadius: 0,
-    borderTopWidth: 0,
   },
   input: {
     fontFamily: 'Geist_400Regular',
