@@ -1,7 +1,7 @@
 'use client'
 
 import { useRouter } from 'next/navigation'
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 
 import { EModelSelectorVariant, ModelSelector } from '@dltech/atlas-ui/ai/model-selector'
 
@@ -41,13 +41,12 @@ export function ModelPickerControls({
 }: ModelPickerControlsProps & { native?: boolean }) {
   const router = useRouter()
   const [nativeUnavailable, setNativeUnavailable] = useState(false)
+  const [nativeReady, setNativeReady] = useState(false)
+  useEffect(() => {
+    if (native) setNativeReady(nativePickerAvailable(window))
+  }, [native])
   const handleManage = () => router.push(PROVIDERS_HREF)
-  if (
-    native &&
-    !nativeUnavailable &&
-    typeof window !== 'undefined' &&
-    nativePickerAvailable(window)
-  ) {
+  if (native && nativeReady && !nativeUnavailable) {
     return (
       <NativeModelPickerControls
         {...props}
