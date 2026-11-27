@@ -83,6 +83,7 @@ export const ensureDeclared = async (args: {
   name: string
   place: DeclaredPlace
   restart?: boolean | undefined
+  replaces?: { name: string; serviceId: string } | undefined
   readyTimeoutMs?: number | undefined
   expose?: boolean | undefined
   signal?: AbortSignal | undefined
@@ -182,6 +183,7 @@ export const ensureDeclared = async (args: {
       declarationHash: hash,
       root: place.root,
       branch: place.branch,
+      ...(args.replaces?.name === name ? { replaces: args.replaces.serviceId } : {}),
       env,
       port,
       healthPath: declaration.health,

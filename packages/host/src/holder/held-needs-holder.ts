@@ -17,9 +17,11 @@ import {
 
 import {
   actionableEntries,
+  isBookkeepingEntry,
   isCommandEntry,
   isNoticeEntry,
   isStop,
+  isQuietNotice,
   logPendingInputIdsOf,
   logPendingNoticeIdsOf,
   readFullInbox,
@@ -87,13 +89,16 @@ export const drainNeedsHolder = async (args: {
       resumable: isResumableOf(state) && !stopSettledPromptOf(events) && !repairHeld,
       messagePending:
         actionable.some(
-          (entry) => !isCommandEntry(entry) && !(repairHeld && isNoticeEntry(entry)),
+          (entry) =>
+            !isQuietNotice(entry) &&
+            !isCommandEntry(entry) &&
+            !(repairHeld && isNoticeEntry(entry)),
         ) ||
         waitingInputIdsOf({
           ids: logIds.filter((id) => !noticeIds.has(id)),
           failure: workspace.failure,
         }).length > 0,
-      commandPending: actionable.some(isCommandEntry),
+      bookkeepingPending: actionable.some(isBookkeepingEntry),
       workspace: workspace.state,
       retryPending: workspace.retryPending,
     })

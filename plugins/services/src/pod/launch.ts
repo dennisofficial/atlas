@@ -19,6 +19,7 @@ export type LaunchArgs = {
   declarationHash?: string | undefined
   root?: string | undefined
   branch?: string | undefined
+  replaces?: string | undefined
   env?: Record<string, string> | undefined
   port?: number | undefined
   healthPath?: string | undefined
@@ -84,6 +85,7 @@ export const launchTracked = async (
         cwd: args.cwd,
         ...(args.root === undefined ? {} : { root: args.root }),
         ...(args.branch === undefined ? {} : { branch: args.branch }),
+        ...(args.replaces === undefined ? {} : { replaces: args.replaces }),
         ...(args.port === undefined ? {} : { port: args.port }),
         ...(url === undefined ? {} : { url }),
       },

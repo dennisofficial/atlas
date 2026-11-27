@@ -17,6 +17,7 @@ import {
   EContextSlot,
   EInputConsumed,
   EMessageOrigin,
+  EServiceStatus,
   ESubscriptionActor,
   ESubscriptionEnd,
   initialLoopState,
@@ -964,5 +965,66 @@ describe('InboxIntake typed skill text', () => {
     expect(renames).toEqual([{ sessionId: 'session-1', title: 'bench' }])
     expect(rig.appended.some((draft) => draft.type === 'context-loaded')).toBe(false)
     expect(rig.appended.some((draft) => draft.type === 'user-said')).toBe(false)
+  })
+})
+
+const noticeOf = (args: { inboxId: number; restarting?: boolean; kind?: string }): InboxEntry =>
+  entry(
+    args.inboxId,
+    {
+      event: {
+        type: 'service-ended',
+        serviceId: 'svc-1',
+        command: 'bun dev',
+        status: 'exited',
+        tail: '',
+        ...(args.restarting === true ? { restarting: true } : {}),
+      },
+    },
+    args.kind ?? 'event',
+  )
+
+describe('InboxIntake outside a turn', () => {
+  it('drains a quiet notice into the log without starting a turn', async () => {
+    const notice = noticeOf({ inboxId: 8, restarting: true })
+    const rig = rigOf([notice], { commands: true })
+
+    expect(await rig.intake.runCommands([notice])).toBe(true)
+
+    expect(rig.appends).toEqual([
+      [
+        {
+          type: 'service-ended',
+          serviceId: 'svc-1',
+          command: 'bun dev',
+          status: EServiceStatus.Exited,
+          tail: '',
+          restarting: true,
+        },
+        { type: 'input-consumed', inboxId: 8 },
+      ],
+    ])
+    expect(rig.appended.filter((draft) => draft.type === 'turn-started')).toEqual([])
+  })
+
+  it('drains a quiet notice on a host that runs no commands', async () => {
+    const notice = noticeOf({ inboxId: 8, restarting: true })
+    const rig = rigOf([notice])
+
+    expect(await rig.intake.runCommands([notice])).toBe(true)
+
+    expect(rig.appends.flat().map((draft) => draft.type)).toEqual([
+      'service-ended',
+      'input-consumed',
+    ])
+  })
+
+  it('leaves a notice that takes a turn for the turn', async () => {
+    const notice = noticeOf({ inboxId: 8 })
+    const rig = rigOf([notice], { commands: true })
+
+    expect(await rig.intake.runCommands([notice])).toBe(false)
+
+    expect(rig.appends).toEqual([])
   })
 })

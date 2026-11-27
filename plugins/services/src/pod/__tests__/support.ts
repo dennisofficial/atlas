@@ -130,6 +130,10 @@ export const rig = (
   return { ctx, log, calls, listeners, fs, notices, forgetDaemonRecords }
 }
 
+export const movedHolderOf = (harness: ReturnType<typeof rig>): PluginPodContext => ({
+  ...harness.ctx,
+})
+
 export const writeDeclared = (
   harness: { fs: MemoryFileSystem },
   content: string,

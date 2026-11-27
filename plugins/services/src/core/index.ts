@@ -2,6 +2,7 @@ import { serviceCommands } from './commands'
 import { serviceReadySchema } from './ready-event'
 import { servicesView } from './roster'
 
+export * from './chain'
 export * from './commands'
 export * from './declared'
 export * from './placement'

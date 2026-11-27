@@ -307,6 +307,7 @@ export type EventBody =
       branch?: string | undefined
       command: string
       description?: string | undefined
+      replaces?: string | undefined
       bootId?: string | undefined
     }
   | {

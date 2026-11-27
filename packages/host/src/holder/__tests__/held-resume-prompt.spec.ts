@@ -66,7 +66,7 @@ const decidedOf = (events: readonly RecordEvent[]): EHeldAction =>
     turn: 'idle',
     stopPending: false,
     messagePending: false,
-    commandPending: false,
+    bookkeepingPending: false,
     resumable: resumableOf(events),
     idleDue: true,
     workspace: EWorkspaceState.Prepared,

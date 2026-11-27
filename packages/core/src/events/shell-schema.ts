@@ -91,6 +91,7 @@ export const shellEventSchemas = [
     branch: z.string().min(1).optional(),
     command: z.string(),
     description: z.string().optional(),
+    replaces: z.string().min(1).optional(),
     bootId: z.string().min(1).optional(),
   }),
   z.object({

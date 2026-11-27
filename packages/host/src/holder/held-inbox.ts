@@ -6,6 +6,7 @@ import {
   INBOX_KIND_STOP,
   inboxEventOf,
   isMessageInputKind,
+  isTurnTaking,
   pendingInputsOf,
   pendingMessagesOf,
   pendingNoticesOf,
@@ -21,6 +22,7 @@ import type { ControlPlane } from '@dltech/atlas-control'
 import { logFieldsOf, type LogPort } from '@dltech/atlas-observability'
 
 import { isCommandKind } from './command-intake'
+import { holdsEnding } from './held-endings'
 import type { HeldSessionDeps } from './held-session-deps'
 
 const INBOX_PAGE_LIMIT = 100
@@ -99,6 +101,15 @@ export const podResizedNoticeIdsOf = (events: readonly RecordEvent[]): ReadonlyS
 export const isNoticeEntry = (entry: InboxEntry): boolean =>
   entry.kind === INBOX_KIND_EVENT || entry.kind === INBOX_KIND_RECORD
 
+export const isQuietNotice = (entry: InboxEntry): boolean => {
+  if (!isNoticeEntry(entry)) return false
+  if (entry.kind === INBOX_KIND_RECORD) return true
+  const read = inboxEventOf(entry.payload)
+  return read.ok && !holdsEnding(read.event) && !isTurnTaking(read.event)
+}
+
+export const takesTurnEntry = (entry: InboxEntry): boolean => !isQuietNotice(entry)
+
 export const waitingInputIdsOf = (args: {
   ids: readonly number[]
   failure: PrepareFailure | undefined
@@ -171,6 +182,9 @@ export const stopSettledPromptOf = (events: readonly RecordEvent[]): boolean => 
 }
 
 export const isCommandEntry = (entry: InboxEntry): boolean => isCommandKind(entry.kind)
+
+export const isBookkeepingEntry = (entry: InboxEntry): boolean =>
+  isCommandEntry(entry) || isQuietNotice(entry)
 
 export const understandsCommand = (deps: HeldSessionDeps, entry: InboxEntry): boolean =>
   !isCommandKind(entry.kind) || deps.commands?.byInboxKind.has(entry.kind) === true

@@ -28,6 +28,7 @@ import { countRunningShells, shellHoldOf } from './held-shells'
 import {
   actionableEntries,
   carriesPodResized,
+  isBookkeepingEntry,
   isCommandEntry,
   isInterrupt,
   isNoticeEntry,
@@ -38,6 +39,7 @@ import {
   queuedPromptAtOf,
   readFullInbox,
   stopSettledPromptOf,
+  takesTurnEntry,
   understandsCommand,
   waitingInputIdsOf,
 } from './held-inbox'
@@ -131,6 +133,7 @@ export const readHeldAction = async (args: {
   const messagePending =
     actionable.some(
       (entry) =>
+        takesTurnEntry(entry) &&
         !isCommandEntry(entry) &&
         !startsNoTurn(entry) &&
         !heldEndings.has(entry.inboxId) &&
@@ -140,8 +143,8 @@ export const readHeldAction = async (args: {
       ids: logIds.filter((id) => !noticeIds.has(id) && !heldEndings.has(id)),
       failure: workspace.failure,
     }).length > 0
-  const commandPending = actionable.some(
-    (entry) => isCommandEntry(entry) && !startsNoTurn(entry) && !heldEndings.has(entry.inboxId),
+  const bookkeepingPending = actionable.some(
+    (entry) => isBookkeepingEntry(entry) && !startsNoTurn(entry) && !heldEndings.has(entry.inboxId),
   )
   const quiet = idleReleaseDue({
     turnRunning: args.turnRunning,
@@ -176,7 +179,7 @@ export const readHeldAction = async (args: {
       turn: args.turnRunning ? 'running' : 'idle',
       stopPending: actionable.some(isStop),
       messagePending,
-      commandPending,
+      bookkeepingPending,
       resumable,
       parked,
       workspace: workspace.state,

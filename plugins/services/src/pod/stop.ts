@@ -1,7 +1,7 @@
 import { EServiceStatus, type ToolOutcome } from '@dltech/atlas-core'
 import type { PluginPodContext } from '@dltech/atlas-plugin-sdk'
 
-import { runningDeclaredOf, servicesOfEvents } from '../core'
+import { currentServiceIdOf, runningDeclaredOf, servicesOfEvents } from '../core'
 import { stopService } from './daemon'
 import { EServiceFailure, failureOutcome, serviceFailed } from './failure'
 import type { DeclaredPlace } from './place'
@@ -29,7 +29,10 @@ export const stopServiceAction = async (args: {
     input.name === undefined
       ? undefined
       : namedRunning({ ctx, name: input.name, root: args.place.root })
-  const serviceId = input.serviceId ?? named?.serviceId
+  const serviceId =
+    input.serviceId === undefined
+      ? named?.serviceId
+      : currentServiceIdOf({ rows: servicesOfEvents(ctx.events()), serviceId: input.serviceId })
   if (serviceId === undefined) {
     return failureOutcome(
       serviceFailed({

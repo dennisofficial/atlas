@@ -7,7 +7,7 @@ import {
   type RecordEvent,
 } from '@dltech/atlas-core'
 
-const heldFlagOf = (input: EventDraft): boolean =>
+export const holdsEnding = (input: EventDraft): boolean =>
   input.type === 'agent-ended' && input.held === true
 
 export const heldEndingIdsOf = (args: {
@@ -21,10 +21,10 @@ export const heldEndingIdsOf = (args: {
   for (const entry of args.entries) {
     if (entry.kind !== INBOX_KIND_EVENT) continue
     const read = inboxEventOf(entry.payload)
-    if (read.ok && heldFlagOf(read.event)) ids.add(entry.inboxId)
+    if (read.ok && holdsEnding(read.event)) ids.add(entry.inboxId)
   }
   for (const pendingInput of pendingInputsOf(args.recordEvents).pending) {
-    if (pendingInput.event !== undefined && heldFlagOf(pendingInput.event)) {
+    if (pendingInput.event !== undefined && holdsEnding(pendingInput.event)) {
       ids.add(pendingInput.inboxId)
     }
   }
