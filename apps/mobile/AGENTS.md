@@ -19,8 +19,9 @@ web spinner), never `ActivityIndicator`.
   strip and stuck at the old orientation after a rotation). iOS always centres `headerTitle`, and
   `headerTitleAlign` does nothing on iOS. For a leading title, use `leadingHeaderOptionsOf`
   (`src/navigation/header-options.tsx`), which places the title as a `custom` item in
-  `unstable_headerLeftItems`. Its `titleButtons` counts every bar button on the screen plus one
-  spare slot. With too little room, iOS moves every bar item into one overflow "…" menu.
+  `unstable_headerLeftItems`. Its `titleButtons` counts every other bar button on the screen.
+  `HEADER_EDGE_SLACK` covers the bar margins (16 pt a side) and the glass inset (8 pt) with a few
+  points to spare. With too little room, iOS moves every bar item into one overflow "…" menu.
 - **Hiding the bar on a live screen:** a modal (`fullScreenModal`, `modal`) that shows a header
   renders its content inside a nested native stack (`isHeaderInModal`,
   react-native-screens `ScreenStackItem.tsx:101`). Toggling `headerShown` there swaps that tree and

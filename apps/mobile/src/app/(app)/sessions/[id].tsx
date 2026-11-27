@@ -127,7 +127,7 @@ export default function SessionScreen() {
             lead: showsSessions ? <SessionsButton onPress={handleOpenSessions} /> : undefined,
             title: <SessionTitle header={session.header} />,
             glassTitle: true,
-            titleButtons: 1,
+            titleButtons: 0,
             windowWidth,
             posture,
           }),
