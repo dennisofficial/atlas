@@ -9,7 +9,6 @@ import {
 } from '@dltech/atlas-ui-native'
 import { radius, space } from '@dltech/atlas-ui/tokens'
 import { Search } from 'lucide-react-native'
-import { useState } from 'react'
 import { SectionList, StyleSheet, View } from 'react-native'
 
 import {
@@ -44,10 +43,9 @@ export const ModelListBody = ({
   pinned,
   onPinnedChange,
   onSelect,
+  query,
   onClose,
-}: Props & { onClose: () => void }) => {
-  const theme = useTheme()
-  const [query, setQuery] = useState('')
+}: Props & { query: string; onClose: () => void }) => {
   const sections = modelListSectionsOf({ models, pinned, query })
 
   const handleModel = (model: IModelOption) => {
@@ -83,48 +81,56 @@ export const ModelListBody = ({
   const emptyNote = models.length === 0 ? 'No models yet' : 'No models match'
 
   return (
-    <>
-      <View
-        style={[
-          styles.search,
-          { borderColor: withAlpha({ color: theme.foreground, alpha: 0.12 }) },
-        ]}
-      >
-        <Icon icon={Search} color={theme.mutedForeground} size={14} />
-        <Input
-          bare
-          accessibilityLabel="Search models"
-          autoCapitalize="none"
-          autoCorrect={false}
-          spellCheck={false}
-          placeholder="Search models"
-          value={query}
-          onChangeText={setQuery}
-          style={styles.searchInput}
-        />
-      </View>
-      <SectionList
-        sections={sections}
-        keyExtractor={(item) => item.key}
-        renderItem={renderItem}
-        renderSectionHeader={renderSectionHeader}
-        stickySectionHeadersEnabled={false}
-        initialNumToRender={INITIAL_ROWS}
-        maxToRenderPerBatch={INITIAL_ROWS}
-        windowSize={5}
-        automaticallyAdjustKeyboardInsets
-        keyboardDismissMode="interactive"
-        keyboardShouldPersistTaps="handled"
-        style={styles.list}
-        ListFooterComponent={
-          hasModelMatchesOf(sections) ? undefined : (
-            <Text size={ETextRole.Sm} tone={ETextTone.Muted} style={styles.empty}>
-              {emptyNote}
-            </Text>
-          )
-        }
+    <SectionList
+      sections={sections}
+      keyExtractor={(item) => item.key}
+      renderItem={renderItem}
+      renderSectionHeader={renderSectionHeader}
+      stickySectionHeadersEnabled={false}
+      initialNumToRender={INITIAL_ROWS}
+      maxToRenderPerBatch={INITIAL_ROWS}
+      windowSize={5}
+      automaticallyAdjustKeyboardInsets
+      contentInsetAdjustmentBehavior="automatic"
+      keyboardDismissMode="interactive"
+      keyboardShouldPersistTaps="handled"
+      style={styles.list}
+      ListFooterComponent={
+        hasModelMatchesOf(sections) ? undefined : (
+          <Text size={ETextRole.Sm} tone={ETextTone.Muted} style={styles.empty}>
+            {emptyNote}
+          </Text>
+        )
+      }
+    />
+  )
+}
+
+export const ModelSearchField = ({
+  query,
+  onQueryChange,
+}: {
+  query: string
+  onQueryChange: (query: string) => void
+}) => {
+  const theme = useTheme()
+  return (
+    <View
+      style={[styles.search, { borderColor: withAlpha({ color: theme.foreground, alpha: 0.12 }) }]}
+    >
+      <Icon icon={Search} color={theme.mutedForeground} size={14} />
+      <Input
+        bare
+        accessibilityLabel="Search models"
+        autoCapitalize="none"
+        autoCorrect={false}
+        spellCheck={false}
+        placeholder="Search models"
+        value={query}
+        onChangeText={onQueryChange}
+        style={styles.searchInput}
       />
-    </>
+    </View>
   )
 }
 
