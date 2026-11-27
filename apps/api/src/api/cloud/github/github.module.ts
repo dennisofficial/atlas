@@ -1,4 +1,10 @@
 import { Logger, Module } from '@nestjs/common'
+import { db } from '@dltech/atlas-db'
+import { BrowserReturnService } from '../../../agent'
+import { EnvService } from '../../../_core/config/env/env.service'
+import { SecretCipherService } from '../../../_lib/crypto/secret-cipher.service'
+import { GithubRedirectService } from './github-redirect.service'
+import { GithubOauthController } from './github-oauth.controller'
 import { RedisModule } from '../../../_lib/redis/redis.module'
 import { GithubConfig } from '@dltech/atlas-github'
 import { GithubDeviceClient } from '@dltech/atlas-github'
@@ -19,8 +25,21 @@ setGithubLogSink((context) => new Logger(context))
 
 @Module({
   imports: [RedisModule],
+  controllers: [GithubOauthController],
   providers: [
     GithubRouter,
+    GithubRedirectService,
+    {
+      provide: BrowserReturnService,
+      inject: [EnvService, SecretCipherService],
+      useFactory: (env: EnvService, cipher: SecretCipherService) =>
+        new BrowserReturnService({
+          db,
+          cipher,
+          publicUrl: env.get('BETTER_AUTH_URL'),
+          webOrigin: env.get('WEB_ORIGIN'),
+        }),
+    },
     GithubReposRouter,
     githubConfigProvider,
     githubServiceProvider,

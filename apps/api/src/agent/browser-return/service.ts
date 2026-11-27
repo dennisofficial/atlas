@@ -103,6 +103,12 @@ export class BrowserReturnService {
     }
   }
 
+  async pendingUserOf(args: { state: string; flow: string }): Promise<string | undefined> {
+    const row = await this.store.findOpen({ state: args.state, now: this.now() })
+    if (row === null || row.flow !== args.flow) return undefined
+    return row.userId ?? undefined
+  }
+
   async start(request: BrowserReturnStartRequest): Promise<BrowserReturnStartAnswer> {
     const row = await this.store.findOpen({ state: request.state, now: this.now() })
     if (row === null) return { kind: 'gone', html: gonePageOf() }

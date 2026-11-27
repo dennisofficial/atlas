@@ -13,7 +13,7 @@ access tokens only. Local TUI sessions keep the loopback flow. Memory is never a
 Every Atlas-owned client calls the API through tRPC under `/v1/trpc` (`sessions.create`,
 `models.list` and the rest of the generated `AppRouter`). Only these routes stay REST: the
 GitHub webhook controllers (`POST /v1/github/hooks/:repo`, `POST /v1/github/app/hook`,
-`GET /v1/github/app/callback`), `GET /v1/health`, the agent's `GET /healthz`, `GET /mcp-oauth/callback`,
+`GET /v1/github/app/callback`, `GET /v1/github/oauth/callback`), `GET /v1/health`, the agent's `GET /healthz`, `GET /mcp-oauth/callback`,
 and better-auth's `/api/auth/*`.
 
 **The API carries no v1 thread or sandbox lane.** Slice 4c of
@@ -221,12 +221,13 @@ the device `verificationUri` at the web app. The device page must claim the code
 
 ## GitHub identity is an OAuth App; webhook transport may be a GitHub App
 
-GitHub connect (user auth) uses the device flow against a plain **OAuth App** (`GITHUB_CLIENT_ID`).
+GitHub connect (user auth) uses the browser authorization-code flow against a plain **OAuth App** (`GITHUB_CLIENT_ID` and `GITHUB_CLIENT_SECRET`), with the device flow kept only for headless or SSH TUI sessions.
+The registered callback is `https://api.byatlas.io/v1/github/oauth/callback`. The callback finds the user from the open `github` browser-return state, never from a browser cookie.
 That is per-user delegation. The API and sandboxes act with the user's own permissions, so nothing
 is ever installed on a repo or org for auth. A GitHub App would invert that for auth. User tokens
 become the intersection of user access, app permissions, and installation coverage, so a repo the app is not
 installed on answers 404. The device flow ignores the requested scopes. User-to-server tokens
-expire after 8 hours. `pollConnect` therefore refuses a grant whose `scope` is missing any of
+expire after 8 hours. Both connect paths therefore refuse a grant whose `scope` is missing any of
 `repo read:org admin:repo_hook admin:ssh_signing_key workflow`. An `admin:X` grant satisfies `write:X` and `read:X`.
 The API refuses the grant rather than store a token that can only ever see public repos. `workflow` is listed because sandboxes push with this token, and GitHub rejects a push touching `.github/workflows/*` without it. `admin:ssh_signing_key` is listed because `DELETE /user/ssh_signing_keys/{id}` needs `admin:`, and rotate or revoke of the commit-signing key deletes the old one. Older connections keep working for everything else. They get `github-signing-scope-missing` from `/v1/ssh-signing-key` until they reconnect.
 

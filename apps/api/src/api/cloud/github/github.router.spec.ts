@@ -13,6 +13,7 @@ import {
 import { GithubConfig } from '@dltech/atlas-github'
 import { GithubDeviceClient } from '@dltech/atlas-github'
 import type { FetchFn } from '@dltech/atlas-github'
+import { GithubRedirectService } from './github-redirect.service'
 import { GithubRouter } from './github.router'
 import { GithubService } from '@dltech/atlas-github'
 
@@ -36,6 +37,14 @@ describe('GithubRouter poll validation', () => {
       rateLimit: UNTHROTTLED_RATE_LIMIT,
       providers: [
         GithubRouter,
+        {
+          provide: GithubRedirectService,
+          useValue: {
+            begin: async ({ userId }: { userId: string }) => ({
+              url: `https://api.byatlas.io/return/start/${userId}`,
+            }),
+          },
+        },
         SessionMiddleware,
         {
           provide: GithubService,
@@ -63,11 +72,14 @@ describe('GithubRouter poll validation', () => {
         {
           provide: SESSION_VERIFIER,
           useValue: {
-            verify: async () => ({
-              userId: 'user-a',
-              sessionId: 'session-a',
-              email: 'a@example.com',
-            }),
+            verify: async (request: { headers: { authorization?: string } }) =>
+              request.headers.authorization === 'Bearer session-a'
+                ? {
+                    userId: 'user-a',
+                    sessionId: 'session-a',
+                    email: 'a@example.com',
+                  }
+                : null,
           },
         },
       ],
@@ -76,6 +88,21 @@ describe('GithubRouter poll validation', () => {
 
   afterAll(async () => {
     await app.close()
+  })
+
+  it('begins a redirect for the authenticated user only', async () => {
+    const reply = await request(app.getHttpServer())
+      .post('/v1/trpc/github.beginRedirect')
+      .set(as('session-a'))
+      .send({})
+    expect(reply.status).toBe(200)
+    expect(reply.body).toEqual({
+      result: { data: { url: 'https://api.byatlas.io/return/start/user-a' } },
+    })
+    const anonymous = await request(app.getHttpServer())
+      .post('/v1/trpc/github.beginRedirect')
+      .send({})
+    expect(anonymous.status).toBe(401)
   })
 
   it('accepts a well-formed poll body', async () => {

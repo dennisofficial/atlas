@@ -103,6 +103,9 @@ const appRouter = t.router({
       .query(async () => "PLACEHOLDER_DO_NOT_REMOVE" as any)
     }),
   github: t.router({
+    beginRedirect: publicProcedure
+      .output(z.strictObject({ url: z.string() }))
+      .mutation(async () => "PLACEHOLDER_DO_NOT_REMOVE" as any),
     beginConnect: publicProcedure
       .output(githubDeviceCodesSchema)
       .mutation(async () => "PLACEHOLDER_DO_NOT_REMOVE" as any),
