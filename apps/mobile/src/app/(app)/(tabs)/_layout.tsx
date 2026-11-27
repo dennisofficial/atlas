@@ -2,6 +2,8 @@ import { useTheme } from '@dltech/atlas-ui-native'
 import { usePathname } from 'expo-router'
 import { NativeTabs } from 'expo-router/native-tabs'
 
+import { sideColumnInsetOf } from '../../../layout/posture'
+import { useWindowInsets } from '../../../layout/side-inset-frame'
 import { tabBarHiddenOf } from '../../../navigation/root-navigation'
 import { APP_TAB_ITEMS, EAppTab } from '../../../navigation/tabs'
 import { useSessionsDrawer } from '../../../sessions/sessions-drawer-state'
@@ -10,9 +12,10 @@ export default function TabsLayout() {
   const theme = useTheme()
   const pathname = usePathname()
   const { open: drawerOpen } = useSessionsDrawer()
+  const sideColumn = sideColumnInsetOf(useWindowInsets()) > 0
   return (
     <NativeTabs
-      hidden={tabBarHiddenOf({ pathname, drawerOpen })}
+      hidden={tabBarHiddenOf({ pathname, drawerOpen, sideColumn })}
       tintColor={theme.foreground}
       iconColor={{ default: theme.mutedForeground, selected: theme.foreground }}
     >

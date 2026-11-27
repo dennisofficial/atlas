@@ -47,24 +47,38 @@ describe('sessionOpenOf', () => {
 })
 
 describe('tabBarHiddenOf', () => {
+  const bottomBar = { sideColumn: false }
+  const sideBar = { sideColumn: true }
+
   it('shows the bar on the other tabs', () => {
-    expect(tabBarHiddenOf({ pathname: '/routines', drawerOpen: false })).toBe(false)
-    expect(tabBarHiddenOf({ pathname: '/projects', drawerOpen: false })).toBe(false)
-    expect(tabBarHiddenOf({ pathname: '/artifacts', drawerOpen: false })).toBe(false)
+    expect(tabBarHiddenOf({ pathname: '/routines', drawerOpen: false, ...bottomBar })).toBe(false)
+    expect(tabBarHiddenOf({ pathname: '/projects', drawerOpen: false, ...bottomBar })).toBe(false)
+    expect(tabBarHiddenOf({ pathname: '/artifacts', drawerOpen: false, ...bottomBar })).toBe(false)
   })
 
-  it('hides the bar on the sessions tab while the drawer is closed', () => {
-    expect(tabBarHiddenOf({ pathname: '/sessions', drawerOpen: false })).toBe(true)
-    expect(tabBarHiddenOf({ pathname: '/sessions/ses_1', drawerOpen: false })).toBe(true)
+  it('hides a bottom bar on the sessions tab while the drawer is closed', () => {
+    expect(tabBarHiddenOf({ pathname: '/sessions', drawerOpen: false, ...bottomBar })).toBe(true)
+    expect(tabBarHiddenOf({ pathname: '/sessions/ses_1', drawerOpen: false, ...bottomBar })).toBe(
+      true,
+    )
+  })
+
+  it('keeps a bar in the side column on the sessions tab while the drawer is closed', () => {
+    expect(tabBarHiddenOf({ pathname: '/sessions', drawerOpen: false, ...sideBar })).toBe(false)
+    expect(tabBarHiddenOf({ pathname: '/sessions/ses_1', drawerOpen: false, ...sideBar })).toBe(
+      false,
+    )
   })
 
   it('shows the bar on the sessions tab while the drawer is open', () => {
-    expect(tabBarHiddenOf({ pathname: '/sessions', drawerOpen: true })).toBe(false)
-    expect(tabBarHiddenOf({ pathname: '/sessions/ses_1', drawerOpen: true })).toBe(false)
+    expect(tabBarHiddenOf({ pathname: '/sessions', drawerOpen: true, ...bottomBar })).toBe(false)
+    expect(tabBarHiddenOf({ pathname: '/sessions/ses_1', drawerOpen: true, ...bottomBar })).toBe(
+      false,
+    )
   })
 
   it('keeps the bar over a page pushed above the tabs', () => {
-    expect(tabBarHiddenOf({ pathname: SETTINGS_HREF, drawerOpen: false })).toBe(false)
-    expect(tabBarHiddenOf({ pathname: '/new', drawerOpen: false })).toBe(false)
+    expect(tabBarHiddenOf({ pathname: SETTINGS_HREF, drawerOpen: false, ...bottomBar })).toBe(false)
+    expect(tabBarHiddenOf({ pathname: '/new', drawerOpen: false, ...bottomBar })).toBe(false)
   })
 })
