@@ -52,6 +52,29 @@ describe('holder.prepare span', () => {
     })
   })
 
+  it('adds the work the runtime timed inside a prepare attempt', async () => {
+    const trace = new RecordingTracer()
+    const clock = new FakeClock()
+    const rig = await makeRig({
+      trace,
+      clock,
+      prepare: async (onStep) => {
+        onStep?.({ step: EWorkspaceStep.Sandbox, state: EWorkspaceStepState.Started })
+        clock.advance(40)
+        onStep?.({ step: EWorkspaceStep.Sandbox, state: EWorkspaceStepState.Done })
+        clock.advance(900)
+        return { ok: true, timings: { access: 100, toolchain: 800 } }
+      },
+    })
+    await seedSession(rig)
+    await rig.holder.start()
+    await rig.wake()
+    expect(await flushUntil({ check: () => prepareSpanEnded(trace) })).toBe(true)
+
+    const [span] = trace.named(ESpan.Prepare)
+    expect(span?.fields.timings).toMatchObject({ sandbox: 40, access: 100, toolchain: 800 })
+  })
+
   it('times the steps from when their reports were produced, not when the span subscribed', async () => {
     const trace = new RecordingTracer()
     const span = new PrepareSpan({
@@ -71,6 +94,27 @@ describe('holder.prepare span', () => {
 
     const [recorded] = trace.named(ESpan.Prepare)
     expect(recorded?.fields.timings).toEqual({ sandbox: 200, clone: 100, prepare: 900 })
+  })
+
+  it('times a step from its first start report when progress reports repeat it', async () => {
+    const trace = new RecordingTracer()
+    const span = new PrepareSpan({
+      trace,
+      sessionId: SESSION,
+      threadId: THREAD_ID,
+      attempt: 1,
+      preparedBefore: false,
+      promptWaiting: true,
+      now: () => 9_000,
+    })
+    span.step({ step: EWorkspaceStep.Clone, state: EWorkspaceStepState.Started }, 1_000)
+    span.step({ step: EWorkspaceStep.Clone, state: EWorkspaceStepState.Started }, 1_100)
+    span.step({ step: EWorkspaceStep.Clone, state: EWorkspaceStepState.Started }, 8_400)
+    span.step({ step: EWorkspaceStep.Clone, state: EWorkspaceStepState.Done }, 9_000)
+    await span.begin(async () => ({ failed: false }))
+
+    const [recorded] = trace.named(ESpan.Prepare)
+    expect(recorded?.fields.timings).toEqual({ clone: 8_000, prepare: 8_000 })
   })
 
   it('attributes a step reported only when done to the wait since the last closed step', async () => {

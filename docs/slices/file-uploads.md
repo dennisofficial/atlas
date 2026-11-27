@@ -68,10 +68,11 @@ sequenceDiagram
   inbox payload, so `size` in the event is the stored size, not the browser's claim.
 - **Intake** copies `uploads` onto the `user-said` draft, as it does `media`.
 - **Placement** (agent host, `SandboxSaidUploads extends SaidUploadsPort`): per upload, not owned →
-  `Missing`; remembered → that; already a file at the target → `Ready`; blob head null →
-  `Missing`; else sign a GET for the pathname and call the daemon's new `fetchToFile
-  { url, path, size }`, which streams to `<path>.part`, checks the size and renames. A failure
-  throws for an upload of the current message. A step waits only on the files of the current
+  `Missing`; remembered → that; else sign a GET for the pathname and make one daemon call,
+  `fetchToFile { url, path, size }` with the size the event carries (the API headed the blob at
+  post). The daemon keeps a file already at the path; otherwise it streams to `<path>.part`, checks
+  the size and renames. Only a failed fetch heads the blob: head null → `Missing`. Any other
+  failure throws for an upload of the current message. A step waits only on the files of the current
   message. A file of an older message that the host has not checked yet is named at its target
   path at once, and the host checks it (and fetches it when the sandbox lost it) in the
   background, so a take-over or a sleeping pod never holds the first model call. A failed

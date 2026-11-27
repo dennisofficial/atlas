@@ -17,12 +17,7 @@ export default function TabsLayout() {
       iconColor={{ default: theme.mutedForeground, selected: theme.foreground }}
     >
       <NativeTabs.Trigger name={EAppTab.Sessions}>
-        <NativeTabs.Trigger.Icon
-          sf={{
-            default: 'bubble.left.and.bubble.right',
-            selected: 'bubble.left.and.bubble.right.fill',
-          }}
-        />
+        <NativeTabs.Trigger.Icon sf="bubble.left" />
         <NativeTabs.Trigger.Label>{APP_TAB_ITEMS[EAppTab.Sessions].label}</NativeTabs.Trigger.Label>
       </NativeTabs.Trigger>
       <NativeTabs.Trigger name={EAppTab.Routines}>

@@ -102,13 +102,28 @@ describe('drawerHidableOf', () => {
 })
 
 describe('showsHideSessionsButtonOf', () => {
-  it('offers the hide button only beside the content in the panel', () => {
-    expect(showsHideSessionsButtonOf({ listLayout: ESessionsListLayout.Panel })).toBe(true)
+  it('offers the hide button beside the content in the panel', () => {
+    expect(
+      showsHideSessionsButtonOf({ listLayout: ESessionsListLayout.Panel, selected: null }),
+    ).toBe(true)
   })
 
-  it('leaves the overlay and the iPhone list to a tap outside or a swipe', () => {
-    expect(showsHideSessionsButtonOf({ listLayout: ESessionsListLayout.Overlay })).toBe(false)
-    expect(showsHideSessionsButtonOf({ listLayout: ESessionsListLayout.Stacked })).toBe(false)
+  it('offers the hide button on the full-width list when a session sits behind it', () => {
+    expect(
+      showsHideSessionsButtonOf({ listLayout: ESessionsListLayout.Stacked, selected: 'ses_a' }),
+    ).toBe(true)
+  })
+
+  it('leaves out the hide button on the full-width list with no session behind it', () => {
+    expect(
+      showsHideSessionsButtonOf({ listLayout: ESessionsListLayout.Stacked, selected: null }),
+    ).toBe(false)
+  })
+
+  it('leaves the overlay to a tap outside or a swipe', () => {
+    expect(
+      showsHideSessionsButtonOf({ listLayout: ESessionsListLayout.Overlay, selected: 'ses_a' }),
+    ).toBe(false)
   })
 })
 
@@ -146,21 +161,21 @@ describe('drawerDockedOf', () => {
 })
 
 describe('paneWidthOf', () => {
-  it('leaves the session pane the window minus the docked panel', () => {
+  it('leaves the session pane the frame width minus the docked panel', () => {
     expect(
-      paneWidthOf({ listLayout: ESessionsListLayout.Panel, windowWidth: 956, drawerOpen: true }),
+      paneWidthOf({ listLayout: ESessionsListLayout.Panel, width: 956, drawerOpen: true }),
     ).toBe(956 - PANEL_WIDTH)
   })
 
-  it('gives the pane the whole window when the panel is hidden or the list floats', () => {
+  it('gives the pane the whole frame when the panel is hidden or the list floats', () => {
     expect(
-      paneWidthOf({ listLayout: ESessionsListLayout.Panel, windowWidth: 956, drawerOpen: false }),
+      paneWidthOf({ listLayout: ESessionsListLayout.Panel, width: 956, drawerOpen: false }),
     ).toBe(956)
     expect(
-      paneWidthOf({ listLayout: ESessionsListLayout.Overlay, windowWidth: 744, drawerOpen: true }),
+      paneWidthOf({ listLayout: ESessionsListLayout.Overlay, width: 744, drawerOpen: true }),
     ).toBe(744)
     expect(
-      paneWidthOf({ listLayout: ESessionsListLayout.Stacked, windowWidth: 440, drawerOpen: true }),
+      paneWidthOf({ listLayout: ESessionsListLayout.Stacked, width: 440, drawerOpen: true }),
     ).toBe(440)
   })
 })

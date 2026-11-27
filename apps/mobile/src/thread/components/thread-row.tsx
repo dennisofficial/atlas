@@ -6,6 +6,7 @@ import type { AgentLinks } from '../session/agent-links'
 import { ImagesRowView } from './images-row'
 import { MessageRowView } from './message-row'
 import { NoticeRowView } from './notice-row'
+import { SignInRowView } from './sign-in-row'
 import { WorkRowView } from './work-row'
 
 const ThreadRowContent = ({
@@ -40,6 +41,7 @@ const ThreadRowContent = ({
     ) : null}
     {row.kind === ERowKind.Work ? <WorkRowView row={row} onOpenAgent={onOpenAgent} /> : null}
     {row.kind === ERowKind.Images ? <ImagesRowView row={row} sessionId={sessionId} /> : null}
+    {row.kind === ERowKind.SignIn ? <SignInRowView row={row} /> : null}
     {row.kind === ERowKind.Notice ? (
       <NoticeRowView
         row={row}

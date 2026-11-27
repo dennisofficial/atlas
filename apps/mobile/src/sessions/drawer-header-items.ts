@@ -26,6 +26,7 @@ const hideSessionsBarItemOf = ({ onPress }: { onPress: () => void }): HeaderBarB
   accessibilityLabel: 'Hide sessions',
   icon: { type: 'sfSymbol', name: 'sidebar.left' },
   onPress,
+  sharesBackground: false,
   type: 'button',
 })
 

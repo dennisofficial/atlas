@@ -18,19 +18,8 @@ import { glyph, theme } from '../theme'
 import { clipSpans } from './sidebar/cells'
 import { ActionsModal, LoginPickerModal } from './accounts-modal'
 import { AccountsPrompt, Wrapped } from './accounts-prompt'
-import {
-  BottomDrawer,
-  drawerCells,
-  DrawerGap,
-  DrawerHints,
-  DRAWER_INSET,
-  DRAWER_PAD,
-} from './drawer'
+import { BottomDrawer, drawerCells, DrawerGap, DrawerHints, DRAWER_PAD } from './drawer'
 import { Spans, type Span } from './spans'
-
-export const ACCOUNTS_INSET = DRAWER_INSET
-
-export const accountsCells = (args: { width: number }): number => drawerCells(args)
 
 export const ACCOUNTS_HEADING = 'Model providers'
 
@@ -198,7 +187,7 @@ export function Accounts(props: {
   onDismiss: () => void
   onOpenUrl: () => void
 }): React.ReactNode {
-  const cells = accountsCells({ width: props.width })
+  const cells = drawerCells({ width: props.width })
   const prompting = isPrompting(props.state)
   const row = selectedRow(props.state)
 

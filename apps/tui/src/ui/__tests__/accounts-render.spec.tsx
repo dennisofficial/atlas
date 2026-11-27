@@ -366,4 +366,16 @@ describe('the drawer chrome', () => {
 
     expect(edge.trimEnd().length).toBe(96)
   })
+
+  it('wraps a notice to the drawer width less its inset', async () => {
+    const words = Array.from({ length: 30 }, (_, index) => `n${String(index).padStart(3, '0')}`)
+    const state = { ...stateOn(rowsOf([LOGGED_IN])), notice: words.join(' ') }
+
+    const rows = await render({ state })
+
+    const first = lineWith(rows, 'n000')
+    expect(first).toContain('n018')
+    expect(first).not.toContain('n019')
+    expect(lineWith(rows, 'n019')).toContain('n029')
+  })
 })

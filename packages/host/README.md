@@ -44,6 +44,10 @@ only what it can rebuild or drop.
 - `SessionRuntime`, `PrepareResult`, `PrepareStepReporter`, `SetupLifecycle`, `CapturedBase`,
   `BootNotice`, `RoleModelRequest`, `RoleModelChoice`: the runtime a factory builds, what `prepare`
   and `subscribeSetup` report, and the model `choiceFor` picks.
+- `SessionRuntime.trace`: the `TracePort` for the turn spans, the `holder.prepare` and `holder.drain`
+  spans, and the hook spans. The host records no span when the runtime omits it.
+- `PrepareResult.timings`: the durations the runtime timed in `prepare`, by name. The host adds
+  each one to the `holder.prepare` span.
 - `PodCalls`, `PodCallOutcome`: invoke an op on a held session, or listen to its frames.
 - `podControlOf(...)`: the control-plane client that a plugin's `PodControl` reaches.
 - `SessionRuntime.classifier`, `SessionRuntime.classifierStatus`: the core `ClassifierPort` of a
@@ -119,7 +123,9 @@ only what it can rebuild or drop.
 - `FaultProxy`, `ProxyFault`: a proxy that drops, delays, throttles, refuses or holds a link.
 - `createMemoryHostPresence({store})`, `createMemoryPodCallHub()`: presence and the `PodCallBus` in
   memory, where every bus sees every request.
-- `describeRemoteCalls(target)`, `describeHostPresence(target)`: the two shared suites.
+- `describeRemoteCalls(target)`, `describeHostPresence(target)`: the two shared suites. A target
+  returns a `RemoteCallsHandle` or a `HostPresenceHandle`. `fakeTimers()` gives a `SlowTimers`
+  clock, and `advance(ms)` moves it.
 
 ## Usage
 

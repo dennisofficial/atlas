@@ -166,6 +166,7 @@ export class HeldPrepare {
       })
       return { ok: false, reason: error instanceof Error ? error.message : String(error) }
     })
+    if (result.ok) this.span?.work(result.timings)
     try {
       await this.timed(EPreparePhase.Steps, () => this.steps)
       const recorded = await this.timed(EPreparePhase.Seed, () =>

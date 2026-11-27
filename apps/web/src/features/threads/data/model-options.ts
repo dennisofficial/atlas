@@ -1,5 +1,6 @@
 import {
   ANTHROPIC_PROVIDER_ID,
+  contextWindowLabel,
   EImageTier,
   effortLabelsOf,
   outputPriceLabel,
@@ -31,7 +32,6 @@ export type AccountSummary = { provider: string; status: string }
 export type ModelOptions = { models: ModelOption[]; reconnectProviders: string[] }
 
 const EXPIRED = 'expired'
-const MILLION = 1_000_000
 
 const NO_KEY_NOTE = 'not connected'
 const EXPIRED_NOTE = 'Sign-in expired'
@@ -55,11 +55,6 @@ export const modelLabelOf = ({ providerId, label }: { providerId: string; label:
   providerId === ANTHROPIC_PROVIDER_ID && label.startsWith(ANTHROPIC_LABEL_PREFIX)
     ? label.slice(ANTHROPIC_LABEL_PREFIX.length)
     : label
-
-export function contextLabelOf(tokens: number): string {
-  if (tokens >= MILLION) return `${Math.round(tokens / 100_000) / 10}M`
-  return `${Math.round(tokens / 1000)}k`
-}
 
 function rateOfEntry(entry: ModelEntry): string | undefined {
   if (entry.inputPerMillion === undefined || entry.outputPerMillion === undefined) return undefined
@@ -110,7 +105,7 @@ function optionOf({ card, note }: { card: ModelCard; note?: string }): ModelOpti
     id: refKey(card.ref),
     label: modelLabelOf({ providerId: card.ref.providerId, label: card.label }),
     provider: providerNameOf(card.ref.providerId),
-    context: contextLabelOf(card.contextWindow),
+    context: contextWindowLabel(card.contextWindow),
     contextTokens: card.contextWindow,
     efforts: effortsOf(card),
     ...labelledEfforts(effortLabelsOf(card.effort)),
@@ -203,7 +198,7 @@ function optionOfEntry(args: {
     id: entry.id,
     label: modelLabelOf({ providerId, label: entry.label }),
     provider: providerNameOf(providerId),
-    context: contextLabelOf(entry.contextWindow),
+    context: contextWindowLabel(entry.contextWindow),
     contextTokens: entry.contextWindow,
     efforts: effortsFromNames(entry.efforts),
     fast: entry.fast === true,

@@ -47,7 +47,7 @@ export const SessionsDrawerShell = ({
         <View style={styles.actions}>
           <AccountButton />
           <NewSessionButton />
-          {showsHideSessionsButtonOf({ listLayout: posture.sessionsList }) ? (
+          {showsHideSessionsButtonOf({ listLayout: posture.sessionsList, selected: activeId }) ? (
             <Button
               label="Hide sessions"
               icon={PanelLeft}

@@ -5,6 +5,7 @@
 - `formatTokens` (k/m/b): tui `ui/theme.ts` and web `threads/panel/details/details-model.ts` now use `@dltech/atlas-client/crew` (`packages/client/src/crew/readout.ts`).
 - `clipText` (`slice(0, limit - 1)…`): core `pr-event-block`, `loop-watch`, classifier `adjudicate`, `verdict`, `from-events` and client `pr-event-line` now use `@dltech/atlas-core` (`packages/core/src/text/clip-text.ts`).
 - Shell/service name "trimmed description, else the command": plain form (tui `shellNameLabel`, `serviceNameLabel`, client rewind `shellLabelOf`) → core `shellName`; quoted form (`"name"` else `` `command` ``; client `shell-ended-line`, `service-ended-line`, `shell-lines`) → core `quotedShellName` (`packages/core/src/shells/label.ts`).
+- Context window label (`200k` / `1.5M`): web `threads/data/model-options.ts` and mobile `composer/model-options.ts` now use core `contextWindowLabel` (`packages/core/src/models/context-window-label.ts`). Mobile's effort ladder and labels now come from core `EFFORT_LADDER` / `EFFORT_RUNG_LABEL`.
 - `oneLine` (`\s+` → space, trim): also control `session-summary`, client `session-rewind`, tui `services-model`, `rewind-model`, `transcript-peek`, quality `typescript-parser`, api `agent-tools/grep`; tui `store/sidebar-text.ts`, `sidebar/crew.tsx`, `lost-children-model.ts`, `lost-shells-model.ts`, `shells-model.ts`, web `details/crew-model.ts`, `data/processes-model.ts` and core `shells/label.ts`, `shells/fallback-shell-name.ts`, `agents/name.ts`, `agents/label.ts`, `naming/session-title.ts`, `classifier/verdict.ts` now use `@dltech/atlas-core` (`packages/core/src/text/one-line.ts`).
 
 ## Ruled out (intentional divergence — do not re-investigate)
@@ -22,14 +23,13 @@
 ## Backlog (ranked)
 
 1. Last inline `\s+` folders: tui `ui/components/services.tsx:67` (`snapshot?.command` fold; needs a render spec to pin it first) and wire `upload-name.ts:15` (inside a longer cleaner chain; v1 side).
-2. `contextLabelOf` (200k / 1M), byte-equivalent in web `threads/data/model-options.ts:67` and mobile `composer/model-options.ts:52`. Mobile `EFFORT_LADDER`/`EFFORT_LABELS` re-declare what `@dltech/atlas-ui` already exports.
-3. Relative time: mobile `lib/relative-time.ts` and web `settings/data/personal/relative-time.ts` give identical output (only the argument keys differ) → `packages/core`.
-4. `parseRepoInput`, identical in web and prototype `new-project-repos.ts`; no package is shared by both apps yet, so it needs a home decision.
-5. `initialsOf`: web `settings/session/initials.ts` vs mobile `drawer-content.tsx:64` (first+last vs first two words; `?` vs `''` for empty). Not behaviour-preserving, so it needs a product call.
-6. PR state → icon/label/tone tables (5 web copies plus mobile and tui): aria labels and unknown-state handling diverge.
-7. `trpcBodyOf` test decoder, 3 identical copies: harness `cloud/__tests__/trpc-body.ts`, serve `__tests__/trpc-body.ts`, tui `composition/__tests__/trpc-body.ts` (all v1 side; `api-router` spec has a fourth inline variant).
-8. `repoFullNameOf`: control `repo-name.ts` (case-insensitive, lowercases) vs core `pr-failed-checks-lines.ts:10`.
-9. Remaining `clipText` copies outside core/client: tui `classify-report.ts:23`, `crash-report.ts:40`; web `errors/error-report.ts:14` (`truncate`, default limit), `threads/data/preview-ports.ts:12`; `packages/github` `github-check-annotations.ts:31`; core `failed-check.ts:49` (trims first, `undefined` for blank — keep its wrapper).
+2. Relative time: mobile `lib/relative-time.ts` and web `settings/data/personal/relative-time.ts` give identical output (only the argument keys differ) → `packages/core`.
+3. `parseRepoInput`, identical in web and prototype `new-project-repos.ts`; no package is shared by both apps yet, so it needs a home decision.
+4. `initialsOf`: web `settings/session/initials.ts` vs mobile `drawer-content.tsx:64` (first+last vs first two words; `?` vs `''` for empty). Not behaviour-preserving, so it needs a product call.
+5. PR state → icon/label/tone tables (5 web copies plus mobile and tui): aria labels and unknown-state handling diverge.
+6. `trpcBodyOf` test decoder, 3 identical copies: harness `cloud/__tests__/trpc-body.ts`, serve `__tests__/trpc-body.ts`, tui `composition/__tests__/trpc-body.ts` (all v1 side; `api-router` spec has a fourth inline variant).
+7. `repoFullNameOf`: control `repo-name.ts` (case-insensitive, lowercases) vs core `pr-failed-checks-lines.ts:10`.
+8. Remaining `clipText` copies outside core/client: tui `classify-report.ts:23`, `crash-report.ts:40`; web `errors/error-report.ts:14` (`truncate`, default limit), `threads/data/preview-ports.ts:12`; `packages/github` `github-check-annotations.ts:31`; core `failed-check.ts:49` (trims first, `undefined` for blank — keep its wrapper).
 
 ## Runs
 
@@ -73,3 +73,10 @@
 - Mutation-checked 4 ways (no fold, untrimmed quote, unquoted fallback, blank counts as named): every caller spec fails at least once; restored byte for byte.
 - Ruled out 4 lookalikes (web preview-ports, core loop-watch, `fallbackShellName`, tui `named`).
 - Full tui run: 4 `composer-render` specs failed once and pass alone; not touched here.
+
+### 2026-11-27
+
+- Open PRs #3071, #2968 touch none of these files.
+- Backlog item 2: `contextLabelOf` (web, mobile; same expression) → core `contextWindowLabel`. Mobile `EFFORT_LADDER` / `EFFORT_LABELS` → core `EFFORT_LADDER` / `EFFORT_RUNG_LABEL` (same rungs, order and words; the capitalising fallback stays in mobile). Core, not `@dltech/atlas-ui/ai/model-selector`: that subpath pulls DOM components into React Native.
+- Pinned first with web and mobile context-label tables (k rounding, 999 999 → `1000k`, `1.5M`) and mobile effort label, ladder-order and `knownEffortOf` cases; then a core table spec.
+- Mutation-checked 5 ways (`>` for `>=`, no M decimal, floor for k, empty mobile label map, swapped xhigh/max): each fails at least one caller spec; restored byte for byte.

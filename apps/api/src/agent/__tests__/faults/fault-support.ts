@@ -14,18 +14,34 @@ import { RIG_SECRET } from '../../testing/rig-host-env'
 import type { FaultRig, ReadEvent } from '../../testing/fault-rig'
 
 export const PORT_BAND = {
-  service: [42_000, 1_000],
-  serviceId: [43_000, 1_000],
-  cleanDrainRecord: [44_000, 1_000],
-  podOutage: [45_000, 1_000],
-  declaredDb: [46_500, 400],
-  declaredApi: [46_900, 400],
-  pluginEarlyKill: [47_600, 200],
+  service: [22_000, 1_000],
+  serviceId: [23_000, 1_000],
+  cleanDrainRecord: [24_000, 1_000],
+  podOutage: [25_000, 1_000],
+  declaredDb: [26_500, 400],
+  declaredApi: [26_900, 400],
+  pluginEarlyKill: [27_600, 200],
 } as const satisfies Record<string, readonly [number, number]>
 
-/** a spec takes its own band, so two specs in one bun process never pick the same port */
-export const portBandOf = (band: readonly [number, number]): number =>
-  band[0] + (process.pid % band[1])
+const canListenOn = (port: number): boolean => {
+  try {
+    Bun.listen({ hostname: '0.0.0.0', port, socket: { data() {} } }).stop(true)
+    return true
+  } catch {
+    return false
+  }
+}
+
+// Linux hands out port-0 listeners and outbound source ports from 32768-60999
+// (net.ipv4.ip_local_port_range), so a fixed test port must sit below it.
+export const portBandOf = (band: readonly [number, number]): number => {
+  const [start, size] = band
+  for (let step = 0; step < size; step++) {
+    const port = start + ((process.pid + step) % size)
+    if (canListenOn(port)) return port
+  }
+  throw new Error(`no free port in ${start}-${start + size - 1}`)
+}
 
 export const makeFifo = (args: { path: string }): void => {
   const result = spawnSync('mkfifo', [args.path])

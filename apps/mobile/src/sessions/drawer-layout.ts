@@ -36,9 +36,15 @@ export const drawerHidableOf = ({
 
 export const showsHideSessionsButtonOf = ({
   listLayout,
+  selected,
 }: {
   listLayout: ESessionsListLayout
-}): boolean => listLayout === ESessionsListLayout.Panel
+  selected: string | null
+}): boolean => {
+  if (listLayout === ESessionsListLayout.Panel) return true
+  if (listLayout === ESessionsListLayout.Overlay) return false
+  return drawerHidableOf({ listLayout, selected })
+}
 
 export const drawerSwipeEnabledOf = ({
   geometry,
@@ -77,13 +83,13 @@ export const drawerDockedOf = ({
 
 export const paneWidthOf = ({
   listLayout,
-  windowWidth,
+  width,
   drawerOpen,
 }: {
   listLayout: ESessionsListLayout
-  windowWidth: number
+  width: number
   drawerOpen: boolean
 }): number => {
-  const geometry = drawerGeometryOf({ listLayout, width: windowWidth })
-  return drawerDockedOf({ geometry, open: drawerOpen }) ? windowWidth - geometry.width : windowWidth
+  const geometry = drawerGeometryOf({ listLayout, width })
+  return drawerDockedOf({ geometry, open: drawerOpen }) ? width - geometry.width : width
 }

@@ -11,8 +11,8 @@ import {
   toRunId,
   toThreadId,
   type RecordEventBody,
+  EBootStepState,
 } from '@dltech/atlas-core'
-import { EBootStepState } from '@dltech/atlas-wire/web'
 
 import { sessionBootViewOf } from '../session-boot-view'
 

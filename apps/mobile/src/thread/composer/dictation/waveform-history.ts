@@ -50,4 +50,7 @@ export const waveformReplayOf = ({
   return [...new Array<number>(count - window.length).fill(0), ...window]
 }
 
-export const isSilentOf = (level: number): boolean => level <= WAVEFORM_SILENCE_LEVEL
+export const isSilentOf = (level: number): boolean => {
+  'worklet'
+  return level <= WAVEFORM_SILENCE_LEVEL
+}

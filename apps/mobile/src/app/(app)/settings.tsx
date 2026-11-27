@@ -12,7 +12,7 @@ import {
 import { space } from '@dltech/atlas-ui/tokens'
 import { router } from 'expo-router'
 import { ChevronRight } from 'lucide-react-native'
-import { Alert, Platform, Pressable, ScrollView, StyleSheet } from 'react-native'
+import { Alert, Linking, Platform, Pressable, ScrollView, StyleSheet } from 'react-native'
 
 import { useAuth } from '../../auth/auth-provider'
 import { pushRegistrationLabelOf } from '../../push/push-registration'
@@ -45,6 +45,7 @@ export default function SettingsScreen() {
   const testFailed = testNotification.state.result === ETestResult.Failed
 
   const handleOpenDictationLab = () => router.push('/dictation-lab')
+  const handleOpenSystemSettings = () => void Linking.openSettings()
 
   return (
     <ScrollView
@@ -58,7 +59,21 @@ export default function SettingsScreen() {
       </Section>
       <ModelDefaultsSection />
       <Section title="Notifications">
-        <Row label="Permission" value={permissionStatus} />
+        {permissionStatus === 'denied' ? (
+          <CardRow>
+            <Text size={ETextRole.Sm} tone={ETextTone.Destructive} style={styles.value}>
+              Notifications are off for Atlas.
+            </Text>
+            <Button
+              label="Open Settings"
+              variant={EButtonVariant.Outline}
+              size={EButtonSize.Sm}
+              onPress={handleOpenSystemSettings}
+            />
+          </CardRow>
+        ) : (
+          <Row label="Permission" value={permissionStatus} />
+        )}
         <Row label="This device" value={pushRegistrationLabelOf(pushRegistration)} />
         <CardRow>
           <Text

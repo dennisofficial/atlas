@@ -17,7 +17,7 @@ import {
   type SwitcherTarget,
 } from '../switcher-model'
 import { theme } from '../theme'
-import { drawerCells, DrawerHeading, DrawerLine, DRAWER_INSET, SideDrawer } from './drawer'
+import { drawerCells, DrawerHeading, DrawerLine, SideDrawer } from './drawer'
 import { clipSpans } from './sidebar/cells'
 import { Spans } from './spans'
 import { useSelectionInView } from './switcher/follow'
@@ -30,10 +30,6 @@ import {
   NothingMatchedLine,
   ProviderLine,
 } from './switcher/lines'
-
-export const SWITCHER_INSET = DRAWER_INSET
-
-export const switcherCells = (args: { width: number }): number => drawerCells(args)
 
 export { EFFORT_ABBREVIATION }
 
@@ -115,7 +111,7 @@ export function Switcher(props: {
   onDismiss: () => void
   onQueryChange?: ((value: string) => void) | undefined
 }): React.ReactNode {
-  const cells = switcherCells({ width: props.width })
+  const cells = drawerCells({ width: props.width })
   const press = usePress()
   const { hovered, handlersFor } = useHover()
   const activeKey = refKey(props.active)

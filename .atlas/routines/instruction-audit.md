@@ -30,26 +30,26 @@ the Test audit routine. Rule list rebuilt 2026-11-25 after the v1 retirement edi
 | R19 | Mobile: no hard-coded status bar or notch size                                   | `apps/mobile/AGENTS.md:29`                 | grep numeric `top`/`paddingTop` insets                                             |
 | R20 | Every `apps/api` env schema key has a line in every tier file                    | `apps/api/AGENTS.md:252`                   | diff Joi keys in `sections/*.ts` against `.env.*.enc` keys                         |
 | R21 | No `.prisma` contract file declares the `v1_archive` schema                      | `packages/db/AGENTS.md:110`                | grep `v1_archive` in `*.prisma`                                                    |
+| R22 | Mobile: loading uses `Spinner`, never `ActivityIndicator`                        | `apps/mobile/AGENTS.md:7`                  | grep `ActivityIndicator` in `apps/mobile/src`                                      |
+| R23 | Mobile: bar colours only via `barHeaderOptionsOf`, no plain `headerStyle` colour | `apps/mobile/AGENTS.md:56`                 | grep `headerStyle` outside `src/navigation/glass-header.ts`                        |
 
 R3, R4, R6, R8–R12, R14–R16 measured clean 2026-11-20. R17 clean 2026-11-24 (45 packages). R19 clean 2026-11-24.
-R21 clean 2026-11-25. R13: 0 raw hex, 105 arbitrary-value `className` hits in `apps/web/src` (stories included).
+R21 clean 2026-11-25. R18, R22, R23 clean 2026-11-27. R13: 0 raw hex, 105 arbitrary-value `className` hits in `apps/web/src` (stories included).
 
 ## Backlog (ranked)
 
-1. R7 — remaining `process.env` reads in `apps/api` app code: `src/agent/config/env.ts:69` (default parameter) via 4
+1. R7 — remaining `process.env` reads in `apps/api` app code: `src/agent/config/env.ts:69` (default parameter) via 3
    lazy callers that open their own pool off module-level singletons: `instructions.ts:56`, `session-data.ts:36`,
-   `mcp-servers.ts:158`, `operator-control.ts:31` (built in `registered-plugins.ts:63-65` and `skills.ts`,
-   `quality-settings.ts`, so the env must reach `pluginsOf`). Then `src/_lib/version/api-version.ts:17`
+   `mcp-servers.ts:158` (built in `registered-plugins.ts:63-77,138`, so the env must reach `pluginsOf`; snag:
+   `registeredPlugins` at `:205` is built with no env, for event schemas only). Then `src/_lib/version/api-version.ts:17`
    (`ATLAS_APP_VERSION`, analytics singleton outside DI) and `src/_core/config/env/env.module.ts:15` (`NODE_ENV`).
 2. R20 — schema keys with no tier line: `ARTIFACT_DOMAIN` (`sections/artifacts.ts:13`), `CHANGES_S3_BUCKET`,
    `CHANGES_S3_PREFIX`, `CONTEXT_S3_PREFIX`, `CHANGES_GC_GRACE_MS` (`sections/changes.ts:11,12,15,18`), `EMAIL_FROM`
    (`sections/email.ts:10`), `PREVIEW_DOMAIN` (`sections/cloudflare.ts:14`). Needs the decrypt key to add lines.
-3. R18 — `apps/mobile/src/app/(app)/sessions/[id].tsx:96-110` draws a JS `BackButton` (`navigation/back-button.tsx`)
-   in `headerLeft` when the threads overlay shows, on iOS too. Native-component change; check on a device.
-4. R13 — triage the 105 arbitrary values in `apps/web/src`; e.g. `features/sessions/panel/details/rows.tsx:14,16,23`.
-5. R1 — 49 production source files over 300 lines (2026-11-25). Largest: `packages/control/src/control-plane.ts`,
+3. R13 — triage the 105 arbitrary values in `apps/web/src`; e.g. `features/sessions/panel/details/rows.tsx:14,16,23`.
+4. R1 — 49 production source files over 300 lines (2026-11-25). Largest: `packages/control/src/control-plane.ts`,
    `packages/control/src/postgres/postgres-store.ts`, `packages/protocol/src/api.ts`. One split per run.
-6. R5 — comment lines in ~430 package source files; pick per-file alongside R1 splits.
+5. R5 — comment lines in ~430 package source files; pick per-file alongside R1 splits.
 
 ## Ruled out
 
@@ -63,6 +63,16 @@ R21 clean 2026-11-25. R13: 0 raw hex, 105 arbitrary-value `className` hits in `a
   enforced by `apps/tui/src/__tests__/package.spec.ts`.
 
 ## Runs
+
+### 2026-11-27
+
+- Instruction edits since 2026-11-26: root `AGENTS.md` (CI shards, ruleset ban: process rules, not code), `apps/mobile`
+  (native bars, tabs, glass) and `packages/ui` (button disabled colours, measured clean). Added R22, R23 (clean).
+- R18 backlog item gone: the JS `BackButton` was removed by the mobile tab work; `router.back()` now only closes modals.
+- Fixed R7 for `operatorRequestRegistry` (`config/operator-control.ts`): it takes the host env, and `HostCallsModule`
+  injects `AGENT_HOST_ENV`; the module-level cache is gone (the Nest factory is the single owner). Pinned on main via
+  `process.env` in `database-ports-env.spec.ts`; 3 mutations (`process.env`, `readAgentHostEnv()`, literal URL) failed.
+- `src/agent/{config,operator-input,host}`: the same 12 Postgres-only specs fail on clean main here.
 
 ### 2026-11-26
 

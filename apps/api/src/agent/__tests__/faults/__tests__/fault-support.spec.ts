@@ -115,4 +115,23 @@ describe('portBandOf', () => {
       expect(port).toBeLessThan(65_535)
     }
   })
+
+  it('keeps every band below the kernel ephemeral range', () => {
+    for (const [base, width] of Object.values(PORT_BAND))
+      expect(base + width).toBeLessThanOrEqual(32_768)
+  })
+
+  it('skips a port another listener holds', () => {
+    const band = [29_000, 2] as const
+    const preferred = portBandOf(band)
+    const holder = Bun.listen({ hostname: '0.0.0.0', port: preferred, socket: { data() {} } })
+    try {
+      const picked = portBandOf(band)
+      expect(picked).not.toBe(preferred)
+      expect(picked).toBeGreaterThanOrEqual(29_000)
+      expect(picked).toBeLessThan(29_002)
+    } finally {
+      holder.stop(true)
+    }
+  })
 })

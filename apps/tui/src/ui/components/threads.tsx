@@ -23,14 +23,9 @@ import {
   DrawerHeading,
   DrawerHints,
   DrawerLine,
-  DRAWER_INSET,
 } from './drawer'
 import { clipSpans, spanCells } from './sidebar/cells'
 import { Spans, type Span } from './spans'
-
-export const THREADS_INSET = DRAWER_INSET
-
-export const threadsCells = (args: { width: number }): number => drawerCells(args)
 
 export const THREADS_HEADING = 'Conversations'
 
@@ -193,7 +188,7 @@ export function Threads(props: {
   onDismiss: () => void
   onQueryChange: (query: string) => void
 }): React.ReactNode {
-  const cells = threadsCells({ width: props.width })
+  const cells = drawerCells({ width: props.width })
   const press = usePress()
   const scroller = useRef<ScrollBoxRenderable | null>(null)
   const relax = useRelaxedThumb()

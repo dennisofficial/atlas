@@ -20,6 +20,7 @@ export enum ESpan {
   PromptPost = 'prompt.post',
   Takeover = 'holder.takeover',
   Prepare = 'holder.prepare',
+  Drain = 'holder.drain',
   ResourceStatus = 'resource.status',
   ResourceVersions = 'resource.versions',
   ResourceArm = 'resource.arm',

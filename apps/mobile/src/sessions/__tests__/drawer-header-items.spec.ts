@@ -69,6 +69,7 @@ describe('drawerBarItemsOf', () => {
     if (item?.type !== 'button') throw new Error('hide item is not a button')
     expect(item.accessibilityLabel).toBe('Hide sessions')
     expect(item.icon).toEqual({ type: 'sfSymbol', name: 'sidebar.left' })
+    expect(item.sharesBackground).toBe(false)
     item.onPress()
     expect(hidden).toBe(1)
   })

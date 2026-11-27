@@ -56,9 +56,10 @@ package.
 
 ### List the models of an account
 
-- `composeModelCatalogue({ providers, accounts?, live? })`: returns a `ComposedCatalogue`. It merges
-  the generated cards with the live cards of a subscribed provider. It tells which providers are
-  reachable, and it notifies a listener when the accounts or the live cards change.
+- `composeModelCatalogue({ providers, accounts?, live? })`: returns a `ComposedCatalogue` of
+  `CatalogueProvider` entries. It merges the generated cards with the live cards of a subscribed
+  provider. It tells which providers are reachable, and it notifies a listener when the accounts or
+  the live cards change.
 - `catalogueProviders()`: returns the five `CatalogueSource` entries, one for each provider.
 - `modelsView({ accounts, liveCards? })`: returns the flat `ModelsViewProvider[]` that the API and
   the web show. A provider is `connected`, `expired` or `unavailable`.
@@ -79,9 +80,9 @@ package.
 - `defaultMainModelOf(inputs)`: returns the main `ModelChoice` of a session from its settings and
   accounts. `SHIPPED_DEFAULT_REF` is the fallback.
 - `sessionModelOf({ settings, accounts, activeAccounts, ask, current? })`: resolves an explicit
-  request against the same settings. The `ask` is `{ ref?: string, effort?, fast? }`, where `ref`
-  is a stored `provider/model` string. A `ref` that is not a `provider/model` string throws
-  `UnknownModelRefError` from `@dltech/atlas-core`.
+  request against the same settings. The `ask` is a `SessionModelAsk`: `{ ref?: string, effort?,
+  fast? }`. The `ref` is a stored `provider/model` string. A `ref` that is not a `provider/model`
+  string throws `UnknownModelRefError` from `@dltech/atlas-core`.
 - `readOf`, `settingsWithProjectOverUser`, `fallbackRefOf`, `capabilitiesOver`: the smaller steps
   of the same resolution. The account steps come from `@dltech/atlas-credentials`.
 

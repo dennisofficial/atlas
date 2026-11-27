@@ -10,6 +10,7 @@ import {
 } from '../core'
 import { runCommand, stopService } from './daemon'
 import { EServiceFailure, failureOutcome, serviceFailed, type ServiceFailed } from './failure'
+import { adoptUntracked } from './declared-adopt'
 import { launchTracked } from './launch'
 import { allocatePort, type DeclaredPlace } from './place'
 import { forwardReferences } from './references'
@@ -112,6 +113,22 @@ export const ensureDeclared = async (args: {
     }
 
     const cwd = serviceCwdOf({ root: place.root, cwd: declaration.cwd })
+    if (args.restart !== true && running === undefined) {
+      const adopted = await adoptUntracked({
+        ctx,
+        name,
+        hash,
+        command: declaration.command,
+        cwd,
+        port: declaration.port,
+        place,
+        signal: args.signal,
+      })
+      if (adopted !== undefined) {
+        kept.push(`${name} was already running as ${adopted}.`)
+        continue
+      }
+    }
     const references = await forwardReferences({
       ctx,
       declared: args.declared,

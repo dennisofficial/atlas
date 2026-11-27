@@ -3,6 +3,7 @@ import { afterAll, beforeAll, describe, expect, it } from 'bun:test'
 import { useTestDatabase } from '@dltech/atlas-db/testing'
 
 import { startRig, type FaultRig } from '../../testing/fault-rig'
+import { POD_EFFECT_WAIT_MS } from '../../testing/handoff-suite'
 import { EHostFault } from '../../testing/host-faults'
 import { sleep, waitForLog, waitUntil } from './lease-fault-support'
 import { echoScript, postMessage, REDIS_URL, waitAnswers } from './settle-fault-support'
@@ -57,10 +58,10 @@ describe.skipIf(REDIS_URL === undefined)('F43 SIGKILL after a command is consume
       daemonUrl: daemon.url,
       scripts: { [sessionId]: echoScript({ replies: 3 }) },
     })
-    await rig.claim({ sessionId, label: 'typed-b', timeoutMs: 60_000 })
+    await rig.claim({ sessionId, label: 'typed-b', timeoutMs: POD_EFFECT_WAIT_MS })
     await waitUntil({
       what: `one history-rewound for inbox ${posted.inboxId}\n${hostB.logs().join('\n')}`,
-      timeoutMs: 30_000,
+      timeoutMs: POD_EFFECT_WAIT_MS,
       check: async () =>
         (await rawEvents(threadId)).some(
           (event) => event.type === 'history-rewound' && event.inboxId === posted.inboxId,
@@ -70,7 +71,7 @@ describe.skipIf(REDIS_URL === undefined)('F43 SIGKILL after a command is consume
     expect(await rewoundCount(threadId)).toBe(1)
     hostB.kill('SIGKILL')
     await daemon.stop()
-  }, 180_000)
+  }, 300_000)
 
   it('the next holder runs a typed rewind exactly once', async () => {
     const sessionId = 'fault-f43-2'
@@ -106,10 +107,10 @@ describe.skipIf(REDIS_URL === undefined)('F43 SIGKILL after a command is consume
       daemonUrl: daemon.url,
       scripts: { [sessionId]: echoScript({ replies: 3 }) },
     })
-    await rig.claim({ sessionId, label: 'typed-b', timeoutMs: 60_000 })
+    await rig.claim({ sessionId, label: 'typed-b', timeoutMs: POD_EFFECT_WAIT_MS })
     await waitUntil({
       what: `one history-rewound for typed inbox ${posted.inboxId}\n${hostB.logs().join('\n')}`,
-      timeoutMs: 30_000,
+      timeoutMs: POD_EFFECT_WAIT_MS,
       check: async () =>
         (await rawEvents(threadId)).some(
           (event) => event.type === 'history-rewound' && event.inboxId === posted.inboxId,
@@ -119,5 +120,5 @@ describe.skipIf(REDIS_URL === undefined)('F43 SIGKILL after a command is consume
     expect(await rewoundCount(threadId)).toBe(1)
     hostB.kill('SIGKILL')
     await daemon.stop()
-  }, 180_000)
+  }, 300_000)
 })

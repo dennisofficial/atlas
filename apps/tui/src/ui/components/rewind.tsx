@@ -21,16 +21,12 @@ import {
   type RewindState,
 } from '../rewind-model'
 import { glyph, theme } from '../theme'
-import { drawerCells, DrawerLine, DRAWER_INSET, SideDrawer } from './drawer'
+import { drawerCells, DrawerLine, SideDrawer } from './drawer'
 import { clipSpans, truncateCells, wrapCells } from './sidebar/cells'
 import { Row } from './sidebar/row'
 import { Spans, type Span } from './spans'
 
 const GUTTER_CELLS = 2
-
-export const REWIND_INSET = DRAWER_INSET
-
-export const rewindCells = (args: { width: number }): number => drawerCells(args)
 
 export const HEADING = 'Rewind'
 
@@ -242,7 +238,7 @@ export function Rewind(props: {
   onPick: (choice: RewindChoice) => void
   onDismiss: () => void
 }): React.ReactNode {
-  const cells = rewindCells({ width: props.width })
+  const cells = drawerCells({ width: props.width })
   const press = usePress()
   const verb = props.state.verb
   const committing = verb !== null && selectedPoint(props.state) !== null

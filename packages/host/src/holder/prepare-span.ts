@@ -16,6 +16,7 @@ export class PrepareSpan {
   private readonly started = new Map<string, number>()
   private readonly stepMs: Record<string, number> = {}
   private readonly phaseMs: Record<string, number> = {}
+  private workMs: Readonly<Record<string, number>> = {}
 
   constructor(
     private readonly args: {
@@ -33,7 +34,7 @@ export class PrepareSpan {
     const at = producedAtMs ?? this.args.now()
     this.attemptStartedAt ??= at
     if (report.state === EWorkspaceStepState.Started) {
-      this.started.set(report.step, at)
+      if (!this.started.has(report.step)) this.started.set(report.step, at)
       return
     }
     const startedAt = this.started.get(report.step)
@@ -51,6 +52,11 @@ export class PrepareSpan {
     return () => {
       this.phaseMs[name] = Math.max(0, this.args.now() - startedAt)
     }
+  }
+
+  work(timings: Readonly<Record<string, number>> | undefined): void {
+    if (timings === undefined) return
+    this.workMs = { ...this.workMs, ...timings }
   }
 
   markStopped(): void {
@@ -73,6 +79,7 @@ export class PrepareSpan {
   private timingsOf(): Record<string, number> {
     const from = this.attemptStartedAt ?? this.args.now()
     return {
+      ...this.workMs,
       ...this.stepMs,
       ...this.phaseMs,
       prepare: Math.max(0, this.args.now() - from),

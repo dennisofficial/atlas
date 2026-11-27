@@ -42,6 +42,20 @@ const readAllEvents = async (args: { rig: FaultRig; threadId: string }): Promise
   return page.events
 }
 
+const QUIET_DEADLINE_MS = 10_000
+
+const chainOnceQuiet = async (args: { rig: FaultRig; threadId: string }) => {
+  const deadline = Date.now() + QUIET_DEADLINE_MS
+  for (;;) {
+    const events = await readAllEvents(args)
+    const verified = verifySuffix({ trusted: { seq: 0, hash: GENESIS_HASH }, events })
+    const head = await args.rig.plane.head({ threadId: args.threadId })
+    const settled = verified.ok && verified.head.seq === head.seq
+    if (settled || Date.now() > deadline) return { verified, head }
+    await new Promise((resolve) => setTimeout(resolve, 100))
+  }
+}
+
 describe.skipIf(REDIS_URL === undefined)('F8 append commits but the reply is lost', () => {
   const testDb = useTestDatabase()
   let rig: FaultRig
@@ -124,12 +138,9 @@ describe.skipIf(REDIS_URL === undefined)('F8 append commits but the reply is los
     const corruption = hostA.logs().some((line) => line.includes('RecordCorrupt'))
     expect(corruption).toBe(false)
 
-    const all = await readAllEvents({ rig, threadId })
-    const verified = verifySuffix({ trusted: { seq: 0, hash: GENESIS_HASH }, events: all })
-    expect(verified.ok).toBe(true)
-    if (verified.ok) {
-      expect(verified.head).toEqual(await rig.plane.head({ threadId }))
-    }
+    const chained = await chainOnceQuiet({ rig, threadId })
+    expect(chained.verified.ok).toBe(true)
+    if (chained.verified.ok) expect(chained.verified.head).toEqual(chained.head)
 
     const finalLease = await rig.plane.currentLease({ sessionId })
     await expectLeaseSettled({ rig, sessionId, holder: 'host-a' })

@@ -13,6 +13,13 @@ import { LocalSandboxProvider } from '../../testing/local-sandbox-provider'
 import type { SigningKey } from '../../tokens/signing-key-reader'
 import { createSessionRuntimeFactory } from '../session-runtime-factory'
 
+const PREPARE_TIMINGS = {
+  access: expect.any(Number),
+  check: expect.any(Number),
+  files: expect.any(Number),
+  toolchain: expect.any(Number),
+}
+
 const scratch: string[] = []
 
 const textOrEmpty = (file: string): string => {
@@ -94,7 +101,7 @@ const commitInShell = async (args: {
       epoch: 1,
       signal: new AbortController().signal,
     })
-    expect(await runtime.prepare()).toEqual({ ok: true })
+    expect(await runtime.prepare()).toEqual({ ok: true, timings: PREPARE_TIMINGS })
     const leftKey =
       args.signingKey === null
         ? []

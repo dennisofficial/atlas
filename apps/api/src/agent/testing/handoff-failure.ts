@@ -38,6 +38,26 @@ const journalsOf = (home: string): readonly string[] => {
   }
 }
 
+const SERVICE_LOG_TAIL_BYTES = 2_048
+
+const serviceLogsOf = (home: string): readonly string[] => {
+  const directory = join(home, 'daemon', 'services')
+  try {
+    return readdirSync(directory)
+      .sort()
+      .map((serviceId) => {
+        try {
+          const text = readFileSync(join(directory, serviceId, 'log.bin'), 'utf8')
+          return `${serviceId}: ${JSON.stringify(text.slice(-SERVICE_LOG_TAIL_BYTES))}`
+        } catch {
+          return `${serviceId} (no log)`
+        }
+      })
+  } catch {
+    return []
+  }
+}
+
 const sectionOf = (title: string, lines: readonly string[]): string =>
   `${title}: ${lines.length === 0 ? '(none)' : `\n  ${lines.join('\n  ')}`}`
 
@@ -49,6 +69,7 @@ export const handoffFailureOf = async (args: {
   return [
     sectionOf('record', facts),
     sectionOf('daemon journals', journalsOf(args.ctx.daemon.home)),
+    sectionOf('service logs', serviceLogsOf(args.ctx.daemon.home)),
     ...args.hosts.map((host) => `${host.label} logs:\n${host.logs().join('\n')}`),
   ].join('\n')
 }

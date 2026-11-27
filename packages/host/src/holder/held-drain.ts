@@ -1,5 +1,5 @@
 import type { PauseSignal } from '@dltech/atlas-agent'
-import { logFieldsOf } from '@dltech/atlas-observability'
+import { ESpan, logFieldsOf, spanWith, type TracePort } from '@dltech/atlas-observability'
 
 import { settledWithin } from './crew/child-turns'
 import { DRAIN_STREAM_ABORT_CAP_MS } from './drain-cap'
@@ -8,6 +8,25 @@ import { drainNeedsHolder, outcomeCommandPending } from './held-needs-holder'
 import type { HeldSessionDeps } from './held-session-deps'
 import type { HeldTurns } from './held-turns'
 import type { SessionRecord } from './record/record-adapter'
+
+class DrainLaps {
+  private readonly ms: Record<string, number> = {}
+
+  constructor(private readonly now: () => number) {}
+
+  async time<T>(name: string, work: () => Promise<T>): Promise<T> {
+    const startedAt = this.now()
+    try {
+      return await work()
+    } finally {
+      this.ms[name] = Math.max(0, this.now() - startedAt)
+    }
+  }
+
+  values(): Record<string, number> {
+    return { ...this.ms }
+  }
+}
 
 export class HeldDrain {
   constructor(
@@ -19,16 +38,41 @@ export class HeldDrain {
       ending: HeldEnding
       record(): SessionRecord | undefined
       childrenPause(): Promise<void> | undefined
+      childrenRunning(): number
       pendingHandoff(): void
+      trace(): TracePort | undefined
     },
   ) {}
 
-  async handoff(): Promise<void> {
+  handoff(): Promise<void> {
+    const turnRunning = this.args.turns.turnRunning
+    const children = this.args.childrenRunning()
+    return spanWith(this.args.trace(), {
+      name: ESpan.Drain,
+      root: true,
+      fields: { sessionId: this.args.sessionId, extra: { turnRunning, children } },
+      run: async (span) => {
+        const laps = new DrainLaps(() => this.args.deps.timers.now())
+        const capped = await this.drainOnce(laps)
+        span.set({
+          timings: laps.values(),
+          extra: { turnRunning, children, inFlightCapped: capped },
+        })
+      },
+    })
+  }
+
+  private async drainOnce(laps: DrainLaps): Promise<boolean> {
     const children = this.args.childrenPause()
     this.args.pendingHandoff()
-    await this.settleInFlight()
-    await children
-    await this.settleRecordTail()
+    const capped = await laps.time('inFlight', () => this.settleInFlight())
+    await laps.time('children', () => children ?? Promise.resolve())
+    await laps.time('recordTail', () => this.settleRecordTail())
+    await laps.time('handBack', () => this.handBack())
+    return capped
+  }
+
+  private async handBack(): Promise<void> {
     const record = this.args.record()
     const { plane, sessionId } = this.args.deps
     const commandUnfinished = await outcomeCommandPending({
@@ -46,15 +90,15 @@ export class HeldDrain {
     })
   }
 
-  private async settleInFlight(): Promise<void> {
-    if (!this.args.pause.modelStepRunning) return
+  private async settleInFlight(): Promise<boolean> {
+    if (!this.args.pause.modelStepRunning) return false
     const startedAt = this.args.deps.timers.now()
     const settled = await settledWithin({
       timers: this.args.deps.timers,
       ms: this.args.deps.drainCapMs,
       done: this.args.pause.whenModelIdle(),
     })
-    if (settled) return
+    if (settled) return false
     this.logCap({ startedAt })
     this.args.pause.abortModelStep()
     const aborted = await settledWithin({
@@ -67,6 +111,7 @@ export class HeldDrain {
         message: `the model stream outlived the ${DRAIN_STREAM_ABORT_CAP_MS}ms abort; handing back without it`,
       })
     }
+    return true
   }
 
   private async settleRecordTail(): Promise<void> {

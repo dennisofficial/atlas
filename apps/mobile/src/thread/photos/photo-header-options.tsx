@@ -117,7 +117,7 @@ export const photoHeaderOptionsOf = ({
       title: <PhotoTitle photo={photo} />,
       glassTitle: true,
       titleButtons: 3,
-      windowWidth,
+      barWidth: windowWidth,
     }),
     unstable_headerRightItems: () => shareItems,
   }

@@ -161,6 +161,41 @@ describe('a declared service start', () => {
     expect(startsOf(harness.calls)).toHaveLength(2)
   })
 
+  it('adopts a running dependency on its declared port whose start the record lost', async () => {
+    const harness = rig()
+    const declared = [
+      'services:',
+      '  db:',
+      '    command: listen 5432',
+      '    port: 5432',
+      '  api:',
+      '    command: listen',
+      '    needs:',
+      '      - db',
+    ].join('\n')
+    writeDeclared(harness, declared)
+    await invoke({ ctx: harness.ctx, name: 'service', input: { action: 'start', name: 'api' } })
+    const lost = harness.log.findIndex(
+      (event) => event.type === 'service-started' && event.name === 'db',
+    )
+    const [dropped] = harness.log.splice(lost, 1)
+
+    const again = await invoke({
+      ctx: harness.ctx,
+      name: 'service',
+      input: { action: 'start', name: 'api' },
+    })
+
+    expect(again.ok).toBe(true)
+    expect(startsOf(harness.calls).filter((call) => call.command === 'listen 5432')).toHaveLength(1)
+    expect(textOf(again)).toContain('db was already running as')
+    expect(
+      harness.log.filter((event) => event.type === 'service-started' && event.name === 'db'),
+    ).toMatchObject([
+      { serviceId: dropped?.type === 'service-started' ? dropped.serviceId : '', port: 5432 },
+    ])
+  })
+
   it('restarts a service whose declaration changed', async () => {
     const harness = rig()
     writeDeclared(harness, TWO)

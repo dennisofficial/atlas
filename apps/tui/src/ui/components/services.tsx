@@ -16,20 +16,9 @@ import {
 } from '../services-model'
 import { outputRows } from '../shells-model'
 import { glyph, theme } from '../theme'
-import {
-  drawerCells,
-  DrawerHints,
-  DrawerLine,
-  DRAWER_INSET,
-  EDrawerEdge,
-  SideDrawer,
-} from './drawer'
+import { drawerCells, DrawerHints, DrawerLine, EDrawerEdge, SideDrawer } from './drawer'
 import { clipSpans } from './sidebar/cells'
 import { Spans, type Span } from './spans'
-
-export const SERVICES_INSET = DRAWER_INSET
-
-export const servicesCells = (args: { width: number }): number => drawerCells(args)
 
 const SCROLLBACK_ROWS = 1_000
 
@@ -225,7 +214,7 @@ export function Services(props: {
   onStop: (serviceId: string) => void
   onDismiss: () => void
 }): React.ReactNode {
-  const cells = servicesCells({ width: props.width })
+  const cells = drawerCells({ width: props.width })
   const press = usePress()
   const running = props.rows.filter(isRowRunning).length
   const selected = props.selected

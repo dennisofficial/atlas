@@ -3,7 +3,7 @@ import type { Attachment } from '@dltech/atlas-core'
 import { EFontWeight, ETextRole, Text, useTheme } from '@dltech/atlas-ui-native'
 import { space } from '@dltech/atlas-ui/tokens'
 import { router, useLocalSearchParams, usePathname } from 'expo-router'
-import { useEffect, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { type LayoutChangeEvent, StyleSheet, View } from 'react-native'
 import { SafeAreaProvider, useSafeAreaInsets } from 'react-native-safe-area-context'
 import { z } from 'zod'
@@ -28,7 +28,9 @@ import { KeyboardDock } from '../../layout/keyboard-dock'
 import { applyNavigation } from '../../navigation/apply-navigation'
 import { sessionOpenOf } from '../../navigation/root-navigation'
 import { useSettings } from '../../settings/settings-provider'
+import { kvJsonStore } from '../../storage/kv-json-store'
 import { Composer } from '../../thread/composer/composer'
+import { newSessionProjectOf } from '../../thread/composer/new-session-project'
 import { useAttachments } from '../../thread/composer/use-attachments'
 
 const NewSession = () => {
@@ -45,6 +47,10 @@ const NewSession = () => {
   const { api } = useAuth()
   const pathname = usePathname()
   const { project } = useLocalSearchParams<{ project?: string }>()
+  const projectStore = useMemo(
+    () => newSessionProjectOf(kvJsonStore({ database: 'atlas-composer' })),
+    [],
+  )
   const [projects, setProjects] = useState<IProjectOption[]>([])
   const [projectId, setProjectId] = useState<string | null>(project ?? null)
   const [modelId, setModelId] = useState<string | null>(null)
@@ -65,11 +71,13 @@ const NewSession = () => {
 
   useEffect(() => {
     if (api === undefined) return
-    void api.projects.list.query().then((list) => {
+    void Promise.all([api.projects.list.query(), projectStore.load()]).then(([list, stored]) => {
       setProjects(list.map(({ id, name }) => ({ id, name })))
-      setProjectId((current) => initialProjectIdOf({ projects: list, preselected: current }))
+      setProjectId((current) =>
+        initialProjectIdOf({ projects: list, preselected: current ?? stored }),
+      )
     })
-  }, [api])
+  }, [api, projectStore])
 
   const handleModelSelect = (next: IModelSelection) => {
     setModelId(next.model.id)
@@ -80,6 +88,11 @@ const NewSession = () => {
   const handleEffortSelect = (name: string) => setEffort(name)
 
   const handleFastToggle = (next: boolean) => setFast(next)
+
+  const handleProjectChange = (next: string | null) => {
+    setProjectId(next)
+    projectStore.save(next)
+  }
 
   const handleCenterLayout = (event: LayoutChangeEvent) =>
     setAvailable(event.nativeEvent.layout.height)
@@ -162,7 +175,7 @@ const NewSession = () => {
               <ProjectSelect
                 projects={projects}
                 projectId={projectId}
-                onProjectChange={setProjectId}
+                onProjectChange={handleProjectChange}
               />
             }
           >

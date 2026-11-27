@@ -66,6 +66,7 @@ export type PrepareResult =
       warnings?: readonly string[] | undefined
       bases?: readonly CapturedBase[]
       notices?: readonly BootNotice[] | undefined
+      timings?: Readonly<Record<string, number>> | undefined
     }
   | { ok: false; reason: string }
 

@@ -20,6 +20,7 @@ import type { GithubTokenReader } from '../tokens/github-token-reader'
 import type { SigningKeyReader } from '../tokens/signing-key-reader'
 import { abortable } from './abortable'
 import type { PrepareSteps } from './prepare-steps'
+import { EPrepareWork, PrepareTimings } from './prepare-timings'
 import type { ScopedFileMount } from './project-files'
 import { shellEnvironmentOf, type SessionPaths } from './session-paths'
 import type { ShellEnvCell } from './shell-env'
@@ -82,20 +83,24 @@ export const prepareControllerOf = (args: {
           step: EWorkspaceStep.Daemon,
           state: EWorkspaceStepState.Done,
         })
-        const token = await abortable(args.github.read({ userId }), signal)
-        const signing = await prepareSigning({
-          reader: args.signingKey,
-          files,
-          calls,
-          userId,
-          launchDirectory,
-          signal,
-          log: args.log,
+        const timings = new PrepareTimings()
+        const { token, mounts } = await timings.time(EPrepareWork.Access, async () => {
+          const token = await abortable(args.github.read({ userId }), signal)
+          const signing = await prepareSigning({
+            reader: args.signingKey,
+            files,
+            calls,
+            userId,
+            launchDirectory,
+            signal,
+            log: args.log,
+          })
+          await shellEnv.refresh({ token, signing, launchDirectory, signal })
+          await args.refreshSecrets(signal)
+          return { token, mounts: await projectFileMounts(signal) }
         })
-        await shellEnv.refresh({ token, signing, launchDirectory, signal })
-        await args.refreshSecrets(signal)
-        const mounts = await projectFileMounts(signal)
-        return ensureWorkspace({
+        const prepared = await ensureWorkspace({
+          timings,
           mounts,
           env: shellEnvironmentOf({ paths: args.paths, base: shellEnv.current() }),
           calls,
@@ -115,6 +120,7 @@ export const prepareControllerOf = (args: {
           onCheckedOut: ({ path, branch }) => checkedOutBranches.set(path, branch),
           ...(args.log === undefined ? {} : { log: args.log }),
         })
+        return prepared.ok ? { ...prepared, timings: timings.values() } : prepared
       })
       .catch((error: unknown): PrepareResult => {
         steps.failOpen(error instanceof Error ? error.message : String(error))

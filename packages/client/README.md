@@ -42,8 +42,9 @@ The headless client library that web, the TUI and the mobile app share.
 - `createStreamConnection({ transport, scheduler, networkSignal?, eventSchema?, knownEventTypes?, views? })`:
   the `StreamConnection`. `follow({ sessionId, threadId?, log? })` follows one thread (main by default),
   and a reopen of one of the last 8 closed follows shows it at once; `followSessions()` is the list.
-- `createSessionFollower(args)`: a session's follower, its connection state and snapshot.
-  `HYDRATE_TIMEOUT_MS` bounds the first load. `createSessionsFeed({ follow, write })` holds the list.
+- `createSessionFollower(args)`: a session's follower, its `SessionSnapshot` and its
+  `ESessionConnection` state. `HYDRATE_TIMEOUT_MS` bounds the first load.
+  `createSessionsFeed({ follow, write })` holds the list.
 - `StreamTransport`, `StreamScheduler`, `StreamNetworkSignal`, `systemStreamScheduler`,
   `browserNetworkSignal`: the ports that a surface supplies.
 - `nestPeers(rows)` nests each teammate under its spawner. `peerBucketOf({ row })` and
@@ -71,8 +72,9 @@ The headless client library that web, the TUI and the mobile app share.
 
 ### Build the transcript
 
-- `deriveTranscript(args)`, `assembleTranscript(args)`, `durableEntries(args)`, `EEntryKind`: the
-  transcript rows and the durable rows of a thread; `pluginEntries` adds a plugin's rows. `summariesAtTarget(events)`: the events with each compaction summary at its target.
+- `deriveTranscript(args)`, `assembleTranscript(args)`, `durableEntries(args)`, `TranscriptEntry`,
+  `EEntryKind`: the transcript rows and the durable rows of a thread; `pluginEntries` adds a plugin's
+  rows. `summariesAtTarget(events)`: the events with each compaction summary at its target.
 - `turnsBySeq(args)`, `settledAtOf(entries)`, `turnEndedEntry(turn)`: the turn rows and the settled
   time. `turnStartedAtOf({ events, status? })`: the open turn's start, or a queued session's `since`. `TurnSpend`, `totalSpend`, `SpendTotals` and `NOTHING_SPENT`: what a turn spent.
 - `ECallState`, `ECallKind`, `callKindOf(name)`, `ToolCall`, `ToolRun`, `attachmentsOf`: the tool

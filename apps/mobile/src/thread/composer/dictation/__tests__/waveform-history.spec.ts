@@ -67,4 +67,10 @@ describe('isSilentOf', () => {
     expect(isSilentOf(WAVEFORM_SILENCE_LEVEL)).toBe(true)
     expect(isSilentOf(WAVEFORM_SILENCE_LEVEL + 0.01)).toBe(false)
   })
+
+  it('is a worklet, because the waveform bars call it on the UI thread', async () => {
+    const source = await Bun.file(new URL('../waveform-history.ts', import.meta.url)).text()
+    const body = source.slice(source.indexOf('export const isSilentOf'))
+    expect(body).toMatch(/^export const isSilentOf = [^{]*\{\s*'worklet'/)
+  })
 })
