@@ -16,7 +16,13 @@ import { StyleSheet, View } from 'react-native'
 import { mergeIntoDraft } from '../session/staged-send'
 import { GlassSurface } from '../../navigation/glass-surface'
 import { AttachmentChips } from './attachment-chips'
-import { COMPOSER_FIELD_BORDER, COMPOSER_INSET, COMPOSER_RADIUS } from './composer-shape'
+import { ComposerFooter } from './composer-footer'
+import {
+  COMPOSER_DOCK_BOTTOM,
+  COMPOSER_FIELD_BORDER,
+  COMPOSER_INSET,
+  COMPOSER_RADIUS,
+} from './composer-shape'
 import { DictationField } from './dictation/dictation-field'
 import { useComposerDictation } from './dictation/use-composer-dictation'
 import { AttachMenu } from './attach-menu'
@@ -247,14 +253,14 @@ export const Composer = ({
           </TextInputWrapper>
         </ComposerDropZone>
       </GlassSurface>
-      {footer === undefined ? null : <View style={styles.footer}>{footer}</View>}
+      {footer === undefined ? null : <ComposerFooter>{footer}</ComposerFooter>}
     </View>
   )
 }
 
 const styles = StyleSheet.create({
   dock: {
-    paddingBottom: space(3),
+    paddingBottom: COMPOSER_DOCK_BOTTOM,
     paddingHorizontal: space(4),
     paddingTop: space(2),
   },
@@ -283,11 +289,6 @@ const styles = StyleSheet.create({
     fontFamily: 'Geist_400Regular',
     fontSize: readingType.body.fontSize,
     lineHeight: readingType.body.lineHeight,
-  },
-  footer: {
-    alignSelf: 'flex-end',
-    paddingHorizontal: COMPOSER_INSET,
-    paddingTop: space(1.5),
   },
   notice: {
     paddingBottom: space(1),

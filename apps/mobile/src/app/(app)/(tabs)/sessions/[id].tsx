@@ -26,6 +26,7 @@ import { SessionsButton } from '../../../../navigation/sessions-button'
 import { CommandListSheet } from '../../../../thread/composer/command-list-sheet'
 import { Composer } from '../../../../thread/composer/composer'
 import { COMPOSER_ITEM_GAP } from '../../../../thread/composer/composer-shape'
+import { COMPOSER_FOOTER_RESERVE } from '../../../../thread/composer/composer-shape'
 import { ContextReading } from '../../../../thread/composer/context-reading'
 import { PlanUsage } from '../../../../thread/composer/plan-usage'
 import { StaleCard } from '../../../../thread/composer/stale-card'
@@ -65,6 +66,7 @@ export default function SessionScreen() {
     dockHeight,
     keyboardInset,
     safeBottom: insets.bottom,
+    reserve: COMPOSER_FOOTER_RESERVE,
   })
   const transcriptRows = useMemo(
     () => [...session.rows, ...session.stagedRows],
@@ -164,7 +166,7 @@ export default function SessionScreen() {
           messageActions={session.messageActions}
         />
         {session.loaded ? (
-          <KeyboardDock overlay>
+          <KeyboardDock overlay reserve={COMPOSER_FOOTER_RESERVE}>
             <View onLayout={handleDockLayout}>
               {session.failure === null || session.startFailure !== undefined ? null : (
                 <View style={styles.operator}>
