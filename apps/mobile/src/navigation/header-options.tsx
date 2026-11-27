@@ -60,7 +60,12 @@ export const leadingHeaderOptionsOf = ({
     headerTitle: Platform.OS === 'ios' ? '' : () => titleElement,
     unstable_headerLeftItems: () => [
       ...leading,
-      { type: 'custom', element: titleElement, hidesSharedBackground: !glassTitle },
+      {
+        type: 'custom',
+        element: titleElement,
+        hidesSharedBackground: !glassTitle,
+        visibilityPriority: 'high',
+      },
     ],
   }
 }
@@ -82,7 +87,7 @@ export const tabHeaderOptionsOf = ({
       lead: showsAccount ? <AccountButton /> : undefined,
       title: <TabHeaderTitle title={title} />,
       glassTitle: true,
-      titleButtons: 1,
+      titleButtons: 2,
       windowWidth,
       posture,
     }),

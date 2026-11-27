@@ -1113,6 +1113,9 @@
   "trustedDependencies": [
     "sharp",
   ],
+  "patchedDependencies": {
+    "expo-router@58.0.30": "patches/expo-router@58.0.30.patch",
+  },
   "overrides": {
     "@prisma/orm-framework": "8.0.0-rc.19",
     "@prisma/orm-toolchain": "8.0.0-rc.19",

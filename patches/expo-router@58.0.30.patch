@@ -1,0 +1,37 @@
+diff --git a/build/react-navigation/native-stack/types.d.ts b/build/react-navigation/native-stack/types.d.ts
+index 5bb078b03d2055fc6104f0eed06906c962c1c2aa..883d43c073358e2ad04de62a536c92cef5940bb4 100644
+--- a/build/react-navigation/native-stack/types.d.ts
++++ b/build/react-navigation/native-stack/types.d.ts
+@@ -1146,6 +1146,12 @@ export type NativeStackHeaderItemCustom = {
+      * Read more: https://developer.apple.com/documentation/uikit/uibarbuttonitem/hidessharedbackground
+      */
+     hidesSharedBackground?: boolean;
++    /**
++     * Priority used when the header runs out of room. Only available from iOS 27.0 and later.
++     *
++     * Read more: https://developer.apple.com/documentation/uikit/uibarbuttonitemvisibilitypriority
++     */
++    visibilityPriority?: 'low' | 'standard' | 'high';
+ };
+ /**
+  * An item that can be displayed in the header.
+diff --git a/build/react-navigation/native-stack/views/useHeaderConfigProps.js b/build/react-navigation/native-stack/views/useHeaderConfigProps.js
+index 65358d6b13970387c5c637d534482411b86f97a4..648680c4415f7fb820e6e900127d210f7f207f5b 100644
+--- a/build/react-navigation/native-stack/views/useHeaderConfigProps.js
++++ b/build/react-navigation/native-stack/views/useHeaderConfigProps.js
+@@ -262,6 +262,7 @@ function useHeaderConfigProps({ headerBackIcon, headerBackImageSource, headerBac
+                         if (item.type === 'custom') {
+                             return /*#__PURE__*/ (0, _jsxruntime().jsx)(_reactnativescreens().ScreenStackHeaderLeftView, {
+                                 hidesSharedBackground: item.hidesSharedBackground,
++                                visibilityPriority: item.visibilityPriority,
+                                 children: item.element
+                             }, index);
+                         }
+@@ -317,6 +318,7 @@ function useHeaderConfigProps({ headerBackIcon, headerBackImageSource, headerBac
+                 if (item.type === 'custom') {
+                     return /*#__PURE__*/ (0, _jsxruntime().jsx)(_reactnativescreens().ScreenStackHeaderRightView, {
+                         hidesSharedBackground: item.hidesSharedBackground,
++                                visibilityPriority: item.visibilityPriority,
+                         children: item.element
+                     }, index);
+                 }

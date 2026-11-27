@@ -27,6 +27,10 @@ web spinner), never `ActivityIndicator`.
 - **Bar buttons:** use native bar button items (`unstable_headerLeftItems`,
   `unstable_headerRightItems`) with SF Symbols. Then iOS 26+ gives them the glass style. Use a
   React Native button in the bar only as the non-iOS fallback.
+- **Leading title:** give the title item `visibilityPriority: 'high'`. On iOS 27 a bar that runs out
+  of room moves low-priority items into a "…" overflow menu, and a custom view shows nothing there.
+  expo-router 58 drops the prop for a `custom` item, so `patches/expo-router@58.0.30.patch` passes
+  it through. Keep the patch, or confirm upstream passes the prop, when expo-router is upgraded.
 - **Back:** the native back button and the swipe-back gesture. Do not add a JS back button on iOS.
 - **Search:** use `headerSearchBarOptions` with `placement: 'integratedButton'` on a screen that
   has a native bar, so search is a round bar button that expands into the field. Keep the JS
