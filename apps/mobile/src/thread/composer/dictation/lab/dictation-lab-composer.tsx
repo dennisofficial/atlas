@@ -1,14 +1,14 @@
-import { ETextRole, ETextTone, Text, useTheme } from '@dltech/atlas-ui-native'
+import { readingType } from '@dltech/atlas-ui/tokens'
+import { ETextRole, ETextTone, Input, Text, useTheme } from '@dltech/atlas-ui-native'
 import { useEffect, useState } from 'react'
 import { StyleSheet, View } from 'react-native'
 
 import { GlassSurface } from '../../../../navigation/glass-surface'
 import { ComposerControls } from '../../composer-controls'
 import { COMPOSER_INSET, COMPOSER_RADIUS } from '../../composer-shape'
-import type { EDictationTransition } from '../composer-dictation'
+import { DictationField } from '../dictation-field'
 import { transcriptTextOf } from '../transcript-model'
 import type { IDictation } from '../use-dictation'
-import { DictationLabField } from './dictation-lab-field'
 
 const handleNothing = () => undefined
 
@@ -25,11 +25,9 @@ const ModelChip = ({ label }: { label: string }) => {
 
 export const DictationLabComposer = ({
   dictation,
-  transition,
   model,
 }: {
   dictation: IDictation
-  transition: EDictationTransition
   model: string
 }) => {
   const [draft, setDraft] = useState('')
@@ -48,12 +46,19 @@ export const DictationLabComposer = ({
     <View style={styles.dock}>
       <GlassSurface style={styles.surface}>
         <View style={styles.field}>
-          <DictationLabField
-            dictating={dictation.active}
-            transcript={dictation.transcript}
-            draft={draft}
-            onChangeDraft={setDraft}
-          />
+          {dictation.active ? (
+            <DictationField transcript={dictation.transcript} />
+          ) : (
+            <Input
+              bare
+              multiline
+              accessibilityLabel="Message Atlas"
+              placeholder="Ask the agent to change your code..."
+              value={draft}
+              onChangeText={setDraft}
+              style={styles.input}
+            />
+          )}
           <ComposerControls
             attach={{ open: false, onPick: handleNothing, onToggle: handleNothing }}
             sending={false}
@@ -63,7 +68,6 @@ export const DictationLabComposer = ({
             trailingPressable={false}
             dictation={{
               active: dictation.active,
-              transition,
               history: dictation.history,
               onStart: dictation.start,
               onStop: dictation.stop,
@@ -103,12 +107,22 @@ const styles = StyleSheet.create({
     paddingHorizontal: COMPOSER_INSET,
     paddingTop: COMPOSER_INSET,
   },
+  surface: {
+    borderCurve: 'continuous',
+    borderRadius: COMPOSER_RADIUS,
+  },
   note: {
     paddingHorizontal: 4,
     paddingTop: 8,
   },
-  surface: {
-    borderCurve: 'continuous',
-    borderRadius: COMPOSER_RADIUS,
+  input: {
+    fontFamily: 'Geist_400Regular',
+    fontSize: readingType.body.fontSize,
+    lineHeight: readingType.body.lineHeight,
+    maxHeight: 160,
+    minHeight: 40,
+    paddingHorizontal: 0,
+    paddingVertical: 0,
+    textAlignVertical: 'top',
   },
 })

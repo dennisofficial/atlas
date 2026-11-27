@@ -33,21 +33,27 @@ describe('applyPartialOf', () => {
 })
 
 describe('applyFinalOf', () => {
-  it('appends the final words to the committed text and clears the interim', () => {
+  it('replaces the committed text with the words the engine heard and clears the interim', () => {
     const started = applyPartialOf({ transcript: EMPTY_TRANSCRIPT, partial: 'Open a' })
     const committed = applyFinalOf({ transcript: started, final: 'Open a PR' })
     expect(committed).toEqual({ committed: 'Open a PR', interim: '' })
   })
 
-  it('spaces the next committed words off the previous ones', () => {
+  it('keeps the longer committed text that the engine grows word by word', () => {
     const first = applyFinalOf({ transcript: EMPTY_TRANSCRIPT, final: 'Open a PR' })
-    const second = applyFinalOf({ transcript: first, final: 'that moves the tRPC router' })
+    const second = applyFinalOf({
+      transcript: first,
+      final: 'Open a PR that moves the tRPC router',
+    })
     expect(second.committed).toBe('Open a PR that moves the tRPC router')
   })
 
-  it('drops a final that carries the interim words already shown', () => {
+  it('keeps the words it already holds when the final is empty', () => {
     const transcript = { committed: 'Open a PR', interim: 'that moves' }
-    expect(applyFinalOf({ transcript, final: 'that moves' }).committed).toBe('Open a PR that moves')
+    expect(applyFinalOf({ transcript, final: '  ' })).toEqual({
+      committed: 'Open a PR',
+      interim: '',
+    })
   })
 })
 

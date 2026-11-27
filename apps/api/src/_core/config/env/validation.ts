@@ -1,4 +1,6 @@
 import Joi from 'joi'
+import type { IAiEnv } from './sections/ai'
+import { aiEnvSchema } from './sections/ai'
 import type { IAuthEnv } from './sections/auth'
 import { authEnvSchema } from './sections/auth'
 import type { IBlobEnv } from './sections/blob'
@@ -34,6 +36,7 @@ import { webPushEnvSchema } from './sections/web-push'
 
 export interface IEnvConfig
   extends IRuntimeEnv,
+    IAiEnv,
     IAuthEnv,
     IBlobEnv,
     IArtifactsEnv,
@@ -52,6 +55,7 @@ export interface IEnvConfig
 
 export const envConfigValidation = Joi.object({
   ...runtimeEnvSchema,
+  ...aiEnvSchema,
   ...authEnvSchema,
   ...blobEnvSchema,
   ...artifactsEnvSchema,
