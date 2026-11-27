@@ -13,15 +13,16 @@ export const drainChildTurn = async (args: {
   done: Promise<void>
   log?: LogPort | undefined
 }): Promise<void> => {
+  if (!args.pause.modelStepRunning) return
   const settled = await settledWithin({
     timers: args.timers,
     ms: args.drainCapMs,
-    done: args.done,
+    done: args.pause.whenModelIdle(),
   })
   if (settled) return
   args.log?.warn({
     source: 'holder.drain',
-    message: `sub-agent ${args.agentId} ran in flight for ${args.drainCapMs}ms, past the drain cap; aborting its model stream`,
+    message: `sub-agent ${args.agentId} ran the model step for ${args.drainCapMs}ms, past the drain cap; aborting its model stream`,
   })
   args.pause.abortModelStep()
   const aborted = await settledWithin({
@@ -32,6 +33,6 @@ export const drainChildTurn = async (args: {
   if (aborted) return
   args.log?.warn({
     source: 'holder.drain',
-    message: `sub-agent ${args.agentId} kept its model stream ${DRAIN_STREAM_ABORT_CAP_MS}ms past its abort; handing off without it`,
+    message: `sub-agent ${args.agentId} kept its turn ${DRAIN_STREAM_ABORT_CAP_MS}ms past its aborted stream; handing off without it`,
   })
 }
