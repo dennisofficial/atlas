@@ -7,19 +7,23 @@ import {
   rmSync,
   writeFileSync,
 } from 'node:fs'
-import { dirname, join } from 'node:path'
+import { join } from 'node:path'
 import { type DependencyKey, envDigest, type Hasher, sha256 } from './fingerprint'
 
 /**
- * Layout: <cacheRoot>/<project>/<globalKey>/<sha256(test path)>.json
+ * Layout: <cacheRoot>/<project>/<globalKey>/<sha256(test path)>.<sha256(record)>.json
  *
- * Only successful, complete runs are written. Each file keeps the newest
- * MAX_ENTRIES passing records of one test file, so results from several
- * branches or PR revisions can coexist. A global input change moves to a new
- * <globalKey> directory instead of rewriting anything.
+ * One passing record per file, named by its content, so every copy of a name
+ * holds the same bytes. CI restores eight shard caches into one directory, and
+ * each later archive replaces the files an earlier one holds; a name per record
+ * means no archive can replace a newer record with its stale copy. A write
+ * keeps the newest MAX_ENTRIES records of its test file, so results from
+ * several branches or PR revisions coexist. A global input change moves to a
+ * new <globalKey> directory instead of rewriting anything.
  */
-export const SCHEMA = 1
+export const SCHEMA = 2
 const MAX_ENTRIES = 4
+const STEM_LENGTH = 24
 
 export interface CacheEntry {
   /** Dependency key -> content hash at the time the test passed. */
@@ -34,52 +38,59 @@ export interface CacheEntry {
 interface CacheFile {
   schema: number
   test: string
-  entries: CacheEntry[]
+  entry: CacheEntry
 }
+
+type StoredEntry = { name: string; entry: CacheEntry }
 
 export type Lookup = { status: 'hit'; entry: CacheEntry } | { status: 'miss'; reason: string }
 
 export class ResultStore {
+  private index: Map<string, string[]> | undefined
+
   constructor(readonly directory: string) {}
 
-  private pathFor(test: string) {
-    return join(this.directory, `${sha256(test, 24)}.json`)
+  private namesOf(test: string) {
+    this.index ??= indexByTest(this.directory)
+    return this.index.get(stemOf(test)) ?? []
   }
 
-  private read(test: string): CacheFile | 'missing' | 'corrupt' {
-    let raw: string
-    try {
-      raw = readFileSync(this.pathFor(test), 'utf8')
-    } catch {
-      return 'missing'
+  private readAll(test: string) {
+    const stored: StoredEntry[] = []
+    let corrupt = false
+    for (const name of this.namesOf(test)) {
+      const file = readCacheFile({ path: join(this.directory, name), test })
+      if (file === 'missing') continue
+      if (file === 'corrupt') corrupt = true
+      else stored.push({ name, entry: file.entry })
     }
-    try {
-      const parsed: unknown = JSON.parse(raw)
-      return isCacheFile(parsed, test) ? parsed : 'corrupt'
-    } catch {
-      return 'corrupt'
-    }
+    stored.sort((left, right) => right.entry.passedAt.localeCompare(left.entry.passedAt))
+    return { stored, corrupt }
   }
 
   lookup(test: string, hasher: Hasher, env: NodeJS.ProcessEnv): Lookup {
-    const file = this.read(test)
-    if (file === 'missing') return { status: 'miss', reason: 'no cached result' }
-    if (file === 'corrupt') return { status: 'miss', reason: 'corrupt cache entry' }
-    if (file.entries.length === 0) return { status: 'miss', reason: 'no cached result' }
+    const { stored, corrupt } = this.readAll(test)
+    if (stored.length === 0) {
+      return { status: 'miss', reason: corrupt ? 'corrupt cache entry' : 'no cached result' }
+    }
 
     // Report the most specific reason: a record whose files all match but whose
     // env differs explains the miss better than the newest record's first file.
-    let reason: string | undefined
+    let closest: { changed: string; entry: CacheEntry } | undefined
     try {
-      for (const entry of file.entries) {
+      for (const { entry } of stored) {
         const changed = firstChangedInput(entry, hasher, env)
         if (!changed) return { status: 'hit', entry }
-        if (!reason || changed.startsWith('env')) reason = changed
+        if (!closest || changed.startsWith('env')) closest = { changed, entry }
       }
     } catch (error) {
       return { status: 'miss', reason: `cache validation error: ${errorMessage(error)}` }
     }
-    return { status: 'miss', reason: `changed: ${reason}` }
+    if (!closest) return { status: 'miss', reason: 'no cached result' }
+    return {
+      status: 'miss',
+      reason: `changed: ${closest.changed}, since the pass of ${closest.entry.passedAt}`,
+    }
   }
 
   /**
@@ -87,38 +98,33 @@ export class ResultStore {
    * be written only costs a rerun later. Returns whether the record was stored.
    */
   write(test: string, entry: CacheEntry): boolean {
-    const target = this.pathFor(test)
+    const name = `${stemOf(test)}.${sha256(JSON.stringify(entry))}.json`
+    const target = join(this.directory, name)
     const temporary = `${target}.${process.pid}.tmp`
     try {
-      const existing = this.read(test)
-      const previous = typeof existing === 'object' ? existing.entries : []
+      const { stored } = this.readAll(test)
+      mkdirSync(this.directory, { recursive: true })
+      writeFileSync(temporary, JSON.stringify({ schema: SCHEMA, test, entry } satisfies CacheFile))
+      renameSync(temporary, target)
       const sameInputs = (other: CacheEntry) =>
         other.envDigest === entry.envDigest &&
         JSON.stringify(other.deps) === JSON.stringify(entry.deps)
-      const entries = [entry, ...previous.filter((e) => !sameInputs(e))].slice(0, MAX_ENTRIES)
-      mkdirSync(dirname(target), { recursive: true })
-      writeFileSync(
-        temporary,
-        JSON.stringify({ schema: SCHEMA, test, entries } satisfies CacheFile),
-      )
-      renameSync(temporary, target)
+      const older = stored.filter((record) => record.name !== name)
+      const kept = older.filter((record) => !sameInputs(record.entry)).slice(0, MAX_ENTRIES - 1)
+      for (const record of older) {
+        if (!kept.includes(record)) removeQuietly(join(this.directory, record.name))
+      }
+      this.index?.set(stemOf(test), [name, ...kept.map((record) => record.name)])
       return true
     } catch {
-      try {
-        rmSync(temporary, { force: true })
-      } catch {
-        // Nothing left to clean up, or cleanup is impossible too; stay silent.
-      }
+      removeQuietly(temporary)
       return false
     }
   }
 
+  /** The number of test files with at least one stored record. */
   size() {
-    try {
-      return readdirSync(this.directory).filter((name) => name.endsWith('.json')).length
-    } catch {
-      return 0
-    }
+    return indexByTest(this.directory).size
   }
 
   /** Tags a new or empty cache root as ours, so `clear` may delete it later. Best-effort. */
@@ -167,6 +173,47 @@ function firstChangedInput(entry: CacheEntry, hasher: Hasher, env: NodeJS.Proces
   return undefined
 }
 
+const stemOf = (test: string) => sha256(test, STEM_LENGTH)
+
+function indexByTest(directory: string) {
+  const index = new Map<string, string[]>()
+  let names: string[]
+  try {
+    names = readdirSync(directory)
+  } catch {
+    return index
+  }
+  for (const name of names) {
+    if (!name.endsWith('.json') || name[STEM_LENGTH] !== '.') continue
+    const stem = name.slice(0, STEM_LENGTH)
+    index.set(stem, [...(index.get(stem) ?? []), name])
+  }
+  return index
+}
+
+function readCacheFile(params: { path: string; test: string }): CacheFile | 'missing' | 'corrupt' {
+  let raw: string
+  try {
+    raw = readFileSync(params.path, 'utf8')
+  } catch {
+    return 'missing'
+  }
+  try {
+    const parsed: unknown = JSON.parse(raw)
+    return isCacheFile(parsed, params.test) ? parsed : 'corrupt'
+  } catch {
+    return 'corrupt'
+  }
+}
+
+function removeQuietly(path: string) {
+  try {
+    rmSync(path, { force: true })
+  } catch {
+    // An unremovable file only costs disk; a later write prunes it again.
+  }
+}
+
 function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === 'object' && value !== null && !Array.isArray(value)
 }
@@ -194,11 +241,7 @@ function isCacheEntry(value: unknown): value is CacheEntry {
 
 function isCacheFile(value: unknown, test: string): value is CacheFile {
   return (
-    isRecord(value) &&
-    value.schema === SCHEMA &&
-    value.test === test &&
-    Array.isArray(value.entries) &&
-    value.entries.every(isCacheEntry)
+    isRecord(value) && value.schema === SCHEMA && value.test === test && isCacheEntry(value.entry)
   )
 }
 

@@ -22,37 +22,43 @@ A spec earns its place by failing when the behaviour it names breaks. A good uni
 
 ## Backlog
 
-Ordered by value. Each item fits in one sitting. Rechecked 2026-11-26.
-1. **Scan specs go stale under CI's incremental run.** `no-chrome-overrides.spec.ts` went red with
+Ordered by value. Each item fits in one sitting. Rechecked 2026-11-27.
+1. **Confirm the cache fix on main.** The first main run after the store change is a full run (the
+   package is a global input). From the second run on, `changed: env` and one-time file changes
+   must stop rerunning on shards 1–7. If they still do, read the `since the pass of` date.
+2. **`follow-live.spec.ts` "resumes after reconnect" hit `deadlock detected` (40P01)** on main run
+   45988514717, shard 6: an AccessExclusiveLock against an AccessShareLock, so two specs share
+   tables in the test database. Find the spec that truncates or drops while it reads.
+3. **34 specs are never cached** because they start a child process: `bunx prisma db sign` (about
+   12 db-backed api and `packages/db` specs), `ssh-keygen` (6 ssh-signing-key specs), git and `sh`
+   in the daemon specs. Measure what they cost each run, then pick the largest.
+4. **Scan specs go stale under CI's incremental run.** `no-chrome-overrides.spec.ts` went red with
    #2645 while main CI stayed green. Likely cause: it reads sources through `Bun.Glob`/`Bun.file`,
-   which neither `--changed` import selection nor the recorder
-   (`packages/bun-test-incremental/src/fs-env-recorder.ts:129-130`, `node:fs` only) sees.
-   Confirm first. The fix is in the runner, so the PR stays open.
-2. **Real-clock upper bounds (flaky).** `plugin-resources-turn-start-ready.spec.ts:76,120,173`
-   (`Date.now() - started < 200` around daemon work), `follow-live.spec.ts:169` (<1s),
-   `transaction-deadline.spec.ts:67`, `crew-takeover.spec.ts:228`, `live-model-port.spec.ts:186-188`,
-   `quality/deadline.spec.ts:139-146`, `plugin-resources-turn-start.spec.ts:105,136`.
-3. **Real sleeps.** Test-only: `workspace-setup.spec.ts` (23s; 15s poll helpers),
+   which the recorder (`packages/bun-test-incremental/src/fs-env-recorder.ts`, `node:fs` only)
+   does not see. Confirm first.
+5. **Real-clock upper bounds (flaky).** `plugin-resources-turn-start-ready.spec.ts:76,120,173`,
+   `follow-live.spec.ts:169` (<1s), `transaction-deadline.spec.ts:67`, `crew-takeover.spec.ts:228`,
+   `live-model-port.spec.ts:186-188`, `quality/deadline.spec.ts:139-146`,
+   `plugin-resources-turn-start.spec.ts:105,136`; new: daemon `service-ready-exit.spec.ts:36`,
+   `ops/services/__tests__/port-probe.spec.ts:67`.
+6. **Real sleeps.** Test-only: `workspace-setup.spec.ts` (23s; 15s poll helpers),
    `agent-tools/bash.spec.ts:106-121` (3.3s), `use-preview-origins.spec.tsx:102` (5.7s),
    `agent37-wake-abort.spec.ts:183,199`, `handoff-bash-deadline.fault.spec.ts:74` (2s),
-   `exec-deadline.spec.ts:77` (1.2s), `handoff-pod-resize-idle.fault.spec.ts:139` (1s),
-   `crew-takeover.spec.ts:354` (600 ms), `pg-host-watch.spec.ts:158-219`, daemon `quiet()` 900 ms in
-   `ops/watch/tree.spec.ts:16` and `ops/git/git.spec.ts:47`, `previews.spec.ts:332` (1.4s),
-   `context-mirror.spec.ts:209-228`, `held-observation-context.spec.ts:95` (`settle(1_200)`).
-   Production seam: `sign-in-flow.spec.tsx:63` (6.1s).
-4. **Duplicates.** `registered-plugins.spec.ts` in api, mobile, web and `packages/pods/src/control`;
+   `f20b-stop-then-handoff.fault.spec.ts:122` (1.5s, new), `exec-deadline.spec.ts:77` (1.2s),
+   `handoff-pod-resize-idle.fault.spec.ts:139` (1s), `crew-takeover.spec.ts:354` (600 ms),
+   `pg-host-watch.spec.ts:158-219`, daemon `quiet()` 900 ms in `ops/watch/tree.spec.ts:16` and
+   `ops/git/git.spec.ts:47`, `previews.spec.ts:332` (1.4s), `context-mirror.spec.ts:209-228`,
+   `held-observation-context.spec.ts:95`. Production seam: `sign-in-flow.spec.tsx:63` (6.1s).
+7. **Duplicates.** `registered-plugins.spec.ts` in api, mobile, web and `packages/pods/src/control`;
    `passes prisma db verify --strict` byte-identical in `drop-v2-views.spec.ts:177` and
    `move-v2-tables.spec.ts:221` (180s each); the web prototype mirror pairs.
-5. **Missing specs, by churn × importers:** `packages/control/src/postgres/postgres-rows.ts`
-   (pure row mappers), `holder/held-runner.ts:57` `ranQueuedCommand`, `control/src/inbox-ops.ts`
-   (pure), `holder/staged-log.ts` (pure over events), `postgres-digests.ts:12` `likePatternOf`.
-6. **Drift:** specs outside `__tests__/`: `apps/web/.../data/use-pod-power{,-stop}.spec.ts` and the
-   `packages/github/src` top-level specs (now incl. `github-notice.merge-queue`,
-   `github-subscription-target-states.required-checks`); needs a local `AGENTS.md` or a move.
-   Unreset `let pathname` in `in-app-notices.spec.tsx:35`. `prose-stream.bench.spec.tsx` is an
-   env-gated `console.log` bench with no assertion: move it to a script or delete it.
-7. **Over-300-line specs** (~120 files, new: `crew-drain-cap.spec.ts` 307). Split as touched, from
-   `remote-delta-channel.spec.ts`. `expiresAt: '2026-12-01'` fixtures are past on 12-01; nothing reads them.
+8. **Missing specs, by churn × importers:** `packages/control/src/postgres/postgres-rows.ts`,
+   `holder/held-runner.ts:57` `ranQueuedCommand`, `control/src/inbox-ops.ts`,
+   `holder/staged-log.ts`, `postgres-digests.ts:12` `likePatternOf`.
+9. **Drift:** specs outside `__tests__/` in `apps/web/.../data/use-pod-power{,-stop}.spec.ts` and
+   the `packages/github/src` top-level specs; unreset `let pathname` in `in-app-notices.spec.tsx:35`;
+   `prose-stream.bench.spec.tsx` is an env-gated `console.log` bench with no assertion.
+10. **Over-300-line specs** (~120 files). Split as touched, from `remote-delta-channel.spec.ts`.
 
 ## Ruled out — do not re-investigate
 
@@ -83,6 +89,21 @@ Ordered by value. Each item fits in one sitting. Rechecked 2026-11-26.
 - **No snapshots exist** (`toMatchSnapshot` has no use), so there are no unread snapshots.
 - **Convention drift:** no `.test.ts(x)`, no Vitest outside `evals/`, `noFocusedTests` blocks
   focused tests. Specs outside `__tests__/` are sanctioned by `apps/api/AGENTS.md`.
+
+- **`changed: env` on a spec that reads ~90–140 variables** is not a per-job variable. Those specs
+  enumerate `process.env`, and the record they were compared to was a stale one (fixed 2026-11-27).
+
+## 2026-11-27
+
+- **Only shard 8's records survived in CI.** Each shard restores all eight caches in order, and
+  shard 8's archive holds a stale copy of every record file, so it replaced what shards 1–7 wrote:
+  62% of api files reran (7,130 of 11,507 in 4 runs); 59 dependants of one change reran every run.
+- **Fix:** one record per file, named by its content (`store.ts`), so a stale copy cannot replace a
+  newer record. A miss now names the pass it compared to. A two-shard tar replay reran shard 1 on
+  every run on main and reused everything with the fix.
+- Main test job, last 4 runs: 3m27s–4m18s per shard. Main 45988514717 red on a follow-live deadlock.
+- Audit of 135 specs changed since 11-26: no new skips or assertion-free bodies, 2 new clock bounds.
+- Mutation checks: 4 store breaks, each turned `store.spec.ts` red. They are listed in the PR.
 
 ## 2026-11-26
 
