@@ -31,6 +31,7 @@ const seedRefused = async (args: {
   projectId?: string
   specUrl: string
   refusal?: string
+  grant?: boolean
 }): Promise<void> => {
   await args.db.orm.public.McpServer.create({
     id: args.id,
@@ -41,6 +42,15 @@ const seedRefused = async (args: {
     ...(args.refusal === undefined
       ? {}
       : { oauthRefusal: args.refusal, oauthRefusedAt: REFUSED_AT }),
+    ...(args.grant === true
+      ? {
+          oauthStatus: 'active',
+          oauthServerUrl: args.specUrl,
+          oauthSealed: sealed({
+            tokens: { accessToken: 'revoked-at', expiresAt: '2099-01-01T00:00:00.000Z' },
+          }),
+        }
+      : {}),
   })
 }
 
@@ -86,6 +96,23 @@ describe('mcpControl refusal', () => {
 
     expect(await tokenOf({ db, url: 'https://mcp.paper.design/mcp' })).toEqual({
       kind: EMcpToken.SignIn,
+    })
+  })
+
+  it('reports the refusal even while an older grant is still on the row', async () => {
+    const { db } = testDb()
+    await seedOwner(db)
+    await seedRefused({
+      db,
+      id: 'srv-user',
+      specUrl: 'https://mcp.paper.design/mcp',
+      refusal: 'mcp.paper.design answered: access_denied',
+      grant: true,
+    })
+
+    expect(await tokenOf({ db, url: 'https://mcp.paper.design/mcp' })).toEqual({
+      kind: EMcpToken.Refused,
+      reason: 'mcp.paper.design answered: access_denied',
     })
   })
 })

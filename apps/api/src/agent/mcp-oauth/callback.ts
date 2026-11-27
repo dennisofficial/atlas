@@ -181,7 +181,11 @@ export const mcpOauthCallbackOf = (args: McpOauthCallbackArgs) => {
     }
     if (!sameServerUrl(serverUrl, pending.serverUrl)) return await refused('server_changed')
     const refusedByProvider = async (reason: string): Promise<CallbackAnswer> => {
-      await store.setRefusal({ id: row.id, refusal: { reason, at: new Date(now()) } })
+      await store.refuseLatestAttempt({
+        id: row.id,
+        refusal: { reason, at: new Date(now()) },
+        pendingId: pending.id,
+      })
       return await refused(reason)
     }
     const error = param('error')

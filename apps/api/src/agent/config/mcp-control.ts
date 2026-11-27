@@ -159,12 +159,10 @@ export const mcpControlOf = (args: {
         sameServerUrl(candidate.repoUrl, args2.url) ||
         sameServerUrl(candidate.oauthServerUrl, args2.url),
     )
-    if (row === undefined || row.oauthStatus !== 'active' || row.oauthSealed === null) {
-      const refusal = refusalAtUrl({ rows, url: args2.url })
-      return refusal === null
-        ? { kind: EMcpToken.SignIn }
-        : { kind: EMcpToken.Refused, reason: refusal }
-    }
+    const refusal = refusalAtUrl({ rows, url: args2.url })
+    if (refusal !== null) return { kind: EMcpToken.Refused, reason: refusal }
+    if (row === undefined || row.oauthStatus !== 'active' || row.oauthSealed === null)
+      return { kind: EMcpToken.SignIn }
     const fresh = freshTokenOf({ cipher: args.cipher, sealed: row.oauthSealed })
     if (fresh !== undefined) return { kind: EMcpToken.Granted, accessToken: fresh }
     const refreshed = await args.gateway.refresh({

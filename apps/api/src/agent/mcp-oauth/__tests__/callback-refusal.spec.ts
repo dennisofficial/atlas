@@ -47,6 +47,21 @@ describe('a sign-in the provider refused', () => {
     expect(row?.oauthStatus).toBeNull()
   })
 
+  it('leaves a newer attempt alone when an older one is refused', async () => {
+    const { db } = testDb()
+    await seedOwner(db)
+    await seedCloudServer({ db, name: 'posthog' })
+    await seedPending({ db, id: 'state-older', mcpServerId: 'srv-posthog' })
+    await db.orm.public.McpOauthPending.where({ id: 'state-older' }).updateAndCount({
+      createdAt: new Date(Date.now() - 60_000),
+    })
+    await seedPending({ db, id: 'state-newer', mcpServerId: 'srv-posthog' })
+
+    await failingReason({ db, query: 'state=state-older&error=access_denied' })
+
+    expect((await refusalOf(db))?.oauthRefusal).toBeNull()
+  })
+
   it('remembers a failed exchange on the server it was started for', async () => {
     const { db } = testDb()
     await seedOwner(db)
