@@ -1,7 +1,8 @@
-import { useCallback, useRef, useState } from 'react'
+import { useCallback, useMemo, useRef, useState } from 'react'
 
 import {
   ACCOUNT_FILE_VERSION,
+  DEFAULT_WEB_ORIGIN,
   deleteAccount,
   withLastSession,
   withPreferences,
@@ -9,16 +10,22 @@ import {
   type AccountFile,
 } from './account/account-file'
 import { fetchSessionEmail, signOutSession } from './account/session-email'
-import { useDeviceSignIn } from './account/use-device-sign-in'
+import { loginExchangeOf, type LoginExchange } from './account/login-exchange'
+import { useSignIn, type LoopbackStarter } from './account/use-sign-in'
 import { EScreen, screenOfAccount, screenOnAuthLost, type ScreenState } from './app-screen'
 import type { AuthRefusal } from './session-client'
 
 export function useAccountFlow(args: {
   accountPath: string
   apiUrl: string
+  webOrigin?: string | undefined
+  env?: Record<string, string | undefined> | undefined
+  platform?: string | undefined
   initialAccount: AccountFile | null
   openUrl: (url: string) => void
   fetchFn?: typeof fetch | undefined
+  exchangeLogin?: LoginExchange | undefined
+  startLoopbackWait?: LoopbackStarter | undefined
   onScreen: (screen: ScreenState) => void
 }) {
   const [account, setAccount] = useState<AccountFile | null>(args.initialAccount)
@@ -60,10 +67,25 @@ export function useAccountFlow(args: {
     [args.accountPath, args.apiUrl, args.fetchFn, onScreen],
   )
 
-  const signIn = useDeviceSignIn({
+  const exchange = useMemo(
+    () =>
+      args.exchangeLogin ??
+      loginExchangeOf({
+        apiUrl: args.apiUrl,
+        ...(args.fetchFn === undefined ? {} : { fetchFn: args.fetchFn }),
+      }),
+    [args.apiUrl, args.exchangeLogin, args.fetchFn],
+  )
+
+  const signIn = useSignIn({
     apiUrl: args.apiUrl,
+    webOrigin: args.webOrigin ?? DEFAULT_WEB_ORIGIN,
+    env: args.env ?? process.env,
+    platform: args.platform ?? process.platform,
     openUrl: args.openUrl,
-    fetchFn: args.fetchFn,
+    exchange,
+    ...(args.startLoopbackWait === undefined ? {} : { startWait: args.startLoopbackWait }),
+    ...(args.fetchFn === undefined ? {} : { fetchFn: args.fetchFn }),
     onApproved: handleApproved,
   })
 
