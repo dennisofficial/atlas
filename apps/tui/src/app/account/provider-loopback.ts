@@ -114,6 +114,7 @@ export const startProviderLoopback = async (args: {
   open: (url: string) => unknown
   ports?: readonly number[] | undefined
   timeoutMs?: number | undefined
+  signal?: AbortSignal | undefined
 }): Promise<ProviderLoopback> => {
   const shape = providerLoopbackOf(args.provider)
   if (shape === undefined) throw new Error(`no loopback for ${args.provider}`)
@@ -134,6 +135,8 @@ export const startProviderLoopback = async (args: {
     },
   })
 
+  const handleAbort = () => listener.stop()
+  args.signal?.addEventListener('abort', handleAbort, { once: true })
   const redirectUri = shape.redirectUriOf(listener.port)
   let begun: ProviderSignInLoopbackBegin
   try {
@@ -142,6 +145,7 @@ export const startProviderLoopback = async (args: {
     listener.stop()
     throw error
   }
+  if (args.signal?.aborted === true) throw new Error('the sign-in was cancelled')
   held.state = begun.state
 
   let launched: unknown

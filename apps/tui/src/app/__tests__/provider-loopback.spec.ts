@@ -165,4 +165,36 @@ describe('the loopback a provider sign-in comes back on', () => {
 
     expect(String(failure)).toContain('the api refused the address')
   })
+
+  it('closes its port and opens no browser when cancelled while the attempt begins', async () => {
+    const cancel = new AbortController()
+    const opened: string[] = []
+    const ports: number[] = []
+    let release: (begun: typeof BEGIN) => void = () => undefined
+    const starting = startProviderLoopback({
+      provider: EAuthProvider.Anthropic,
+      begin: ({ redirectUri }) => {
+        ports.push(Number(new URL(redirectUri).port))
+        return new Promise((resolve) => {
+          release = resolve
+        })
+      },
+      open: (url) => opened.push(url),
+      signal: cancel.signal,
+    })
+      .then(() => null)
+      .catch((error: unknown) => error)
+
+    await Bun.sleep(0)
+    cancel.abort()
+    const refused = await fetch(`http://127.0.0.1:${ports[0]}/callback`).then(
+      () => false,
+      () => true,
+    )
+    release(BEGIN)
+
+    expect(refused).toBe(true)
+    expect(String(await starting)).toContain('cancelled')
+    expect(opened).toEqual([])
+  })
 })

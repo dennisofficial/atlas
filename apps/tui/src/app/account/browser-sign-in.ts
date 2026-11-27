@@ -55,6 +55,7 @@ export const startBrowserSignIn = (args: BrowserSignIn): BrowserSignInJob => {
     cancelled: false,
     loopback: null,
   }
+  const cancel = new AbortController()
 
   const settleInBrowser = async (): Promise<void> => {
     askForBrowserAt({ provider: args.provider, url: '', onStateUpdate: args.onStateUpdate })
@@ -65,6 +66,7 @@ export const startBrowserSignIn = (args: BrowserSignIn): BrowserSignInJob => {
         provider: args.provider,
         begin: beginOf({ api: args.api, provider: args.provider }),
         open: args.open,
+        signal: cancel.signal,
       })
     } catch {
       if (!held.cancelled) args.onFallback()
@@ -107,6 +109,7 @@ export const startBrowserSignIn = (args: BrowserSignIn): BrowserSignInJob => {
   return {
     stop: () => {
       held.cancelled = true
+      cancel.abort()
       held.loopback?.stop()
       held.loopback = null
     },
