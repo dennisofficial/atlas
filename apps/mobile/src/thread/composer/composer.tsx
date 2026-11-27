@@ -44,6 +44,7 @@ export const Composer = ({
   clientActions,
   joined = false,
   trailing,
+  trailingPressable = true,
   children,
 }: {
   working: boolean
@@ -60,6 +61,7 @@ export const Composer = ({
   clientActions?: Record<EClientAction, () => void> | undefined
   joined?: boolean
   trailing?: ReactNode
+  trailingPressable?: boolean
   children?: ReactNode
 }) => {
   const [draft, setDraft] = useState('')
@@ -162,6 +164,7 @@ export const Composer = ({
       onStop={showsStop ? onStop : undefined}
       onSend={() => void handleSend()}
       trailing={trailing}
+      trailingPressable={trailingPressable}
     >
       {children}
     </ComposerControls>

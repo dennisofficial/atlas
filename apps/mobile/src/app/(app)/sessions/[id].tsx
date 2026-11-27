@@ -223,6 +223,7 @@ export default function SessionScreen() {
                 refusal={session.notice}
                 entries={session.commands.entries}
                 clientActions={session.commands.clientActions}
+                trailingPressable={false}
                 trailing={
                   <View style={styles.trailing}>
                     <PlanUsage report={usage} />
