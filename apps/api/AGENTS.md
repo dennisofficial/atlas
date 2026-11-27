@@ -13,6 +13,7 @@ access tokens only. Local TUI sessions keep the loopback flow. Memory is never a
 Every Atlas-owned client calls the API through tRPC under `/v1/trpc` (`sessions.create`,
 `models.list` and the rest of the generated `AppRouter`). Only these routes stay REST: the
 GitHub webhook controllers (`POST /v1/github/hooks/:repo`, `POST /v1/github/app/hook`,
+`POST /v1/github/app/relayed-hook` (fed by `apps/github-hook-relay`),
 `GET /v1/github/app/callback`), `GET /v1/health`, the agent's `GET /healthz`, `GET /mcp-oauth/callback`,
 and better-auth's `/api/auth/*`.
 
@@ -135,8 +136,9 @@ them at least once. Relative imports work everywhere. Do not reintroduce them.
 ## Request bodies
 
 The API stores no context archives. Context goes straight into the sandbox from the client, and
-the old upload endpoints are gone. The global JSON body cap is 4 MB (`JSON_BODY_LIMIT` in
-`src/_lib/body-limits.ts`) for every route. User-layer uploads fit because the agent skips files
+the old upload endpoints are gone. The global JSON body cap is 8 MB (`JSON_BODY_LIMIT` in
+`src/_lib/body-limits.ts`) for every route: 4 MB of payload plus the base64 wrap that gets bodies
+past Render's WAF (`RENDER.md`). User-layer uploads fit because the agent skips files
 over 3,000,000 bytes (`MAX_USER_LAYER_FILE_BYTES`). A file of 3,000,000 bytes has a base64 body of 4,000,000 bytes.
 
 ## Deploy
@@ -146,6 +148,7 @@ PlanetScale `atlas/main`. Render builds `apps/api/docker/Dockerfile` from this r
 root) and keeps its layer cache between builds, so a code-only deploy rebuilds only the source layer.
 Render's auto-deploy is off. `.github/workflows/release.yml`'s `render-deploy` job deploys every push
 to main by `commitId`. Background jobs run on trigger.dev. Nothing else hosts Atlas.
+`RENDER.md` lists the workarounds for Render's edge WAF and what to remove if the API leaves Render.
 - Image: `oven/bun` with only `@dltech/atlas-api` and `@dltech/atlas-daemon` installed and the daemon
   bundle built. Start: `bun run --cwd apps/api start`. Render's health check is `/healthz`.
   `scripts/check-api-image-context.ts` (in `bun run lint`) keeps the Dockerfile's bun pin, its daemon

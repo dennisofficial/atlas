@@ -60,9 +60,12 @@ describe('ios group sections', () => {
     }
   })
 
-  it('pends instructions until a group route exists', () => {
-    expect(IOS_PENDING_GROUP_SECTIONS.has(EGroupSettingsSection.Instructions)).toBe(true)
-    expect(routedGroupSections().map((item) => item.section)).toEqual([EProjectSettingsSection.Mcp])
+  it('routes the group instructions and mcp in web order', () => {
+    expect(IOS_PENDING_GROUP_SECTIONS.has(EGroupSettingsSection.Instructions)).toBe(false)
+    expect(routedGroupSections().map((item) => item.section)).toEqual([
+      EGroupSettingsSection.Instructions,
+      EProjectSettingsSection.Mcp,
+    ])
   })
 })
 

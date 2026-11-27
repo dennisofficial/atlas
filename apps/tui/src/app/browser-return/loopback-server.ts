@@ -1,8 +1,10 @@
 import {
   EReturnSurface,
   LOOPBACK_HOST,
+  LOOPBACK_PATH,
   LOOPBACK_TIMEOUT_MS,
-  loopbackReplyOf,
+  browserReturnOf,
+  loopbackRequestOk,
   startLinkFor,
   stateOfStartLink,
   type ReturnOutcome,
@@ -18,33 +20,43 @@ const NOT_FOUND_BODY = 'not found'
 
 const HTML = 'text/html; charset=utf-8'
 
-export type LoopbackStart = {
-  url: string
+export type LoopbackAccepted<T> = { page: ReturnOutcome; value: T }
+
+export type LoopbackSpec<T> = {
+  state: string
+  path: string
+  hrefOf: (port: number) => string
+  readReturn: (url: string) => LoopbackAccepted<T> | undefined
+}
+
+type LoopbackServe = {
   open: (url: string) => void
   copy: LoopbackCopy
   timeoutMs?: number | undefined
 }
 
-export type LoopbackReturn = {
+export type LoopbackStart = LoopbackServe & { url: string }
+
+export type LoopbackWait<T> = LoopbackServe & { spec: LoopbackSpec<T> }
+
+export type LoopbackReturn<T = ReturnOutcome> = {
   port: number
   href: string
-  outcome: Promise<ReturnOutcome | undefined>
+  outcome: Promise<T | undefined>
   stop: () => void
 }
 
-export const startLoopbackReturn = (args: LoopbackStart): LoopbackReturn => {
-  const state = stateOfStartLink(args.url)
-  if (state === undefined) throw new Error('a loopback return needs a start link to open')
-
-  let settle: (outcome: ReturnOutcome | undefined) => void = () => undefined
-  const outcome = new Promise<ReturnOutcome | undefined>((resolve) => {
+const serveLoopback = <T>(args: LoopbackServe & { spec: LoopbackSpec<T> }): LoopbackReturn<T> => {
+  const { spec } = args
+  let settle: (value: T | undefined) => void = () => undefined
+  const outcome = new Promise<T | undefined>((resolve) => {
     settle = resolve
   })
   let timer: ReturnType<typeof setTimeout> | null = null
   let closed = false
   let port = 0
 
-  const close = (settled: ReturnOutcome | undefined): void => {
+  const close = (settled: T | undefined): void => {
     if (closed) return
     closed = true
     if (timer !== null) clearTimeout(timer)
@@ -56,16 +68,21 @@ export const startLoopbackReturn = (args: LoopbackStart): LoopbackReturn => {
     hostname: LOOPBACK_HOST,
     port: 0,
     fetch: (request, host) => {
-      const reply = loopbackReplyOf({
-        method: request.method,
-        address: host.requestIP(request)?.address,
-        url: request.url,
-        port,
-        state,
-      })
-      if (!reply.accepted) return new Response(NOT_FOUND_BODY, { status: NOT_FOUND })
-      const page = loopbackPageOf({ copy: args.copy, outcome: reply.outcome })
-      close(reply.outcome)
+      const address = host.requestIP(request)?.address
+      if (
+        !loopbackRequestOk({
+          method: request.method,
+          address,
+          url: request.url,
+          port,
+          path: spec.path,
+        })
+      )
+        return new Response(NOT_FOUND_BODY, { status: NOT_FOUND })
+      const accepted = spec.readReturn(request.url)
+      if (accepted === undefined) return new Response(NOT_FOUND_BODY, { status: NOT_FOUND })
+      const page = loopbackPageOf({ copy: args.copy, outcome: accepted.page })
+      close(accepted.value)
       return new Response(page, { status: OK, headers: { 'content-type': HTML } })
     },
   })
@@ -76,12 +93,51 @@ export const startLoopbackReturn = (args: LoopbackStart): LoopbackReturn => {
     close(undefined)
     throw new Error('the loopback return bound no port')
   }
-  port = boundPort
-  const href = startLinkFor({ url: args.url, surface: EReturnSurface.Tui, port })
 
-  timer = setTimeout(() => close(undefined), args.timeoutMs ?? LOOPBACK_TIMEOUT_MS)
-  timer.unref?.()
-  args.open(href)
+  port = boundPort
+
+  const startOpened = (): { href: string; launched: unknown } => {
+    try {
+      const href = spec.hrefOf(port)
+      timer = setTimeout(() => close(undefined), args.timeoutMs ?? LOOPBACK_TIMEOUT_MS)
+      timer.unref?.()
+      return { href, launched: args.open(href) }
+    } catch (error) {
+      close(undefined)
+      throw error
+    }
+  }
+
+  const { href, launched } = startOpened()
+
+  void Promise.resolve(launched).then(
+    (started) => {
+      if (started === false) close(undefined)
+    },
+    () => close(undefined),
+  )
 
   return { port, href, outcome, stop: () => close(undefined) }
 }
+
+const cardSpecOf = (args: LoopbackStart): LoopbackSpec<ReturnOutcome> => {
+  const state = stateOfStartLink(args.url)
+  if (state === undefined) throw new Error('a loopback return needs a start link to open')
+
+  return {
+    state,
+    path: LOOPBACK_PATH,
+    hrefOf: (port) => startLinkFor({ url: args.url, surface: EReturnSurface.Tui, port }),
+    readReturn: (url) => {
+      const returned = browserReturnOf(url)
+      if (returned === undefined || returned.state !== state) return undefined
+      return { page: returned.outcome, value: returned.outcome }
+    },
+  }
+}
+
+export const startLoopbackReturn = (args: LoopbackStart): LoopbackReturn<ReturnOutcome> =>
+  serveLoopback({ ...args, spec: cardSpecOf(args) })
+
+export const startLoopbackWait = <T>(args: LoopbackWait<T>): LoopbackReturn<T> =>
+  serveLoopback({ open: args.open, copy: args.copy, timeoutMs: args.timeoutMs, spec: args.spec })
