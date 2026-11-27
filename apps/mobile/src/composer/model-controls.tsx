@@ -1,9 +1,10 @@
 import { useTheme } from '@dltech/atlas-ui-native'
-import { radius, space } from '@dltech/atlas-ui/tokens'
+import { radius } from '@dltech/atlas-ui/tokens'
 import { Zap } from 'lucide-react-native'
 import { Pressable, StyleSheet } from 'react-native'
 
 import type { IModelSelection } from './model-options'
+import { COMPOSER_TRIGGER_INSET } from '../thread/composer/composer-shape'
 
 export const FastToggle = ({
   selection,
@@ -38,6 +39,6 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     height: 28,
     justifyContent: 'center',
-    paddingHorizontal: space(2),
+    paddingHorizontal: COMPOSER_TRIGGER_INSET,
   },
 })
