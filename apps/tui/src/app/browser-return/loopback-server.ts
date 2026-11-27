@@ -93,12 +93,29 @@ const serveLoopback = <T>(args: LoopbackServe & { spec: LoopbackSpec<T> }): Loop
     close(undefined)
     throw new Error('the loopback return bound no port')
   }
-  port = boundPort
-  const href = spec.hrefOf(port)
 
-  timer = setTimeout(() => close(undefined), args.timeoutMs ?? LOOPBACK_TIMEOUT_MS)
-  timer.unref?.()
-  args.open(href)
+  port = boundPort
+
+  const startOpened = (): { href: string; launched: unknown } => {
+    try {
+      const href = spec.hrefOf(port)
+      timer = setTimeout(() => close(undefined), args.timeoutMs ?? LOOPBACK_TIMEOUT_MS)
+      timer.unref?.()
+      return { href, launched: args.open(href) }
+    } catch (error) {
+      close(undefined)
+      throw error
+    }
+  }
+
+  const { href, launched } = startOpened()
+
+  void Promise.resolve(launched).then(
+    (started) => {
+      if (started === false) close(undefined)
+    },
+    () => close(undefined),
+  )
 
   return { port, href, outcome, stop: () => close(undefined) }
 }

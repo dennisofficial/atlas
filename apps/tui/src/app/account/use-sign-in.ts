@@ -107,13 +107,16 @@ export function useSignIn(args: {
   )
 
   const settleLogin = useCallback(
-    async (login: { code: string; codeVerifier: string; redirectUri: string }) => {
+    async (settling: { attempt: number; login: Parameters<LoginExchange>[0] }) => {
       put(finishingLogin())
       try {
-        const token = await exchange(login)
+        const token = await exchange(settling.login)
+        if (settling.attempt !== run.current) return
         await onApproved({ token })
+        if (settling.attempt !== run.current) return
         put(idleLogin())
       } catch (error) {
+        if (settling.attempt !== run.current) return
         put(failedLogin(reasonOf(error)))
       }
     },
@@ -228,9 +231,12 @@ export function useSignIn(args: {
             return undefined
           }
           return settleLogin({
-            code: login.code,
-            codeVerifier: pair.verifier,
-            redirectUri: loginRedirectUriOf(listener.port),
+            attempt: ticket,
+            login: {
+              code: login.code,
+              codeVerifier: pair.verifier,
+              redirectUri: loginRedirectUriOf(listener.port),
+            },
           })
         })
       })
@@ -239,10 +245,11 @@ export function useSignIn(args: {
 
   useEffect(
     () => () => {
-      loopback.current?.stop()
-      loopback.current = null
+      run.current += 1
+      clearLoopback()
+      clearDevice()
     },
-    [],
+    [clearDevice, clearLoopback],
   )
 
   const begin = useCallback(() => {
