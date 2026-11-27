@@ -3,13 +3,12 @@ import {
   ESortDirection,
   formatBytes,
   formatSkillDate,
-  matchesSkill,
-  orderSkills,
   type SkillScopeTarget,
   type SkillSort,
+  skillUsageViewOf,
 } from '@dltech/atlas-client/settings'
 import { EConfigLayer } from '@dltech/atlas-core'
-import { ESkillOrigin, type SkillSummary } from '@dltech/atlas-wire/web'
+import type { SkillSummary } from '@dltech/atlas-wire/web'
 
 import type { IChoiceRowOption } from '../settings/choice-row-props'
 
@@ -51,28 +50,6 @@ const SORT_OF_CHOICE: Readonly<Record<ESkillSortChoice, SkillSort>> = {
 
 export const sortOfChoice = (choice: ESkillSortChoice): SkillSort => SORT_OF_CHOICE[choice]
 
-export const visibleSkillsOf = ({
-  skills,
-  query,
-  sort,
-}: {
-  skills: readonly SkillSummary[]
-  query: string
-  sort: SkillSort
-}): SkillSummary[] =>
-  orderSkills({ skills: skills.filter((skill) => matchesSkill({ skill, query })), sort })
-
-export const liveSelectedOf = ({
-  selected,
-  visible,
-}: {
-  selected: readonly string[]
-  visible: readonly SkillSummary[]
-}): string[] => selected.filter((name) => visible.some((skill) => skill.name === name))
-
-export const skillIsSelectable = (skill: SkillSummary): boolean =>
-  skill.origin !== ESkillOrigin.BuiltIn
-
 export const toggleSelected = ({
   selected,
   name,
@@ -82,11 +59,16 @@ export const toggleSelected = ({
 }): string[] =>
   selected.includes(name) ? selected.filter((value) => value !== name) : [...selected, name]
 
-export const skillMetaLineOf = ({ skill }: { skill: SkillSummary }): string => {
-  const usage =
-    skill.usage.usedCount30d === 0 ? 'Never used' : `Used ${skill.usage.usedCount30d}× · 30d`
-  const files = skill.fileCount === 1 ? '1 file' : `${skill.fileCount} files`
-  return `${usage} · ${files} · ${formatBytes(skill.sizeBytes)} · ${formatSkillDate(skill.updatedAt)}`
+export const skillMetaLineOf = ({ skill, now }: { skill: SkillSummary; now: number }): string => {
+  const usage = skillUsageViewOf({ skill, now })
+  const parts = [usage.usageLabel]
+  if (usage.lastUsedLabel !== null) parts.push(usage.lastUsedLabel)
+  parts.push(
+    skill.fileCount === 1 ? '1 file' : `${skill.fileCount} files`,
+    formatBytes(skill.sizeBytes),
+    formatSkillDate(skill.updatedAt),
+  )
+  return parts.join(' · ')
 }
 
 export const deleteConfirmCopyOf = ({ names }: { names: readonly string[] }): string =>

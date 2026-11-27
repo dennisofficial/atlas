@@ -109,7 +109,11 @@ const AppStack = () => {
           options={{
             ...pushedHeaderOptions,
             ...(screen.formSheet === true ? SETTINGS_FORM_SHEET : undefined),
-            ...pushedHeaderOptionsOf({ title: screen.title, barWidth }),
+            ...pushedHeaderOptionsOf({
+              title: screen.title,
+              barWidth,
+              buttons: screen.titleButtons,
+            }),
           }}
         />
       ))}

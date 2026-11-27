@@ -7,8 +7,9 @@ import {
   Text,
   useTheme,
 } from '@dltech/atlas-ui-native'
+import { skillIsSelectable } from '@dltech/atlas-client/settings'
 import { radius, space } from '@dltech/atlas-ui/tokens'
-import { ESkillOrigin, type SkillSummary } from '@dltech/atlas-wire/web'
+import type { SkillSummary } from '@dltech/atlas-wire/web'
 import { Check } from 'lucide-react-native'
 import { Pressable, StyleSheet, View } from 'react-native'
 
@@ -54,7 +55,7 @@ export const SkillRow = ({
   onSelect: () => void
 }) => {
   const theme = useTheme()
-  const builtIn = skill.origin === ESkillOrigin.BuiltIn
+  const builtIn = !skillIsSelectable(skill)
   const interactive = selecting && !builtIn
 
   return (
@@ -90,8 +91,8 @@ export const SkillRow = ({
           <Text size={ETextRole.Xs} tone={ETextTone.Muted} numberOfLines={2}>
             {skillDescriptionLabelOf(skill)}
           </Text>
-          <Text size={ETextRole.Xs} tone={ETextTone.Muted} numberOfLines={1} style={styles.meta}>
-            {skillMetaLineOf({ skill })}
+          <Text size={ETextRole.Xs} tone={ETextTone.Muted} style={styles.meta}>
+            {skillMetaLineOf({ skill, now: Date.now() })}
           </Text>
         </View>
       </View>

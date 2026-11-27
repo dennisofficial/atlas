@@ -3,7 +3,7 @@
 import { useCallback } from 'react'
 import type { SkillFileMeta, SkillSummary } from '@dltech/atlas-wire/web'
 
-import { EMPTY_SKILL_MD, SKILL_ENTRY_PATH } from '@dltech/atlas-client/settings'
+import { newSkillFileOf } from '@dltech/atlas-client/settings'
 
 import { useCloudQuery } from '@/lib/use-cloud-query'
 
@@ -17,6 +17,7 @@ import {
   removeSkill,
   removeSkillFile,
   sha256HexOfBase64,
+  sha256HexOfText,
   toBase64Utf8,
   type SkillScopeTarget,
 } from './skills-api'
@@ -54,10 +55,7 @@ export function useSkills(target: SkillScopeTarget) {
 
   const createSkill = useCallback(
     async (name: string) => {
-      await putBase64(
-        { ...target, skill: name, path: SKILL_ENTRY_PATH },
-        toBase64Utf8(EMPTY_SKILL_MD),
-      )
+      await putSkillFile(await newSkillFileOf({ target, name, hashOf: sha256HexOfText }))
       reload()
     },
     [reload, target.scope, target.projectId, target.groupId],

@@ -50,6 +50,8 @@ export const NewSkillForm = ({ target }: { target: SkillScopeTarget }) => {
                   {
                     type: 'button',
                     label: 'Create',
+                    icon: { type: 'sfSymbol', name: 'checkmark' },
+                    accessibilityLabel: 'Create skill',
                     disabled: !valid || busy,
                     onPress: () => void handleCreate(),
                   },

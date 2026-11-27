@@ -72,6 +72,13 @@ The headless client library that web, the TUI and the mobile app share.
   where that scope's skills load.
 - `skillNameIsValid({ name })`, `SKILL_NAME_PATTERN`, `MAX_SKILL_NAME_LENGTH`, `EMPTY_SKILL_MD`,
   `SKILL_ENTRY_PATH`: a new skill's name rule, and the bare `SKILL.md` it starts as.
+- `newSkillFileOf({ target, name, hashOf })`: the `skills.put` payload that creates a skill as its
+  bare `SKILL.md`, hashed by the surface's own SHA-256.
+- `visibleSkillsOf({ skills, query, sort })`, `liveSelectedOf({ selected, visible })`,
+  `skillIsSelectable(skill)`: the rows a list shows, the selection that still matches them, and the
+  built-in skills no delete can reach.
+- `skillUsageViewOf({ skill, now })`, `skillRelativeTimeOf({ iso, now })`, `SkillUsageView`: a row's
+  usage text, its last use as a relative time, and "Never used".
 - `toBase64Utf8`, `fromBase64Utf8`, `base64OfBytes`, `bytesOfBase64`: a skill file's payload.
 - `formatBytes(bytes)`, `formatSkillDate(updatedAt)`, `fileKindOf(path)`, `ESkillFileKind`,
   `SKILL_PRECEDENCE_COPY`: how a skill row reads.

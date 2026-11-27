@@ -1,0 +1,43 @@
+import type { SkillSummary } from '@dltech/atlas-wire/web'
+
+const MINUTE = 60
+const HOUR = 60 * MINUTE
+const DAY = 24 * HOUR
+const WEEK = 7 * DAY
+const MONTH = 30 * DAY
+const YEAR = 365 * DAY
+
+export type SkillUsageView = {
+  usageLabel: string
+  lastUsedLabel: string | null
+}
+
+export const skillRelativeTimeOf = ({ iso, now }: { iso: string; now: number }): string => {
+  const then = Date.parse(iso)
+  if (Number.isNaN(then)) return '—'
+  const seconds = Math.max(0, Math.round((now - then) / 1000))
+  if (seconds < MINUTE) return 'just now'
+  if (seconds < HOUR) return `${Math.floor(seconds / MINUTE)}m ago`
+  if (seconds < DAY) return `${Math.floor(seconds / HOUR)}h ago`
+  if (seconds < WEEK) return `${Math.floor(seconds / DAY)}d ago`
+  if (seconds < MONTH) return `${Math.floor(seconds / WEEK)}w ago`
+  if (seconds < YEAR) return `${Math.floor(seconds / MONTH)}mo ago`
+  return `${Math.floor(seconds / YEAR)}y ago`
+}
+
+export const skillUsageViewOf = ({
+  skill,
+  now,
+}: {
+  skill: SkillSummary
+  now: number
+}): SkillUsageView => {
+  if (skill.usage.usedCount30d === 0) return { usageLabel: 'Never used', lastUsedLabel: null }
+  return {
+    usageLabel: `Used ${skill.usage.usedCount30d}× · 30d`,
+    lastUsedLabel:
+      skill.usage.lastUsedAt === null
+        ? null
+        : `last used ${skillRelativeTimeOf({ iso: skill.usage.lastUsedAt, now })}`,
+  }
+}

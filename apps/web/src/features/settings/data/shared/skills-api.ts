@@ -80,6 +80,10 @@ export async function sha256HexOfBase64(content: string): Promise<string> {
   return Array.from(new Uint8Array(digest), (byte) => byte.toString(16).padStart(2, '0')).join('')
 }
 
+export async function sha256HexOfText(text: string): Promise<string> {
+  return sha256HexOfBase64(toBase64Utf8(text))
+}
+
 export type SkillSaveOutcome =
   | { outcome: 'saved'; revision: number }
   | { outcome: 'conflict'; theirs: string; revision: number }

@@ -72,4 +72,10 @@ describe('settings stack screens', () => {
     expect(new Set(names).size).toBe(names.length)
     for (const screen of SETTINGS_STACK_SCREENS) expect(screen.title.length).toBeGreaterThan(0)
   })
+
+  it('counts both bar buttons of the skills list screens in the title width', () => {
+    const skillsLists = SETTINGS_STACK_SCREENS.filter((screen) => screen.name.endsWith('/skills'))
+    expect(skillsLists.length).toBe(3)
+    for (const screen of skillsLists) expect(screen.titleButtons).toBe(2)
+  })
 })

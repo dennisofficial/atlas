@@ -7,14 +7,11 @@ import {
   deleteConfirmCopyOf,
   deleteConfirmTitleOf,
   ESkillSortChoice,
-  liveSelectedOf,
   ownSkillLayerOf,
   skillDescriptionLabelOf,
-  skillIsSelectable,
   skillMetaLineOf,
   sortOfChoice,
   toggleSelected,
-  visibleSkillsOf,
 } from '../skills-list-state'
 
 function summary(
@@ -57,59 +54,33 @@ describe('sortOfChoice', () => {
   })
 })
 
-describe('visibleSkillsOf', () => {
-  const skills = [summary('tdd', 5), summary('stale', 0, { description: 'Unused' })]
-
-  it('keeps the loaded order with no sort and no query', () => {
-    expect(visibleSkillsOf({ skills, query: '', sort: null }).map((skill) => skill.name)).toEqual([
-      'tdd',
-      'stale',
-    ])
-  })
-
-  it('filters by the query and sorts what is left', () => {
-    expect(
-      visibleSkillsOf({
-        skills,
-        query: 'unused',
-        sort: sortOfChoice(ESkillSortChoice.NameDescending),
-      }).map((skill) => skill.name),
-    ).toEqual(['stale'])
-    expect(
-      visibleSkillsOf({
-        skills,
-        query: '',
-        sort: sortOfChoice(ESkillSortChoice.UsageDescending),
-      }).map((skill) => skill.name),
-    ).toEqual(['tdd', 'stale'])
-  })
-})
-
-describe('selection', () => {
-  it('drops a selected name that the query hides', () => {
-    expect(liveSelectedOf({ selected: ['tdd', 'stale'], visible: [summary('tdd', 1)] })).toEqual([
-      'tdd',
-    ])
-  })
-
+describe('toggleSelected', () => {
   it('toggles a name on and off', () => {
     const added = toggleSelected({ selected: [], name: 'tdd' })
     expect(added).toEqual(['tdd'])
     expect(toggleSelected({ selected: added, name: 'tdd' })).toEqual([])
   })
-
-  it('keeps built-in skills out of the selection', () => {
-    expect(skillIsSelectable(summary('commit', 1, { origin: ESkillOrigin.BuiltIn }))).toBe(false)
-    expect(skillIsSelectable(summary('tdd', 1))).toBe(true)
-  })
 })
 
 describe('skillMetaLineOf', () => {
+  const NOW = Date.parse('2026-11-27T12:00:00Z')
+
   it('reads usage, files, size and updated date', () => {
-    expect(skillMetaLineOf({ skill: summary('tdd', 5) })).toBe(
+    expect(skillMetaLineOf({ skill: summary('tdd', 5), now: NOW })).toBe(
       'Used 5× · 30d · 1 file · 2.0 KB · Nov 1',
     )
-    expect(skillMetaLineOf({ skill: summary('tdd', 0) })).toStartWith('Never used')
+    expect(skillMetaLineOf({ skill: summary('tdd', 0), now: NOW })).toStartWith('Never used')
+  })
+
+  it('adds the last use when the API knows it', () => {
+    expect(
+      skillMetaLineOf({
+        skill: summary('tdd', 5, {
+          usage: { usedCount30d: 5, lastUsedAt: '2026-11-27T09:00:00Z' },
+        }),
+        now: NOW,
+      }),
+    ).toBe('Used 5× · 30d · last used 3h ago · 1 file · 2.0 KB · Nov 1')
   })
 })
 

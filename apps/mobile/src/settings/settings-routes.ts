@@ -12,6 +12,7 @@ export type ISettingsStackScreen = {
   name: string
   title: string
   formSheet?: boolean
+  titleButtons?: number
 }
 
 export type TRouteOfId = (args: { id: string }) => Href
@@ -21,11 +22,11 @@ export const SETTINGS_STACK_SCREENS: readonly ISettingsStackScreen[] = [
   { name: 'project-settings/[projectId]/index', title: 'Project settings' },
   { name: 'project-settings/[projectId]/overview', title: 'Overview' },
   { name: 'group-settings/[groupId]/index', title: 'Group settings' },
-  { name: 'settings/skills', title: 'Skills' },
+  { name: 'settings/skills', title: 'Skills', titleButtons: 2 },
   { name: 'settings/skills-new', title: 'New skill', formSheet: true },
-  { name: 'project-settings/[projectId]/skills', title: 'Skills' },
+  { name: 'project-settings/[projectId]/skills', title: 'Skills', titleButtons: 2 },
   { name: 'project-settings/[projectId]/skills-new', title: 'New skill', formSheet: true },
-  { name: 'group-settings/[groupId]/skills', title: 'Skills' },
+  { name: 'group-settings/[groupId]/skills', title: 'Skills', titleButtons: 2 },
   { name: 'group-settings/[groupId]/skills-new', title: 'New skill', formSheet: true },
 ]
 

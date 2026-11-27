@@ -1,7 +1,9 @@
 import {
+  liveSelectedOf,
   SKILL_PRECEDENCE_COPY,
   skillsDescriptionOf,
   type SkillScopeTarget,
+  visibleSkillsOf,
 } from '@dltech/atlas-client/settings'
 import {
   Button,
@@ -17,7 +19,7 @@ import {
 import { space } from '@dltech/atlas-ui/tokens'
 import type { NativeStackHeaderItem } from 'expo-router'
 import { router, Stack } from 'expo-router'
-import { useState } from 'react'
+import { useCallback, useState } from 'react'
 import { Platform, StyleSheet, View } from 'react-native'
 
 import { useAuth } from '../auth/auth-provider'
@@ -33,12 +35,10 @@ import {
   deleteConfirmCopyOf,
   deleteConfirmTitleOf,
   ESkillSortChoice,
-  liveSelectedOf,
   ownSkillLayerOf,
   SKILL_SORT_OPTIONS,
   sortOfChoice,
   toggleSelected,
-  visibleSkillsOf,
 } from './skills-list-state'
 import { useReloadOnFocus } from './use-reload-on-focus'
 import { useSkillLayers, useSkills } from './use-skills'
@@ -56,8 +56,12 @@ const EmptyCard = ({ title, description }: { title: string; description: string 
 
 export const SkillsScreen = ({ target }: { target: SkillScopeTarget }) => {
   const { api } = useAuth()
-  const { skills, state, reload, remove } = useSkills({ api, target })
   const layers = useSkillLayers({ api, target })
+  const { skills, state, reload, remove } = useSkills({
+    api,
+    target,
+    onMutated: layers.reload,
+  })
   const [query, setQuery] = useState('')
   const [choice, setChoice] = useState<ESkillSortChoice>(ESkillSortChoice.Default)
   const [selecting, setSelecting] = useState(false)
@@ -65,7 +69,12 @@ export const SkillsScreen = ({ target }: { target: SkillScopeTarget }) => {
   const [deleting, setDeleting] = useState(false)
   const [failure, setFailure] = useState<string | null>(null)
 
-  useReloadOnFocus(reload)
+  const handleRefresh = useCallback(() => {
+    reload()
+    layers.reload()
+  }, [reload, layers.reload])
+
+  useReloadOnFocus(handleRefresh)
 
   const visible = visibleSkillsOf({ skills, query, sort: sortOfChoice(choice) })
   const liveSelected = liveSelectedOf({ selected, visible })
@@ -104,9 +113,23 @@ export const SkillsScreen = ({ target }: { target: SkillScopeTarget }) => {
 
   const headerItems = (): NativeStackHeaderItem[] =>
     selecting
-      ? [{ type: 'button', label: 'Done', onPress: handleToggleSelecting }]
+      ? [
+          {
+            type: 'button',
+            label: 'Done',
+            icon: { type: 'sfSymbol', name: 'checkmark.circle.fill' },
+            accessibilityLabel: 'Done selecting skills',
+            onPress: handleToggleSelecting,
+          },
+        ]
       : [
-          { type: 'button', label: 'Select', onPress: handleToggleSelecting },
+          {
+            type: 'button',
+            label: 'Select',
+            icon: { type: 'sfSymbol', name: 'checkmark.circle' },
+            accessibilityLabel: 'Select skills',
+            onPress: handleToggleSelecting,
+          },
           {
             type: 'button',
             label: 'New skill',
@@ -215,7 +238,18 @@ export const SkillsScreen = ({ target }: { target: SkillScopeTarget }) => {
           {failure}
         </Text>
       )}
-      {ownLayer === null ? null : <InheritedSkills layers={layers.layers} ownLayer={ownLayer} />}
+      {ownLayer === null ? null : (
+        <>
+          <StatusRows
+            state={layers.state}
+            onRetry={layers.reload}
+            failure="Inherited skills could not be loaded."
+          />
+          {layers.state === EResourceState.Ready ? (
+            <InheritedSkills layers={layers.layers} ownLayer={ownLayer} />
+          ) : null}
+        </>
+      )}
     </SettingsScroll>
   )
 }

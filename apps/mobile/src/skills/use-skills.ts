@@ -1,10 +1,5 @@
 import type { ApiClient } from '@dltech/atlas-api-router'
-import {
-  EMPTY_SKILL_MD,
-  SKILL_ENTRY_PATH,
-  toBase64Utf8,
-  type SkillScopeTarget,
-} from '@dltech/atlas-client/settings'
+import { newSkillFileOf, type SkillScopeTarget } from '@dltech/atlas-client/settings'
 import type { SkillLayer, SkillSummary } from '@dltech/atlas-wire/web'
 import { useCallback } from 'react'
 
@@ -20,12 +15,20 @@ export type ISkillsResource = {
   remove: (args: { names: readonly string[] }) => Promise<void>
 }
 
+export type ISkillLayersResource = {
+  layers: SkillLayer[]
+  state: EResourceState
+  reload: () => void
+}
+
 export const useSkills = ({
   api,
   target,
+  onMutated,
 }: {
   api: ApiClient | undefined
   target: SkillScopeTarget
+  onMutated?: () => void
 }): ISkillsResource => {
   const scope = target.scope
   const projectId = target.projectId
@@ -42,16 +45,13 @@ export const useSkills = ({
   const create = useCallback(
     async ({ name }: { name: string }) => {
       if (api === undefined) throw new Error('Not signed in')
-      await api.skills.put.mutate({
-        ...input,
-        skill: name,
-        path: SKILL_ENTRY_PATH,
-        content: toBase64Utf8(EMPTY_SKILL_MD),
-        contentHash: await sha256HexOfText(EMPTY_SKILL_MD),
-      })
+      await api.skills.put.mutate(
+        await newSkillFileOf({ target: input, name, hashOf: sha256HexOfText }),
+      )
       reload()
+      if (onMutated !== undefined) onMutated()
     },
-    [api, reload, scope, projectId, groupId],
+    [api, reload, onMutated, scope, projectId, groupId],
   )
 
   const remove = useCallback(
@@ -61,8 +61,9 @@ export const useSkills = ({
         await api.skills.removeSkill.mutate({ ...input, skill: name })
       }
       reload()
+      if (onMutated !== undefined) onMutated()
     },
-    [api, reload, scope, projectId, groupId],
+    [api, reload, onMutated, scope, projectId, groupId],
   )
 
   return { skills: resource.data ?? [], state: resource.state, reload, create, remove }
@@ -74,7 +75,7 @@ export const useSkillLayers = ({
 }: {
   api: ApiClient | undefined
   target: SkillScopeTarget
-}): { layers: SkillLayer[]; state: EResourceState } => {
+}): ISkillLayersResource => {
   const scope = target.scope
   const projectId = target.projectId
   const groupId = target.groupId
@@ -85,5 +86,5 @@ export const useSkillLayers = ({
     return (await api.skills.layered.query(input)).layers
   }, [api, scope, projectId, groupId])
   const resource = useApiResource<SkillLayer[]>({ load, deps: [api, scope, projectId, groupId] })
-  return { layers: resource.data ?? [], state: resource.state }
+  return { layers: resource.data ?? [], state: resource.state, reload: resource.reload }
 }
