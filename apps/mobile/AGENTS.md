@@ -39,9 +39,10 @@ web spinner), never `ActivityIndicator`.
 - **Search:** use `headerSearchBarOptions` with `placement: 'integratedButton'` on a screen that
   has a native bar, so search is a round bar button that expands into the field. Keep the JS
   `SearchField` only where there is no native bar, for example the sessions panel inside a session.
-- **Root pages:** a tab root (and Settings on iPhone Duo) replaces the stack and does not push onto
-  it (`src/navigation/root-navigation.ts`). A root page has `animation: 'none'` and no back button.
-  Only a nested page slides in.
+- **Tabs:** the four destinations are `NativeTabs` triggers under `src/app/(app)/(tabs)/`. Each tab
+  root is its own `Stack` (`TabRootStack`, `src/navigation/tab-root-stack.tsx`) with
+  `animation: 'none'` and no back button, so only a nested page slides in. Settings is pushed from
+  the avatar button in every tab's header, and a tab bar holds destinations only.
 - **Scroll edge effect:** iOS 26+ attaches the bar's scroll edge effect to the first scroll view it
   finds when the screen opens. Render the list from the first frame. Show loading, error and empty
   states inside the list, and never in a view that the list replaces later.
@@ -54,13 +55,12 @@ web spinner), never `ActivityIndicator`.
 ## Layout
 
 - Safe areas come from `react-native-safe-area-context`. Never hard-code a status bar or notch size.
-- On iPhone Duo the system column is on the right. `RailContentFrame`
-  (`src/layout/rail-content-frame.tsx`) keeps every screen clear of it, so do not add right padding
-  on a single screen. A layer outside the frame (for example the in-app banner) adds the insets
-  itself.
-- A `fullScreenModal` draws outside `RailContentFrame`. It pads right by `posture.railWidth`
-  itself, and wraps itself in its own `SafeAreaProvider`: while it is open, the root insets and
-  `usePosture()` keep the orientation it opened in. See `src/app/(app)/photo/index.tsx`.
+- On iPhone Duo the native tab bar sits in the system column on the right. iOS places it and gives
+  every screen the matching inset. Do not add right padding on a single screen, and do not draw a
+  bar of your own there.
+- A `fullScreenModal` draws over the tab bar and its column. It wraps itself in its own
+  `SafeAreaProvider` so its insets follow the window while it is open. See
+  `src/app/(app)/photo/index.tsx`.
 - The check viewports, the Duo included, are in `docs/mobile/devices.md`.
 
 ## Shipping

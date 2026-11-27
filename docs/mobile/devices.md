@@ -144,9 +144,14 @@ What the web bundle cannot prove:
 - `apps/mobile/src/layout/split-panes.tsx:22` renders the two panes in a row, with a hairline border
   at `:40`. A single pane renders at `:19`.
 - `apps/mobile/app.config.ts:11` allows every orientation.
-- `apps/mobile/src/app/(app)/_layout.tsx:31` lets the native header lay out the top band; the pushed
-  screens (`sessions/[id]`, `agents/[agentId]`, `settings`) share `pushedHeaderOptions` so the
-  system clock and our title sit in one row.
+- `apps/mobile/src/app/(app)/(tabs)/_layout.tsx:12` is a native tab bar (`NativeTabs` from
+  `expo-router/native-tabs`): Sessions, Routines, Projects and Artifacts, each with a label and an
+  SF Symbol. iOS places that bar itself, so the Duo status strip holds it and the app draws nothing
+  there. The bar hides on the sessions tab while the sessions drawer is closed
+  (`src/navigation/root-navigation.ts:31`).
+- `apps/mobile/src/app/(app)/_layout.tsx:21` keeps every screen on a native stack header; the
+  screens pushed above the tabs (`agents/[agentId]`, `settings`, `diagram`) share
+  `pushedHeaderOptions` (`:23`) so the system clock and our title sit in one row.
 
 ## Gaps
 
@@ -160,12 +165,10 @@ What the web bundle cannot prove:
 4. Layout reads hinge status, which both Apple and Expo say not to use for layout
    (`pane-layout.ts:34`, `use-pane-layout.ts:9`). Width, height and safe area are the supported
    inputs; the hinge is for effects.
-5. The status strip on the open Duo is blank: the app has no native tabs yet. Native tabs fill
-   the strip (roadmap: "Projects tab (brings the tab bar)").
-6. Nothing reads a size class, and the 640 pt threshold matches no documented Apple value. It sits
+5. Nothing reads a size class, and the 640 pt threshold matches no documented Apple value. It sits
    between the Duo's two open widths, which happens to give the right single/split answer, but by
    accident.
-7. The web bundle cannot check fold behaviour: `useHinge()` is always `null` there, and insets are
+6. The web bundle cannot check fold behaviour: `useHinge()` is always `null` there, and insets are
    0. A green web check says nothing about the open Duo.
-8. No posture is named anywhere in the app. There is no shared map from viewport to posture, so a
+7. No posture is named anywhere in the app. There is no shared map from viewport to posture, so a
    live check cannot say which posture a screenshot shows.

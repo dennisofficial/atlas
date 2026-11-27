@@ -1,8 +1,8 @@
 import { useTheme } from '@dltech/atlas-ui-native'
 import { Stack } from 'expo-router'
 
-import { barHeaderOptionsOf, usesGlassHeader } from '../../../navigation/glass-header'
-import { SessionsDrawer } from '../../../sessions/sessions-drawer'
+import { barHeaderOptionsOf, usesGlassHeader } from '../../../../navigation/glass-header'
+import { SessionsDrawer } from '../../../../sessions/sessions-drawer'
 
 const SessionsStack = () => {
   const theme = useTheme()

@@ -3,9 +3,8 @@ import { space } from '@dltech/atlas-ui/tokens'
 import { router, Stack, useLocalSearchParams } from 'expo-router'
 import { useCallback, useState } from 'react'
 import { Alert, StyleSheet, useWindowDimensions, View } from 'react-native'
-import { SafeAreaProvider, useSafeAreaInsets } from 'react-native-safe-area-context'
+import { SafeAreaProvider } from 'react-native-safe-area-context'
 
-import { postureOf } from '../../../layout/posture'
 import { photoHeaderOptionsOf } from '../../../thread/photos/photo-header-options'
 import { chromeVisibleAfter, EPhotoChromeEvent } from '../../../thread/photos/photo-zoom'
 import { photoOf } from '../../../thread/photos/photo-store'
@@ -14,9 +13,7 @@ import { ZoomablePhoto } from '../../../thread/photos/zoomable-photo'
 
 const PhotoViewer = () => {
   const theme = useTheme()
-  const { width, height } = useWindowDimensions()
-  const windowInsets = useSafeAreaInsets()
-  const posture = postureOf({ width, height, insets: windowInsets })
+  const { width } = useWindowDimensions()
   const { id } = useLocalSearchParams<{ id?: string }>()
   const photo = photoOf(id)
 
@@ -39,14 +36,11 @@ const PhotoViewer = () => {
   }, [photo])
 
   return (
-    <View
-      style={[styles.root, { paddingRight: posture.railWidth, backgroundColor: theme.sidebar }]}
-    >
+    <View style={[styles.root, { backgroundColor: theme.sidebar }]}>
       <Stack.Screen
         options={photoHeaderOptionsOf({
           photo,
           visible: chromeVisible,
-          posture,
           windowWidth: width,
           tint: theme.foreground,
           onClose: handleClose,

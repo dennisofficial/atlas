@@ -4,9 +4,8 @@ import { router } from 'expo-router'
 import type { ReactNode } from 'react'
 import { Platform, StyleSheet, View } from 'react-native'
 
-import type { TPosture } from '../layout/posture'
 import { AccountButton } from './account-button'
-import { EHeaderLeadingItem, leadingTitleWidthOf, tabHeaderLeadingOf } from './header-leading'
+import { leadingTitleWidthOf } from './header-leading'
 import { NewSessionButton } from './new-session-button'
 
 export const LEAD_GAP = 10
@@ -32,7 +31,6 @@ export const leadingHeaderOptionsOf = ({
   glassTitle = false,
   titleButtons,
   windowWidth,
-  posture,
 }: {
   leading?: NativeStackHeaderItem[]
   lead?: ReactNode
@@ -40,7 +38,6 @@ export const leadingHeaderOptionsOf = ({
   glassTitle?: boolean
   titleButtons: number
   windowWidth: number
-  posture: TPosture
 }): NativeStackNavigationOptions => {
   const iosLead = Platform.OS === 'ios' ? lead : undefined
   const titleElement = (
@@ -49,7 +46,7 @@ export const leadingHeaderOptionsOf = ({
         styles.title,
         glassTitle ? styles.glassTitle : null,
         glassTitle && iosLead !== undefined ? styles.glassTitleWithLead : null,
-        { maxWidth: leadingTitleWidthOf({ windowWidth, posture, buttons: titleButtons }) },
+        { maxWidth: leadingTitleWidthOf({ windowWidth, buttons: titleButtons }) },
       ]}
     >
       {iosLead}
@@ -72,30 +69,23 @@ export const leadingHeaderOptionsOf = ({
 
 export const tabHeaderOptionsOf = ({
   title,
-  posture,
   windowWidth,
 }: {
   title: string
-  posture: TPosture
   windowWidth: number
-}): NativeStackNavigationOptions => {
-  const leading = tabHeaderLeadingOf({ posture })
-  const showsAccount = leading.includes(EHeaderLeadingItem.Account)
-  return {
-    title,
-    ...leadingHeaderOptionsOf({
-      lead: showsAccount ? <AccountButton /> : undefined,
-      title: <TabHeaderTitle title={title} />,
-      glassTitle: true,
-      titleButtons: 2,
-      windowWidth,
-      posture,
-    }),
-    headerLeft: Platform.OS === 'ios' || !showsAccount ? undefined : () => <AccountButton />,
-    headerRight: Platform.OS === 'ios' ? undefined : () => <NewSessionButton />,
-    unstable_headerRightItems: Platform.OS === 'ios' ? () => [newSessionHeaderItemOf()] : undefined,
-  }
-}
+}): NativeStackNavigationOptions => ({
+  title,
+  ...leadingHeaderOptionsOf({
+    lead: <AccountButton />,
+    title: <TabHeaderTitle title={title} />,
+    glassTitle: true,
+    titleButtons: 2,
+    windowWidth,
+  }),
+  headerLeft: Platform.OS === 'ios' ? undefined : () => <AccountButton />,
+  headerRight: Platform.OS === 'ios' ? undefined : () => <NewSessionButton />,
+  unstable_headerRightItems: Platform.OS === 'ios' ? () => [newSessionHeaderItemOf()] : undefined,
+})
 
 const styles = StyleSheet.create({
   title: {
