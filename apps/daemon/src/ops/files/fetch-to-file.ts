@@ -3,11 +3,15 @@ import { dirname } from 'node:path'
 
 import type { FetchToFileOp } from '@dltech/atlas-protocol'
 
+const isFileAt = async (path: string): Promise<boolean> =>
+  (await stat(path).catch(() => null))?.isFile() === true
+
 export const fetchToFile = async (args: {
   op: FetchToFileOp
   signal: AbortSignal
 }): Promise<void> => {
   const { op, signal } = args
+  if (await isFileAt(op.path)) return
   const part = `${op.path}.part`
   await mkdir(dirname(op.path), { recursive: true })
   try {
