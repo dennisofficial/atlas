@@ -69,6 +69,7 @@ describe('nudgeReactionProperties', () => {
         finding_id: REACTION_ID1,
         episode: 1,
         policy_id: 'single-responsibility',
+        nudge_kind: 'new',
         reaction: 'untouched',
         mentioned_in_reply: false,
         concern_at_nudge: 0.9,
@@ -77,6 +78,16 @@ describe('nudgeReactionProperties', () => {
         turns_after_nudge: 0,
       },
     ])
+  })
+
+  it('names the kind of the nudge the finding was notified with', () => {
+    const debt = reviewed({
+      state: EQualityFindingState.Active,
+      notified: true,
+      transition: EQualityTransition.TrackDebt,
+    })
+
+    expect(reactions([turnStarted, debt, said])[0]).toMatchObject({ nudge_kind: 'debt' })
   })
 
   it('reports fixed when a later review in the turn resolved the finding', () => {

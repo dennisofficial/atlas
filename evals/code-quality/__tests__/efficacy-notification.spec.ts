@@ -70,7 +70,7 @@ describe('fresh-episode notification measurement through the real ledger', () =>
     expect(report.notification.precision.value).toBeNull()
   })
 
-  test('unchanged high-concern debt is silent and a true negative for notification', () => {
+  test('unchanged high-concern debt is a debt nudge and matches a warranted judgment', () => {
     const evalCase = makeCase({
       id: 'n3',
       expected: decided({ impact: EQualityImpact.Unchanged, concern: true }),
@@ -83,10 +83,10 @@ describe('fresh-episode notification measurement through the real ledger', () =>
           assessment: assess({ evalCase, concern: 0.95, impact: EQualityImpact.Unchanged }),
         }),
       ],
-      judgments: [judgmentFor({ evalCase, warranted: false })],
+      judgments: [judgmentFor({ evalCase, warranted: true })],
     })
-    expect(report.notification.confusion).toEqual({ tp: 0, fp: 0, fn: 0, tn: 1 })
-    expect(report.notification.actualNotifications).toBe(0)
+    expect(report.notification.confusion).toEqual({ tp: 1, fp: 0, fn: 0, tn: 0 })
+    expect(report.notification.actualNotifications).toBe(1)
   })
 
   test('a function positive without supplied focus is a true positive, not a coverage limitation', () => {

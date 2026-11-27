@@ -587,6 +587,9 @@ carry a weight of 1 / inclusion probability (§6.3).
 ### 12.5 Known limits
 
 - `thread_kind` is absent on events from a caller that cannot name the thread kind (#2972).
+- From 2026-11-27 a tracked-debt finding notifies the agent once per episode, so the nudge text can say the mix
+  predates the edit; the verdict is `debt_nudged`, `nudge_kind` separates these from new nudges, and the rubric
+  labels a mix a nudge when the edit did not resolve it (decision: nudge debt when the agent is already in the file).
 - `quality review unavailable` sends `bash_write` from 2026-11-26. It reads the command with the core
   command reader (`readCommand`, `deedsOf`), so a write that the reader cannot parse is not counted.
 - The first labels: 5 trace reviews from a dry run on 2026-11-25 saw Jev's answer. Routine step 2.0

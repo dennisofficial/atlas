@@ -45,11 +45,23 @@ describe('applyAssessments transition table', () => {
     expect(result.notifiable).toHaveLength(1)
   })
 
-  it('opens a silent episode on TrackDebt with no finding', () => {
+  it('opens a notified episode on TrackDebt with no finding', () => {
     const result = step({ transition: EQualityTransition.TrackDebt })
-    expect(result.findings[0]?.notified).toBe(false)
+    expect(result.findings[0]?.notified).toBe(true)
     expect(result.findings[0]?.state).toBe(EQualityFindingState.Active)
-    expect(result.notifiable).toEqual([])
+    expect(result.notifiable).toHaveLength(1)
+  })
+
+  it('notifies a debt finding once, and does not notify again when it becomes introduced', () => {
+    const first = step({ transition: EQualityTransition.TrackDebt })
+    expect(first.notifiable).toHaveLength(1)
+
+    const second = step({ previous: first.findings, transition: EQualityTransition.TrackDebt })
+    expect(second.notifiable).toEqual([])
+
+    const third = step({ previous: second.findings, transition: EQualityTransition.Introduce })
+    expect(third.notifiable).toEqual([])
+    expect(third.findings[0]?.notified).toBe(true)
   })
 
   it('notifies a tracked-debt finding once on later Introduce, then stays silent', () => {
@@ -64,14 +76,14 @@ describe('applyAssessments transition table', () => {
     expect(second.findings[0]?.lastAfterHash).toBe('a1')
   })
 
-  it('updates an unnotified finding silently on TrackDebt', () => {
+  it('notifies an unnotified finding on TrackDebt', () => {
     const result = step({
       previous: [finding({ notified: false })],
       transition: EQualityTransition.TrackDebt,
     })
-    expect(result.findings[0]?.notified).toBe(false)
+    expect(result.findings[0]?.notified).toBe(true)
     expect(result.findings[0]?.lastAfterHash).toBe('a1')
-    expect(result.notifiable).toEqual([])
+    expect(result.notifiable).toHaveLength(1)
   })
 
   it('updates a notified finding silently on TrackDebt', () => {
@@ -107,11 +119,11 @@ describe('applyAssessments transition table', () => {
     expect(result.notifiable).toHaveLength(1)
   })
 
-  it('starts a silent new episode when a resolved concern returns as TrackDebt', () => {
+  it('starts a notified new episode when a resolved concern returns as TrackDebt', () => {
     const resolved = finding({ state: EQualityFindingState.Resolved })
     const result = step({ previous: [resolved], transition: EQualityTransition.TrackDebt })
-    expect(result.findings[0]).toMatchObject({ episode: 2, notified: false })
-    expect(result.notifiable).toEqual([])
+    expect(result.findings[0]).toMatchObject({ episode: 2, notified: true })
+    expect(result.notifiable).toHaveLength(1)
   })
 
   it('leaves state untouched on None', () => {

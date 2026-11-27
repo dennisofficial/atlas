@@ -15,7 +15,7 @@ import type { QualityScopeFacts } from '../../review/scope-facts'
 import { extensionOf } from './paths'
 import { wasNotified, type QualityNotified } from './review-links'
 import type { QualityReviewEventProperties } from './review-properties'
-import { nearMissOf, verdictOf } from './verdict'
+import { nearMissOf, nudgeKindOf, verdictOf } from './verdict'
 
 export const QUALITY_SCOPE_ASSESSED = 'quality scope assessed'
 
@@ -39,17 +39,17 @@ export const scopeAssessedProperties = (args: {
   facts: QualityScopeFacts
   notified: readonly QualityNotified[]
 }): QualityReviewEventProperties => {
-  const verdict = verdictOf({
-    assessment: args.assessment,
-    notified: wasNotified({
-      notified: args.notified,
-      policyId: args.assessment.policyId,
-      scopeId: args.assessment.scopeId,
-    }),
+  const notified = wasNotified({
+    notified: args.notified,
+    policyId: args.assessment.policyId,
+    scopeId: args.assessment.scopeId,
   })
+  const verdict = verdictOf({ assessment: args.assessment, notified })
+  const kind = notified ? nudgeKindOf({ transition: args.assessment.transition }) : null
   const concern = args.assessment.currentConcernProbability
   return {
     review_id: args.reviewId,
+    ...(kind === null ? {} : { nudge_kind: kind }),
     scope_id: args.assessment.scopeId,
     policy_id: args.assessment.policyId,
     policy_version: args.assessment.policyVersion,

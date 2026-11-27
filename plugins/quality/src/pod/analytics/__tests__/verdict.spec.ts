@@ -7,7 +7,14 @@ import {
   type QualityAssessment,
 } from '@dltech/atlas-core'
 
-import { EQualityVerdict, nearMissOf, strongerVerdictOf, verdictOf } from '../verdict'
+import {
+  ENudgeKind,
+  EQualityVerdict,
+  nearMissOf,
+  nudgeKindOf,
+  strongerVerdictOf,
+  verdictOf,
+} from '../verdict'
 
 const assessment = (overrides: Partial<QualityAssessment> = {}): QualityAssessment => ({
   policyId: 'single-responsibility',
@@ -35,6 +42,12 @@ describe('verdictOf', () => {
     const held = assessment({ transition: EQualityTransition.TrackDebt })
 
     expect(verdictOf({ assessment: held, notified: false })).toBe(EQualityVerdict.TrackedDebt)
+  })
+
+  it('names a notified piece of existing debt', () => {
+    const held = assessment({ transition: EQualityTransition.TrackDebt })
+
+    expect(verdictOf({ assessment: held, notified: true })).toBe(EQualityVerdict.DebtNudged)
   })
 
   it('calls a resolved scope clean', () => {
@@ -74,6 +87,21 @@ describe('verdictOf', () => {
   })
 })
 
+describe('nudgeKindOf', () => {
+  it('names an introduction a new nudge', () => {
+    expect(nudgeKindOf({ transition: EQualityTransition.Introduce })).toBe(ENudgeKind.New)
+  })
+
+  it('names pre-existing debt a debt nudge', () => {
+    expect(nudgeKindOf({ transition: EQualityTransition.TrackDebt })).toBe(ENudgeKind.Debt)
+  })
+
+  it('names no kind for a transition that does not nudge', () => {
+    expect(nudgeKindOf({ transition: EQualityTransition.None })).toBeNull()
+    expect(nudgeKindOf({ transition: EQualityTransition.Resolve })).toBeNull()
+  })
+})
+
 describe('nearMissOf', () => {
   it('counts a tracked debt', () => {
     expect(nearMissOf({ verdict: EQualityVerdict.TrackedDebt, concern: null })).toBe(true)
@@ -85,6 +113,10 @@ describe('nearMissOf', () => {
 
   it('never counts a nudge', () => {
     expect(nearMissOf({ verdict: EQualityVerdict.Nudged, concern: 0.95 })).toBe(false)
+  })
+
+  it('never counts a debt nudge', () => {
+    expect(nearMissOf({ verdict: EQualityVerdict.DebtNudged, concern: 0.9 })).toBe(false)
   })
 
   it('leaves a clean scope out', () => {
@@ -100,5 +132,14 @@ describe('strongerVerdictOf', () => {
     expect(
       strongerVerdictOf({ left: EQualityVerdict.Clean, right: EQualityVerdict.NearMiss }),
     ).toBe(EQualityVerdict.NearMiss)
+  })
+
+  it('ranks a new nudge above a debt nudge and a debt nudge above a repeat', () => {
+    expect(
+      strongerVerdictOf({ left: EQualityVerdict.Nudged, right: EQualityVerdict.DebtNudged }),
+    ).toBe(EQualityVerdict.Nudged)
+    expect(
+      strongerVerdictOf({ left: EQualityVerdict.Repeat, right: EQualityVerdict.DebtNudged }),
+    ).toBe(EQualityVerdict.DebtNudged)
   })
 })

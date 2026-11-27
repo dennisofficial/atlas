@@ -280,4 +280,16 @@ describe('single responsibility guidance', () => {
   it('is deterministic', () => {
     expect(singleResponsibilityPolicy.guidance({ assessment, scope })).toBe(text)
   })
+
+  it('tells the agent the mix predates its edit when the transition is tracked debt', () => {
+    const debt = singleResponsibilityPolicy.guidance({
+      assessment: assessmentFixture({ transition: EQualityTransition.TrackDebt, evidenceIds: [] }),
+      scope,
+    })
+    expect(debt).toContain('already mixes independently changing responsibilities (concern 90%)')
+    expect(debt).toContain('Your edit did not cause this')
+    expect(debt).toContain('consider splitting it')
+    expect(debt).not.toContain('may now mix')
+    expect(debt).not.toContain('Policy:')
+  })
 })
