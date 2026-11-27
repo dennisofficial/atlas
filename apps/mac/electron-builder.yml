@@ -21,6 +21,10 @@ extraResources:
     to: web-standalone
   - from: dist/bin/bun
     to: bin/bun
+  # The Swift panel addon loads from disk, not from app.asar: a dlopen'd library beside the bundle
+  # needs a real path. mac.binaries below signs it with the hardened runtime.
+  - from: native/prebuilds/darwin-arm64/atlas_native.node
+    to: native/atlas_native.node
 asar: true
 protocols:
   - name: Atlas
@@ -39,6 +43,7 @@ mac:
   # their own, and without one they fail to launch.
   binaries:
     - Contents/Resources/bin/bun
+    - Contents/Resources/native/atlas_native.node
   notarize: true
   # Squirrel.Mac validates the replacement bundle from a zip, so auto-update cannot work from the
   # dmg alone; the zip and latest-mac.yml travel to the same release as the dmg.

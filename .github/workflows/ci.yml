@@ -378,7 +378,10 @@ jobs:
           iconutil -c icns icon.iconset -o build/icon.icns
           bun run bundle:payload
           bun run pack:host
+          bun run build:native
           npx electron-builder --mac dmg zip --arm64
+          test -f release/mac-arm64/Atlas.app/Contents/Resources/native/atlas_native.node
+          file release/mac-arm64/Atlas.app/Contents/Resources/native/atlas_native.node | grep 'Mach-O 64-bit'
           bun scripts/update-manifest.ts --version 0.0.0 --dir release
         working-directory: apps/mac
 
@@ -648,6 +651,7 @@ jobs:
           iconutil -c icns icon.iconset -o build/icon.icns
           bun run bundle:payload
           bun run pack:host
+          bun run build:native
           printf '%s' "$MAC_PROVISIONING_PROFILE_B64" | base64 --decode > build/embedded.provisionprofile
           npx electron-builder --mac dmg zip --arm64 --publish never -c.extraMetadata.version="$VERSION" -c.mac.provisioningProfile=build/embedded.provisionprofile
           bun scripts/update-manifest.ts --version "$VERSION" --dir release
