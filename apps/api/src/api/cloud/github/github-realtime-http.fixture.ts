@@ -3,7 +3,11 @@ import { spyOn } from 'bun:test'
 import type { RedisService } from '../../../_lib/redis/redis.service'
 import type { SecretCipherService } from '../../../_lib/crypto/secret-cipher.service'
 import { DrainStateService } from '../../platform/health/drain-state.service'
-import { inertMergeabilityRefresh, inertReconcile } from '@dltech/atlas-github/testing'
+import {
+  inertHeldGreen,
+  inertMergeabilityRefresh,
+  inertReconcile,
+} from '@dltech/atlas-github/testing'
 import type { GithubAppInstallationsService } from '@dltech/atlas-github'
 import { GithubConfig } from '@dltech/atlas-github'
 import { GithubDeliveryService } from '@dltech/atlas-github'
@@ -169,6 +173,7 @@ export function realGithubGraph(args: {
       fanout,
       reconcile: inertReconcile(),
       mergeability: inertMergeabilityRefresh(),
+      confirmGreen: inertHeldGreen(),
     }),
   )
   const discussion = new GithubPrDiscussionDeliveryService(mailbox)

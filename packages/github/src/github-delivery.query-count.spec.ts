@@ -65,7 +65,7 @@ describe('one check_run delivery', () => {
     })
     report('one live subscription', statements)
 
-    expect(statements).toHaveLength(35)
+    expect(statements).toHaveLength(48)
     expect(statements[0]).toContain('FROM "GithubSubscription"')
   })
 })

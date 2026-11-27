@@ -37,6 +37,7 @@ const prEventLabel = (event: Event & { type: 'pr-event' }): string => {
       : `${event.queue} the merge queue`
   }
   if (event.kind === EPrEventKind.AutoMergeOff) return 'auto-merge turned off'
+  if (event.kind === EPrEventKind.CiRestarted) return 'CI started again'
   return `state ${event.state ?? 'changed'}`
 }
 

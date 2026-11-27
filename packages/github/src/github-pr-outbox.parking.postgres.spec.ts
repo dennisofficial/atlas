@@ -1,3 +1,4 @@
+import { inertHeldGreen } from './github-pr-store.fixture'
 import { randomUUID } from 'node:crypto'
 import { db } from '@dltech/atlas-db'
 import { useTestDatabase } from '@dltech/atlas-db/testing'
@@ -46,6 +47,7 @@ const parkedRow = (args: { id?: string; attempts?: number; now: Date }) => {
 
 function rig(args: { now: () => Date; reconcile: () => Promise<void> }) {
   const dispatcher = new GithubPrOutboxDispatcher({
+    confirmGreen: inertHeldGreen(),
     fanout: { push: () => undefined, pushEvent: () => undefined },
     reconcile: args.reconcile,
     mergeability: async () => undefined,

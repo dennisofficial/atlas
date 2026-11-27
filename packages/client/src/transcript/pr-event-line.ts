@@ -111,6 +111,7 @@ export const prEventLine = (event: PrEvent): string => {
   if (event.kind === EPrEventKind.Mergeability) return mergeabilityLine(event)
   if (event.kind === EPrEventKind.MergeQueue) return mergeQueueLine(event)
   if (event.kind === EPrEventKind.AutoMergeOff) return autoMergeOffLine(event)
+  if (event.kind === EPrEventKind.CiRestarted) return `${prefix(event)}: CI started again`
   return stateLine(event)
 }
 

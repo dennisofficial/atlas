@@ -1,3 +1,4 @@
+import { heldGreenFixture } from './github-pr-store.fixture'
 import { EPrSource, EPrState, type PrObservation, type PullSample } from '@dltech/atlas-core'
 import { RecordingDrain } from './testing/drain.fixture'
 import { db } from '@dltech/atlas-db'
@@ -121,16 +122,15 @@ function rig(
     },
     budget: {} as GithubHttpBudget,
   })
-  const dispatcher = new GithubPrOutboxDispatcher({
+  const dispatcher: GithubPrOutboxDispatcher = new GithubPrOutboxDispatcher({
     fanout,
     reconcile: (request) => reconcile.run(request),
     mergeability: async () => undefined,
+    confirmGreen: heldGreenFixture({ mailbox: () => mailbox, dispatcher: () => dispatcher }),
     now: () => new Date(clock),
   })
-  store = new GithubPrStore({
-    mailbox: new GithubPrEventMailboxService(fanout, dispatcher),
-    dispatcher,
-  })
+  const mailbox = new GithubPrEventMailboxService(fanout, dispatcher)
+  store = new GithubPrStore({ mailbox, dispatcher })
 
   const advance = (ms: number): void => {
     clock += ms

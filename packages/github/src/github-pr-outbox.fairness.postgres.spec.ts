@@ -1,3 +1,4 @@
+import { inertHeldGreen } from './github-pr-store.fixture'
 import { randomUUID } from 'node:crypto'
 import { db } from '@dltech/atlas-db'
 import { useTestDatabase } from '@dltech/atlas-db/testing'
@@ -29,6 +30,7 @@ const parkedReconcileRow = (args: { createdAt: Date }) => ({
 
 function rig() {
   const dispatcher = new GithubPrOutboxDispatcher({
+    confirmGreen: inertHeldGreen(),
     fanout: { push: () => undefined, pushEvent: () => undefined } as never,
     reconcile: async () => {
       throw new GithubHttpBudgetUnavailable()

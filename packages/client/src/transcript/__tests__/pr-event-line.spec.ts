@@ -156,6 +156,15 @@ describe('an auto-merge off line', () => {
   })
 })
 
+describe('a CI restarted line', () => {
+  it('says CI started again and needs no attention', () => {
+    const event = verdict({ kind: EPrEventKind.CiRestarted, verdict: undefined })
+
+    expect(prEventLine(event)).toBe('PR #794: CI started again')
+    expect(prEventFailed(event)).toBe(false)
+  })
+})
+
 describe('a merge queue line', () => {
   it('says the PR entered or left the queue', () => {
     expect(

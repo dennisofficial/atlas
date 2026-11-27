@@ -3,7 +3,7 @@ import { RecordingDrain } from './testing/drain.fixture'
 import { useTestDatabase } from '@dltech/atlas-db/testing'
 import { beforeEach, describe, expect, it } from 'bun:test'
 import { ensureUsers, prEventRows, seedSubscription } from './testing/github-seed'
-import { inertMergeabilityRefresh, inertReconcile } from './github-pr-store.fixture'
+import { inertHeldGreen, inertMergeabilityRefresh, inertReconcile } from './github-pr-store.fixture'
 import { GithubPrDiscussionDeliveryService } from './github-pr-discussion-delivery.service'
 import { GithubPrEventMailboxService } from './github-pr-event-mailbox.service'
 import { GithubPrFanoutService } from './github-pr-fanout.service'
@@ -17,6 +17,7 @@ function rig(): {
 } {
   const fanout = new GithubPrFanoutService(new RecordingDrain())
   const dispatcher = new GithubPrOutboxDispatcher({
+    confirmGreen: inertHeldGreen(),
     fanout,
     reconcile: inertReconcile(),
     mergeability: inertMergeabilityRefresh(),
@@ -113,6 +114,7 @@ describe('GithubPrEventMailboxService outbox', () => {
     expect((await outboxRows()).every((row) => row.dispatchedAt === null)).toBe(true)
 
     const dispatcher = new GithubPrOutboxDispatcher({
+      confirmGreen: inertHeldGreen(),
       fanout,
       reconcile: inertReconcile(),
       mergeability: inertMergeabilityRefresh(),

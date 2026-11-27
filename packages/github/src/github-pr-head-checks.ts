@@ -51,6 +51,39 @@ export function settlementSnapshotOf(args: {
   return { ...snapshotOfLocked(args.row), missingRequiredChecks: args.missingRequiredChecks }
 }
 
+export type HeadVerdictLedger = Row<'GithubPrHeadCheck'>
+
+const ledgerKeyOf = (args: { repoFullName: string; prNumber: number; headSha: string }) => ({
+  repoFullName: args.repoFullName,
+  prNumber: args.prNumber,
+  headSha: args.headSha,
+})
+
+const settledEventKeyOf = (args: {
+  repoFullName: string
+  prNumber: number
+  ledger: HeadVerdictLedger
+  verdict: EHeadVerdict
+}): string =>
+  verdictEventKeyOf({
+    repoFullName: args.repoFullName,
+    prNumber: args.prNumber,
+    headSha: args.ledger.headSha,
+    verdict: args.verdict,
+    settlement: args.ledger.firstSeenRunningAt?.getTime().toString() ?? 'none',
+  })
+
+function restartsAnnouncedVerdict(prior: HeadVerdictLedger | null): prior is HeadVerdictLedger & {
+  verdictEventId: string
+} {
+  if (prior === null || prior.verdictEventId === null || prior.settledAt === null) return false
+  const runningSince = prior.firstSeenRunningAt
+  return runningSince === null || runningSince.getTime() <= prior.settledAt.getTime()
+}
+
+export const restartEventKeyOf = (announcedVerdictKey: string): string =>
+  `${announcedVerdictKey}:restarted`
+
 /**
  * The per-head verdict ledger: CI verdicts are obligations against a head SHA, not side effects
  * of one observed running→settled crossing. An observation that reads the head settled while the
@@ -59,7 +92,9 @@ export function settlementSnapshotOf(args: {
  * claim (`verdictEventId` set under the state row's transaction) commits with the mailbox insert,
  * so a crash between writes replays into the event's dedupe key and still announces exactly once
  * per (head, verdict, user); a verdict that flips after a check retry announces again under its
- * own key.
+ * own key. A green verdict is held until a read of the head's check suites outside the lock shows
+ * no queued workflow, because a queued workflow has no check run yet and so cannot hold the tally
+ * open. A running observation after an announced verdict owes one restart notice.
  */
 export async function dischargeHeadVerdict(args: {
   tx: Tx | undefined
@@ -68,21 +103,19 @@ export async function dischargeHeadVerdict(args: {
   next: PrTransitionSnapshot
   now: Date
   emitVerdict: (verdict: EHeadVerdict, eventKey: string) => Promise<void>
+  holdGreen: (eventKey: string) => Promise<void>
+  announceRestart: (eventKey: string) => Promise<void>
 }): Promise<void> {
   const running = args.next.checksRunning > 0
   const settled = headSettled(args.next)
   const orm = args.tx === undefined ? db.orm : args.tx.orm
+  const key = ledgerKeyOf({ ...args, headSha: args.next.headSha })
+  const prior = running ? await orm.public.GithubPrHeadCheck.where(key).first() : null
 
   const ledger = await orm.public.GithubPrHeadCheck.upsert({
-    conflictOn: {
-      repoFullName: args.repoFullName,
-      prNumber: args.prNumber,
-      headSha: args.next.headSha,
-    },
+    conflictOn: key,
     create: {
-      repoFullName: args.repoFullName,
-      prNumber: args.prNumber,
-      headSha: args.next.headSha,
+      ...key,
       firstSeenRunningAt: running ? args.now : null,
       settledAt: settled ? args.now : null,
       verdict: settled ? verdictOf(args.next) : null,
@@ -95,24 +128,60 @@ export async function dischargeHeadVerdict(args: {
         : {},
   })
 
+  if (restartsAnnouncedVerdict(prior)) {
+    await args.announceRestart(restartEventKeyOf(prior.verdictEventId))
+  }
   if (!settled) return
   const verdict = verdictOf(args.next)
-  const eventKey = verdictEventKeyOf({
-    repoFullName: args.repoFullName,
-    prNumber: args.prNumber,
-    headSha: args.next.headSha,
-    verdict,
-    settlement: ledger.firstSeenRunningAt?.getTime().toString() ?? 'none',
-  })
-  const discharged = await orm.public.GithubPrHeadCheck.where({
-    repoFullName: args.repoFullName,
-    prNumber: args.prNumber,
-    headSha: args.next.headSha,
-  })
-    .where((row) => or(row.verdictEventId.isNull(), row.verdictEventId.neq(eventKey)))
-    .updateAndCount({ verdictEventId: eventKey, verdict })
-  if (discharged === 0) return
+  const eventKey = settledEventKeyOf({ ...args, ledger, verdict })
+  if (ledger.verdictEventId === eventKey) return
+  if (verdict === EHeadVerdict.Green) {
+    await args.holdGreen(eventKey)
+    return
+  }
+  if (!(await claimVerdict({ orm, key, eventKey, verdict }))) return
   await args.emitVerdict(verdict, eventKey)
+}
+
+async function claimVerdict(args: {
+  orm: Tx['orm']
+  key: ReturnType<typeof ledgerKeyOf>
+  eventKey: string
+  verdict: EHeadVerdict
+}): Promise<boolean> {
+  const discharged = await args.orm.public.GithubPrHeadCheck.where(args.key)
+    .where((row) => or(row.verdictEventId.isNull(), row.verdictEventId.neq(args.eventKey)))
+    .updateAndCount({ verdictEventId: args.eventKey, verdict: args.verdict })
+  return discharged > 0
+}
+
+export async function heldGreenOwed(args: {
+  tx?: Tx
+  repoFullName: string
+  prNumber: number
+  headSha: string
+  eventKey: string
+}): Promise<boolean> {
+  const ledger = await (args.tx ?? db).orm.public.GithubPrHeadCheck.where(ledgerKeyOf(args)).first()
+  if (ledger === null || ledger.verdict !== EHeadVerdict.Green) return false
+  if (ledger.verdictEventId === args.eventKey) return false
+  return settledEventKeyOf({ ...args, ledger, verdict: EHeadVerdict.Green }) === args.eventKey
+}
+
+export async function dischargeHeldGreen(args: {
+  tx: Tx
+  repoFullName: string
+  prNumber: number
+  next: PrTransitionSnapshot
+  eventKey: string
+  emitVerdict: (verdict: EHeadVerdict, eventKey: string) => Promise<void>
+}): Promise<void> {
+  if (!headSettled(args.next) || verdictOf(args.next) !== EHeadVerdict.Green) return
+  const key = ledgerKeyOf({ ...args, headSha: args.next.headSha })
+  if (!(await heldGreenOwed({ ...key, tx: args.tx, eventKey: args.eventKey }))) return
+  const verdict = EHeadVerdict.Green
+  if (!(await claimVerdict({ orm: args.tx.orm, key, eventKey: args.eventKey, verdict }))) return
+  await args.emitVerdict(verdict, args.eventKey)
 }
 
 /**

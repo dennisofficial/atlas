@@ -81,6 +81,7 @@ export enum EPrEventKind {
   State = 'state',
   MergeQueue = 'merge-queue',
   AutoMergeOff = 'auto-merge-off',
+  CiRestarted = 'ci-restarted',
 }
 
 export enum EMergeQueueMove {

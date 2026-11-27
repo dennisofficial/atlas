@@ -7,7 +7,7 @@ import { GithubPrFanoutService } from './github-pr-fanout.service'
 import { GithubPrOutboxDispatcher } from './github-pr-outbox'
 import { EPrEventKind } from './github-realtime.types'
 import { waitFor } from './testing/fake-timers'
-import { inertMergeabilityRefresh, inertReconcile } from './github-pr-store.fixture'
+import { inertHeldGreen, inertMergeabilityRefresh, inertReconcile } from './github-pr-store.fixture'
 
 function serviceWith(): {
   mailbox: GithubPrEventMailboxService
@@ -15,6 +15,7 @@ function serviceWith(): {
 } {
   const fanout = new GithubPrFanoutService(new RecordingDrain())
   const dispatcher = new GithubPrOutboxDispatcher({
+    confirmGreen: inertHeldGreen(),
     fanout,
     reconcile: inertReconcile(),
     mergeability: inertMergeabilityRefresh(),

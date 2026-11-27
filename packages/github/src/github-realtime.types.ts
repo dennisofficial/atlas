@@ -11,6 +11,7 @@ export enum EPrEventKind {
   Verdict = 'verdict',
   Mergeability = 'mergeability',
   State = 'state',
+  CiRestarted = 'ci-restarted',
 }
 
 export type GithubPrCheckAnnotation = {

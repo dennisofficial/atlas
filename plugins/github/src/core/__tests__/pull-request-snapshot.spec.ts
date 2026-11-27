@@ -59,7 +59,7 @@ describe('pullRequestSnapshotOf', () => {
         'mergeable',
         'review approved',
       ],
-      next: 'No CI notice comes for this head. The next notices are a new push, a comment or review, or a merge or close.',
+      next: 'No CI notice comes for this head. The next notices are a new push, CI starting again, a comment or review, or a merge or close.',
     })
   })
 
@@ -81,7 +81,7 @@ describe('pullRequestSnapshotOf', () => {
         'has merge conflicts with main',
         'review changes requested',
       ],
-      next: 'No CI notice comes for this head. The next notices are a new push, a comment or review, or a merge or close.',
+      next: 'No CI notice comes for this head. The next notices are a new push, CI starting again, a comment or review, or a merge or close.',
     })
   })
 
@@ -142,7 +142,7 @@ describe('pullRequestSnapshotOf', () => {
       'mergeable',
     ])
     expect(snapshot.next).toBe(
-      'CI state is not known now. The next notices are a new push, a comment or review, or a merge or close.',
+      'CI state is not known now. The next notices are a new push, CI starting again, a comment or review, or a merge or close.',
     )
   })
 
@@ -161,7 +161,7 @@ describe('pullRequestSnapshotOf', () => {
     const snapshot = pullRequestSnapshotOf({ ...PR, mergeable: null, headSha: null })
     expect(snapshot.facts).toEqual(['mergeability not known yet'])
     expect(snapshot.next).toBe(
-      'CI state is not known now. The next notices are a new push, a comment or review, or a merge or close.',
+      'CI state is not known now. The next notices are a new push, CI starting again, a comment or review, or a merge or close.',
     )
   })
 })

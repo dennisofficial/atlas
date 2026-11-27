@@ -101,6 +101,7 @@ describe('subscriptions view', () => {
       ['state', 'state'],
       ['merge-queue', 'mergeability'],
       ['auto-merge-off', 'mergeability'],
+      ['ci-restarted', 'ci'],
     ])
   })
 

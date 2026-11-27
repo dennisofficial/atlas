@@ -254,6 +254,21 @@ describe('handing a PR event to the model', () => {
     expect(bare).toContain('auto-merge is now off. The PR will not merge on its own.')
   })
 
+  it('says CI started again on the head and that the last CI notice is out of date', () => {
+    const block = prEventBlock(
+      eventOf({
+        kind: EPrEventKind.CiRestarted,
+        headSha: 'df5f3a783384',
+        settled: false,
+        checks: { passed: 17, failed: 0, running: 2 },
+      }),
+    )
+
+    expect(block).toContain(
+      `CI started again (17 passed, 0 failed, 2 running) on df5f3a7. The last CI notice for this head is out of date. A CI notice follows when CI finishes. ${URL}`,
+    )
+  })
+
   it('carries the checks tally a verdict was taken from', () => {
     const block = prEventBlock(
       eventOf({

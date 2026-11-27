@@ -99,6 +99,9 @@ const autoMergeOffSentence = (event: PrEvent): string => {
   return `auto-merge is now off${reason}. The PR will not merge on its own.`
 }
 
+const ciRestartedSentence = (event: PrEvent): string =>
+  `CI started again${tallySuffix(event)}${tipSuffix(event)}. The last CI notice for this head is out of date. A CI notice follows when CI finishes. ${event.url}`
+
 const reviewLead = (event: PrEvent): string => {
   const review = fromAuthor({ noun: 'review', event })
   return event.reviewState === undefined ? review : `${review} (${event.reviewState})`
@@ -117,6 +120,7 @@ const sentenceOf = (event: PrEvent): string => {
   if (event.kind === EPrEventKind.Mergeability) return mergeabilitySentence(event)
   if (event.kind === EPrEventKind.MergeQueue) return mergeQueueSentence(event)
   if (event.kind === EPrEventKind.AutoMergeOff) return autoMergeOffSentence(event)
+  if (event.kind === EPrEventKind.CiRestarted) return ciRestartedSentence(event)
   return stateSentence(event)
 }
 
