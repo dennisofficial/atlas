@@ -80,7 +80,6 @@ export const startHeldTurn = (args: {
 export class HeldTurns {
   private turnAbort: AbortController | undefined
   private turnAborted = ETurnAborted.Other
-  private readonly idleWaiters: (() => void)[] = []
   turnRunning = false
   onTurnEnd: (() => void | Promise<void>) | undefined
   onTurnStart: (() => void) | undefined
@@ -90,11 +89,6 @@ export class HeldTurns {
   abort(reason?: unknown): void {
     this.turnAborted = turnAbortedOf(reason)
     this.turnAbort?.abort(reason)
-  }
-
-  whenIdle(): Promise<void> {
-    if (!this.turnRunning) return Promise.resolve()
-    return new Promise<void>((resolve) => this.idleWaiters.push(resolve))
   }
 
   async drive(args: {
@@ -147,8 +141,6 @@ export class HeldTurns {
       await this.settleTurnEnd()
       this.turnRunning = false
       this.turnAbort = undefined
-      const idle = this.idleWaiters.splice(0)
-      for (const resolve of idle) resolve()
     }
   }
 

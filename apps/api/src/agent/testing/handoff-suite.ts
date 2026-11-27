@@ -5,6 +5,7 @@ import { join } from 'node:path'
 import type { SpawnFile } from '@dltech/atlas-core'
 import { describe, expect, it } from 'bun:test'
 import { useTestDatabase } from '@dltech/atlas-db/testing'
+import { DRAIN_HANDOFF_BUDGET_MS } from '@dltech/atlas-host'
 import type { ScriptedModelStep } from '@dltech/atlas-agent/testing'
 
 import { startRig, type FaultRig, type HostKnobs, type HostProcess } from './fault-rig'
@@ -21,6 +22,9 @@ const RUN = `${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 6)
 export const POD_EFFECT_WAIT_MS = 90_000
 
 const SCENARIO_TIMEOUT_MS = 2 * POD_EFFECT_WAIT_MS
+
+/** a clean drain may spend the whole in-flight cap before it hands back, so its case outlives that cap */
+const DRAIN_CASE_TIMEOUT_MS = DRAIN_HANDOFF_BUDGET_MS + POD_EFFECT_WAIT_MS
 
 const sleep = (ms: number): Promise<void> =>
   new Promise((resolve) => {
@@ -45,8 +49,6 @@ export type HandoffScenario = {
   /** the operator message the session starts with */
   prompt?: string
   files?: readonly SpawnFile[] | undefined
-  /** whether the clean drain case runs; a tool blocked inside the host never lets a drain finish */
-  drain?: boolean
   /** whether the workspace is already prepared when the session starts (default true) */
   prepared?: boolean
   /** what the pod runs as the setup script; the work under test when the scenario is a setup */
@@ -187,7 +189,7 @@ export const describeHandoff = (scenario: HandoffScenario): void => {
         }
       })
 
-    it.skipIf(scenario.drain === false)(
+    it(
       'survives host A draining cleanly mid-work',
       async () => {
         await ownFault({
@@ -198,7 +200,7 @@ export const describeHandoff = (scenario: HandoffScenario): void => {
           },
         })
       },
-      SCENARIO_TIMEOUT_MS,
+      DRAIN_CASE_TIMEOUT_MS,
     )
 
     it(

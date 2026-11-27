@@ -1,5 +1,4 @@
 import type { PauseSignal } from '@dltech/atlas-agent'
-import { crashedCallsOf } from '@dltech/atlas-core'
 import { ESpan, logFieldsOf, spanWith, type TracePort } from '@dltech/atlas-observability'
 
 import { settledWithin } from './crew/child-turns'
@@ -9,8 +8,6 @@ import { drainNeedsHolder, outcomeCommandPending } from './held-needs-holder'
 import type { HeldSessionDeps } from './held-session-deps'
 import type { HeldTurns } from './held-turns'
 import type { SessionRecord } from './record/record-adapter'
-
-const MODEL_STEP = 'model-step'
 
 class DrainLaps {
   private readonly ms: Record<string, number> = {}
@@ -59,14 +56,13 @@ export class HeldDrain {
         const capped = await this.drainOnce(laps)
         span.set({
           timings: laps.values(),
-          ...(capped === undefined ? {} : { tool: capped.tool }),
-          extra: { turnRunning, children, inFlightCapped: capped !== undefined },
+          extra: { turnRunning, children, inFlightCapped: capped },
         })
       },
     })
   }
 
-  private async drainOnce(laps: DrainLaps): Promise<{ tool: string } | undefined> {
+  private async drainOnce(laps: DrainLaps): Promise<boolean> {
     const children = this.args.childrenPause()
     this.args.pendingHandoff()
     const capped = await laps.time('inFlight', () => this.settleInFlight())
@@ -94,28 +90,28 @@ export class HeldDrain {
     })
   }
 
-  private async settleInFlight(): Promise<{ tool: string } | undefined> {
-    if (!this.args.turns.turnRunning) return undefined
+  private async settleInFlight(): Promise<boolean> {
+    if (!this.args.pause.stepSettling) return false
     const startedAt = this.args.deps.timers.now()
     const settled = await settledWithin({
       timers: this.args.deps.timers,
       ms: this.args.deps.drainCapMs,
-      done: this.args.turns.whenIdle(),
+      done: this.args.pause.whenStepSettled(),
     })
-    if (settled) return undefined
-    const tool = this.logCap({ startedAt })
+    if (settled) return false
+    this.logCap({ startedAt, streaming: this.args.pause.modelStepRunning })
     this.args.pause.abortModelStep()
     const aborted = await settledWithin({
       timers: this.args.deps.timers,
       ms: DRAIN_STREAM_ABORT_CAP_MS,
-      done: this.args.pause.whenModelIdle(),
+      done: this.args.pause.whenStepSettled(),
     })
     if (!aborted) {
       this.warn({
-        message: `the model stream outlived the ${DRAIN_STREAM_ABORT_CAP_MS}ms abort; handing back without it`,
+        message: `the step outlived its ${DRAIN_STREAM_ABORT_CAP_MS}ms abort; handing back without it`,
       })
     }
-    return { tool }
+    return true
   }
 
   private async settleRecordTail(): Promise<void> {
@@ -141,14 +137,13 @@ export class HeldDrain {
     })
   }
 
-  private logCap(args: { startedAt: number }): string {
-    const state = this.args.record()?.eventCache().loopState()
-    const call = state === undefined ? undefined : crashedCallsOf(state)[0]
-    const inFlight = call === undefined ? 'an in-flight model step' : `the tool call ${call.name}`
+  private logCap(args: { startedAt: number; streaming: boolean }): void {
+    const spentMs = this.args.deps.timers.now() - args.startedAt
     this.args.deps.log?.warn({
       source: 'holder.drain',
-      message: `session ${this.args.sessionId} ran ${inFlight} for ${this.args.deps.timers.now() - args.startedAt}ms, past the ${this.args.deps.drainCapMs}ms drain cap; aborting the model stream`,
+      message: args.streaming
+        ? `session ${this.args.sessionId} ran the model stream for ${spentMs}ms, past the ${this.args.deps.drainCapMs}ms drain cap; aborting it`
+        : `session ${this.args.sessionId} spent ${spentMs}ms recording the step it streamed, past the ${this.args.deps.drainCapMs}ms drain cap; handing back without it`,
     })
-    return call?.name ?? MODEL_STEP
   }
 }

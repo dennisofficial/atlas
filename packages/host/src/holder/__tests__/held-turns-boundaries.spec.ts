@@ -137,20 +137,17 @@ describe('HeldTurns turn boundaries', () => {
     })
   })
 
-  it('writes the ending before whenIdle settles and reports the turn end once', async () => {
+  it('writes the ending before it reports the turn end, and reports it once', async () => {
     const log = new FakeLog()
     const turns = new HeldTurns(depsOf())
     let ends = 0
     turns.onTurnEnd = () => {
       ends += 1
+      expect(log.appended.map((draft) => draft.type)).toEqual(['turn-started', 'turn-ended'])
     }
 
-    const running = drive({ turns, log })
-    const idle = turns.whenIdle()
-    await running
-    await idle
+    await drive({ turns, log })
 
-    expect(log.appended.map((draft) => draft.type)).toEqual(['turn-started', 'turn-ended'])
     expect(ends).toBe(1)
   })
 

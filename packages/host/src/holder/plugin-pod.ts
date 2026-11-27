@@ -1,5 +1,6 @@
 import { HookChain, ToolRegistry } from '@dltech/atlas-agent'
 import {
+  CallHandedOffError,
   EModelFallbackReason,
   TEAMMATE_AGENT_TYPE,
   projectDirectoryOfState,
@@ -37,6 +38,7 @@ import { heldMessagesOf } from './pod-messages'
 import type { RoleModelChoice, SessionRuntime } from './ports'
 import type { SessionRecord } from './record/record-adapter'
 import { recordStep, recordedStepsOf } from './record/call-steps'
+import { LeaseLostError } from './record/lease-lost-error'
 import { holdsLatestFact } from './record/latest-fact'
 import { hostStepOf } from './record/host-step'
 import type { InFlightSteps } from '../calls/step-detach'
@@ -127,7 +129,16 @@ export const pluginPodContextOf = (args: {
   const append = async (drafts: readonly PodDraft[]): Promise<void> => {
     const fresh = drafts.filter((draft) => !holdsLatestFact({ record, draft }))
     if (fresh.length === 0) return
-    await record.append({ threadId, runId: deps.ids.nextRunId(), drafts: fresh })
+    try {
+      await record.append({ threadId, runId: deps.ids.nextRunId(), drafts: fresh })
+    } catch (error) {
+      if (error instanceof LeaseLostError && error.refusal === 'self-fenced') {
+        throw new CallHandedOffError(
+          `the holder handed the record back before this work was recorded: ${error.message}`,
+        )
+      }
+      throw error
+    }
   }
   const ctx: PluginPodContext = {
     sessionId: deps.sessionId,

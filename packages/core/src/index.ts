@@ -193,6 +193,7 @@ export * from './services/fold'
 export * from './stream/chunk'
 
 export * from './tools/call-interrupted'
+export * from './tools/handed-off'
 export * from './tools/deferred'
 export * from './tools/deferred-input'
 export * from './tools/parameters'

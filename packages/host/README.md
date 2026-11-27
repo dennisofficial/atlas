@@ -87,7 +87,10 @@ only what it can rebuild or drop.
 - `RecordOnceLedger`: the `OnceLedger` backed by the record cache.
 - `PictureStore`, `storePictures`: move a tool result's pictures into the media store at append,
   so the event holds a `MediaPart`; one the store does not take becomes `[picture not kept: …]`.
-- `LeaseLostError`, `RecordCorruptionError`: the two failures a record raises.
+- `LeaseLostError`, `RecordCorruptionError`: the two failures a record raises. A plugin's
+  `ctx.append` reports the failure its own fence caused as `CallHandedOffError`
+  (`@dltech/atlas-core`), which leaves the call open for the next holder instead of reporting a
+  failed tool.
 - `InboxIntake`, `INBOX_KIND_STOP`: turn the inbox into the agent's input.
 - `oweOwnStoppedTurn`, `oweChildStoppedCalls`, `payStopDebts`, `wireStopDebts`, `stoppedScopesOf`:
   record the pod work a stopped turn or a stopped child left behind, in the record append tail, and

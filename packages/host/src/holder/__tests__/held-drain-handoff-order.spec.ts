@@ -20,7 +20,6 @@ const drainFor = (order: string[], trace = new RecordingTracer()): HeldDrain =>
     pause: new PauseSignal(),
     turns: {
       turnRunning: false,
-      whenIdle: async () => undefined,
     } as unknown as HeldTurns,
     ending: {
       handBack: async () => {

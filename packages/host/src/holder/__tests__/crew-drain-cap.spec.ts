@@ -180,8 +180,12 @@ const ofType = (args: { events: readonly RecordEvent[]; type: string }): RecordE
   args.events.filter((event) => event.type === args.type)
 
 const drainPastCap = async (rig: Rig): Promise<void> => {
-  const draining = rig.holder.drain()
+  let drained = false
+  const draining = rig.holder.drain().then(() => {
+    drained = true
+  })
   await rig.flush()
+  expect(drained).toBe(false)
   rig.clock.advance(DRAIN_IN_FLIGHT_CAP_MS)
   await rig.flush()
   rig.clock.advance(DRAIN_STREAM_ABORT_CAP_MS)
@@ -189,7 +193,7 @@ const drainPastCap = async (rig: Rig): Promise<void> => {
 }
 
 describe('draining while a sub-agent works', () => {
-  it('gives a child host tool the whole drain cap, then hands back without touching the call', async () => {
+  it('hands back at once while a child host tool still runs', async () => {
     const spawned: Spawned = { agentId: undefined }
     const tool = new GatedTool()
     const log = new MemoryLog()
@@ -217,26 +221,15 @@ describe('draining while a sub-agent works', () => {
     void a.holder.drain().then(() => {
       drained = true
     })
-    await a.flush()
-    a.clock.advance(DRAIN_STREAM_ABORT_CAP_MS)
-    await a.flush()
-    expect(drained).toBe(false)
-
-    a.clock.advance(DRAIN_IN_FLIGHT_CAP_MS)
-    await a.flush()
-    expect(drained).toBe(false)
-
-    a.clock.advance(DRAIN_STREAM_ABORT_CAP_MS)
-    expect(await flushUntil({ check: () => drained, clock: a.clock })).toBe(true)
+    expect(await flushUntil({ check: () => drained })).toBe(true)
 
     const child = await eventsIn({ rig: a, threadId: childId })
     expect(ofType({ events: child, type: 'tool-result' })).toEqual([])
     expect(ofType({ events: child, type: 'nudge' })).toEqual([])
     const caps = log.entries.filter((entry) => entry.source === 'holder.drain')
-    expect(caps.map((entry) => entry.message).join('\n')).toContain('past the drain cap')
+    expect(caps.map((entry) => entry.message).join('\n')).not.toContain('past the drain cap')
     const { lease } = await a.plane.currentLease({ sessionId: SESSION })
     expect(lease.holderHostId).toBeNull()
-
     tool.releaseNow()
     await a.flush()
   }, 20_000)

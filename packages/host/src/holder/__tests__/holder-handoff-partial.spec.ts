@@ -154,8 +154,8 @@ describe('SessionHolder handoff with an open model step (exit 3b)', () => {
     const caps = log.entries.filter((entry) => entry.source === 'holder.drain')
     expect(caps).toHaveLength(2)
     expect(caps[0]?.message).toContain('drain cap')
-    expect(caps[0]?.message).toContain('model step')
-    expect(caps[1]?.message).toContain('model stream outlived')
+    expect(caps[0]?.message).toContain('model stream')
+    expect(caps[1]?.message).toContain('outlived')
   }, 15_000)
 
   it('records a stream cut at the cap as a handoff reply, and the next holder asks again', async () => {

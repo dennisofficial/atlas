@@ -233,85 +233,90 @@ export async function runTrackedTurn(
         ...(pause === undefined ? {} : { pause }),
       })
 
-    let stepped = await stepOnce()
-    if (stepped.ok && stepped.handoffAborted === true) {
-      await recordHandoffAborted({ deps, threadId, runId, result: stepped.result })
-      return { status: ETurnStatus.HandoffPaused, runId }
-    }
-    const denied = await waitingIfBlocked({ deps, stepped, threadId, runId })
-    if (denied !== undefined) return denied
-    position.modelSteps += 1
-
-    if (
-      stepped.ok &&
-      position.silentRetries < EMPTY_STEP_RAW_RETRIES &&
-      retriableEmptyStep(stepped.result)
-    ) {
-      position.silentRetries += 1
-      spend.countStep(stepped.result.usage)
-      stepped = await stepOnce()
+    const releaseStep = pause?.beginStepSettle()
+    try {
+      let stepped = await stepOnce()
       if (stepped.ok && stepped.handoffAborted === true) {
         await recordHandoffAborted({ deps, threadId, runId, result: stepped.result })
         return { status: ETurnStatus.HandoffPaused, runId }
       }
-      const deniedRetry = await waitingIfBlocked({ deps, stepped, threadId, runId })
-      if (deniedRetry !== undefined) return deniedRetry
-    }
+      const denied = await waitingIfBlocked({ deps, stepped, threadId, runId })
+      if (denied !== undefined) return denied
+      position.modelSteps += 1
 
-    position.settleAttempted = undefined
-    if (stepped.ok && preparedThrough !== position.seenThrough) {
-      position.previous = undefined
-      position.seenThrough = preparedThrough
-    }
+      if (
+        stepped.ok &&
+        position.silentRetries < EMPTY_STEP_RAW_RETRIES &&
+        retriableEmptyStep(stepped.result)
+      ) {
+        position.silentRetries += 1
+        spend.countStep(stepped.result.usage)
+        stepped = await stepOnce()
+        if (stepped.ok && stepped.handoffAborted === true) {
+          await recordHandoffAborted({ deps, threadId, runId, result: stepped.result })
+          return { status: ETurnStatus.HandoffPaused, runId }
+        }
+        const deniedRetry = await waitingIfBlocked({ deps, stepped, threadId, runId })
+        if (deniedRetry !== undefined) return deniedRetry
+      }
 
-    spend.countStep(stepped.ok ? stepped.result.usage : undefined)
+      position.settleAttempted = undefined
+      if (stepped.ok && preparedThrough !== position.seenThrough) {
+        position.previous = undefined
+        position.seenThrough = preparedThrough
+      }
 
-    if (!stepped.ok) {
-      return { status: ETurnStatus.Failed, runId, message: stepped.message, cause: stepped.cause }
-    }
-    await deps.waitState?.admitted({ threadId })
+      spend.countStep(stepped.ok ? stepped.result.usage : undefined)
 
-    if (abortSignal.aborted) {
-      await recordAbandonedStep({
+      if (!stepped.ok) {
+        return { status: ETurnStatus.Failed, runId, message: stepped.message, cause: stepped.cause }
+      }
+      await deps.waitState?.admitted({ threadId })
+
+      if (abortSignal.aborted) {
+        await recordAbandonedStep({
+          deps,
+          threadId,
+          runId,
+          result: stepped.result,
+          events,
+          seenThrough: position.seenThrough,
+          stopped: abortSignal.reason === OPERATOR_STOP_REASON,
+        })
+        return interrupted()
+      }
+
+      const step = {
+        result: stepped.result,
+        model: deps.model,
+        sizes: requestSizeOf({ assembled, tools }),
+      }
+      const drafts = dedupeCallIds({ drafts: draftsFor(step), taken: callIdsIn(events) })
+      if (drafts.length > 0) await record.append({ threadId, runId, drafts })
+
+      for (const draft of drafts) {
+        if (draft.type === 'tool-called')
+          position.committedCalls.push({ callId: draft.callId, name: draft.name })
+      }
+      if (stepped.result.toolCalls.length > 0) {
+        position.silentSteps = 0
+        position.silentRetries = 0
+        continue
+      }
+
+      const quiet = await closeQuietStep({
         deps,
+        position,
+        stepped: stepped.result,
         threadId,
         runId,
-        result: stepped.result,
-        events,
-        seenThrough: position.seenThrough,
-        stopped: abortSignal.reason === OPERATOR_STOP_REASON,
+        signal: abortSignal,
+        interrupted,
       })
-      return interrupted()
+      if (quiet.kind === 'continue') continue
+      return quiet.outcome
+    } finally {
+      releaseStep?.()
     }
-
-    const step = {
-      result: stepped.result,
-      model: deps.model,
-      sizes: requestSizeOf({ assembled, tools }),
-    }
-    const drafts = dedupeCallIds({ drafts: draftsFor(step), taken: callIdsIn(events) })
-    if (drafts.length > 0) await record.append({ threadId, runId, drafts })
-
-    for (const draft of drafts) {
-      if (draft.type === 'tool-called')
-        position.committedCalls.push({ callId: draft.callId, name: draft.name })
-    }
-    if (stepped.result.toolCalls.length > 0) {
-      position.silentSteps = 0
-      position.silentRetries = 0
-      continue
-    }
-
-    const quiet = await closeQuietStep({
-      deps,
-      position,
-      stepped: stepped.result,
-      threadId,
-      runId,
-      signal: abortSignal,
-      interrupted,
-    })
-    if (quiet.kind === 'continue') continue
-    return quiet.outcome
   }
 }
