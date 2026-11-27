@@ -1,6 +1,6 @@
 'use client'
 
-import { ENotifyDeviceKind } from '@dltech/atlas-core'
+import { notifyDeviceDetailOf, withDeviceEnabled } from '@dltech/atlas-client/settings'
 import type { NotifyDeviceView } from '@dltech/atlas-wire/web'
 import { Switch } from '@dltech/atlas-ui/components/switch'
 import { useState } from 'react'
@@ -13,12 +13,6 @@ import { SettingsCard, SettingsRow, SettingsSection } from '../settings-layout'
 const TITLE = 'Devices'
 const DESCRIPTION = 'Where Atlas reaches you when no Atlas window is in front of you.'
 
-const KIND_LABEL: Record<ENotifyDeviceKind, string> = {
-  [ENotifyDeviceKind.WebPush]: 'Web',
-  [ENotifyDeviceKind.Expo]: 'iPhone',
-  [ENotifyDeviceKind.ApnsMac]: 'Mac',
-}
-
 const EMPTY_DEVICES: readonly NotifyDeviceView[] = []
 
 export function NotifyDevicesCard() {
@@ -28,11 +22,15 @@ export function NotifyDevicesCard() {
   const devices = query.state === EQueryState.Ready ? query.data.devices : EMPTY_DEVICES
 
   const handleToggle = async (params: { deviceId: string; enabled: boolean }) => {
-    setOverrides((current) => ({ ...current, [params.deviceId]: params.enabled }))
+    const record = (enabled: boolean) =>
+      setOverrides((current) =>
+        withDeviceEnabled({ overrides: current, deviceId: params.deviceId, enabled }),
+      )
+    record(params.enabled)
     try {
       await setNotifyDeviceEnabled({ deviceId: params.deviceId, enabled: params.enabled })
     } catch {
-      setOverrides((current) => ({ ...current, [params.deviceId]: !params.enabled }))
+      record(!params.enabled)
     }
   }
 
@@ -51,7 +49,7 @@ export function NotifyDevicesCard() {
               <SettingsRow
                 key={device.id}
                 title={device.label}
-                description={`${KIND_LABEL[device.kind]} · ${enabled ? 'On' : 'Off'}`}
+                description={notifyDeviceDetailOf({ kind: device.kind, enabled })}
                 control={
                   <Switch
                     checked={enabled}

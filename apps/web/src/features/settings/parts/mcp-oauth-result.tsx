@@ -7,7 +7,6 @@ import { type ReturnOutcome } from '@dltech/atlas-core'
 
 import { useReturnOutcome } from '@/features/auth/browser-return'
 
-import { ELinkReturnKind } from '../data/personal/link-return'
 import { mcpResultMessageOf } from '../data/shared/mcp-oauth'
 import {
   markMcpSignInShown,
@@ -27,7 +26,7 @@ function McpSignInMessage(props: { attempt: McpSignInAttempt; reload: () => void
     if (outcome === undefined || key === undefined || shown.current === key) return
     shown.current = key
     const message = mcpResultMessageOf({ label: props.attempt.label, outcome })
-    if (message.kind === ELinkReturnKind.Success) toast.success(message.message)
+    if (message.ok) toast.success(message.message)
     else toast.error(message.message)
     markMcpSignInShown(props.attempt.state)
     props.reload()
