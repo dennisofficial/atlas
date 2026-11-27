@@ -33,6 +33,8 @@ ATLAS_EVAL_LIVE=1 bun run eval --suite code-quality/single-responsibility --live
 bun run --cwd evals eval:compare --baseline <run-dir> --candidate <run-dir>
 bun run --cwd evals eval:efficacy --run <run-dir> --dataset <manifest> --judgments <judgments.jsonl> --output-dir <new-report-dir>
 bun run --cwd evals eval:jev-real --items <dataset-items.jsonl> --out <results.jsonl> [--policy <id>]
+bun run --cwd evals eval:jev-label --since <iso> --out-dir <scratch-dir> [--near-miss 20] [--random 20] [--seed <string>] [--models a,b]
+bun run --cwd evals eval:jev-publish --dir <scratch-dir> [--results <results.jsonl>] [--experiment-name <name>]
 ```
 
 - The model defaults to the exported `JEV_QUALITY_MODEL` from `@dltech/atlas-plugin-quality/review`. A `--model`
@@ -46,6 +48,12 @@ bun run --cwd evals eval:jev-real --items <dataset-items.jsonl> --out <results.j
   reviewed independently. It uses the production finding ledger for fresh-episode notification. It
   writes `report.json` / `report.txt`. It is a diagnostic that cannot promote a change. Zero
   denominators mean insufficient evidence, not success.
+- `eval:jev-label` samples production scopes from PostHog, labels each one blind with two different
+  model families, and writes `labels.jsonl` (both answers, the stratum and the inclusion probability) and
+  `items.jsonl` (agreed items in the `eval:jev-real` item shape) into `--out-dir`. That directory holds real
+  code and stays outside the repository. `eval:jev-publish` writes the trace reviews on the score definition,
+  queues disagreements, adds the agreed items to the dataset and, with `--results`, records the replay as an
+  offline experiment. `code-quality/AGENTS.md` has the details.
 - `eval:jev-real` replays labelled real scopes: it sends the recorded request state verbatim to the pinned Jev
   model through the AI gateway (`AI_GATEWAY_API_KEY`), reapplies the current policy interpretation and thresholds,
   and writes one result row per item plus a summary. It reports precision, the Wilson 95% lower bound,

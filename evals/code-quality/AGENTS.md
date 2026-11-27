@@ -11,6 +11,26 @@ the code-quality/single-responsibility details.
 - Output: the interpreted `QualityAssessment` list, plus the resolved model and the timing. Grading compares only
   the normalized impact / current-concern / evidence-id fields. It never compares prose, durations or episode UUIDs.
 
+## Labelling real scopes (`eval:jev-label`, `eval:jev-publish`)
+
+The routine "Quality: maintain Jev" labels production scopes with two commands, not with a sub-agent per
+scope. Both are documented in `../AGENTS.md`; this section holds what the labels mean.
+- Sampling reads `quality scope assessed` joined to its `$ai_generation` by (review_id, scope_id), skips
+  `code_withheld` calls and traces that already carry a review on the score definition, and takes one item
+  per trace: every nudged trace, up to 20 near-miss traces, and up to 20 random traces. The inclusion
+  probability is the per-trace sampling rate divided by the scopes the trace holds in that stratum, so a
+  trace with three near-miss scopes weights each of them lower.
+- Each item reaches both labellers blind: the path, before, after, diff, dependency context and
+  `srp-label-rubric.md`, and never Jev's verdict, impact or concern. The two labellers are two model
+  families, `anthropic/claude-opus-5.5` and `openai/gpt-5.5`, so agreement is not one model agreeing with
+  itself.
+- Agreement means equal labels and not `unsure`. A disputed impact keeps both answers in
+  `impact_disputed`, and the published impact is `introduced` for a nudge and `unchanged` for a no_nudge.
+  A disagreement queues the trace for a person and writes no review, because PostHog refuses to queue
+  a trace that already holds one. The run's `labels.jsonl` keeps both answers either way.
+- The item shape is the one `eval:jev-real` replays, with `expected_output = { notify, impact }` and
+  `client_item_id` = the generation event id, so publishing the same directory twice adds nothing.
+
 ## Expected labels
 
 Each case's `expected` is either:
