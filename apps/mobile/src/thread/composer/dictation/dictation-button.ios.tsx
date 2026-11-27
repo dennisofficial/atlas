@@ -27,7 +27,7 @@ export const DictationButton = ({ recording, onPress }: DictationButtonProps) =>
         onPress={onPress}
         modifiers={[
           accessibilityLabel(recording ? 'Stop dictation' : 'Start dictation'),
-          buttonStyle('glass'),
+          buttonStyle('bordered'),
           buttonBorderShape('circle'),
         ]}
       >
