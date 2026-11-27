@@ -20,7 +20,7 @@ describe('the agent host http surface', () => {
     const page = await fetch(`${app.url}${CALLBACK_PATH}`)
 
     expect(redirect.status).toBe(302)
-    expect(redirect.headers.get('location')).toContain('mcpOauth=connected')
+    expect(redirect.headers.get('location')).toContain('atlasReturn=connected')
     expect(page.status).toBe(200)
     expect(page.headers.get('content-type')).toContain('text/html')
     expect(await page.text()).toContain('<p>connected</p>')

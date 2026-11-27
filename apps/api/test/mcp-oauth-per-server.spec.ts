@@ -8,22 +8,16 @@ import { SecretCipher } from '@dltech/atlas-pods/config/secret-cipher'
 import { EnvService } from '../src/_core/config/env/env.service'
 import { SecretCipherService } from '../src/_lib/crypto/secret-cipher.service'
 import { McpOauthService } from '../src/api/cloud/mcp-oauth/mcp-oauth.service'
-import { FakeMcpFetcher } from '../src/api/cloud/mcp-oauth/mcp-oauth.fakes'
 import { sealJson, type SealedGrant } from '../src/agent'
 import { mcpOauthGatewayOf } from '../src/agent/mcp-oauth/gateway'
-import { EGrantRowStatus, McpOauthClock } from '../src/api/cloud/mcp-oauth/mcp-oauth.types'
+import { EGrantRowStatus } from '../src/api/cloud/mcp-oauth/mcp-oauth.types'
 import { PrismaMcpOauthStore } from '../src/api/cloud/mcp-oauth/prisma-mcp-oauth.store'
 import { mcpServersServiceOf } from '../src/api/cloud/mcp-servers/mcp-servers.service.fixture'
 import { EMcpTransportKind } from '../src/api/cloud/mcp-servers/mcp-servers.types'
 
 const HEX_KEY = 'a1b2c3d4e5f6a1b2c3d4e5f6a1b2c3d4e5f6a1b2c3d4e5f6a1b2c3d4e5f6a1b2'
 const SERVER_URL = 'https://mcp.example.com/mcp'
-
-class RealClock extends McpOauthClock {
-  now() {
-    return Date.now()
-  }
-}
+const GRANT_REDIRECT_URI = 'https://api.byatlas.io/mcp-oauth/callback'
 
 describe('per-server mcp oauth over real PostgreSQL', () => {
   const runId = randomUUID()
@@ -32,17 +26,11 @@ describe('per-server mcp oauth over real PostgreSQL', () => {
   const projectB = `proj-b-${runId}`
   const cipher = new SecretCipherService(new EnvService({ SECRETS_ENCRYPTION_KEY: HEX_KEY }))
   const database = useTestDatabase()
-  const config = {
-    redirectUri: 'https://api.test/v1/mcp/oauth/callback',
-    webOrigin: 'https://web.test',
-    allowLocalTargets: true,
-  }
   const services = () => {
     const store = new PrismaMcpOauthStore()
-    const fetcher = new FakeMcpFetcher()
     return {
       store,
-      oauth: new McpOauthService(store, cipher, new RealClock(), fetcher, config),
+      oauth: new McpOauthService(store, cipher),
       servers: mcpServersServiceOf(cipher),
     }
   }
@@ -61,7 +49,7 @@ describe('per-server mcp oauth over real PostgreSQL', () => {
         clientInfo: { clientId: 'c' },
         tokens: { accessToken, expiresAt: new Date(Date.now() + 3_600_000).toISOString() },
         tokenEndpoint: 'https://auth.example.com/token',
-        redirectUri: config.redirectUri,
+        redirectUri: GRANT_REDIRECT_URI,
       } satisfies SealedGrant,
     })
   it('two project rows with the same url hold independent grants', async () => {

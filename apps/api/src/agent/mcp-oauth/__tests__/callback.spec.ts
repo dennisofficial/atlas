@@ -28,8 +28,8 @@ describe('the mcp oauth callback', () => {
 
     const location = new URL(answer.location)
     expect(location.pathname).toBe('/settings/integrations')
-    expect(location.searchParams.get('mcpOauth')).toBe('failed')
-    expect(location.searchParams.get('mcpReason')).toBe('unknown_state')
+    expect(location.searchParams.get('atlasReturn')).toBe('failed')
+    expect(location.searchParams.get('atlasReason')).toBe('unknown_state')
     const row = await db.orm.public.McpServer.first({ id: 'srv-posthog' })
     expect(row?.oauthSealed).toBeNull()
   })
@@ -181,7 +181,8 @@ describe('the mcp oauth callback', () => {
       'exchange_failed',
     )
     const again = await callOf({ db, query: 'state=state-redo&code=code-2' })
-    expect(again.params.get('mcpReason')).toBe('unknown_state')
+    expect(again.params.get('atlasReturn')).toBe('failed')
+    expect(again.params.get('atlasReason')).toBe('unknown_state')
     expect(calls.filter((call) => call.url === TOKEN_ENDPOINT)).toHaveLength(1)
   })
 
@@ -193,7 +194,7 @@ describe('the mcp oauth callback', () => {
 
     const location = new URL(answer.location)
     expect(location.pathname).toBe('/settings/integrations')
-    expect(location.searchParams.get('mcpReason')).toBe('unknown_state')
+    expect(location.searchParams.get('atlasReason')).toBe('unknown_state')
   })
 
   it('reports a failed exchange', async () => {
@@ -231,7 +232,7 @@ describe('the mcp oauth callback', () => {
 
     const location = new URL(answer.location)
     expect(location.pathname).toBe('/groups/grp-1/settings/mcp')
-    expect(location.searchParams.get('mcpOauth')).toBe('connected')
+    expect(location.searchParams.get('atlasReturn')).toBe('connected')
     const row = await db.orm.public.McpServer.first({ id: 'srv-posthog' })
     expect(row?.oauthStatus).toBe('active')
   })

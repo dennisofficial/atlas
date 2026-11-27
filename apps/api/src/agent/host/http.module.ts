@@ -4,7 +4,7 @@ import type { Db } from '@dltech/atlas-db'
 import type { AgentHostEnv } from '../config/env'
 import { mcpOauthCallbackOf } from '../mcp-oauth/callback'
 import { BrowserReturnService } from '../browser-return/service'
-import { browserReturnsOf, WEB_ORIGIN_FALLBACK } from '../browser-return/from-env'
+import { browserReturnsOf } from '../browser-return/from-env'
 import { BrowserReturnController } from '../browser-return/controller'
 import type { SecretCipher } from '@dltech/atlas-pods/config/secret-cipher'
 import { DaemonBundleController } from '../http/daemon-bundle.controller'
@@ -15,14 +15,9 @@ import { AGENT_HOST_ENV, BROWSER_RETURN, CIPHER, DB, MCP_OAUTH_CALLBACK } from '
 
 const mcpOauthCallbackProvider: Provider = {
   provide: MCP_OAUTH_CALLBACK,
-  useFactory: (db: Db, cipher: SecretCipher, env: AgentHostEnv, returns: BrowserReturnService) =>
-    mcpOauthCallbackOf({
-      db,
-      cipher,
-      webOrigin: env.trustedOrigins[0] ?? WEB_ORIGIN_FALLBACK,
-      returns,
-    }),
-  inject: [DB, CIPHER, AGENT_HOST_ENV, BROWSER_RETURN],
+  useFactory: (db: Db, cipher: SecretCipher, returns: BrowserReturnService) =>
+    mcpOauthCallbackOf({ db, cipher, returns }),
+  inject: [DB, CIPHER, BROWSER_RETURN],
 }
 
 const browserReturnProvider: Provider = {

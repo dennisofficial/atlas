@@ -32,7 +32,7 @@ const callbackOf: CallbackHandler = async ({ query }) =>
     ? { kind: 'page', html: '<p>connected</p>' }
     : {
         kind: 'redirect',
-        location: `${TRUSTED_ORIGIN}/settings/integrations?mcpOauth=connected`,
+        location: `${TRUSTED_ORIGIN}/settings/integrations?atlasReturn=connected&atlasState=abc`,
         setCookie: CLEARED_RETURN_COOKIE,
       }
 

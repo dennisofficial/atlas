@@ -1,11 +1,7 @@
 import { describe, expect, it } from 'bun:test'
 
-import {
-  EMcpOauthGrantStatus,
-  EMcpOauthReturnSurface,
-  EMcpServerSource,
-  type McpOauthServer,
-} from '@dltech/atlas-wire/web'
+import { EReturnResult } from '@dltech/atlas-core'
+import { EMcpOauthGrantStatus, EMcpServerSource, type McpOauthServer } from '@dltech/atlas-wire/web'
 
 import { ELinkReturnKind } from '../../personal/link-return'
 import {
@@ -13,11 +9,11 @@ import {
   authStateOf,
   cloudServerOf,
   lastUsedOf,
-  mcpOauthReturnOf,
   mcpOauthScreenOf,
   mcpOauthServersInputOf,
+  mcpResultMessageOf,
+  mcpServerLabelOf,
   repoServersOf,
-  returnSurfaceOf,
 } from '../mcp-oauth'
 
 const URL_A = 'https://mcp.example.com/mcp'
@@ -101,51 +97,42 @@ describe('lastUsedOf', () => {
   })
 })
 
-describe('mcpOauthReturnOf', () => {
-  const params = (query: string) => new URLSearchParams(query)
-
-  it('ignores unrelated visits', () => {
-    expect(mcpOauthReturnOf(params(''))).toBeNull()
-    expect(mcpOauthReturnOf(params('tab=x'))).toBeNull()
+describe('mcpServerLabelOf', () => {
+  it('names the server by its host', () => {
+    expect(mcpServerLabelOf(URL_A)).toBe('mcp.example.com')
   })
 
-  it('announces success with the server host', () => {
+  it('falls back when the url cannot be read', () => {
+    expect(mcpServerLabelOf('not a url')).toBe('the server')
+  })
+})
+
+describe('mcpResultMessageOf', () => {
+  it('announces a sign-in that connected', () => {
     expect(
-      mcpOauthReturnOf(params(`mcpOauth=connected&mcpServer=${encodeURIComponent(URL_A)}`)),
-    ).toEqual({
-      kind: ELinkReturnKind.Success,
-      message: 'Signed in to mcp.example.com',
-    })
+      mcpResultMessageOf({
+        label: 'mcp.example.com',
+        outcome: { result: EReturnResult.Connected },
+      }),
+    ).toEqual({ kind: ELinkReturnKind.Success, message: 'Signed in to mcp.example.com' })
   })
 
-  it('announces failure with the reason', () => {
+  it('names the reason a sign-in failed', () => {
     expect(
-      mcpOauthReturnOf(
-        params(`mcpOauth=failed&mcpServer=${encodeURIComponent(URL_A)}&mcpReason=expired`),
-      ),
+      mcpResultMessageOf({
+        label: 'mcp.example.com',
+        outcome: { result: EReturnResult.Failed, reason: 'expired' },
+      }),
     ).toEqual({
       kind: ELinkReturnKind.Error,
       message: "Couldn't sign in to mcp.example.com: expired",
     })
   })
 
-  it('falls back when the server or reason is missing', () => {
-    expect(mcpOauthReturnOf(params('mcpOauth=failed'))).toEqual({
-      kind: ELinkReturnKind.Error,
-      message: "Couldn't sign in to the server",
-    })
-  })
-})
-
-describe('returnSurfaceOf', () => {
-  it('returns to the Mac app when the desktop bridge is present', () => {
-    expect(returnSurfaceOf({ atlasDesktop: { vibrancy: false } })).toBe(
-      EMcpOauthReturnSurface.Desktop,
-    )
-  })
-
-  it('returns to the website otherwise', () => {
-    expect(returnSurfaceOf({})).toBe(EMcpOauthReturnSurface.Web)
+  it('leaves out a blank reason', () => {
+    expect(
+      mcpResultMessageOf({ label: 'the server', outcome: { result: EReturnResult.Failed } }),
+    ).toEqual({ kind: ELinkReturnKind.Error, message: "Couldn't sign in to the server" })
   })
 })
 

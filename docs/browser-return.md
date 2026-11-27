@@ -81,15 +81,18 @@ keep a second copy of the outcome per flow: the shared store holds it under the 
 
 ## Flows on the framework
 
-| Flow  | Start                             | Return path      | Durable result                        |
-| ----- | --------------------------------- | ---------------- | ------------------------------------- |
-| `mcp` | the MCP transcript card's sign-in | `/sessions/<id>` | the roster row, read by the next turn |
+| Flow  | Start                                                 | Return path                                                                                            | Durable result                        |
+| ----- | ----------------------------------------------------- | ------------------------------------------------------------------------------------------------------ | ------------------------------------- |
+| `mcp` | the MCP transcript card's sign-in, or a settings page | `/sessions/<id>`, `/settings/integrations`, `/projects/<id>/settings/mcp`, `/groups/<id>/settings/mcp` | the roster row, read by the next turn |
 
 The MCP transcript card signs in an `http` MCP server. The agent tool `operator_mcp_sign_in` begins
 the flow, and the callback answers a session screen through `BrowserReturnService.answer`, so the
-card on web, Mac, iOS or the TUI shows the outcome at once. The API also keeps a refused sign-in on
-the server row, so the roster reads `failed` with the provider's reason and the card resolves failed
-even after a reload. Settings screens keep the flow's own `mcpOauth` params until they move over.
+card on web, Mac, iOS or the TUI shows the outcome at once. Every screen answers through the
+framework, including the user, project and group MCP settings pages, and a state the framework does
+not know falls back to `/settings/integrations`. The API also keeps a refused sign-in on the server
+row, so the roster reads `failed` with the provider's reason and the card resolves failed even after
+a reload. The web settings page reads the outcome from the shared return store, and the flow no
+longer carries a `mcpOauth` result param of its own.
 
 ## API
 
