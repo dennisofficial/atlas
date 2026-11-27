@@ -1,4 +1,3 @@
-import type { Attachment } from '@dltech/atlas-core'
 import {
   EEntryKind,
   eventIdOfEntryKey,
@@ -7,85 +6,35 @@ import {
   type TranscriptEntry,
 } from '@dltech/atlas-client/transcript'
 
-import { ENoticeTone, noticeFieldsOf } from './notice-fields'
-import { picturesIn, type ToolPictureView } from './tool-pictures'
+import { type ENoticeTone, noticeFieldsOf } from './notice-fields'
+import {
+  EMessageAuthor,
+  ERowKind,
+  type MessageRow,
+  type NoticeRow,
+  type SessionNameOf,
+  type ThreadRow,
+  type WorkItem,
+  type WorkRow,
+} from './row-types'
+import { picturesIn } from './tool-pictures'
 
 export { ENoticeTone } from './notice-fields'
-
-export enum ERowKind {
-  Message = 'message',
-  Work = 'work',
-  Notice = 'notice',
-  Images = 'images',
-}
-
-export enum EMessageAuthor {
-  You = 'you',
-  Atlas = 'atlas',
-}
-
-export type CommandRow = { text: string; name: string }
-
-export type MessageRow = {
-  kind: ERowKind.Message
-  id: string
-  author: EMessageAuthor
-  at: string | undefined
-  text: string
-  streaming: boolean
-  steer: boolean
-  staged?: boolean
-  attachments: readonly Attachment[]
-  command?: CommandRow | undefined
-  sender?: string
-  senderSessionId?: string | null
-}
-
-export type SessionNameOf = (sessionId: string) => string | undefined
-
-export type ThoughtItem = {
-  kind: EEntryKind.ModelThought
-  id: string
-  text: string
-  streaming: boolean
-}
-
-export type ToolsItem = {
-  kind: EEntryKind.ToolsRan
-  id: string
-  run: ToolRun
-  streaming: boolean
-}
-
-export type WorkItem = ThoughtItem | ToolsItem
-
-export type WorkRow = {
-  kind: ERowKind.Work
-  id: string
-  items: readonly WorkItem[]
-  stepCount: number
-  running: boolean
-  elapsed: string
-  startedAt: string | undefined
-  endedAt: string | undefined
-}
-
-export type NoticeRow = {
-  kind: ERowKind.Notice
-  id: string
-  at: string | undefined
-  title: string
-  body: string
-  tone: ENoticeTone
-}
-
-export type ImagesRow = {
-  kind: ERowKind.Images
-  id: string
-  images: readonly ToolPictureView[]
-}
-
-export type ThreadRow = MessageRow | WorkRow | NoticeRow | ImagesRow
+export {
+  EMessageAuthor,
+  ERowKind,
+  type CommandRow,
+  type ImagesRow,
+  type MessageRow,
+  type NoticeRow,
+  type SessionNameOf,
+  type SignInRow,
+  type ThoughtItem,
+  type ThreadRow,
+  type ToolsItem,
+  type WorkItem,
+  type WorkRow,
+} from './row-types'
 
 export const senderLabelOf = (args: {
   row: MessageRow
@@ -113,6 +62,9 @@ const latestStamp = (values: ReadonlyArray<string | undefined | null>): string |
     if (current === undefined || candidate === undefined) return latest
     return candidate > current ? value : latest
   }, undefined)
+
+const isBlank = (fields: { title: string; body: string }): boolean =>
+  fields.title.trim().length === 0 && fields.body.trim().length === 0
 
 const stepsIn = (item: WorkItem): number =>
   item.kind === EEntryKind.ModelThought ? 1 : item.run.calls.length
@@ -278,9 +230,21 @@ export function rowsOf(args: {
       case EEntryKind.TurnEnded:
         endTurn(entry)
         continue
+      case EEntryKind.SignIn:
+        flush()
+        rows.push({
+          kind: ERowKind.SignIn,
+          id: entry.key,
+          at: atOf(entry.key),
+          subject: entry.subject,
+          url: entry.url,
+          result: entry.result,
+          reason: entry.reason,
+        })
+        continue
       default: {
         const fields = noticeFieldsOf(entry)
-        if (fields === null) continue
+        if (fields === null || isBlank(fields)) continue
         flush()
         rows.push(noticeOf({ id: entry.key, at: atOf(entry.key), ...fields }))
         continue
