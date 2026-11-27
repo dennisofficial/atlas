@@ -6,13 +6,16 @@ import { Pressable, StyleSheet } from 'react-native'
 import { GlassSurface } from '../navigation/glass-surface'
 
 const FIELD_HEIGHT = 44
+const FIELD_MARGIN = space(3)
 const ICON_SIZE = 18
 
 export const ModelSearchField = ({
   query,
+  sideInsets,
   onQueryChange,
 }: {
   query: string
+  sideInsets: { left: number; right: number }
   onQueryChange: (query: string) => void
 }) => {
   const theme = useTheme()
@@ -20,7 +23,15 @@ export const ModelSearchField = ({
   const handleClear = () => onQueryChange('')
 
   return (
-    <GlassSurface style={styles.field}>
+    <GlassSurface
+      style={[
+        styles.field,
+        {
+          marginLeft: FIELD_MARGIN + sideInsets.left,
+          marginRight: FIELD_MARGIN + sideInsets.right,
+        },
+      ]}
+    >
       <Icon icon={Search} color={theme.mutedForeground} size={ICON_SIZE} />
       <Input
         bare
@@ -58,7 +69,6 @@ const styles = StyleSheet.create({
     height: FIELD_HEIGHT,
     marginBottom: space(2),
     marginTop: space(4),
-    marginHorizontal: space(3),
     paddingHorizontal: space(3),
   },
   input: {
