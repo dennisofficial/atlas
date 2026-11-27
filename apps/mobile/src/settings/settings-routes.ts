@@ -22,6 +22,9 @@ export const SETTINGS_STACK_SCREENS: readonly ISettingsStackScreen[] = [
   { name: 'settings/groups', title: 'Groups' },
   { name: 'settings/group-form', title: 'Group', presentation: 'modal' },
   { name: 'settings/group-assign', title: 'Assign projects', presentation: 'modal' },
+  { name: 'settings/account', title: 'Account' },
+  { name: 'settings/account/edit', title: 'Edit profile' },
+  { name: 'settings/security', title: 'Devices & Sessions' },
   { name: 'settings/models-effort', title: 'Models & Effort' },
   { name: 'settings/agent', title: 'Agent' },
   { name: 'settings/quality', title: 'Code Quality' },
@@ -42,6 +45,8 @@ export const SETTINGS_STACK_SCREENS: readonly ISettingsStackScreen[] = [
 
 export const IOS_SETTINGS_ROUTES: Partial<Record<ESettingsPage, Href>> = {
   [ESettingsPage.Groups]: '/settings/groups',
+  [ESettingsPage.Account]: '/settings/account',
+  [ESettingsPage.Security]: '/settings/security',
   [ESettingsPage.ModelsEffort]: '/settings/models-effort',
   [ESettingsPage.Agent]: '/settings/agent',
   [ESettingsPage.Quality]: '/settings/quality',
@@ -70,14 +75,12 @@ export const IOS_GROUP_SECTION_ROUTES: Partial<Record<TGroupSection, TRouteOfId>
 }
 
 export const IOS_PENDING_PAGES: ReadonlySet<ESettingsPage> = new Set([
-  ESettingsPage.Account,
   ESettingsPage.Integrations,
   ESettingsPage.Skills,
   ESettingsPage.Providers,
   ESettingsPage.Classifier,
   ESettingsPage.Access,
   ESettingsPage.Notifications,
-  ESettingsPage.Security,
 ])
 
 export const IOS_PENDING_PROJECT_SECTIONS: ReadonlySet<EProjectSettingsSection> = new Set([

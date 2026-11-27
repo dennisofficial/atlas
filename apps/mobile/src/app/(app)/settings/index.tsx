@@ -42,7 +42,7 @@ const routedGroups = () =>
   })).filter((group) => group.items.length > 0)
 
 export default function SettingsScreen() {
-  const { user, signOut, pushRegistration } = useAuth()
+  const { signOut, pushRegistration } = useAuth()
   const permissionStatus = usePermissionStatus()
   const testNotification = useTestNotification()
   const update = useUpdateInfo()
@@ -69,10 +69,6 @@ export default function SettingsScreen() {
           },
         }}
       />
-      <Section title="Account">
-        <Row label="Email" value={user?.email ?? 'Unknown account'} />
-        {user?.name === undefined ? null : <Row label="Name" value={user.name} />}
-      </Section>
       {groups.map((group, index) => (
         <Section key={group.label ?? `group-${index}`} title={group.label}>
           {group.items.map((item) => {
