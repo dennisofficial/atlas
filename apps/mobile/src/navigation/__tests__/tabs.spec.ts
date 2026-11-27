@@ -3,13 +3,12 @@ import { describe, expect, it } from 'bun:test'
 import { APP_TAB_ITEMS, EAppTab, isSessionsPath, SESSIONS_HREF } from '../tabs'
 
 describe('APP_TAB_ITEMS', () => {
-  it('lists the five tabs in bar order with their labels and routes', () => {
+  it('lists the four tabs in bar order with their labels and routes', () => {
     expect(Object.values(APP_TAB_ITEMS).map((item) => [item.tab, item.label, item.href])).toEqual([
       [EAppTab.Sessions, 'Sessions', '/sessions'],
       [EAppTab.Routines, 'Routines', '/routines'],
       [EAppTab.Projects, 'Projects', '/projects'],
       [EAppTab.Artifacts, 'Artifacts', '/artifacts'],
-      [EAppTab.Settings, 'Settings', '/settings'],
     ])
   })
 

@@ -13,13 +13,13 @@ import { StyleSheet, View } from 'react-native'
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
 
 import { usePosture } from '../layout/use-posture'
+import { AccountButton } from '../navigation/account-button'
 import { NewSessionButton } from '../navigation/new-session-button'
 import { showsHideSessionsButtonOf } from './drawer-layout'
 import { SearchField } from './search-field'
 import type { ISessionEntry } from './session-groups'
 import { useSessionsDrawer } from './sessions-drawer-state'
 import { SessionsList } from './sessions-list'
-import { useDrawerColumnReach } from './use-drawer-column-reach'
 
 export const SessionsDrawerShell = ({
   activeId,
@@ -33,11 +33,8 @@ export const SessionsDrawerShell = ({
   const [query, setQuery] = useState('')
   const { setOpen } = useSessionsDrawer()
   const handleHide = () => setOpen(false)
-  const columnReach = useDrawerColumnReach()
   return (
-    <View
-      style={[styles.content, { paddingTop: insets.top + space(2), paddingRight: columnReach }]}
-    >
+    <View style={[styles.content, { paddingTop: insets.top + space(2) }]}>
       <View style={styles.header}>
         <Text
           size={ETextRole.Lg}
@@ -48,6 +45,7 @@ export const SessionsDrawerShell = ({
           Sessions
         </Text>
         <View style={styles.actions}>
+          <AccountButton />
           <NewSessionButton />
           {showsHideSessionsButtonOf({ listLayout: posture.sessionsList, selected: activeId }) ? (
             <Button
