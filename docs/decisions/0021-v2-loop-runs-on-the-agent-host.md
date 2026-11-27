@@ -50,18 +50,19 @@ rarely and hands off leases within the grace.
 sessions on agent hosts.
 
 **An agent host restart is a clean handoff.** On SIGTERM an agent host takes no new sessions and pauses
-every loop it holds. The handoff is near-instant: it never waits for a running turn, because a turn
-lasts minutes to hours and everything but the in-flight provider request is durable. A loop between
-steps pauses at once. A loop waiting on the model has its stream aborted immediately; the partial
-output is discarded and the new holder asks again. A loop waiting on a tool does not abort it: the tool runs
-in the sandbox daemon, which keeps it running and keeps its result under the call's idempotency key
-(`runId:callId`) until a holder confirms receipt. The agent host then releases its leases, and a new
-holder resumes from the record at the next epoch and collects any pending result instead of
-re-running the call. Only an in-flight model stream is lost. "Dispatched, effects unknown" (v1
-dispatch recovery) remains only for a sandbox that dies. The `agent` loop's existing pause
-(`PauseSignal`, checked at every step boundary) becomes a general handoff pause, and its
-`RelocationPaused` outcome is renamed for that purpose in slice 3. A hard-exit timer (`5_000` ms in
-`main.ts`) bounds a drain that never settles, so a stuck handoff cannot hang the process.
+every loop it holds. Everything but the model stream open at the drain cap is durable, so the drain does
+not wait for the turn to end. A loop between steps pauses at once. A loop waiting on a tool is not
+interrupted: the tool runs in the sandbox daemon, which keeps it running and keeps its result under the
+step key until a holder confirms receipt, and the leaving host writes nothing about the call. In-flight
+work gets until the drain cap (240 s); at the cap only the model stream is aborted, and the partial
+output stays in the record marked `aborted: 'handoff'`, so the next holder asks again. Only an in-flight
+model stream is lost. "Dispatched, effects unknown" (v1 dispatch recovery) remains for a sandbox that
+dies, and for a host-side call that recorded no step. The `agent` loop's existing pause (`PauseSignal`,
+checked at every step boundary) is the general handoff pause, and its `RelocationPaused` outcome is
+renamed for that purpose in slice 3. The platform's 300 s shutdown grace bounds a drain that never
+settles (the handoff budget is 260 s), so a stuck handoff cannot hang the process. Amended 2026-11-27
+(#2999): the drain used to detach the daemon calls and abort the turn at once; it now aborts only the
+model stream, at the cap, and writes nothing about an open call.
 
 **Input wake and live deltas go through the CP.** The API writes the inbox; the holder is
 notified through pub/sub (Redis, which v1 already runs). Render's load balancer assigns a
@@ -77,7 +78,7 @@ over Postgres. The guarantees:
 | ------------------------------------------ | ------------------------------------------------------------------------------------------------------------------------------- |
 | A turn resumes from the record at any step | The loop's step boundaries and `resume` (slice 2)                                                                               |
 | A tool's intent is recorded before it runs | `tool-dispatched` is appended before invocation and dispatch fails closed if it is not (slice 2)                                |
-| A tool survives an agent host death        | The daemon keeps running the call and holds its result under `runId:callId` until a holder confirms receipt (new, slice 3)      |
+| A tool survives an agent host death        | The daemon keeps running the call and holds its result under its step key until a holder confirms receipt (new, slice 3)        |
 | A tool is rerun only if safe               | Read-effect calls rerun; others whose sandbox died are reported as interrupted with output so far (v1 dispatch recovery)        |
 | Input is consumed exactly once             | CP inbox ids, consumed through `input-consumed` (slice 1)                                                                       |
 | One owner at a time                        | The epoch-fenced lease (slice 1)                                                                                                |
@@ -138,6 +139,10 @@ the control plane. This also amends [0022](0022-v2-background-jobs-in-apps-trigg
 session loops": the agent host's only timers are lease, daemon and idle-deadline ones, and none looks for
 work.
 
+Superseded 2026-11-05 by [0025](0025-v2-connection-bound-leases.md): there is no reconcile task and no
+renewal. A lease is live while its holder's Postgres presence lock is held, so a crashed holder is an
+event rather than something a sweep looks for.
+
 **The agent host owns its runtime code and imports nothing from v1.** The decision said the host runs the
 `agent` loop; in practice it also pulled tools, the model port, prompt fragments and sandbox helpers from
 `harness` and `wire`. v1 and v2 now share no logic: v1 has its own copy of the loop
@@ -149,12 +154,18 @@ deleted at cutover, not refactored.
 **Partial output on a handoff is kept, not discarded.** The decision says a model stream aborted on a
 handoff has its partial output discarded and the new holder asks again. The guarantee table above
 already said "kept"; the code keeps it:
-- On drain, `HeldSession.handoff` first detaches running daemon calls (`remoteCalls.handoff()`), then
-  aborts the turn with reason `'handoff'`, at once. The turn ends as `HandoffPaused`, never `run-failed`.
-- The model port returns the step accumulated so far on abort instead of throwing. The loop appends it as
-  an `assistant-said` with `interrupted: true`, and while the host is draining the record adapter marks it
-  `aborted: 'handoff'` (`abortedOnHandoff`). The next holder resumes from the record and asks again.
-- There is no drain deadline left to cut the append short: the record adapter retries on its own budget
-  (`appendRetryMs`, 30 s by default). A record store that never answers is bounded by the hard-exit timer
-  in `main.ts` (`HANDOFF_HARD_EXIT_MS = 5_000`), after which the lease expires on its TTL instead of being
-  revoked.
+- On drain, `HeldSession.beginDrain` pauses the loop (`packages/host/src/holder/held-session.ts:140-143`)
+  and `HeldDrain.handoff` (`held-drain.ts:22`) marks the daemon link detached, gives in-flight work until
+  the drain cap (240 s), then aborts the **model stream only** (`PauseSignal.abortModelStep`, `:60`). The
+  turn is not aborted, so a tool call in the pod keeps running and the leaving host settles it, cancels it
+  and writes nothing about it (#2999). Amended 2026-11-27: this paragraph used to say the drain detached
+  the running daemon calls and aborted the turn at once, which invented an interruption the pod had not
+  proved.
+- The model port returns the step accumulated so far, and the loop appends it as `assistant-said` with
+  `interrupted: true` and `aborted: 'handoff'` (`packages/agent/src/loop/step-drafts.ts:102-109`,
+  `abortedOnHandoff` in `record/append-drafts.ts:35-39`). The next holder resumes from the record and asks
+  again. The turn ends as `HandoffPaused`, never `run-failed`.
+- The drain's record tail is bounded by `DRAIN_STREAM_ABORT_CAP_MS` (10 s), and the whole handoff by
+  `DRAIN_HANDOFF_BUDGET_MS` (260 s: a 240 s cap plus a 20 s hand-back margin), under Render's 300 s
+  `maxShutdownDelaySeconds` (`apps/api/src/agent/host/shutdown-sequence.ts:37`). A handoff that
+  outlives the budget is ended by the platform, and the epoch fence keeps the record from forking.
