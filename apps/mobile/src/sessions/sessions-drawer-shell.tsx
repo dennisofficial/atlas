@@ -48,7 +48,7 @@ export const SessionsDrawerShell = ({
         <View style={styles.actions}>
           {posture.controls === EControlsPlacement.BottomBar ? <AccountButton /> : null}
           <NewSessionButton />
-          {showsHideSessionsButtonOf({ listLayout: posture.sessionsList }) ? (
+          {showsHideSessionsButtonOf({ listLayout: posture.sessionsList, selected: activeId }) ? (
             <Button
               label="Hide sessions"
               icon={PanelLeft}

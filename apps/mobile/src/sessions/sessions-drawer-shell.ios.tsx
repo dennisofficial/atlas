@@ -75,7 +75,7 @@ const DrawerScreen = ({ activeId, onOpen }: TDrawerScreenProps) => {
 
   const items = drawerBarItemsOf({
     onNewSession: handleNewSession,
-    onHide: showsHideSessionsButtonOf({ listLayout: posture.sessionsList })
+    onHide: showsHideSessionsButtonOf({ listLayout: posture.sessionsList, selected: activeId })
       ? handleHide
       : undefined,
   })
