@@ -42,6 +42,7 @@ import { StartFailedCard } from '../../../thread/components/start-failed-card'
 import { SessionSkeleton } from '../../../thread/components/session-skeleton'
 import { Transcript } from '../../../thread/components/transcript'
 import { selectedSessionStore } from '../../../sessions/selected-session'
+import { paneWidthOf } from '../../../sessions/drawer-layout'
 import { useSessionsDrawer } from '../../../sessions/sessions-drawer-state'
 import { SessionModelControls } from '../../../thread/session/session-model-controls'
 import { useSessionScreen } from '../../../thread/session/use-session-screen'
@@ -126,7 +127,11 @@ export default function SessionScreen() {
             glassTitle: true,
             fillsBar: true,
             titleButtons: 0,
-            windowWidth,
+            windowWidth: paneWidthOf({
+              listLayout: posture.sessionsList,
+              windowWidth,
+              drawerOpen,
+            }),
             posture,
           }),
           headerBackVisible: false,
