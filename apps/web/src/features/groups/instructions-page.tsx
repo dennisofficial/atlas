@@ -8,6 +8,12 @@ import { EMarkdownEditorVariant, MarkdownEditor } from '@dltech/atlas-ui/ai/mark
 import { Button } from '@dltech/atlas-ui/components/button'
 import { cn } from '@dltech/atlas-ui/lib/utils'
 import { GROUP_INSTRUCTION_CHAR_LIMIT } from '@dltech/atlas-wire/web'
+import {
+  GROUP_INSTRUCTIONS_DESCRIPTION,
+  INHERITED_INSTRUCTIONS_DESCRIPTION,
+  canSaveInstructions,
+  charCountOf,
+} from '@dltech/atlas-client/settings'
 
 import { SettingsCard, SettingsPage, SettingsSection } from '@/features/settings/settings-layout'
 import { fetchInstructions } from '@/features/settings/data/personal/instructions-api'
@@ -29,21 +35,17 @@ import {
 
 const COPIED_RESET_MS = 1500
 
-const PAGE_DESCRIPTION =
-  "Loaded into every thread on every project of this group, after the personal instructions and before the repository's AGENTS.md files."
-
 function CharCount({ length }: { length: number }) {
-  const over = length - GROUP_INSTRUCTION_CHAR_LIMIT
+  const count = charCountOf({ length, limit: GROUP_INSTRUCTION_CHAR_LIMIT })
   return (
     <span
       role="status"
       className={cn(
         'font-mono text-xs tabular-nums',
-        over > 0 ? 'text-destructive' : 'text-muted-foreground',
+        count.over ? 'text-destructive' : 'text-muted-foreground',
       )}
     >
-      {length.toLocaleString('en-US')} / {GROUP_INSTRUCTION_CHAR_LIMIT.toLocaleString('en-US')}
-      {over > 0 ? ` · ${over.toLocaleString('en-US')} over` : null}
+      {count.text}
     </span>
   )
 }
@@ -54,7 +56,7 @@ function InheritedPersonal() {
   return (
     <SettingsSection
       title="From personal settings"
-      description="Loaded first, before this group's text."
+      description={INHERITED_INSTRUCTIONS_DESCRIPTION}
       actions={
         <Button
           variant="ghost"
@@ -85,7 +87,7 @@ export function GroupInstructionsPage() {
     <QueryPage
       query={query}
       title="Instructions"
-      description={PAGE_DESCRIPTION}
+      description={GROUP_INSTRUCTIONS_DESCRIPTION}
       actions={<InstructionsActionsSkeleton />}
       skeleton={<InstructionsSkeleton />}
     >
@@ -111,7 +113,6 @@ function GroupInstructionsEditor({
   const draft = useDraft(doc.content)
   const { saving, run } = useSaveAction()
   const [copied, setCopied] = useState(false)
-  const overLimit = draft.value.length > GROUP_INSTRUCTION_CHAR_LIMIT
 
   const handleCopy = () => {
     void navigator.clipboard?.writeText(draft.value)
@@ -134,7 +135,7 @@ function GroupInstructionsEditor({
   return (
     <SettingsPage
       title="Instructions"
-      description={PAGE_DESCRIPTION}
+      description={GROUP_INSTRUCTIONS_DESCRIPTION}
       actions={
         <>
           <CharCount length={draft.value.length} />
@@ -153,7 +154,14 @@ function GroupInstructionsEditor({
           ) : null}
           <Button
             size="sm"
-            disabled={!draft.dirty || overLimit || saving}
+            disabled={
+              !canSaveInstructions({
+                dirty: draft.dirty,
+                length: draft.value.length,
+                limit: GROUP_INSTRUCTION_CHAR_LIMIT,
+                saving,
+              })
+            }
             onClick={() => void handleSave()}
           >
             Save

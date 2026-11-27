@@ -23,7 +23,7 @@ import type {
 } from '@prisma/orm-postgres/contract/types';
 
 export type StorageHash =
-  StorageHashBase<'16728f3bc2230e97bb7643a13fa9505d4e74bff2ae34f3336296bf1e287cef18'>;
+  StorageHashBase<'0afeeb830835c1a111e5003744b1fb67e0fa0e1f89e6213b0ef2535adc60966f'>;
 export type ExecutionHash =
   ExecutionHashBase<'0e6f989bb6c7c489039e329d87ab4c7469f87c12c726c4dcf40ed6296bf343c1'>;
 export type ProfileHash =
@@ -820,6 +820,8 @@ export namespace Models {
     oauthGeneration: FieldOutputTypes['public']['McpServer']['oauthGeneration'];
     oauthRefreshAttempt: FieldOutputTypes['public']['McpServer']['oauthRefreshAttempt'];
     oauthRefreshStartedAt: FieldOutputTypes['public']['McpServer']['oauthRefreshStartedAt'];
+    oauthRefusal: FieldOutputTypes['public']['McpServer']['oauthRefusal'];
+    oauthRefusedAt: FieldOutputTypes['public']['McpServer']['oauthRefusedAt'];
     oauthSealed: FieldOutputTypes['public']['McpServer']['oauthSealed'];
     oauthServerUrl: FieldOutputTypes['public']['McpServer']['oauthServerUrl'];
     oauthStatus: FieldOutputTypes['public']['McpServer']['oauthStatus'];
@@ -5087,6 +5089,19 @@ type ContractBase = Omit<
                   readonly many: false;
                 };
                 readonly oauthRefreshStartedAt: {
+                  readonly dataType: 'pg/timestamptz';
+                  readonly codecId: 'pg/timestamptz-date@1';
+                  readonly nullable: true;
+                  readonly typeParams: { readonly precision: 3 };
+                  readonly many: false;
+                };
+                readonly oauthRefusal: {
+                  readonly dataType: 'pg/text';
+                  readonly codecId: 'pg/text@1';
+                  readonly nullable: true;
+                  readonly many: false;
+                };
+                readonly oauthRefusedAt: {
                   readonly dataType: 'pg/timestamptz';
                   readonly codecId: 'pg/timestamptz-date@1';
                   readonly nullable: true;
@@ -11740,6 +11755,18 @@ type ContractBase = Omit<
                   readonly typeParams: { readonly precision: 3 };
                 };
               };
+              readonly oauthRefusal: {
+                readonly nullable: true;
+                readonly type: { readonly kind: 'scalar'; readonly codecId: 'pg/text@1' };
+              };
+              readonly oauthRefusedAt: {
+                readonly nullable: true;
+                readonly type: {
+                  readonly kind: 'scalar';
+                  readonly codecId: 'pg/timestamptz-date@1';
+                  readonly typeParams: { readonly precision: 3 };
+                };
+              };
               readonly oauthSealed: {
                 readonly nullable: true;
                 readonly type: { readonly kind: 'scalar'; readonly codecId: 'pg/text@1' };
@@ -11847,6 +11874,8 @@ type ContractBase = Omit<
                 readonly oauthGeneration: { readonly column: 'oauthGeneration' };
                 readonly oauthRefreshAttempt: { readonly column: 'oauthRefreshAttempt' };
                 readonly oauthRefreshStartedAt: { readonly column: 'oauthRefreshStartedAt' };
+                readonly oauthRefusal: { readonly column: 'oauthRefusal' };
+                readonly oauthRefusedAt: { readonly column: 'oauthRefusedAt' };
                 readonly oauthSealed: { readonly column: 'oauthSealed' };
                 readonly oauthServerUrl: { readonly column: 'oauthServerUrl' };
                 readonly oauthStatus: { readonly column: 'oauthStatus' };

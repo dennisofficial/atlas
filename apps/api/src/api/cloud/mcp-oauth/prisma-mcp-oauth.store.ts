@@ -2,9 +2,8 @@ import { randomUUID } from 'node:crypto'
 import { db, isUniqueViolation } from '@dltech/atlas-db'
 import { Injectable } from '@nestjs/common'
 import { EMcpServerSource } from '@dltech/atlas-wire'
-import { returnSurfaceOf } from './mcp-oauth-redirect'
 import { EGrantRowStatus, McpOauthStore } from './mcp-oauth.types'
-import type { AttemptFence, PendingRow, ServerGrantRow } from './mcp-oauth.types'
+import type { AttemptFence, ServerGrantRow } from './mcp-oauth.types'
 
 const REPO_SEEN_BUMP_MS = 3_600_000
 
@@ -68,37 +67,6 @@ const scopeOf = (args: {
 
 @Injectable()
 export class PrismaMcpOauthStore implements McpOauthStore {
-  async insertPending(row: PendingRow): Promise<void> {
-    await db.orm.public.McpOauthPending.create({
-      id: row.id,
-      userId: row.userId,
-      serverUrl: row.serverUrl,
-      sealed: row.sealed,
-      returnTo: row.returnTo,
-      returnSurface: row.returnSurface,
-      expiresAt: row.expiresAt,
-      ...(row.mcpServerId === null ? {} : { mcpServerId: row.mcpServerId }),
-    })
-  }
-
-  async takePending(args: { id: string }): Promise<PendingRow | null> {
-    const row = await db.orm.public.McpOauthPending.select(
-      'id',
-      'userId',
-      'serverUrl',
-      'sealed',
-      'returnTo',
-      'returnSurface',
-      'expiresAt',
-      'mcpServerId',
-    ).first({ id: args.id })
-    if (row === null) return null
-    const count = await db.orm.public.McpOauthPending.where({
-      id: args.id,
-    }).deleteAndCount()
-    return count === 1 ? { ...row, returnSurface: returnSurfaceOf(row.returnSurface) } : null
-  }
-
   async findServer(args: { id: string }): Promise<ServerGrantRow | null> {
     const row = await db.orm.public.McpServer.select(...SERVER_COLUMNS).first({ id: args.id })
     return row === null ? null : toServerGrantRow(row)

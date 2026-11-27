@@ -37,7 +37,7 @@ import {
   OverriddenBadge,
 } from '@/features/settings/parts/layers/inherited-layer-section'
 import { McpOauthControl, McpSignOutItem } from '@/features/settings/parts/mcp-oauth-control'
-import { McpOauthReturn } from '@/features/settings/parts/mcp-oauth-return'
+import { McpOauthResult } from '@/features/settings/parts/mcp-oauth-result'
 import {
   sectionHrefOf,
   useSettingsScope,
@@ -241,7 +241,7 @@ function McpContent({
         </>
       }
     >
-      {auth === null ? null : <McpOauthReturn reload={auth.reload} />}
+      {auth === null ? null : <McpOauthResult owner={auth.owner} reload={auth.reload} />}
       <SettingsCard>
         {servers.length === 0 ? (
           <ServersEmpty />

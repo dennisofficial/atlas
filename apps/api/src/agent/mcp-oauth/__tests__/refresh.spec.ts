@@ -20,7 +20,13 @@ const testDb = useTestDatabase()
 afterEach(restoreFetch)
 
 const gatewayOver = (db = testDb().db) =>
-  mcpOauthGatewayOf({ db, cipher, publicUrl: 'https://api.byatlas.io', allowLocalTargets: true })
+  mcpOauthGatewayOf({
+    db,
+    cipher,
+    publicUrl: 'https://api.byatlas.io',
+    allowLocalTargets: true,
+    returns: { begin: async () => ({ startUrl: '', expiresAt: new Date() }) },
+  })
 
 const ARGS = {
   userId: 'user-1',

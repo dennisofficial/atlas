@@ -8,12 +8,13 @@ Connects a session to the MCP servers that the operator and the repository confi
 - The merge of the sources into one server list, and the rejections when an entry is bad.
 - The `stdio` and `http` transports, and the connection to each server.
 - The bridged tools `mcp__<server>__<tool>`.
-- The `operator_mcp_sign_in` tool for an `http` server that needs a sign-in.
+- The `operator_mcp_sign_in` tool for an `http` server that needs a sign-in, or whose last sign-in was refused.
 - The `mcp` view: one row for each server with its transport, status, tool count and layer.
 - The events `mcp-server-changed`, `mcp-server-removed`, `mcp-sign-in-started` and `mcp-sign-in-resolved`.
 - The MCP instructions in the context slot `McpInstructions`.
 - A handoff that is invisible: a token the API could not fetch keeps the last recorded row and tools, marked `retry: true`, instead of showing `needs-auth`.
 - A live `http` connection that answers 401: the client asks `PodMcpControl` for a current token once, retries the request once, and reports a sign-in only when that second attempt also fails.
+- A refused sign-in that stays visible: the API keeps the provider's reason on the server row, so the row reads `failed` with that reason, and a new attempt clears it.
 
 ## Does not own
 
@@ -23,12 +24,12 @@ Connects a session to the MCP servers that the operator and the repository confi
 
 ## Entry points
 
-| Import                             | Use it for                                                                                                         |
-| ---------------------------------- | ------------------------------------------------------------------------------------------------------------------ |
-| `@dltech/atlas-plugin-mcp/core`    | The entry schemas, the source merge, the row schema, the view fold, the sign-in events and the sign-in start link. |
-| `@dltech/atlas-plugin-mcp/pod`     | `mcpPod(args)`, the two resources, the transports, `loadMcpConfig` and the bridge tool.                            |
-| `@dltech/atlas-plugin-mcp/control` | `mcpControl`: an empty control slot.                                                                               |
-| `@dltech/atlas-plugin-mcp/client`  | `mcpClient` and `mcpSignInEntries`: the client hook and the sign-in transcript fold.                               |
+| Import                             | Use it for                                                                                  |
+| ---------------------------------- | ------------------------------------------------------------------------------------------- |
+| `@dltech/atlas-plugin-mcp/core`    | The entry schemas, the source merge, the row schema, the view fold, and the sign-in events. |
+| `@dltech/atlas-plugin-mcp/pod`     | `mcpPod(args)`, the two resources, the transports, `loadMcpConfig` and the bridge tool.     |
+| `@dltech/atlas-plugin-mcp/control` | `mcpControl`: an empty control slot.                                                        |
+| `@dltech/atlas-plugin-mcp/client`  | `mcpClient` and `mcpSignInEntries`: the client hook and the sign-in transcript fold.        |
 
 ## Capabilities
 
@@ -57,27 +58,21 @@ Connects a session to the MCP servers that the operator and the repository confi
 
 ### Open a sign-in
 
-A sign-in card links to the API start path `MCP_SIGN_IN_START_PATH` (`/mcp-oauth/start/<state>`),
-not to the provider. The client that opens it names itself, and the API returns the callback to that
-client.
-- `signInUrlFor({ url, surface })`: adds `?surface=` with an `EMcpSignInSurface` to a start link. A
-  provider link from an older card stays as it is.
-- `signInStartUrlOf({ publicUrl, state })`: the start link the API writes into the card.
-- `returnSurfaceOf({ state, cookie, recorded })`: the surface the callback returns to. The signed
-  cookie that the start link set in the browser decides. The surface recorded on the pending
-  sign-in is the fallback, for a browser that lost the cookie.
-- `signInSurfaceOf(value)`: reads a surface name, or `undefined`.
+A sign-in card links to a browser-return start link (`/return/start/<state>`), not to the provider.
+Each surface opens it with its browser-return opener and reads the result at once; the durable result
+arrives through `mcp-sign-in-resolved`. See `docs/browser-return.md`.
+- `signInRetryTextOf(server)` (`/client`): the operator message a failed card's "Try again" sends.
 
 ## Plugin contributions
 
 ### Pod tier (`mcpPod`)
 
-| Kind     | Name                    | What it adds                                                                 |
-| -------- | ----------------------- | ---------------------------------------------------------------------------- |
-| Tool     | `mcp__<server>__<tool>` | One tool for each tool of a connected server.                                |
-| Tool     | `operator_mcp_sign_in`  | Starts a sign-in for an `http` server that the roster shows as `needs-auth`. |
-| Resource | `mcp-config`            | The resolved server list, with the layer that supplied each server.          |
-| Resource | `mcp-tools`             | The tools of each server, with its status and the reason when it failed.     |
+| Kind     | Name                    | What it adds                                                             |
+| -------- | ----------------------- | ------------------------------------------------------------------------ |
+| Tool     | `mcp__<server>__<tool>` | One tool for each tool of a connected server.                            |
+| Tool     | `operator_mcp_sign_in`  | Starts a sign-in for an `http` server shown `needs-auth` or refused.     |
+| Resource | `mcp-config`            | The resolved server list, with the layer that supplied each server.      |
+| Resource | `mcp-tools`             | The tools of each server, with its status and the reason when it failed. |
 
 Both resources declare the cloud setting `McpServers`. They watch `.mcp.json` and `mcp.json` in the project directory and in `.atlas`.
 

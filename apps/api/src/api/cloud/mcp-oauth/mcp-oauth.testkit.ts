@@ -9,6 +9,7 @@ import {
   FakeMcpStore,
   SERVER,
   TEST_CONFIG,
+  TEST_REDIRECT_URI,
   installIssuer,
 } from './mcp-oauth.fakes'
 import { McpOauthAccessService } from './mcp-oauth-access.service'
@@ -25,7 +26,7 @@ export const build = (config = TEST_CONFIG) => {
   const fetcher = new FakeMcpFetcher()
   const clock = new FakeMcpClock(START)
   const cipher = new SecretCipherService(new EnvService({ SECRETS_ENCRYPTION_KEY: HEX_KEY }))
-  const oauth = new McpOauthService(store, cipher, clock, fetcher, config)
+  const oauth = new McpOauthService(store, cipher)
   const access = new McpOauthAccessService(
     store,
     cipher,
@@ -109,7 +110,7 @@ export const seedGrant = async (
       ...patch,
     },
     tokenEndpoint: `${AUTH}/token`,
-    redirectUri: TEST_CONFIG.redirectUri,
+    redirectUri: TEST_REDIRECT_URI,
     resource: SERVER,
   }
   await env.store.writeGrant({
@@ -132,6 +133,3 @@ export const accessArgs = (
     ? {}
     : { rejectedAccessToken: args.rejectedAccessToken }),
 })
-
-export const stateOf = (authorizationUrl: string) =>
-  new URL(authorizationUrl).searchParams.get('state') ?? ''

@@ -225,6 +225,55 @@ describe('mcpControl token', () => {
     expect(token).toEqual({ kind: EMcpToken.Granted, accessToken: 'at-2' })
     expect(calls[0]).toMatchObject({ groupId: 'grp-1', projectId: 'proj-1', name: 'paper' })
   })
+
+  it('reports the refusal a sign-in left on a server that never held a grant', async () => {
+    const { db } = testDb()
+    await seedOwner(db)
+    await seedGranted({
+      db,
+      specUrl: 'https://mcp.paper.design/mcp',
+      oauthServerUrl: 'https://mcp.paper.design/mcp',
+    })
+    await db.orm.public.McpServer.where({ id: 'srv-paper' }).updateAndCount({
+      oauthStatus: null,
+      oauthSealed: null,
+      oauthServerUrl: null,
+      oauthRefusal: 'mcp.paper.design answered: access_denied',
+      oauthRefusedAt: new Date('2026-11-20T12:00:00.000Z'),
+    })
+
+    expect(
+      await tokenOf({
+        db,
+        gateway: gatewayOf(async () => unreachable()),
+        url: 'https://mcp.paper.design/mcp',
+      }),
+    ).toEqual({ kind: EMcpToken.Refused, reason: 'mcp.paper.design answered: access_denied' })
+  })
+
+  it('reports the refusal on a server whose grant expired', async () => {
+    const { db } = testDb()
+    await seedOwner(db)
+    await seedGranted({
+      db,
+      specUrl: 'https://mcp.paper.design/mcp',
+      oauthServerUrl: 'https://mcp.paper.design/mcp',
+      expiresAt: PAST,
+    })
+    await db.orm.public.McpServer.where({ id: 'srv-paper' }).updateAndCount({
+      oauthStatus: 'expired',
+      oauthRefusal: 'mcp.paper.design answered: access_denied',
+      oauthRefusedAt: new Date('2026-11-20T12:00:00.000Z'),
+    })
+
+    expect(
+      await tokenOf({
+        db,
+        gateway: gatewayOf(async () => unreachable()),
+        url: 'https://mcp.paper.design/mcp',
+      }),
+    ).toEqual({ kind: EMcpToken.Refused, reason: 'mcp.paper.design answered: access_denied' })
+  })
 })
 
 function unreachable(): never {

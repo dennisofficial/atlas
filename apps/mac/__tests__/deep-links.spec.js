@@ -1,6 +1,7 @@
 import { describe, expect, test } from 'bun:test'
 
 import * as wire from '@dltech/atlas-wire/web'
+import { APP_URL_SCHEME, DESKTOP_OPEN_HOST as CORE_OPEN_HOST } from '@dltech/atlas-core'
 
 import {
   DESKTOP_NAVIGATE_EVENT,
@@ -21,8 +22,8 @@ import {
 
 describe('the shell speaks the wire names', () => {
   test('matches the scheme, hosts and events the API, worker and web app use', () => {
-    expect(DESKTOP_URL_SCHEME).toBe(wire.DESKTOP_URL_SCHEME)
-    expect(DESKTOP_OPEN_HOST).toBe(wire.DESKTOP_OPEN_HOST)
+    expect(DESKTOP_URL_SCHEME).toBe(APP_URL_SCHEME)
+    expect(DESKTOP_OPEN_HOST).toBe(CORE_OPEN_HOST)
     expect(DESKTOP_PREVIEW_CALLBACK_HOST).toBe(wire.DESKTOP_PREVIEW_CALLBACK_HOST)
     expect(DESKTOP_NAVIGATE_EVENT).toBe(wire.DESKTOP_NAVIGATE_EVENT)
     expect(DESKTOP_PREVIEW_CALLBACK_EVENT).toBe(wire.DESKTOP_PREVIEW_CALLBACK_EVENT)

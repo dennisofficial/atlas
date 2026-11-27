@@ -2,7 +2,7 @@ import type { ClientSlot } from '@dltech/atlas-plugin-sdk'
 
 import { mcpSignInEntries } from './sign-in-entry'
 
-export { mcpSignInEntries }
+export { mcpSignInEntries, signInRetryTextOf } from './sign-in-entry'
 
 export const mcpClient: ClientSlot = {
   hooks: [

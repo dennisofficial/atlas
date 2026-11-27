@@ -48,10 +48,6 @@ describe('next.config rewrites', () => {
         destination: 'https://api.byatlas.io/api/auth/callback/:path*',
       },
       {
-        source: '/v1/mcp/oauth/callback',
-        destination: 'https://api.byatlas.io/v1/mcp/oauth/callback',
-      },
-      {
         source: '/ingest/static/:path*',
         destination: 'https://us-assets.i.posthog.com/static/:path*',
       },
@@ -79,7 +75,6 @@ describe('next.config rewrites', () => {
 
     expect(result.map((rewrite) => rewrite.source)).toEqual([
       '/api/auth/callback/:path*',
-      '/v1/mcp/oauth/callback',
       '/ingest/static/:path*',
       '/ingest/:path*',
     ])

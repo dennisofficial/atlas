@@ -64,7 +64,6 @@ const nextConfig: NextConfig = {
         source: '/api/auth/callback/:path*',
         destination: `${apiOrigin}/api/auth/callback/:path*`,
       },
-      { source: '/v1/mcp/oauth/callback', destination: `${apiOrigin}/v1/mcp/oauth/callback` },
       { source: '/ingest/static/:path*', destination: `${POSTHOG_ASSETS_HOST}/static/:path*` },
       { source: '/ingest/:path*', destination: `${POSTHOG_INGEST_HOST}/:path*` },
     ]

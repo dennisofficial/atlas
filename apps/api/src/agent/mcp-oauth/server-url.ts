@@ -7,9 +7,11 @@ import type { McpServerGrantRow } from './types'
 const hasAuthorizationHeader = (headers: Record<string, string> | undefined): boolean =>
   Object.keys(headers ?? {}).some((name) => name.toLowerCase() === 'authorization')
 
+export type ServerUrlRow = Pick<McpServerGrantRow, 'source' | 'repoUrl' | 'sealedSpec'>
+
 export const serverUrlOf = (args: {
   cipher: SecretCipher
-  row: McpServerGrantRow
+  row: ServerUrlRow
 }): string | undefined => {
   const { row } = args
   if (row.source === 'repo') {

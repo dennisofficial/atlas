@@ -11,6 +11,16 @@ import {
 import { ToggleGroup, ToggleGroupItem } from '@dltech/atlas-ui/components/toggle-group'
 
 import {
+  MEMORY_ALL_TYPES,
+  MEMORY_DELETE_TAIL,
+  MEMORY_PAGE_DESCRIPTION,
+  MEMORY_PAGE_TITLE,
+  isMemoryTypeFilter,
+  memoryClearDescriptionOf,
+  memoryMatchesFilter,
+  memoryScopeHintOf,
+} from '@dltech/atlas-client/settings'
+import {
   EMemoryScope,
   EMemoryType,
   MEMORY_TYPE_LABELS,
@@ -29,56 +39,15 @@ import { EMemorySheetMode, MemorySheet } from '../parts/memory-sheet'
 import { DangerZone, SettingsPage, SettingsSection } from '../settings-layout'
 import { useMemoryGroups, type MemoryGroups } from '../use-memory-groups'
 
-const ALL_TYPES = 'all'
-const TYPE_FILTERS = [ALL_TYPES, ...Object.values(EMemoryType)]
-
-const DELETE_TAIL = 'The agent stops seeing this memory in new threads. This cannot be undone.'
-
 type PendingDelete = { names: string[]; title: string; description: string }
-
-function isTypeFilter(value: string): value is EMemoryType | typeof ALL_TYPES {
-  return TYPE_FILTERS.includes(value)
-}
-
-function matches({ entry, query, type }: { entry: MemoryEntry; query: string; type: string }) {
-  const needle = query.trim().toLowerCase()
-  const textMatch =
-    needle.length === 0 ||
-    entry.name.toLowerCase().includes(needle) ||
-    entry.description.toLowerCase().includes(needle) ||
-    entry.body.toLowerCase().includes(needle)
-  return textMatch && (type === ALL_TYPES || entry.type === type)
-}
-
-function scopeHint(group: MemoryScopeGroup) {
-  if (group.scope === EMemoryScope.Global) return 'Loaded in every thread, on every project.'
-  if (group.scope === EMemoryScope.Group) {
-    return `Loaded alongside global memories in threads on every project in the ${memoryGroupLabel(group)} group.`
-  }
-  return `Loaded alongside global and group memories in threads on ${group.project}.`
-}
-
-function clearDescription(group: MemoryScopeGroup) {
-  if (group.scope === EMemoryScope.Global) {
-    return 'Deletes every global memory. Group and project memories are not touched.'
-  }
-  if (group.scope === EMemoryScope.Group) {
-    return `Deletes every memory of the ${memoryGroupLabel(group)} group. Global memories and other scopes are not touched.`
-  }
-  return `Deletes every memory for ${group.project}. Global and group memories are not touched.`
-}
-
-const PAGE_TITLE = 'Memory'
-const PAGE_DESCRIPTION =
-  'Notes the agent keeps across conversations. Global memories apply everywhere, group memories to every project in a group, and project memories only in that repository.'
 
 export function MemoryPage() {
   const memory = useMemoryGroups()
   return (
     <QueryPage
       query={memory.query}
-      title={PAGE_TITLE}
-      description={PAGE_DESCRIPTION}
+      title={MEMORY_PAGE_TITLE}
+      description={MEMORY_PAGE_DESCRIPTION}
       actions={<MemorySearchSkeleton />}
       skeleton={<MemorySkeleton />}
     >
@@ -91,7 +60,7 @@ function MemoryContent({ groups, memory }: { groups: MemoryScopeGroup[]; memory:
   const { deleteMemories, saveMemory, saving } = memory
   const [groupId, setGroupId] = useState(groups[0]?.id ?? '')
   const [query, setQuery] = useState('')
-  const [type, setType] = useState(ALL_TYPES)
+  const [type, setType] = useState(MEMORY_ALL_TYPES)
   const [selectedNames, setSelectedNames] = useState<string[]>([])
   const [openName, setOpenName] = useState<string | null>(null)
   const [sheetMode, setSheetMode] = useState(EMemorySheetMode.View)
@@ -112,7 +81,7 @@ function MemoryContent({ groups, memory }: { groups: MemoryScopeGroup[]; memory:
   })
   if (!group) return null
 
-  const visible = group.memories.filter((entry) => matches({ entry, query, type }))
+  const visible = group.memories.filter((entry) => memoryMatchesFilter({ entry, query, type }))
   const liveSelected = selectedNames.filter((name) =>
     group.memories.some((entry) => entry.name === name),
   )
@@ -123,8 +92,8 @@ function MemoryContent({ groups, memory }: { groups: MemoryScopeGroup[]; memory:
     setOpenName(null)
   }
   const handleTypeChange = (values: string[]) => {
-    const next = values[0] ?? ALL_TYPES
-    if (isTypeFilter(next)) setType(next)
+    const next = values[0] ?? MEMORY_ALL_TYPES
+    if (isMemoryTypeFilter(next)) setType(next)
   }
   const handleSelectedChange = ({ name, selected }: { name: string; selected: boolean }) =>
     setSelectedNames((current) =>
@@ -144,13 +113,13 @@ function MemoryContent({ groups, memory }: { groups: MemoryScopeGroup[]; memory:
     setPending({
       names: [entry.name],
       title: `Delete ${entry.name}?`,
-      description: DELETE_TAIL,
+      description: MEMORY_DELETE_TAIL,
     })
   const handleDeleteSelected = () =>
     setPending({
       names: liveSelected,
       title: `Delete ${liveSelected.length} ${liveSelected.length === 1 ? 'memory' : 'memories'}?`,
-      description: DELETE_TAIL,
+      description: MEMORY_DELETE_TAIL,
     })
   const handleConfirmDelete = async () => {
     if (!pending) return
@@ -175,8 +144,8 @@ function MemoryContent({ groups, memory }: { groups: MemoryScopeGroup[]; memory:
 
   return (
     <SettingsPage
-      title={PAGE_TITLE}
-      description={PAGE_DESCRIPTION}
+      title={MEMORY_PAGE_TITLE}
+      description={MEMORY_PAGE_DESCRIPTION}
       actions={
         <InputGroup className="w-full sm:w-48">
           <InputGroupAddon>
@@ -193,7 +162,7 @@ function MemoryContent({ groups, memory }: { groups: MemoryScopeGroup[]; memory:
     >
       <SettingsSection title="Scope">
         <MemoryScopeSelect groups={groups} value={group.id} onChange={handleGroupChange} />
-        <p className="text-sm text-muted-foreground">{scopeHint(group)}</p>
+        <p className="text-sm text-muted-foreground">{memoryScopeHintOf(group)}</p>
       </SettingsSection>
 
       <SettingsSection
@@ -207,7 +176,7 @@ function MemoryContent({ groups, memory }: { groups: MemoryScopeGroup[]; memory:
             onValueChange={handleTypeChange}
             aria-label="Memory type"
           >
-            <ToggleGroupItem value={ALL_TYPES}>All</ToggleGroupItem>
+            <ToggleGroupItem value={MEMORY_ALL_TYPES}>All</ToggleGroupItem>
             {Object.values(EMemoryType).map((value) => (
               <ToggleGroupItem key={value} value={value}>
                 {MEMORY_TYPE_LABELS[value]}
@@ -238,10 +207,10 @@ function MemoryContent({ groups, memory }: { groups: MemoryScopeGroup[]; memory:
         actions={[
           {
             title: 'Clear this scope',
-            description: clearDescription(group),
+            description: memoryClearDescriptionOf(group),
             buttonLabel: 'Clear scope',
             confirmTitle: `Clear ${memoryGroupLabel(group)}?`,
-            confirmDescription: `${clearDescription(group)} This cannot be undone.`,
+            confirmDescription: `${memoryClearDescriptionOf(group)} This cannot be undone.`,
             onConfirm: () => void handleClearConfirm(),
           },
         ]}
