@@ -2,8 +2,10 @@ import { contextPercentOf } from '@dltech/atlas-client/session'
 import {
   type AccountUsage,
   EMeterBand,
+  formatCountdown,
   formatUtilization,
   planUsageReadingsOf,
+  WINDOW_LONG,
 } from '@dltech/atlas-core'
 import type { UsageReportDto } from '@dltech/atlas-protocol'
 
@@ -19,10 +21,19 @@ export enum EPopoverTone {
   Destructive = 'destructive',
 }
 
-export type PopoverLine = {
+export type PopoverMeter = {
   key: string
-  text: string
+  label: string
+  value: string
+  fraction: number
+  detail: string | null
   tone: EPopoverTone
+}
+
+export type PopoverSection = {
+  key: string
+  title: string | null
+  meters: readonly PopoverMeter[]
 }
 
 export type ContextRingProps = {
@@ -60,28 +71,68 @@ export const contextLabelOf = (context: ContextMeter | null): string => {
 export const shownUsageOf = (usage: UsageReportDto | null): AccountUsage | null =>
   usage === null || usage.metered === false ? null : usage
 
-const contextLineOf = (context: ContextMeter | null): PopoverLine => {
+const THOUSAND = 1_000
+const MILLION = 1_000_000
+
+const compactTokensOf = (tokens: number): string => {
+  if (tokens < THOUSAND) return String(tokens)
+  if (tokens < MILLION) return `${Math.round(tokens / THOUSAND)}k`
+  return `${Number((tokens / MILLION).toFixed(1))}M`
+}
+
+const fractionOf = (percent: number | null): number =>
+  percent === null ? 0 : Math.min(1, Math.max(0, percent / 100))
+
+const contextDetailOf = (context: ContextMeter | null): string => {
+  if (context?.used == null || context.window === null) return 'Not measured yet'
+  return `${compactTokensOf(context.used)} of ${compactTokensOf(context.window)} tokens`
+}
+
+const contextMeterOf = (context: ContextMeter | null): PopoverMeter => {
   const percent = ringPercentOf(context)
   return {
     key: 'context',
-    text: percent === null ? 'Context not measured yet' : `Context ${percent}% used`,
+    label: 'Context window',
+    value: percent === null ? '—' : `${percent}%`,
+    fraction: fractionOf(percent),
+    detail: contextDetailOf(context),
     tone: contextToneOf(percent),
   }
 }
 
-const usageLinesOf = (usage: AccountUsage | null): readonly PopoverLine[] =>
-  usage === null
-    ? []
-    : planUsageReadingsOf(usage).map((reading) => ({
-        key: reading.kind,
-        text: `${reading.short} ${formatUtilization(reading.utilization)}`,
-        tone: TONE_OF_BAND[reading.band],
-      }))
+const resetDetailOf = (args: { resetsAt: string | null; now: number }): string | null => {
+  const countdown = formatCountdown(args)
+  if (countdown === '') return null
+  return countdown === 'now' ? 'Resets now' : `Resets in ${countdown}`
+}
 
-export const popoverLinesOf = ({
+const usageMetersOf = (args: { usage: AccountUsage; now: number }): readonly PopoverMeter[] =>
+  planUsageReadingsOf(args.usage).map((reading) => ({
+    key: reading.kind,
+    label: `${WINDOW_LONG[reading.kind]} limit`,
+    value: formatUtilization(reading.utilization),
+    fraction: fractionOf(reading.utilization),
+    detail: resetDetailOf({ resetsAt: args.usage[reading.kind]?.resetsAt ?? null, now: args.now }),
+    tone: TONE_OF_BAND[reading.band],
+  }))
+
+export const popoverSectionsOf = ({
   context,
   usage,
+  now,
 }: {
   context: ContextMeter | null
   usage: AccountUsage | null
-}): readonly PopoverLine[] => [contextLineOf(context), ...usageLinesOf(usage)]
+  now: number
+}): readonly PopoverSection[] => {
+  const contextSection: PopoverSection = {
+    key: 'context',
+    title: null,
+    meters: [contextMeterOf(context)],
+  }
+  if (usage === null) return [contextSection]
+  return [
+    contextSection,
+    { key: 'plan', title: 'Plan usage', meters: usageMetersOf({ usage, now }) },
+  ]
+}

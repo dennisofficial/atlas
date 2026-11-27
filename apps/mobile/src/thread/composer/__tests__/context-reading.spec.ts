@@ -7,7 +7,7 @@ import {
   contextLabelOf,
   contextToneOf,
   EPopoverTone,
-  popoverLinesOf,
+  popoverSectionsOf,
   ringPercentOf,
   shownUsageOf,
 } from '../context-reading'
@@ -64,17 +64,52 @@ describe('shownUsageOf', () => {
   })
 })
 
-describe('popoverLinesOf', () => {
-  it('reads the context first, then each plan window', () => {
-    expect(popoverLinesOf({ context: CONTEXT, usage: PLAN }).map((line) => line.text)).toEqual([
-      'Context 11% used',
-      '5h 68%',
-      '7d 41%',
+describe('popoverSectionsOf', () => {
+  const NOW = Date.parse('2026-11-27T10:00:00.000Z')
+  const RESETTING: AccountUsage = {
+    [EUsageWindow.FiveHour]: { utilization: 68, resetsAt: '2026-11-27T12:14:00.000Z' },
+    [EUsageWindow.SevenDay]: { utilization: 41, resetsAt: null },
+  }
+
+  it('reads the context as a meter with its token counts', () => {
+    const [section] = popoverSectionsOf({ context: CONTEXT, usage: null, now: NOW })
+    expect(section).toEqual({
+      key: 'context',
+      title: null,
+      meters: [
+        {
+          key: 'context',
+          label: 'Context window',
+          value: '11%',
+          fraction: 0.11,
+          detail: '22k of 200k tokens',
+          tone: EPopoverTone.Foreground,
+        },
+      ],
+    })
+  })
+
+  it('writes a million-token window compactly', () => {
+    const [section] = popoverSectionsOf({
+      context: { used: 340_000, window: 1_000_000 },
+      usage: null,
+      now: NOW,
+    })
+    expect(section?.meters[0]?.detail).toBe('340k of 1M tokens')
+  })
+
+  it('groups each plan window under plan usage with its reset', () => {
+    const sections = popoverSectionsOf({ context: CONTEXT, usage: RESETTING, now: NOW })
+    expect(sections.map((section) => section.title)).toEqual([null, 'Plan usage'])
+    expect(sections[1]?.meters.map((meter) => [meter.label, meter.value, meter.detail])).toEqual([
+      ['5-hour limit', '68%', 'Resets in 2h14m'],
+      ['7-day limit', '41%', null],
     ])
   })
 
-  it('colours each line by its own band', () => {
-    expect(popoverLinesOf({ context: CONTEXT, usage: PLAN }).map((line) => line.tone)).toEqual([
+  it('colours each meter by its own band', () => {
+    const sections = popoverSectionsOf({ context: CONTEXT, usage: PLAN, now: NOW })
+    expect(sections.flatMap((section) => section.meters.map((meter) => meter.tone))).toEqual([
       EPopoverTone.Foreground,
       EPopoverTone.Warning,
       EPopoverTone.Foreground,
@@ -82,14 +117,16 @@ describe('popoverLinesOf', () => {
   })
 
   it('shows only the context when no plan reading is known', () => {
-    expect(popoverLinesOf({ context: CONTEXT, usage: null }).map((line) => line.text)).toEqual([
-      'Context 11% used',
-    ])
+    expect(popoverSectionsOf({ context: CONTEXT, usage: null, now: NOW })).toHaveLength(1)
   })
 
-  it('says so when the context is not measured yet', () => {
-    expect(popoverLinesOf({ context: null, usage: null })).toEqual([
-      { key: 'context', text: 'Context not measured yet', tone: EPopoverTone.Muted },
-    ])
+  it('shows an empty muted meter before the context is measured', () => {
+    const [section] = popoverSectionsOf({ context: null, usage: null, now: NOW })
+    expect(section?.meters[0]).toMatchObject({
+      value: '—',
+      fraction: 0,
+      detail: 'Not measured yet',
+      tone: EPopoverTone.Muted,
+    })
   })
 })
