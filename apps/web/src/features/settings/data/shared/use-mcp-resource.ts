@@ -3,11 +3,7 @@
 import { useCallback, useMemo } from 'react'
 
 import { mcpServersInputOf } from '@dltech/atlas-client/settings'
-import {
-  type McpServerScope,
-  type McpServerWire,
-  type McpUpsertWire,
-} from '@dltech/atlas-wire/web'
+import { type McpServerScope, type McpServerWire, type McpUpsertWire } from '@dltech/atlas-wire/web'
 
 import { api, cloudCall } from '@/lib/api-client'
 import { useCloudQuery, type CloudQuery } from '@/lib/use-cloud-query'

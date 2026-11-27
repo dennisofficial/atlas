@@ -11,7 +11,7 @@ import {
   useTheme,
 } from '@dltech/atlas-ui-native'
 import { space } from '@dltech/atlas-ui/tokens'
-import { EMcpAuthState, mcpServerLabelOf, type McpRow } from '@dltech/atlas-client/settings'
+import { EMcpAuthState, type McpRow } from '@dltech/atlas-client/settings'
 import {
   EMcpOauthGrantStatus,
   EMcpTransportKind,
@@ -20,6 +20,7 @@ import {
 import { Ellipsis } from 'lucide-react-native'
 import { Alert, Platform, Pressable, StyleSheet, Switch, View } from 'react-native'
 
+import { signInTargetOf } from './sign-in-target'
 import type { McpControls } from './use-mcp'
 
 export const confirmRemove = (args: { name: string; onRemove: () => void }) => {
@@ -36,13 +37,13 @@ export const confirmRemove = (args: { name: string; onRemove: () => void }) => {
 
 const SignInControl = ({
   mcp,
-  serverId,
   server,
 }: {
   mcp: McpControls
-  serverId: string
   server: McpOauthServer | undefined
 }) => {
+  const target = signInTargetOf(server)
+  if (target === undefined) return null
   const state = mcp.authStateOf(server)
   if (state === EMcpAuthState.SignedIn) {
     return (
@@ -51,7 +52,6 @@ const SignInControl = ({
       </Text>
     )
   }
-  const label = server?.url === undefined ? 'the server' : mcpServerLabelOf(server.url)
   return (
     <Button
       label={state === EMcpAuthState.SignInAgain ? 'Sign in again' : 'Sign in'}
@@ -59,15 +59,17 @@ const SignInControl = ({
         state === EMcpAuthState.SignInAgain ? EButtonVariant.Secondary : EButtonVariant.Outline
       }
       size={EButtonSize.Sm}
-      loading={mcp.busyId === serverId}
-      onPress={() => mcp.signIn({ serverId, label })}
+      loading={mcp.busyId === target.serverId}
+      onPress={() => mcp.signIn(target)}
     />
   )
 }
 
 const ServerActions = ({ mcp, row }: { mcp: McpControls; row: McpRow }) => {
   const theme = useTheme()
-  const signedIn = mcp.authStateOf(mcp.cloudServerOf(row.id)) === EMcpAuthState.SignedIn
+  const cloudServer = mcp.cloudServerOf(row.id)
+  const signedIn =
+    cloudServer !== undefined && mcp.authStateOf(cloudServer) === EMcpAuthState.SignedIn
   const handlePress = () => {
     if (Platform.OS === 'web') {
       confirmRemove({
@@ -78,7 +80,12 @@ const ServerActions = ({ mcp, row }: { mcp: McpControls; row: McpRow }) => {
     }
     Alert.alert(row.id, row.target, [
       ...(signedIn
-        ? [{ text: 'Sign out', onPress: () => void mcp.signOut(row.id).catch(() => undefined) }]
+        ? [
+            {
+              text: 'Sign out',
+              onPress: () => void mcp.signOut(cloudServer.id).catch(() => undefined),
+            },
+          ]
         : []),
       {
         text: 'Remove',
@@ -120,11 +127,7 @@ export const ServerRow = ({ mcp, row }: { mcp: McpControls; row: McpRow }) => (
         {row.target}
       </Text>
       <View style={styles.oauth}>
-        <SignInControl
-          mcp={mcp}
-          serverId={row.id}
-          server={row.enabled ? mcp.cloudServerOf(row.id) : undefined}
-        />
+        <SignInControl mcp={mcp} server={row.enabled ? mcp.cloudServerOf(row.id) : undefined} />
       </View>
     </View>
     <View style={styles.trailing}>
@@ -170,7 +173,7 @@ export const RepoRow = ({ mcp, server }: { mcp: McpControls; server: McpOauthSer
           </Text>
         )}
         <View style={styles.oauth}>
-          <SignInControl mcp={mcp} serverId={server.name} server={server} />
+          <SignInControl mcp={mcp} server={server} />
         </View>
       </View>
       <View style={styles.trailing}>
