@@ -5,6 +5,10 @@ import { join } from 'node:path'
 export type TestPackage = { dir: string; name: string; script: string; specs: number }
 export type ShardCommand = { name: string; dir: string; command: string }
 
+const PARALLEL = /\s--parallel(?=\s|$)/
+const PARALLEL_FLAG = /\s--parallel(=\d+)?(?=\s|$)/
+export const API_WORKERS = 2
+
 const SHARDABLE = /^bun test(\s[^&|;]*)?$/
 const WORKSPACE_GLOBS = ['packages/*/package.json', 'plugins/*/package.json', 'apps/*/package.json']
 const SINGLE_WORKSPACES = ['commands/package.json', 'evals/package.json']
@@ -19,7 +23,10 @@ export function shardCommands(args: {
   const largestFirst = [...packages].sort((left, right) => right.specs - left.specs)
   return largestFirst.flatMap((pkg) => {
     if (SHARDABLE.test(pkg.script)) {
-      return [{ name: pkg.name, dir: pkg.dir, command: `${pkg.script} --shard=${shard}/${total}` }]
+      const script = pkg.script.replace(PARALLEL, (match) =>
+        match.replace('--parallel', `--parallel=${API_WORKERS}`),
+      )
+      return [{ name: pkg.name, dir: pkg.dir, command: `${script} --shard=${shard}/${total}` }]
     }
     return shard === 1 ? [{ name: pkg.name, dir: pkg.dir, command: pkg.script }] : []
   })
@@ -33,20 +40,41 @@ function specCount(dir: string): number {
 export async function runPooled<T>(args: {
   items: readonly T[]
   limit: number
+  weightOf: (item: T) => number
   run: (item: T) => Promise<number>
 }): Promise<number[]> {
-  const codes: number[] = new Array(args.items.length)
-  let next = 0
-  const worker = async () => {
-    while (next < args.items.length) {
-      const index = next++
-      const item = args.items[index]
-      if (item !== undefined) codes[index] = await args.run(item)
+  const { items, limit, weightOf, run } = args
+  const codes: number[] = new Array(items.length)
+  const waiting = items.map((item, index) => ({
+    item,
+    index,
+    weight: Math.min(limit, weightOf(item)),
+  }))
+  let free = limit
+  await new Promise<void>((resolve) => {
+    let running = 0
+    const pump = () => {
+      while (waiting.length > 0 && (waiting[0]?.weight ?? 0) <= free) {
+        const next = waiting.shift()
+        if (next === undefined) break
+        free -= next.weight
+        running++
+        run(next.item).then((code) => {
+          codes[next.index] = code
+          free += next.weight
+          running--
+          pump()
+        })
+      }
+      if (waiting.length === 0 && running === 0) resolve()
     }
-  }
-  await Promise.all(Array.from({ length: Math.max(1, args.limit) }, worker))
+    pump()
+  })
   return codes
 }
+
+export const coresHeldBy = (command: ShardCommand, cores: number) =>
+  PARALLEL_FLAG.test(command.command) ? cores : 1
 
 function testPackages(root: string): TestPackage[] {
   const manifests = [
@@ -99,7 +127,13 @@ if (import.meta.main) {
   const [shard, total] = (process.argv[2] ?? '1/1').split('/').map(Number)
   if (!shard || !total || shard > total) throw new Error(`usage: ci-test-shard.ts <n>/<total>`)
   const commands = shardCommands({ packages: testPackages(process.cwd()), shard, total })
-  const codes = await runPooled({ items: commands, limit: availableParallelism(), run: runCommand })
+  const cores = availableParallelism()
+  const codes = await runPooled({
+    items: commands,
+    limit: cores,
+    weightOf: (command) => coresHeldBy(command, cores),
+    run: runCommand,
+  })
   const failed = commands.filter((_, index) => codes[index] !== 0).map((command) => command.name)
   if (failed.length > 0) {
     console.error(`failed: ${failed.join(', ')}`)

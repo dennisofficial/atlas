@@ -105,6 +105,10 @@ const AppStack = () => {
         options={{ presentation: 'fullScreenModal', headerShown: false }}
       />
       <Stack.Screen
+        name="dictation-lab"
+        options={{ title: 'Dictation lab', ...pushedHeaderOptions }}
+      />
+      <Stack.Screen
         name="settings"
         options={{ title: 'Settings', ...pushedHeaderOptions, ...settingsRootOptions }}
       />
