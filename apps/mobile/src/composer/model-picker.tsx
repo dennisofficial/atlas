@@ -13,7 +13,6 @@ import { useState } from 'react'
 import { SectionList, StyleSheet, View } from 'react-native'
 
 import {
-  EModelListItem,
   hasModelMatchesOf,
   modelListSectionsOf,
   type TModelListItem,
@@ -22,11 +21,10 @@ import {
 import {
   type IModelOption,
   type IModelSelection,
-  personalModelLabelOf,
   selectionOf,
   togglePinnedModel,
 } from './model-options'
-import { DefaultRow, ModelRow } from './model-picker-rows'
+import { ModelRow } from './model-picker-rows'
 import { presentModelSheet } from './model-sheet-request'
 import { ModelTrigger } from './model-trigger'
 
@@ -36,26 +34,21 @@ type Props = {
   models: readonly IModelOption[]
   selection: IModelSelection | null
   pinned: readonly string[]
-  personalId: string
-  defaultRow?: boolean | undefined
   onPinnedChange: (ids: string[]) => void
-  onSelect: (selection: IModelSelection | null) => void
+  onSelect: (selection: IModelSelection) => void
 }
 
 export const ModelListBody = ({
   models,
   selection,
   pinned,
-  personalId,
-  defaultRow = true,
   onPinnedChange,
   onSelect,
   onClose,
 }: Props & { onClose: () => void }) => {
   const theme = useTheme()
   const [query, setQuery] = useState('')
-  const sections = modelListSectionsOf({ models, pinned, query, defaultRow })
-  const personalLabel = personalModelLabelOf({ models, personalId })
+  const sections = modelListSectionsOf({ models, pinned, query })
 
   const handleModel = (model: IModelOption) => {
     const next = selectionOf({
@@ -69,32 +62,23 @@ export const ModelListBody = ({
     onClose()
   }
 
-  const handleDefault = () => {
-    onSelect(null)
-    onClose()
-  }
-
   const handlePin = (id: string) => onPinnedChange(togglePinnedModel({ pinned, id }))
 
-  const renderItem = ({ item }: { item: TModelListItem }) =>
-    item.kind === EModelListItem.Default ? (
-      <DefaultRow label={personalLabel} selected={selection === null} onPress={handleDefault} />
-    ) : (
-      <ModelRow
-        model={item.model}
-        selected={item.model.id === selection?.model.id}
-        pinned={pinned.includes(item.model.id)}
-        onTogglePin={() => handlePin(item.model.id)}
-        onPress={() => handleModel(item.model)}
-      />
-    )
+  const renderItem = ({ item }: { item: TModelListItem }) => (
+    <ModelRow
+      model={item.model}
+      selected={item.model.id === selection?.model.id}
+      pinned={pinned.includes(item.model.id)}
+      onTogglePin={() => handlePin(item.model.id)}
+      onPress={() => handleModel(item.model)}
+    />
+  )
 
-  const renderSectionHeader = ({ section }: { section: TModelListSection }) =>
-    section.title === null ? null : (
-      <Text size={ETextRole.Xs} tone={ETextTone.Muted} style={styles.group}>
-        {section.title}
-      </Text>
-    )
+  const renderSectionHeader = ({ section }: { section: TModelListSection }) => (
+    <Text size={ETextRole.Xs} tone={ETextTone.Muted} style={styles.group}>
+      {section.title}
+    </Text>
+  )
 
   const emptyNote = models.length === 0 ? 'No models yet' : 'No models match'
 
@@ -148,19 +132,14 @@ export const ModelSelect = ({
   models,
   selection,
   pinnedRef,
-  personalId,
-  defaultRow = true,
   onSelect,
 }: {
   models: readonly IModelOption[]
   selection: IModelSelection | null
   pinnedRef?: string | null | undefined
-  personalId: string
-  defaultRow?: boolean | undefined
-  onSelect: (selection: IModelSelection | null) => void
+  onSelect: (selection: IModelSelection) => void
 }) => {
-  const handleOpen = () =>
-    presentModelSheet({ models, selection, personalId, defaultRow, onSelect })
+  const handleOpen = () => presentModelSheet({ models, selection, onSelect })
 
   return (
     <ModelTrigger

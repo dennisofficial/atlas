@@ -104,28 +104,18 @@ describe('composerActionsOf', () => {
 
 describe('modelSetArgsOf', () => {
   it('posts the chosen model with its effort and fast mode', () => {
-    expect(
-      modelSetArgsOf({
-        selection: { model: MODEL, effort: 'high', fast: true },
-        personalId: 'anthropic/claude-opus-5-5',
-      }),
-    ).toEqual({ model: MODEL.id, effort: 'high', fast: true })
-  })
-
-  it('leaves fast out unless it is on', () => {
-    expect(
-      modelSetArgsOf({ selection: { model: MODEL, effort: 'low', fast: false }, personalId: '' }),
-    ).toEqual({ model: MODEL.id, effort: 'low' })
-  })
-
-  it('posts the personal model when the operator picks the default', () => {
-    expect(modelSetArgsOf({ selection: null, personalId: 'openai/gpt-5' })).toEqual({
-      model: 'openai/gpt-5',
+    expect(modelSetArgsOf({ model: MODEL, effort: 'high', fast: true })).toEqual({
+      model: MODEL.id,
+      effort: 'high',
+      fast: true,
     })
   })
 
-  it('posts nothing when there is no personal model to fall back to', () => {
-    expect(modelSetArgsOf({ selection: null, personalId: '' })).toBeNull()
+  it('leaves fast out unless it is on', () => {
+    expect(modelSetArgsOf({ model: MODEL, effort: 'low', fast: false })).toEqual({
+      model: MODEL.id,
+      effort: 'low',
+    })
   })
 })
 
