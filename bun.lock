@@ -176,6 +176,7 @@
         "@dltech/atlas-plugin-github": "workspace:*",
         "@dltech/atlas-plugin-mcp": "workspace:*",
         "@dltech/atlas-plugin-operator": "workspace:*",
+        "@dltech/atlas-plugin-quality": "workspace:*",
         "@dltech/atlas-plugin-sdk": "workspace:*",
         "@dltech/atlas-plugin-services": "workspace:*",
         "@dltech/atlas-plugin-sessions": "workspace:*",
@@ -534,6 +535,7 @@
       "version": "0.1.0",
       "dependencies": {
         "@dltech/atlas-core": "workspace:*",
+        "@dltech/atlas-models": "workspace:*",
         "@dltech/atlas-protocol": "workspace:*",
         "@dltech/atlas-wire": "workspace:*",
         "ai": "^7.0.180",

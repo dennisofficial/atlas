@@ -1,6 +1,7 @@
 import { ENotifyDeviceKind } from '@dltech/atlas-core'
-import { CLOUD_SETTING_REGISTRY, type SettingScalar } from '@dltech/atlas-wire/web'
+import type { SettingScalar } from '@dltech/atlas-wire/web'
 
+import { diffChanges, settingBool, settingString } from './setting-values'
 import { deviceTimezone } from './timezones'
 
 const NOTIFY_PREFIX = 'web.notifications.'
@@ -42,36 +43,18 @@ export const QUIET_HOUR_OPTIONS = Array.from({ length: 24 }, (_, hour) => {
 export const notifyEventKey = (moment: NotifyMomentId): string =>
   `${NOTIFY_PREFIX}event.${moment}.push`
 
-const settingOf = (args: {
-  values: ReadonlyMap<string, SettingScalar>
-  key: string
-}): SettingScalar => {
-  const entry = CLOUD_SETTING_REGISTRY.get(args.key)
-  if (entry === undefined) throw new Error(`setting ${args.key} is not in the registry`)
-  const parsed = entry.schema.safeParse(args.values.get(args.key))
-  return parsed.success ? parsed.data : entry.fallback
-}
-
-const stringOf = (args: { values: ReadonlyMap<string, SettingScalar>; key: string }): string => {
-  const value = settingOf(args)
-  return typeof value === 'string' ? value : ''
-}
-
-const boolOf = (args: { values: ReadonlyMap<string, SettingScalar>; key: string }): boolean =>
-  settingOf(args) === true
-
 export const notificationsFrom = (
   values: ReadonlyMap<string, SettingScalar>,
 ): NotificationSettings => ({
   events: {
-    finished: boolOf({ values, key: notifyEventKey('finished') }),
-    errored: boolOf({ values, key: notifyEventKey('errored') }),
-    approval: boolOf({ values, key: notifyEventKey('approval') }),
+    finished: settingBool({ values, key: notifyEventKey('finished') }),
+    errored: settingBool({ values, key: notifyEventKey('errored') }),
+    approval: settingBool({ values, key: notifyEventKey('approval') }),
   },
-  quietHours: boolOf({ values, key: NOTIFY_QUIET_HOURS_KEY }),
-  quietFrom: stringOf({ values, key: NOTIFY_QUIET_FROM_KEY }),
-  quietTo: stringOf({ values, key: NOTIFY_QUIET_TO_KEY }),
-  timezone: stringOf({ values, key: NOTIFY_TIMEZONE_KEY }),
+  quietHours: settingBool({ values, key: NOTIFY_QUIET_HOURS_KEY }),
+  quietFrom: settingString({ values, key: NOTIFY_QUIET_FROM_KEY }),
+  quietTo: settingString({ values, key: NOTIFY_QUIET_TO_KEY }),
+  timezone: settingString({ values, key: NOTIFY_TIMEZONE_KEY }),
 })
 
 const notificationsFlat = (settings: NotificationSettings): Record<string, SettingScalar> => ({
@@ -87,14 +70,8 @@ const notificationsFlat = (settings: NotificationSettings): Record<string, Setti
 export const notificationChanges = (args: {
   saved: NotificationSettings
   draft: NotificationSettings
-}): Record<string, SettingScalar | null> => {
-  const saved = notificationsFlat(args.saved)
-  const changes: Record<string, SettingScalar | null> = {}
-  for (const [key, value] of Object.entries(notificationsFlat(args.draft))) {
-    if (saved[key] !== value) changes[key] = value
-  }
-  return changes
-}
+}): Record<string, SettingScalar | null> =>
+  diffChanges({ saved: notificationsFlat(args.saved), draft: notificationsFlat(args.draft) })
 
 export const withDeviceZone = (settings: NotificationSettings): NotificationSettings =>
   settings.timezone === '' ? { ...settings, timezone: deviceTimezone() } : settings

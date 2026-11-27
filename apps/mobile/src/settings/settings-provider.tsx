@@ -6,13 +6,13 @@ import type { z } from 'zod'
 
 import { useAuth } from '../auth/auth-provider'
 import { createSettingsController, type SettingsController } from './settings-controller'
-import type { SettingsChanges, SettingsValues } from './settings-store'
+import type { SettingsChanges } from './settings-store'
 import { settingsStorage } from './settings-storage'
 
 export type Settings = {
   ready: boolean
   failed: boolean
-  values: SettingsValues
+  values: ReadonlyMap<string, SettingScalar>
   read: <TValue extends SettingScalar>(args: { key: string; schema: z.ZodType<TValue> }) => TValue
   save: (changes: SettingsChanges) => Promise<void>
   reload: () => void

@@ -38,6 +38,23 @@ describe('ios settings pages', () => {
     })
   })
 
+  it('keeps the model, agent and appearance pages routed beside notifications', () => {
+    const pages = [
+      ESettingsPage.ModelsEffort,
+      ESettingsPage.Agent,
+      ESettingsPage.Quality,
+      ESettingsPage.Experimental,
+      ESettingsPage.Appearance,
+      ESettingsPage.Notifications,
+    ]
+    for (const page of pages) {
+      const route = IOS_SETTINGS_ROUTES[page]
+      expect(route).toBeDefined()
+      expect(IOS_PENDING_PAGES.has(page)).toBe(false)
+      expect(SETTINGS_STACK_SCREENS.some((screen) => `/${screen.name}` === route)).toBe(true)
+    }
+  })
+
   it('keeps no pending page that does not exist', () => {
     for (const page of IOS_PENDING_PAGES) expect(Object.values(ESettingsPage)).toContain(page)
   })

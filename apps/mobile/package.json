@@ -30,6 +30,7 @@
     "@dltech/atlas-plugin-github": "workspace:*",
     "@dltech/atlas-plugin-mcp": "workspace:*",
     "@dltech/atlas-plugin-operator": "workspace:*",
+    "@dltech/atlas-plugin-quality": "workspace:*",
     "@dltech/atlas-plugin-sdk": "workspace:*",
     "@dltech/atlas-plugin-services": "workspace:*",
     "@dltech/atlas-plugin-sessions": "workspace:*",

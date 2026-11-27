@@ -13,7 +13,6 @@ import { useState } from 'react'
 import { Alert, Platform } from 'react-native'
 
 import { useAuth } from '../../../auth/auth-provider'
-import { ModelDefaultsSection } from '../../../settings/model-defaults-section'
 import { ActionRow, EActionTone, NavRow, Row, Section } from '../../../settings/settings-parts'
 import { SettingsScroll } from '../../../settings/settings-scroll'
 import { IOS_SETTINGS_ROUTES } from '../../../settings/settings-routes'
@@ -69,7 +68,6 @@ export default function SettingsScreen() {
           })}
         </Section>
       ))}
-      <ModelDefaultsSection />
       <Section title="Updates">
         <Row label="Channel" value={update.channel || 'unavailable'} mono />
         <Row label="Update" value={update.updateId} mono />
