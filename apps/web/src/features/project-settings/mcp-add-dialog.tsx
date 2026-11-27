@@ -20,6 +20,8 @@ import { Switch } from '@dltech/atlas-ui/components/switch'
 import { Textarea } from '@dltech/atlas-ui/components/textarea'
 import { ToggleGroup, ToggleGroupItem } from '@dltech/atlas-ui/components/toggle-group'
 
+import { mcpDraftIsValid, transportKindOf } from '@dltech/atlas-client/settings'
+
 import { EMcpTransport } from './fixtures/project-settings'
 
 export interface McpServerDraft {
@@ -29,8 +31,6 @@ export interface McpServerDraft {
   extra: string
   proxy: boolean
 }
-
-const SERVER_ID = /^[a-zA-Z0-9_-]+$/
 
 function isTransport(value: unknown): value is EMcpTransport {
   return Object.values(EMcpTransport).some((transport) => transport === value)
@@ -52,7 +52,13 @@ export function AddMcpServerDialog({
   const [extra, setExtra] = useState('')
   const [proxy, setProxy] = useState(false)
   const isStdio = transport === EMcpTransport.Stdio
-  const canSave = SERVER_ID.test(id) && target.trim() !== ''
+  const canSave = mcpDraftIsValid({
+    id,
+    kind: transportKindOf(transport),
+    target,
+    extra,
+    proxy,
+  })
 
   const handleOpenChange = (next: boolean) => {
     setOpen(next)

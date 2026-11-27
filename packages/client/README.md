@@ -21,21 +21,21 @@ The headless client library that web, the TUI and the mobile app share.
 
 ## Entry points
 
-| Import                                          | Use it for                                                                                                                                                     |
-| ----------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `@dltech/atlas-client/stream`                   | The stream connection, the session follower, the log, the window and the overlay.                                                                              |
-| `@dltech/atlas-client/channel`                  | The pod delta channel, the frame codecs and the tool requests.                                                                                                 |
-| `@dltech/atlas-client/chat`                     | The chat transport, the step chunks and the step messages.                                                                                                     |
-| `@dltech/atlas-client/crew`                     | The crew readout, the sub-agent state and the background work.                                                                                                 |
-| `@dltech/atlas-client/session`                  | The session create input, the rewind, the summarise, the image upload, the composer attachments, the message input, the draft sync and the sandbox start view. |
-| `@dltech/atlas-client/account`                  | The Atlas Cloud device-code login and the PKCE pair a browser sign-in needs.                                                                                   |
-| `@dltech/atlas-client/settings`                 | The settings page and section lists, and the agent, models, appearance, instructions, memory, project, group, sandbox and pull-request settings logic.         |
-| `@dltech/atlas-client/browser-return`           | The outcomes a browser sign-in brought back, held by the state of its start link.                                                                              |
-| `@dltech/atlas-client/transcript`               | The transcript rows, the tool runs and the turn rows.                                                                                                          |
-| `@dltech/atlas-client/stream-fixture`           | A fake scheduler and transport, and the event factories, for a spec.                                                                                           |
-| `@dltech/atlas-client/transcript-fixture`       | The event drafts and the step signals of a transcript, for a spec.                                                                                             |
-| `@dltech/atlas-client/transcript-tool-fixture`  | The tool call and result drafts, for a spec.                                                                                                                   |
-| `@dltech/atlas-client/transcript-tools-fixture` | A sample tool call and shell call, for a spec or a prototype.                                                                                                  |
+| Import                                          | Use it for                                                                                                                                                            |
+| ----------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `@dltech/atlas-client/stream`                   | The stream connection, the session follower, the log, the window and the overlay.                                                                                     |
+| `@dltech/atlas-client/channel`                  | The pod delta channel, the frame codecs and the tool requests.                                                                                                        |
+| `@dltech/atlas-client/chat`                     | The chat transport, the step chunks and the step messages.                                                                                                            |
+| `@dltech/atlas-client/crew`                     | The crew readout, the sub-agent state and the background work.                                                                                                        |
+| `@dltech/atlas-client/session`                  | The session create input, the rewind, the summarise, the image upload, the composer attachments, the message input, the draft sync and the sandbox start view.        |
+| `@dltech/atlas-client/account`                  | The Atlas Cloud device-code login and the PKCE pair a browser sign-in needs.                                                                                          |
+| `@dltech/atlas-client/settings`                 | The settings page and section lists, and the agent, models, appearance, instructions, memory, notifications, project, group, sandbox and pull-request settings logic. |
+| `@dltech/atlas-client/browser-return`           | The outcomes a browser sign-in brought back, held by the state of its start link.                                                                                     |
+| `@dltech/atlas-client/transcript`               | The transcript rows, the tool runs and the turn rows.                                                                                                                 |
+| `@dltech/atlas-client/stream-fixture`           | A fake scheduler and transport, and the event factories, for a spec.                                                                                                  |
+| `@dltech/atlas-client/transcript-fixture`       | The event drafts and the step signals of a transcript, for a spec.                                                                                                    |
+| `@dltech/atlas-client/transcript-tool-fixture`  | The tool call and result drafts, for a spec.                                                                                                                          |
+| `@dltech/atlas-client/transcript-tools-fixture` | A sample tool call and shell call, for a spec or a prototype.                                                                                                         |
 
 ## Capabilities
 
@@ -88,6 +88,14 @@ The headless client library that web, the TUI and the mobile app share.
   `memoryKeyInput(key)`, `formatMemoryDate(updatedAt)`: the memory scopes, their rows, and the copy
   around them.
 
+- `NOTIFY_MOMENTS`, `notifyEventKey(moment)`, `NotificationSettings`, `notificationsFrom(values)`,
+  `notificationChanges({ saved, draft })`, `withDeviceZone(settings)`, `QUIET_HOUR_OPTIONS`,
+  `NOTIFY_TIMEZONE_KEY` and the quiet-hour keys: the notification moments, quiet hours and their
+  time zone. `NOTIFY_DEVICE_KIND_LABELS`, `notifyDeviceDetailOf({ kind, enabled })`,
+  `withDeviceEnabled(args)`: a registered device's row and its pending switch.
+- `timezoneNames()`, `timezoneChoicesOf({ query, selected })`, `deviceTimezone()`: the time-zone
+  list, common zones first, searched as a user types.
+
 ### Provider accounts and classifier
 
 - `PROVIDER_CATALOGUE`, `providerGroupsOf`, `providerAccountDetailOf`, `providerKeyMaskOf`, `planNameOf`: provider choices, account groups and account labels.
@@ -108,6 +116,22 @@ The headless client library that web, the TUI and the mobile app share.
   `ESignInMethodProvider`: which methods a user has, and the two rows a settings page shows.
 - `linkReturnOf(params)`, `ELinkReturnKind`: the outcome a Google link came back with.
 - `unlinkRefusalOf(args)`, `SESSION_NOT_FRESH`, `UNREACHABLE`: the refusals a settings page names.
+
+### Read MCP and GitHub settings
+
+- `McpScope`, `mcpServersInputOf({ scope })`, `mcpServerPutInputOf({ scope, draft })`,
+  `mcpOauthScreenOfScope(scope)` and `mcpOauthServersInputOf(scope)`: the layer an MCP page reads and
+  writes, and the screen its sign-in returns to, at user, project or group scope.
+- `rowOfServer`, `targetOf`, `transportOfDraft`, `upsertOfDraft`, `upsertOfServerDraft`,
+  `upsertOfToggle`, `serverIdOf`, `mcpDraftIsValid`: the server row and the payload a settings form
+  writes. `splitCommandLine`, `joinCommandLine` and `parseKeyValueLines` are the command and
+  key-value text a form reads.
+- `EMcpAuthState`, `authStateOf`, `cloudServerOf`, `repoServersOf`, `lastUsedOf`,
+  `mcpServerLabelOf`, `mcpResultMessageOf`, `mcpSignInResultOf`, `unreachableSignInResult`: what a
+  server row says about its grant, and the message a browser return shows. `relativeTimeOf({ iso,
+  now })` is the relative time a row prints.
+- `pollUntilSettled`, `githubFailureOf`, `githubCapabilitiesOf`, `githubLoginOf`, `GITHUB_REPO_SCOPE`
+  and `GITHUB_ORG_SCOPE`: the GitHub device-code flow and what a connection grants.
 
 ### Edit a project or a group
 
