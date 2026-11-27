@@ -13,6 +13,7 @@ import {
 } from '../../../data/preview-browser/browser-model'
 import { EPreviewGate } from '@/features/desktop/use-preview-origins'
 
+import { EPreviewWait } from '../../../data/preview-browser/preview-wake'
 import {
   EMPTY_REGISTRY,
   hidden,
@@ -21,6 +22,7 @@ import {
   unloaded,
   withGate,
   withLoading,
+  withWait,
 } from '../frame-registry'
 import { framesOf } from '../frames-of'
 import { FRAME_Z, placementFrom, SHEET_FRAME_Z } from '../placement'
@@ -92,6 +94,17 @@ describe('frame registry', () => {
     expect(withGate({ registry: EMPTY_REGISTRY, gate: EPreviewGate.Failed }).gate).toBe(
       EPreviewGate.Failed,
     )
+  })
+
+  it('records the pod wait of a thread and clears it on the way out', () => {
+    const waking = withWait({
+      registry: EMPTY_REGISTRY,
+      threadId: 't1',
+      wait: EPreviewWait.Waking,
+    })
+    expect(waking.waits.t1).toBe(EPreviewWait.Waking)
+    expect(withWait({ registry: waking, threadId: 't1', wait: EPreviewWait.Waking })).toBe(waking)
+    expect(withWait({ registry: waking, threadId: 't1', wait: undefined }).waits.t1).toBeUndefined()
   })
 })
 

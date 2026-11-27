@@ -16,6 +16,12 @@ export enum EPreviewWait {
   Asleep = 'asleep',
 }
 
+export enum EPreviewShift {
+  None = 'none',
+  Slept = 'slept',
+  Woke = 'woke',
+}
+
 export const previewWaitOf = (phase: EPodPowerPhase | undefined): EPreviewWait => {
   if (phase === EPodPowerPhase.Asleep || phase === EPodPowerPhase.Stopping)
     return EPreviewWait.Asleep
@@ -25,8 +31,18 @@ export const previewWaitOf = (phase: EPodPowerPhase | undefined): EPreviewWait =
 
 export const previewNeedsWake = (wait: EPreviewWait): boolean => wait === EPreviewWait.Asleep
 
-export const previewReloadsOnWake = (args: { before: EPreviewWait; now: EPreviewWait }): boolean =>
-  args.before !== EPreviewWait.Awake && args.now === EPreviewWait.Awake
+export const previewShiftOf = (args: {
+  before: EPreviewWait | undefined
+  now: EPreviewWait
+}): EPreviewShift => {
+  if (args.before === undefined) return EPreviewShift.None
+  if (args.now === EPreviewWait.Asleep) {
+    return args.before === EPreviewWait.Asleep ? EPreviewShift.None : EPreviewShift.Slept
+  }
+  if (args.now === EPreviewWait.Waking) return EPreviewShift.None
+  if (args.before === EPreviewWait.Awake) return EPreviewShift.None
+  return EPreviewShift.Woke
+}
 
 const previewPortOfTab = (args: {
   tab: BrowserTab
@@ -45,24 +61,31 @@ const tabOfPreviewPort = (args: {
   )
 }
 
-export const reloadedPreviews = (args: {
+const shiftedTab = (args: {
+  tab: BrowserTab
+  ports: readonly PreviewPort[]
+  shift: EPreviewShift
+}): BrowserTab => {
+  const { tab, shift } = args
+  if (previewPortOfTab({ tab, ports: args.ports }) === null) return tab
+  if (shift === EPreviewShift.Slept) {
+    return tab.sleptAt === tab.load.seq ? tab : { ...tab, sleptAt: tab.load.seq }
+  }
+  if (tab.sleptAt === undefined) return tab
+  if (tab.sleptAt !== tab.load.seq) return { ...tab, sleptAt: undefined }
+  return { ...reloaded(tab), sleptAt: undefined }
+}
+
+export const previewsShifted = (args: {
   state: BrowserState
   ports: readonly PreviewPort[]
-  except?: string | undefined
+  shift: EPreviewShift
 }): BrowserState => {
-  const { state } = args
-  const skipped =
-    args.except === undefined
-      ? null
-      : previewPortForUrl({ url: args.except, ports: [...args.ports] })
-  const reloadedTabs = state.tabs.map((tab) => {
-    const port = previewPortOfTab({ tab, ports: args.ports })
-    if (port === null) return tab
-    if (skipped !== null && port.port === skipped.port) return tab
-    return reloaded(tab)
-  })
-  if (reloadedTabs.every((tab, at) => tab === state.tabs[at])) return state
-  return { ...state, tabs: reloadedTabs }
+  const { state, shift } = args
+  if (shift === EPreviewShift.None) return state
+  const tabs = state.tabs.map((tab) => shiftedTab({ tab, ports: args.ports, shift }))
+  if (tabs.every((tab, at) => tab === state.tabs[at])) return state
+  return { ...state, tabs }
 }
 
 export const revealedPreview = (args: {

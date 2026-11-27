@@ -28,6 +28,7 @@ const tabSchema = z
     history: z.array(z.string()).min(1).max(MAX_HISTORY),
     index: z.number().int().min(0),
     load: z.object({ url: z.string(), seq: z.number().int().min(0) }).optional(),
+    sleptAt: z.number().int().min(0).optional(),
     viewport: viewportSchema,
     title: z.string().optional(),
   })
@@ -47,6 +48,7 @@ const stateSchema = z
 const restoredTab = (tab: z.output<typeof tabSchema>): BrowserTab => ({
   ...tab,
   load: { url: tab.history[tab.index] ?? NEW_TAB_URL, seq: tab.load?.seq ?? 0 },
+  sleptAt: undefined,
   title: tab.title,
 })
 

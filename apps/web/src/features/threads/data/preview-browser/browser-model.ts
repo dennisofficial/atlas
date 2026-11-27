@@ -15,6 +15,7 @@ export type BrowserTab = {
   history: string[]
   index: number
   load: FrameLoad
+  sleptAt: number | undefined
   viewport: Viewport
   title: string | undefined
 }
@@ -32,6 +33,7 @@ const tabOf = (args: { id: number; url: string }): BrowserTab => ({
   history: [args.url],
   index: 0,
   load: { url: args.url, seq: 0 },
+  sleptAt: undefined,
   viewport: FULL_VIEWPORT,
   title: undefined,
 })
