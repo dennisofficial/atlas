@@ -18,5 +18,5 @@ export const modelSearchBarPropsOf = (): Pick<
   hideWhenScrolling: true,
   obscureBackground: false,
   placeholder: MODEL_SEARCH_PLACEHOLDER,
-  placement: 'stacked',
+  placement: 'integratedCentered',
 })
