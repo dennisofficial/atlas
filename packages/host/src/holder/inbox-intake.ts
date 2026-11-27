@@ -22,6 +22,7 @@ import { EIntakeScope, intakeThreadOf, skipsInChildScope } from './intake-scope'
 import {
   fetchInboxEntries,
   INBOX_INTAKE_MAX_PAGES,
+  isQuietNotice,
   isResizeEntry,
   logPendingInputIdsOf,
 } from './held-inbox'
@@ -29,6 +30,7 @@ import { drainEntries } from './intake-entries'
 import { commandIntakeOf, type InboxIntakeArgs } from './inbox-intake-args'
 import { consumedInboxIdsOf, loggedDrainablesOf, skillsForPassOf } from './logged-drainables'
 import {
+  drainEventEntry,
   drainLoggedNotices,
   releaseNothingDraft,
   stagedMessageOf,
@@ -97,10 +99,9 @@ export class InboxIntake implements AgentIntake {
     })
   }
 
-  /** Runs commands the holder already knows are safe to run outside a turn, without a model step. */
+  /** Runs the commands and quiet notices the holder settles outside a turn, without a model step. */
   async runCommands(entries: readonly InboxEntry[]): Promise<boolean> {
     const intake = this.commandIntake
-    if (intake === undefined) return false
     return await this.serial(async () => {
       const glue = this.commandGlue()
       const events = this.events()
@@ -110,6 +111,12 @@ export class InboxIntake implements AgentIntake {
       let ran = false
       for (const entry of entries) {
         if (consumed.has(entry.inboxId)) continue
+        if (isQuietNotice(entry) && !isResizeEntry(entry)) {
+          await drainEventEntry({ entry, appendDrafts: this.append, release: this.releaseOf() })
+          ran = true
+          continue
+        }
+        if (intake === undefined) continue
         if (entry.kind === INBOX_KIND_MESSAGE) {
           const staged = await stagedMessageOf({ entry, appendDrafts: this.append })
           if (staged === undefined) continue

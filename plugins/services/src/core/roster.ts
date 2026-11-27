@@ -20,6 +20,7 @@ export const serviceRowSchema = z.object({
   cwd: z.string().optional(),
   root: z.string().optional(),
   branch: z.string().optional(),
+  replaces: z.string().optional(),
   status: z.enum(EServiceStatus),
   ready: z.boolean(),
   changedAt: z.string(),
@@ -51,11 +52,13 @@ const placementOf = (event: {
   cwd?: string | undefined
   root?: string | undefined
   branch?: string | undefined
-}): Partial<Pick<ServiceRow, 'declarationHash' | 'cwd' | 'root' | 'branch'>> => ({
+  replaces?: string | undefined
+}): Partial<Pick<ServiceRow, 'declarationHash' | 'cwd' | 'root' | 'branch' | 'replaces'>> => ({
   ...(event.declarationHash === undefined ? {} : { declarationHash: event.declarationHash }),
   ...(event.cwd === undefined ? {} : { cwd: event.cwd }),
   ...(event.root === undefined ? {} : { root: event.root }),
   ...(event.branch === undefined ? {} : { branch: event.branch }),
+  ...(event.replaces === undefined ? {} : { replaces: event.replaces }),
 })
 
 export const foldServices = (

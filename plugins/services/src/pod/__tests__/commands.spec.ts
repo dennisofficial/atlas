@@ -1,9 +1,10 @@
 import { describe, expect, it } from 'bun:test'
 
 import type { CommandContext } from '@dltech/atlas-commands'
+import { EServiceStatus } from '@dltech/atlas-core'
 
 import { serviceHandlerOf } from '../commands'
-import { invoke, rig, serviceIdOf, writeDeclared } from './support'
+import { invoke, movedHolderOf, rig, serviceIdOf, writeDeclared } from './support'
 
 const contextOf = (args: unknown): CommandContext<unknown> => ({
   args,
@@ -152,5 +153,74 @@ describe('a second restart of a declared service before the first ending is reco
     expect([once, twice]).toEqual([{ kind: 'done' }, { kind: 'done' }])
     expect(stops).toHaveLength(2)
     expect(stops[1]?.serviceId).not.toBe(first)
+  })
+})
+
+const startedIdsOf = (harness: ReturnType<typeof rig>): string[] =>
+  harness.log.flatMap((event) => (event.type === 'service-started' ? [event.serviceId] : []))
+
+const replacesOf = (harness: ReturnType<typeof rig>): (string | undefined)[] =>
+  harness.log.flatMap((event) => (event.type === 'service-started' ? [event.replaces] : []))
+
+const stoppedIdsOf = (harness: ReturnType<typeof rig>): string[] =>
+  harness.calls.flatMap((call) => (call.op === 'services.stop' ? [call.serviceId] : []))
+
+const secondOf = (harness: ReturnType<typeof rig>): string => {
+  const second = startedIdsOf(harness)[1]
+  if (second === undefined) throw new Error('the first restart launched nothing')
+  return second
+}
+
+const endedInLog = async (harness: ReturnType<typeof rig>, serviceId: string): Promise<void> => {
+  await harness.ctx.append([
+    {
+      type: 'service-ended',
+      serviceId,
+      command: 'listen',
+      status: EServiceStatus.Killed,
+      tail: '',
+    },
+  ])
+}
+
+describe('a restart of an ad-hoc service after the session moved to another holder', () => {
+  it('restarts the newest replacement instead of launching a duplicate', async () => {
+    const harness = rig()
+    const first = await startOf(harness)
+    await serviceHandlerOf(harness.ctx)(contextOf({ action: 'restart', serviceId: first }))
+    const second = secondOf(harness)
+    await endedInLog(harness, first)
+    const moved = movedHolderOf(harness)
+
+    const result = await serviceHandlerOf(moved)(contextOf({ action: 'restart', serviceId: first }))
+
+    expect(result).toEqual({ kind: 'done' })
+    expect(stoppedIdsOf(harness)).toEqual([first, second])
+    expect(startedIdsOf(harness)).toHaveLength(3)
+    expect(replacesOf(harness)).toEqual([undefined, first, second])
+  })
+})
+
+describe('a restart of a declared service after the session moved to another holder', () => {
+  it('links the replacement chain in the log rather than in the holder that launched it', async () => {
+    const harness = rig()
+    writeDeclared(
+      harness,
+      ['services:', '  web:', '    command: listen', '    port: 8090'].join('\n'),
+    )
+    const first = serviceIdOf(
+      await invoke({ ctx: harness.ctx, name: 'service', input: { action: 'start', name: 'web' } }),
+    )
+    await serviceHandlerOf(harness.ctx)(contextOf({ action: 'restart', serviceId: first }))
+    const second = secondOf(harness)
+    await endedInLog(harness, first)
+    const moved = movedHolderOf(harness)
+
+    const result = await serviceHandlerOf(moved)(contextOf({ action: 'restart', serviceId: first }))
+
+    expect(result).toEqual({ kind: 'done' })
+    expect(stoppedIdsOf(harness)).toEqual([first, second])
+    expect(startedIdsOf(harness)).toHaveLength(3)
+    expect(replacesOf(harness)).toEqual([undefined, first, second])
   })
 })

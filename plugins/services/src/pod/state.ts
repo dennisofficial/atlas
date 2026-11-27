@@ -5,7 +5,6 @@ export type ServicePodState = {
   endings: Set<string>
   stopping: Set<string>
   restarting: Set<string>
-  replacedBy: Map<string, string>
   setupDone: Set<string>
   starting: Map<string, Promise<void>>
 }
@@ -20,7 +19,6 @@ export const stateFor = (ctx: PluginPodContext): ServicePodState => {
     endings: new Set(),
     stopping: new Set(),
     restarting: new Set(),
-    replacedBy: new Map(),
     setupDone: new Set(),
     starting: new Map(),
   }
