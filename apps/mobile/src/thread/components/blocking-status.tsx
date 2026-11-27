@@ -10,6 +10,7 @@ import { type LayoutChangeEvent, StyleSheet, View } from 'react-native'
 import Animated, {
   cancelAnimation,
   Easing,
+  ReduceMotion,
   useAnimatedStyle,
   useSharedValue,
   withRepeat,
@@ -81,12 +82,20 @@ const StatusLines = ({
       return
     }
     if (!leaving) {
-      shown.value = withTiming(1, { duration: STATUS_SHOW_MS, easing: Easing.out(Easing.cubic) })
+      shown.value = withTiming(1, {
+        duration: STATUS_SHOW_MS,
+        easing: Easing.out(Easing.cubic),
+        reduceMotion: ReduceMotion.Never,
+      })
       return
     }
     shown.value = withTiming(
       0,
-      { duration: STATUS_HIDE_MS, easing: Easing.inOut(Easing.quad) },
+      {
+        duration: STATUS_HIDE_MS,
+        easing: Easing.inOut(Easing.quad),
+        reduceMotion: ReduceMotion.Never,
+      },
       (finished) => {
         if (finished) scheduleOnRN(onLeft)
       },
