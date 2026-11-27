@@ -123,6 +123,8 @@ export function useProviderSignIn(args: {
           window.open(begun.authorizeUrl, '_blank', 'noopener')
           return
         }
+        if (begun.flow !== EProviderSignInFlow.DeviceCode)
+          throw new Error('the api began a sign-in this page cannot finish')
         setFlow({
           status: EProviderSignInState.Waiting,
           userCode: begun.userCode,

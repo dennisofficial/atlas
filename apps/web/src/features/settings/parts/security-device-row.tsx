@@ -1,5 +1,6 @@
 'use client'
 
+import { EDeviceKind, type ISignedInDevice } from '@dltech/atlas-client/settings'
 import { CloudIcon, MonitorIcon, TerminalIcon } from 'lucide-react'
 
 import {
@@ -16,7 +17,6 @@ import {
 import { Badge } from '@dltech/atlas-ui/components/badge'
 import { Button } from '@dltech/atlas-ui/components/button'
 
-import { EDeviceKind, type SignedInDevice } from '../fixtures/settings-security'
 import { SettingsRow } from '../settings-layout'
 
 const DEVICE_ICONS = {
@@ -29,7 +29,7 @@ export function DeviceRow({
   device,
   onRevoke,
 }: {
-  device: SignedInDevice
+  device: ISignedInDevice
   onRevoke: (id: string) => void
 }) {
   const Icon = DEVICE_ICONS[device.kind]

@@ -15,6 +15,7 @@ import {
 } from '@dltech/atlas-ui/components/alert-dialog'
 import { Button } from '@dltech/atlas-ui/components/button'
 
+import { signedInDevicesOf, type ISignedInDevice } from '@dltech/atlas-client/settings'
 import { useCloudQuery } from '@/lib/use-cloud-query'
 
 import {
@@ -22,21 +23,16 @@ import {
   fetchSessions,
   revokeOtherSessions,
   revokeSession,
-  toDevice,
 } from '../data/personal/auth-session-api'
 import { QuerySection } from '../data/personal/query-boundary'
 import { SecurityDevicesSkeleton } from '../skeletons/library-skeletons'
 import { useSaveAction } from '../data/personal/use-save-action'
-import type { SignedInDevice } from '../fixtures/settings-security'
 import { DeviceRow } from '../parts/security-device-row'
 import { SettingsCard, SettingsPage, SettingsSection } from '../settings-layout'
 
-async function loadDevices(): Promise<SignedInDevice[]> {
+async function loadDevices(): Promise<ISignedInDevice[]> {
   const [sessions, current] = await Promise.all([fetchSessions(), fetchCurrentSession()])
-  const currentToken = current.session?.token ?? null
-  return sessions
-    .map((session) => toDevice({ session, currentToken }))
-    .sort((left, right) => Number(right.current) - Number(left.current))
+  return signedInDevicesOf({ sessions, currentToken: current.session?.token ?? null })
 }
 
 export function SecurityPage() {

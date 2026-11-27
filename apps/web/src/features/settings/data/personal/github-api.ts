@@ -4,13 +4,13 @@ import { api, cloudCall } from '@/lib/api-client'
 
 export type GithubConnection = GithubConnectionState
 
-export const GITHUB_ORG_SCOPE = 'read:org'
-export const GITHUB_REPO_SCOPE = 'repo'
+export {
+  GITHUB_ORG_SCOPE,
+  GITHUB_REPO_SCOPE,
+  githubLoginOf,
+} from '@dltech/atlas-client/settings'
 
 export const fetchGithub = (): Promise<GithubConnection> => cloudCall(api.github.get.query())
-
-export const githubLoginOf = (connection: GithubConnection): string | null =>
-  connection.connected ? connection.login : null
 
 export const beginGithubConnect = (): Promise<{ url: string }> =>
   cloudCall(api.github.beginRedirect.mutate())

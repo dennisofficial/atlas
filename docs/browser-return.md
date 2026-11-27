@@ -155,3 +155,12 @@ const answer = await returns.answer({
   fallbackWebPath: '/settings/integrations',
 })
 ```
+
+## Provider subscriptions (Claude, ChatGPT)
+
+The provider clients Atlas borrows accept only loopback redirects, so no Atlas callback can receive
+their code. The TUI binds the loopback the provider allows (ChatGPT `127.0.0.1:1455`, then `1457`;
+Claude `localhost:<free port>`), starts the attempt with `providerSignIn.begin({ flow: 'loopback',
+redirectUri })`, and finishes it with `providerSignIn.complete`. Over SSH or with no display it keeps
+paste (Claude) and the device code (ChatGPT). Web and iOS keep those flows; Mac moves to the loopback
+in a host release.

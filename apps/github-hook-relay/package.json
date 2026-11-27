@@ -1,0 +1,16 @@
+{
+  "name": "@dltech/atlas-github-hook-relay",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Cloudflare Worker in front of the Atlas GitHub App webhook: base64-wraps GitHub's raw delivery so Render's edge WAF cannot block it, and forwards it to the API's relayed-hook route.",
+  "type": "module",
+  "scripts": {
+    "typecheck": "tsc --noEmit",
+    "test": "bun test",
+    "deploy": "dotenvx run -f .env.production.enc -- bunx wrangler@4.157.0 deploy"
+  },
+  "devDependencies": {
+    "@dotenvx/dotenvx": "^1.71.0",
+    "@types/bun": "latest"
+  }
+}

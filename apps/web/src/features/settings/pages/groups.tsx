@@ -21,6 +21,14 @@ import {
 } from '@dltech/atlas-ui/components/empty'
 import { Skeleton } from '@dltech/atlas-ui/components/skeleton'
 
+import {
+  GROUP_DELETE_DESCRIPTION,
+  GROUP_DESCRIPTION,
+  groupCandidatesOf,
+  groupMemberSummaryOf,
+  groupMembersOf,
+} from '@dltech/atlas-client/settings'
+
 import { fetchProjects } from '@/features/projects/data/projects-api'
 import { GroupNameDialog } from '@/features/groups/group-name-dialog'
 import { useGroups } from '@/features/groups/data/use-groups'
@@ -33,8 +41,6 @@ import { LibraryRowMenu } from '../parts/library-row-menu'
 import { SettingsCard, SettingsPage, SettingsRow, SettingsSection } from '../settings-layout'
 
 const TITLE = 'Groups'
-const DESCRIPTION =
-  'A group shares secrets, files, settings, skills and MCP servers with every project in it. A project belongs to one group.'
 
 const SKELETON_KEYS = ['a', 'b']
 
@@ -83,16 +89,12 @@ function GroupCard({
   onAssign: (projectId: string) => Promise<void>
   onRemove: (projectId: string) => Promise<unknown>
 }) {
-  const members = projects.filter((project) => project.groupId === group.id)
-  const candidates = projects.filter((project) => project.groupId !== group.id)
+  const members = groupMembersOf({ projects, groupId: group.id })
+  const candidates = groupCandidatesOf({ projects, groupId: group.id })
   return (
     <SettingsSection
       title={group.name}
-      description={
-        members.length === 0
-          ? 'No projects in this group yet.'
-          : `${String(members.length)} ${members.length === 1 ? 'project' : 'projects'}`
-      }
+      description={groupMemberSummaryOf(members.length)}
       actions={
         <>
           <Button
@@ -199,7 +201,7 @@ export function GroupsPage() {
   return (
     <SettingsPage
       title={TITLE}
-      description={DESCRIPTION}
+      description={GROUP_DESCRIPTION}
       actions={
         <Button variant="outline" size="sm" onClick={() => setDialog({ kind: 'create' })}>
           <PlusIcon data-icon="inline-start" />
@@ -248,7 +250,7 @@ export function GroupsPage() {
           if (!open) setDialog({ kind: 'none' })
         }}
         title={`Delete ${dialog.kind === 'delete' ? dialog.group.name : ''}?`}
-        description="Its projects become ungrouped. The group's secrets, files, settings, skills and MCP servers are deleted."
+        description={GROUP_DELETE_DESCRIPTION}
         confirmLabel="Delete group"
         onConfirm={handleDelete}
       />

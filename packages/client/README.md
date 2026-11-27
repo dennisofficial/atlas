@@ -29,7 +29,7 @@ The headless client library that web, the TUI and the mobile app share.
 | `@dltech/atlas-client/crew`                     | The crew readout, the sub-agent state and the background work.                                                                                                 |
 | `@dltech/atlas-client/session`                  | The session create input, the rewind, the summarise, the image upload, the composer attachments, the message input, the draft sync and the sandbox start view. |
 | `@dltech/atlas-client/account`                  | The Atlas Cloud device-code login and the PKCE pair a browser sign-in needs.                                                                                   |
-| `@dltech/atlas-client/settings`                 | The settings page and section lists that every surface lists and filters, plus the instructions and memory logic those pages share.                            |
+| `@dltech/atlas-client/settings`                 | The settings page and section lists, and the agent, models, appearance, instructions, memory, project, group, sandbox and pull-request settings logic.         |
 | `@dltech/atlas-client/browser-return`           | The outcomes a browser sign-in brought back, held by the state of its start link.                                                                              |
 | `@dltech/atlas-client/transcript`               | The transcript rows, the tool runs and the turn rows.                                                                                                          |
 | `@dltech/atlas-client/stream-fixture`           | A fake scheduler and transport, and the event factories, for a spec.                                                                                           |
@@ -61,6 +61,24 @@ The headless client library that web, the TUI and the mobile app share.
 - `EProjectSettingsSection`, `PROJECT_SECTIONS`: the project settings sections in web order.
 - `EGroupSettingsSection`, `GROUP_SECTIONS`: the group settings sections, which inherit the project
   sections and add the group-only ones.
+- `ESettingFieldKind`, `ISettingField`, `fieldValuesFrom({ fields, values })`, `fieldChanges({ saved, draft })`:
+  the toggle, choice, range and text rows a settings page renders, read from and diffed into flat
+  setting keys. `CONTEXT_FIELDS`, `EXPERIMENTAL_FIELDS`, `QUALITY_FIELDS` and
+  `qualityFieldsOf(policies)` are the field lists the Agent, Experimental and Code Quality pages share.
+- `appearanceFrom(values)`, `appearanceChanges({ saved, draft })`, `colorSchemeOf(theme)`:
+  the `web.appearance.*` settings, the changes to write, and the colour scheme a theme asks for.
+  `THEMES`, `DENSITIES` and `CODE_FONT_SIZES` are their options.
+- `agentSettingsFrom(values)` and `agentSettingsChanges({ saved, draft })`: the `images.model`
+  setting, with `IMAGE_MODEL_ITEMS`.
+- `routineSettingsFrom(values)`, `routineSettingsChanges({ saved, draft })`, `ROUTINE_TIMEZONE_KEY`:
+  the default routine timezone.
+- `PAGE_ROLES`, `ROLE_GROUPS`, `roleTitleOf(role)`, `roleTipOf(role)`, `resolveRoles({ draft, models })`,
+  `choiceOf`, `staleOwnerOf`, `ownsModel`, `affectedOf`: the model roles a Models & Effort page
+  lists, the copy it shows and the model, effort and fast each role resolves to.
+- `modelsDraftFrom(values)`, `modelsChanges({ saved, draft })`, `pickedModelDraft`, `effortDraft`,
+  `fastDraft`, `followedDraft`: the per-role draft and the flat changes it saves.
+- `settingValue`, `settingString`, `settingBool`, `diffChanges({ saved, draft })`: read a flat setting
+  from its registry entry, and diff two flat records into the keys to patch.
 - `INSTRUCTIONS_CHAR_LIMIT`, `instructionsOf({ files, path?, decode })`, `charCountOf({ length, limit })`,
   `canSaveInstructions(args)`: one instructions document, its character budget, and whether a save is
   allowed. The page descriptions travel with them.
@@ -69,6 +87,53 @@ The headless client library that web, the TUI and the mobile app share.
   `memoryScopeOptionsOf(groups)`, `memoryScopeHintOf(group)`, `memoryClearDescriptionOf(group)`,
   `memoryKeyInput(key)`, `formatMemoryDate(updatedAt)`: the memory scopes, their rows, and the copy
   around them.
+
+### Read an account and its signed-in devices
+
+- `createAuthAccountApi({ baseUrl, token, fetchFn })`: the better-auth REST calls a surface makes
+  with a bearer token — the current session, the name, the sessions, the sign-in methods, the unlink,
+  the revoke and the reset-link request. `AuthAccountError` carries the status and the code.
+- `relativeTime({ from, now })`, `shortDate(iso)`, `monthYear(iso)`: elapsed and calendar labels.
+- `deviceNameOf(userAgent)`, `deviceKindOf(userAgent)`, `toDevice(args)`, `signedInDevicesOf(args)`
+  and `EDeviceKind`: one session row, its device name and kind, and the current device first.
+- `signInMethodsOf(accounts)`, `signInMethodRowsOf({ methods, busy })`, `ESignInMethodAction` and
+  `ESignInMethodProvider`: which methods a user has, and the two rows a settings page shows.
+- `linkReturnOf(params)`, `ELinkReturnKind`: the outcome a Google link came back with.
+- `unlinkRefusalOf(args)`, `SESSION_NOT_FRESH`, `UNREACHABLE`: the refusals a settings page names.
+
+### Read MCP and GitHub settings
+
+- `McpScope`, `mcpServersInputOf({ scope })`, `mcpServerPutInputOf({ scope, draft })`,
+  `mcpOauthScreenOfScope(scope)` and `mcpOauthServersInputOf(scope)`: the layer an MCP page reads and
+  writes, and the screen its sign-in returns to, at user, project or group scope.
+- `rowOfServer`, `targetOf`, `transportOfDraft`, `upsertOfDraft`, `upsertOfServerDraft`,
+  `upsertOfToggle`, `serverIdOf`, `mcpDraftIsValid`: the server row and the payload a settings form
+  writes. `splitCommandLine`, `joinCommandLine` and `parseKeyValueLines` are the command and
+  key-value text a form reads.
+- `EMcpAuthState`, `authStateOf`, `cloudServerOf`, `repoServersOf`, `lastUsedOf`,
+  `mcpServerLabelOf`, `mcpResultMessageOf`, `mcpSignInResultOf`, `unreachableSignInResult`: what a
+  server row says about its grant, and the message a browser return shows. `relativeTimeOf({ iso,
+  now })` is the relative time a row prints.
+- `pollUntilSettled`, `githubFailureOf`, `githubCapabilitiesOf`, `githubLoginOf`, `GITHUB_REPO_SCOPE`
+  and `GITHUB_ORG_SCOPE`: the GitHub device-code flow and what a connection grants.
+
+### Edit a project or a group
+
+- `overviewDraftOf(project)`, `overviewSaveBodyOf({ project, draft })`, `overviewDraftsEqual`,
+  `overviewDraftIsValid`, `identityOf(project)`, `shipOptionsOf(behavior)`: the project overview
+  draft, its save body and its ship-behavior options, legacy merge included.
+- `additionalRepositoryProblem({ value })`, `canAddAdditionalRepository`,
+  `addAdditionalRepository`, `editAdditionalRepository`, `removeAdditionalRepository`: the
+  additional-repositories list, capped at the wire limit.
+- `groupNameProblem({ name })`, `groupMembersOf`, `groupCandidatesOf`, `groupMemberSummaryOf`,
+  `GROUP_DESCRIPTION`, `GROUP_DELETE_DESCRIPTION`: a group's name rule and its membership.
+- `SANDBOX_SETTING_KEYS`, `inheritedSandboxOf`, `ownValuesOf`, `sandboxOfValues`,
+  `sizeSettingValuesOf`, `diskSettingValuesOf`: a sandbox's own and inherited size and disk.
+  `savedSizeValueOf`, `sizeValueToSave`, `savedDiskValueOf`, `diskValueToSave`,
+  `sandboxSizeOptionsOf`, `sandboxDiskOptionsOf`: its selections and the options including the
+  account default. `DEFAULT_SANDBOX_SIZE`, `defaultDiskGbOf`, `sizeKeyOf`, `INHERIT_VALUE`.
+- `prCommentEditorsOf(values)`, `prCommentEditorChanges({ draft })`, `MUTED_EDITORS_KEY`,
+  `URGENT_EDITORS_KEY`, `settingChangeOf`: the muted and urgent pull-request comment editors.
 
 ### Keep the log and the view
 
