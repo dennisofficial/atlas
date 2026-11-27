@@ -35,6 +35,11 @@ web spinner), never `ActivityIndicator`.
   of room moves low-priority items into a "…" overflow menu, and a custom view shows nothing there.
   expo-router 58 drops the prop for a `custom` item, so `patches/expo-router@58.0.30.patch` passes
   it through. Keep the patch, or confirm upstream passes the prop, when expo-router is upgraded.
+- **Header taps:** from iOS 27 on iPhone, a tap anywhere on the native bar scrolls the screen's
+  scroll view to the top, a tap on a custom header view included
+  (facebook/react-native#56061). `leadingHeaderOptionsOf` wraps its title views in
+  `ScrollToTopGuard` (`react-native-screens/experimental`) so a tap on them does not scroll. Wrap
+  any other custom header view the same way.
 - **Back:** the native back button and the swipe-back gesture. Do not add a JS back button on iOS.
 - **Search:** use `headerSearchBarOptions` with `placement: 'integratedButton'` on a screen that
   has a native bar, so search is a round bar button that expands into the field. Keep the JS
