@@ -23,7 +23,7 @@ import type {
 } from '@prisma/orm-postgres/contract/types';
 
 export type StorageHash =
-  StorageHashBase<'c779b18d69fd0e645aa1ed3e4d552bf07119a0f8e3425748b58e06b81715798b'>;
+  StorageHashBase<'16728f3bc2230e97bb7643a13fa9505d4e74bff2ae34f3336296bf1e287cef18'>;
 export type ExecutionHash =
   ExecutionHashBase<'0e6f989bb6c7c489039e329d87ab4c7469f87c12c726c4dcf40ed6296bf343c1'>;
 export type ProfileHash =
@@ -406,6 +406,19 @@ export namespace Models {
   export type public_BlobRef = {
     hash: FieldOutputTypes['public']['BlobRef']['hash'];
     sessionId: FieldOutputTypes['public']['BlobRef']['sessionId'];
+    readonly [RelationKeys]?: never;
+  };
+  export type public_BrowserReturnPending = {
+    callbackPath: FieldOutputTypes['public']['BrowserReturnPending']['callbackPath'];
+    createdAt: FieldOutputTypes['public']['BrowserReturnPending']['createdAt'];
+    expiresAt: FieldOutputTypes['public']['BrowserReturnPending']['expiresAt'];
+    flow: FieldOutputTypes['public']['BrowserReturnPending']['flow'];
+    port: FieldOutputTypes['public']['BrowserReturnPending']['port'];
+    providerUrlSealed: FieldOutputTypes['public']['BrowserReturnPending']['providerUrlSealed'];
+    state: FieldOutputTypes['public']['BrowserReturnPending']['state'];
+    surface: FieldOutputTypes['public']['BrowserReturnPending']['surface'];
+    userId: FieldOutputTypes['public']['BrowserReturnPending']['userId'];
+    webPath: FieldOutputTypes['public']['BrowserReturnPending']['webPath'];
     readonly [RelationKeys]?: never;
   };
   export type public_ChangeBlob = {
@@ -1437,6 +1450,7 @@ export declare const models: {
     AuthSession: Models.public_AuthSession;
     Blob: Models.public_Blob;
     BlobRef: Models.public_BlobRef;
+    BrowserReturnPending: Models.public_BrowserReturnPending;
     ChangeBlob: Models.public_ChangeBlob;
     ContextFile: Models.public_ContextFile;
     CredentialAvailability: Models.public_CredentialAvailability;
@@ -2160,6 +2174,87 @@ type ContractBase = Omit<
               primaryKey: { readonly columns: readonly ['sessionId', 'hash'] };
               uniques: readonly [];
               indexes: readonly [];
+              foreignKeys: readonly [];
+            };
+            readonly BrowserReturnPending: {
+              columns: {
+                readonly callbackPath: {
+                  readonly dataType: 'pg/text';
+                  readonly codecId: 'pg/text@1';
+                  readonly nullable: false;
+                  readonly many: false;
+                };
+                readonly createdAt: {
+                  readonly dataType: 'pg/timestamptz';
+                  readonly codecId: 'pg/timestamptz-date@1';
+                  readonly nullable: false;
+                  readonly default: { readonly kind: 'function'; readonly expression: 'now()' };
+                  readonly typeParams: { readonly precision: 3 };
+                  readonly many: false;
+                };
+                readonly expiresAt: {
+                  readonly dataType: 'pg/timestamptz';
+                  readonly codecId: 'pg/timestamptz-date@1';
+                  readonly nullable: false;
+                  readonly typeParams: { readonly precision: 3 };
+                  readonly many: false;
+                };
+                readonly flow: {
+                  readonly dataType: 'pg/text';
+                  readonly codecId: 'pg/text@1';
+                  readonly nullable: false;
+                  readonly many: false;
+                };
+                readonly port: {
+                  readonly dataType: 'pg/int4';
+                  readonly codecId: 'pg/int4@1';
+                  readonly nullable: true;
+                  readonly many: false;
+                };
+                readonly providerUrlSealed: {
+                  readonly dataType: 'pg/text';
+                  readonly codecId: 'pg/text@1';
+                  readonly nullable: false;
+                  readonly many: false;
+                };
+                readonly state: {
+                  readonly dataType: 'pg/text';
+                  readonly codecId: 'pg/text@1';
+                  readonly nullable: false;
+                  readonly many: false;
+                };
+                readonly surface: {
+                  readonly dataType: 'pg/text';
+                  readonly codecId: 'pg/text@1';
+                  readonly nullable: false;
+                  readonly default: {
+                    readonly kind: 'literal';
+                    readonly value: DefaultLiteralValue<'pg/text@1', 'web'>;
+                  };
+                  readonly many: false;
+                };
+                readonly userId: {
+                  readonly dataType: 'pg/text';
+                  readonly codecId: 'pg/text@1';
+                  readonly nullable: true;
+                  readonly many: false;
+                };
+                readonly webPath: {
+                  readonly dataType: 'pg/text';
+                  readonly codecId: 'pg/text@1';
+                  readonly nullable: false;
+                  readonly many: false;
+                };
+              };
+              primaryKey: { readonly columns: readonly ['state'] };
+              uniques: readonly [];
+              indexes: readonly [
+                {
+                  readonly name: 'BrowserReturnPending_expiresAt_idx';
+                  readonly columns: readonly ['expiresAt'];
+                  readonly unique: false;
+                },
+              ];
               foreignKeys: readonly [];
             };
             readonly ChangeBlob: {
@@ -8393,6 +8488,10 @@ type ContractBase = Omit<
     };
     readonly Blob: { readonly namespace: 'public' & NamespaceId; readonly model: 'Blob' };
     readonly BlobRef: { readonly namespace: 'public' & NamespaceId; readonly model: 'BlobRef' };
+    readonly BrowserReturnPending: {
+      readonly namespace: 'public' & NamespaceId;
+      readonly model: 'BrowserReturnPending';
+    };
     readonly ChangeBlob: {
       readonly namespace: 'public' & NamespaceId;
       readonly model: 'ChangeBlob';
@@ -9202,6 +9301,75 @@ type ContractBase = Omit<
               readonly fields: {
                 readonly hash: { readonly column: 'hash' };
                 readonly sessionId: { readonly column: 'sessionId' };
+              };
+            };
+          };
+          readonly BrowserReturnPending: {
+            readonly fields: {
+              readonly callbackPath: {
+                readonly nullable: false;
+                readonly type: { readonly kind: 'scalar'; readonly codecId: 'pg/text@1' };
+              };
+              readonly createdAt: {
+                readonly nullable: false;
+                readonly type: {
+                  readonly kind: 'scalar';
+                  readonly codecId: 'pg/timestamptz-date@1';
+                  readonly typeParams: { readonly precision: 3 };
+                };
+              };
+              readonly expiresAt: {
+                readonly nullable: false;
+                readonly type: {
+                  readonly kind: 'scalar';
+                  readonly codecId: 'pg/timestamptz-date@1';
+                  readonly typeParams: { readonly precision: 3 };
+                };
+              };
+              readonly flow: {
+                readonly nullable: false;
+                readonly type: { readonly kind: 'scalar'; readonly codecId: 'pg/text@1' };
+              };
+              readonly port: {
+                readonly nullable: true;
+                readonly type: { readonly kind: 'scalar'; readonly codecId: 'pg/int4@1' };
+              };
+              readonly providerUrlSealed: {
+                readonly nullable: false;
+                readonly type: { readonly kind: 'scalar'; readonly codecId: 'pg/text@1' };
+              };
+              readonly state: {
+                readonly nullable: false;
+                readonly type: { readonly kind: 'scalar'; readonly codecId: 'pg/text@1' };
+              };
+              readonly surface: {
+                readonly nullable: false;
+                readonly type: { readonly kind: 'scalar'; readonly codecId: 'pg/text@1' };
+              };
+              readonly userId: {
+                readonly nullable: true;
+                readonly type: { readonly kind: 'scalar'; readonly codecId: 'pg/text@1' };
+              };
+              readonly webPath: {
+                readonly nullable: false;
+                readonly type: { readonly kind: 'scalar'; readonly codecId: 'pg/text@1' };
+              };
+            };
+            readonly relations: Record<string, never>;
+            readonly storage: {
+              readonly table: 'BrowserReturnPending';
+              readonly namespaceId: 'public';
+              readonly fields: {
+                readonly callbackPath: { readonly column: 'callbackPath' };
+                readonly createdAt: { readonly column: 'createdAt' };
+                readonly expiresAt: { readonly column: 'expiresAt' };
+                readonly flow: { readonly column: 'flow' };
+                readonly port: { readonly column: 'port' };
+                readonly providerUrlSealed: { readonly column: 'providerUrlSealed' };
+                readonly state: { readonly column: 'state' };
+                readonly surface: { readonly column: 'surface' };
+                readonly userId: { readonly column: 'userId' };
+                readonly webPath: { readonly column: 'webPath' };
               };
             };
           };

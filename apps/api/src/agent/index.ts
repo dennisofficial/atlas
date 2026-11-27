@@ -72,6 +72,16 @@ export {
   type OperatorAnswer,
   type OperatorAnswerRequest,
 } from './operator-input/answer-service'
+export { BrowserReturnService } from './browser-return/service'
+export type {
+  BrowserReturnAnswerRequest,
+  BrowserReturnBeginAnswer,
+  BrowserReturnBeginRequest,
+  BrowserReturnCallbackAnswer,
+  BrowserReturnServiceArgs,
+  BrowserReturnStartAnswer,
+  BrowserReturnStartRequest,
+} from './browser-return/service'
 export {
   McpOauthBeginService,
   mcpOauthBeginRequestSchema,

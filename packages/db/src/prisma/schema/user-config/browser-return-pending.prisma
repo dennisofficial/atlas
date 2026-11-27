@@ -1,0 +1,15 @@
+// use prisma-8
+model BrowserReturnPending {
+  state             String               @id
+  flow              String
+  userId            String?
+  surface           String               @default("web")
+  port              Int?
+  providerUrlSealed String
+  callbackPath      String
+  webPath           String
+  expiresAt         TimestamptzJsDate(3)
+  createdAt         TimestamptzJsDate(3) @default(now())
+
+  @@index([expiresAt], map: "BrowserReturnPending_expiresAt_idx")
+}

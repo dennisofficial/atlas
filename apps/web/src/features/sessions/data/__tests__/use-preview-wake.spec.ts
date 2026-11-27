@@ -32,6 +32,7 @@ const { resetPreviewBrowsers, updatePreviewBrowser, usePreviewBrowser } = await 
   '@/features/threads/data/preview-browser/use-preview-browser'
 )
 const { usePreviewWake } = await import('../use-preview-wake')
+const { openBrowserUrl } = await import('@/features/sessions/panel/browser/open-browser')
 
 const SESSION = 'ses_1'
 const PREVIEW = 'https://4321-abc.byatlas.dev/'
@@ -52,7 +53,10 @@ function Probe(props: { power: EPodPowerPhase | undefined }) {
     sessionId: SESSION,
     power: props.power,
     ports: PORTS,
-    open: (url) => opened.push(url),
+    open: (url) => {
+      opened.push(url)
+      openBrowserUrl({ sessionId: SESSION, url, ports: PORTS })
+    },
   })
   const { state } = usePreviewBrowser(SESSION)
   return createElement('button', {
@@ -145,12 +149,29 @@ describe('usePreviewWake', () => {
       change: ({ state }) => openTab({ state, url: PREVIEW }),
     })
     const { container, renderWith } = await mount()
+    await renderWith(createElement(Probe, { power: EPodPowerPhase.Steady }))
     await renderWith(createElement(Probe, { power: EPodPowerPhase.Asleep }))
     expect(seqs(container)).toBe('0,0')
     await renderWith(createElement(Probe, { power: EPodPowerPhase.Starting }))
     expect(seqs(container)).toBe('0,0')
     await renderWith(createElement(Probe, { power: EPodPowerPhase.Steady }))
     expect(seqs(container)).toBe('0,1')
+    await renderWith(createElement(Probe, { power: EPodPowerPhase.Steady }))
+    expect(seqs(container)).toBe('0,1')
+  })
+
+  it('loads a preview once on the open and not again when the pod wakes', async () => {
+    updatePreviewBrowser({
+      threadId: SESSION,
+      change: ({ state }) => openTab({ state, url: PREVIEW }),
+    })
+    const { container, renderWith } = await mount()
+    await renderWith(createElement(Probe, { power: EPodPowerPhase.Steady }))
+    await renderWith(createElement(Probe, { power: EPodPowerPhase.Asleep }))
+    expect(seqs(container)).toBe('0,0')
+    await clickOpen(container)
+    expect(seqs(container)).toBe('0,1')
+    await renderWith(createElement(Probe, { power: EPodPowerPhase.Starting }))
     await renderWith(createElement(Probe, { power: EPodPowerPhase.Steady }))
     expect(seqs(container)).toBe('0,1')
   })

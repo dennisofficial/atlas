@@ -30,6 +30,7 @@ The headless client library that web, the TUI and the mobile app share.
 | `@dltech/atlas-client/session`                  | The session create input, the rewind, the summarise, the image upload, the composer attachments, the message input, the draft sync and the sandbox start view. |
 | `@dltech/atlas-client/account`                  | The Atlas Cloud device-code login.                                                                                                                             |
 | `@dltech/atlas-client/settings`                 | The settings page and section lists that every surface lists and filters: user, project and group scope.                                                       |
+| `@dltech/atlas-client/browser-return`           | The outcomes a browser sign-in brought back, held by the state of its start link.                                                                              |
 | `@dltech/atlas-client/transcript`               | The transcript rows, the tool runs and the turn rows.                                                                                                          |
 | `@dltech/atlas-client/stream-fixture`           | A fake scheduler and transport, and the event factories, for a spec.                                                                                           |
 | `@dltech/atlas-client/transcript-fixture`       | The event drafts and the step signals of a transcript, for a spec.                                                                                             |
@@ -139,6 +140,14 @@ The headless client library that web, the TUI and the mobile app share.
 
 - `beginCloudLogin(args)`, `pollCloudLogin(args)`: the device-code ticket and the poll outcome.
   `CLOUD_CLIENT_ID`, `CloudLoginTicket`, `ECloudLoginPoll` and `CloudLoginOutcome` are the grant and its types. `DeviceLoginError` carries the HTTP `status`, `0` when the host is unreachable.
+
+### Keep a browser return
+
+- `createReturnStore()` gives a `ReturnStore`: `read(state)`, `remember({ state, outcome })` and
+  `subscribe(listener)`. `browserReturns` is the store of the tab or the app.
+- A sign-in flow remembers the outcome the browser brought back under the state of its start
+  link, and a card reads it with `read(state)`. `returnOutcomeOf` in `@dltech/atlas-core` picks
+  the durable outcome over the kept one.
 
 ## Usage
 

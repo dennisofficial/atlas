@@ -5,8 +5,8 @@ type DetachedWindowAPI = { abort: () => Promise<void> }
 const detachedWindow = (): DetachedWindowAPI | null =>
   (globalThis as unknown as { happyDOM?: DetachedWindowAPI }).happyDOM ?? null
 
-export const registerDom = (): void => {
-  GlobalRegistrator.register()
+export const registerDom = (url?: string): void => {
+  GlobalRegistrator.register(url === undefined ? undefined : { url })
 }
 
 // unregister() deletes the happy-dom globals before it closes the frame, so a fetch still in
