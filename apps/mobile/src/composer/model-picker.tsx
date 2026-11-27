@@ -1,15 +1,6 @@
-import {
-  ETextRole,
-  ETextTone,
-  Icon,
-  Input,
-  Text,
-  useTheme,
-  withAlpha,
-} from '@dltech/atlas-ui-native'
-import { radius, space } from '@dltech/atlas-ui/tokens'
-import { Search } from 'lucide-react-native'
-import { SectionList, StyleSheet, View } from 'react-native'
+import { ETextRole, ETextTone, Text } from '@dltech/atlas-ui-native'
+import { space } from '@dltech/atlas-ui/tokens'
+import { SectionList, StyleSheet } from 'react-native'
 
 import {
   hasModelMatchesOf,
@@ -24,6 +15,7 @@ import {
   togglePinnedModel,
 } from './model-options'
 import { ModelRow } from './model-picker-rows'
+import { ModelSearchField } from './model-search-field'
 import { presentModelSheet } from './model-sheet-request'
 import { ModelTrigger } from './model-trigger'
 
@@ -44,8 +36,9 @@ export const ModelListBody = ({
   onPinnedChange,
   onSelect,
   query,
+  onQueryChange,
   onClose,
-}: Props & { query: string; onClose: () => void }) => {
+}: Props & { query: string; onQueryChange: (query: string) => void; onClose: () => void }) => {
   const sections = modelListSectionsOf({ models, pinned, query })
 
   const handleModel = (model: IModelOption) => {
@@ -91,10 +84,10 @@ export const ModelListBody = ({
       maxToRenderPerBatch={INITIAL_ROWS}
       windowSize={5}
       automaticallyAdjustKeyboardInsets
-      contentInsetAdjustmentBehavior="automatic"
       keyboardDismissMode="interactive"
       keyboardShouldPersistTaps="handled"
       style={styles.list}
+      ListHeaderComponent={<ModelSearchField query={query} onQueryChange={onQueryChange} />}
       ListFooterComponent={
         hasModelMatchesOf(sections) ? undefined : (
           <Text size={ETextRole.Sm} tone={ETextTone.Muted} style={styles.empty}>
@@ -103,34 +96,6 @@ export const ModelListBody = ({
         )
       }
     />
-  )
-}
-
-export const ModelSearchField = ({
-  query,
-  onQueryChange,
-}: {
-  query: string
-  onQueryChange: (query: string) => void
-}) => {
-  const theme = useTheme()
-  return (
-    <View
-      style={[styles.search, { borderColor: withAlpha({ color: theme.foreground, alpha: 0.12 }) }]}
-    >
-      <Icon icon={Search} color={theme.mutedForeground} size={14} />
-      <Input
-        bare
-        accessibilityLabel="Search models"
-        autoCapitalize="none"
-        autoCorrect={false}
-        spellCheck={false}
-        placeholder="Search models"
-        value={query}
-        onChangeText={onQueryChange}
-        style={styles.searchInput}
-      />
-    </View>
   )
 }
 
@@ -160,24 +125,6 @@ export const ModelSelect = ({
 const styles = StyleSheet.create({
   list: {
     flex: 1,
-  },
-  search: {
-    alignItems: 'center',
-    borderRadius: radius(0.8),
-    borderWidth: 1,
-    flexDirection: 'row',
-    gap: space(1.5),
-    marginHorizontal: space(3),
-    marginVertical: space(2),
-    paddingHorizontal: space(2),
-    paddingVertical: space(1.5),
-  },
-  searchInput: {
-    flex: 1,
-    fontSize: 14,
-    height: 20,
-    paddingHorizontal: 0,
-    paddingVertical: 0,
   },
   group: {
     paddingBottom: space(1),
