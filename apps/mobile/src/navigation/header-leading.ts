@@ -6,7 +6,7 @@ export enum EHeaderLeadingItem {
 }
 
 export const HEADER_BUTTON_SLOT = 52
-export const HEADER_EDGE_SLACK = 64
+export const HEADER_EDGE_SLACK = 48
 export const HEADER_TITLE_MIN_WIDTH = 120
 
 export const tabHeaderLeadingOf = ({ posture }: { posture: TPosture }): EHeaderLeadingItem[] =>
