@@ -170,7 +170,7 @@ describe('HostShutdownSequence', () => {
     expect(Date.now() - startedAt).toBeLessThan(1_000)
     expect(log.messages).toEqual([
       'draining',
-      'the lease hand-off outlived 25ms; the leases expire on their TTL',
+      "the lease hand-off outlived 25ms; the next host claims these sessions once this host's presence lock is gone",
     ])
   })
 })

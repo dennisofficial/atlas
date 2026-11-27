@@ -38,11 +38,10 @@ A main agent, a sub-agent and a teammate all run this loop. It knows nothing of 
   `failed`, `waiting-for-model`, `parked` or `relocation-paused`.
 - `PauseSignal`: pause a running turn at the next step boundary. `say`, `runTurn` and `resume` take it
   as `pause`; a paused turn ends `relocation-paused`. `beginModelStep` refuses a new model step once
-  paused, `abortModelStep` cuts the stream and nothing else for a hand-off, and `whenModelIdle`
-  reports when no stream is in flight. `beginStepSettle` holds a step from its stream to the write
-  that records it, and `whenStepSettled` reports when no such step is settling: that is the wait a
-  drain takes, so the reply that streamed lands before the lease goes back and tool work never
-  holds it.
+  paused, and `abortModelStep` cuts the stream and nothing else for a hand-off. `beginStepSettle`
+  holds a step from its stream to the write that records it, and `whenStepSettled` reports when no
+  such step is settling: that is the wait a drain takes, so the reply that streamed lands before the
+  lease goes back and tool work never holds it.
 - `TurnDeps.uploads`: a `SaidUploadsPort` places the files of a said message on disk. The loop asks it only for the files the log holds no placement fact for, and appends one `upload-placement` fact per placed file through `AgentRecordPort.appendFacts`.
 
 ### Trace a turn

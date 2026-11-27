@@ -4,7 +4,6 @@ export class PauseSignal {
   private readonly listeners = new Set<() => void>()
   private readonly modelAborters = new Set<() => void>()
   private modelSteps = 0
-  private readonly modelIdle: (() => void)[] = []
   private stepSettles = 0
   private readonly stepSettledWaiters: (() => void)[] = []
 
@@ -47,21 +46,11 @@ export class PauseSignal {
       if (ended) return
       ended = true
       this.modelSteps -= 1
-      if (this.modelSteps > 0) return
-      const idle = this.modelIdle.splice(0)
-      for (const resolve of idle) resolve()
     }
   }
 
   get modelStepRunning(): boolean {
     return this.modelSteps > 0
-  }
-
-  whenModelIdle(): Promise<void> {
-    if (this.modelSteps === 0) return Promise.resolve()
-    return new Promise<void>((resolve) => {
-      this.modelIdle.push(resolve)
-    })
   }
 
   beginStepSettle(): () => void {
