@@ -107,6 +107,18 @@ describe('leadingTitleWidthOf', () => {
     )
   })
 
+  it('keeps a lone glass title inside the bar margins so iOS never folds it into the overflow menu', () => {
+    const posture = postureWith({
+      controls: EControlsPlacement.BottomBar,
+      sessionsList: ESessionsListLayout.Stacked,
+    })
+    const barMargins = 2 * 20
+    const glassInset = 2 * 5
+    expect(leadingTitleWidthOf({ windowWidth: 440, posture, buttons: 0 })).toBeLessThanOrEqual(
+      440 - barMargins - glassInset,
+    )
+  })
+
   it('never shrinks the title below its minimum on a very narrow window', () => {
     expect(
       leadingTitleWidthOf({
