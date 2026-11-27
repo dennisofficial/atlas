@@ -5,7 +5,7 @@ export const CONTROLS_GAP = space(2)
 export const CONTROLS_PADDING_TOP = space(1.5)
 export const CONTROLS_PADDING_BOTTOM = space(2)
 
-const SEND_BUTTON_SIZE = 32
+export const SEND_BUTTON_SIZE = 32
 const MIN_TOUCH_TARGET = 44
 const DEFAULT_SLOP = (MIN_TOUCH_TARGET - SEND_BUTTON_SIZE) / 2
 
@@ -30,6 +30,8 @@ export interface ISpring {
 
 export const dampingRatioOf = (spring: ISpring): number =>
   spring.damping / (2 * Math.sqrt(spring.stiffness * spring.mass))
+
+export const COLOR_TRANSITION_MS = 200
 
 export const PRESSED_SCALE = 1.08
 export const PRESS_IN_SPRING: ISpring = { damping: 17, stiffness: 400, mass: 0.5 }

@@ -48,23 +48,13 @@ export const ComposerControls = ({
       </ScrollView>
     )}
     {trailing}
-    {onStop !== undefined ? (
-      <SendButton
-        key="stop"
-        action={ESendAction.Stop}
-        besidePressable={trailingPressable}
-        onPress={onStop}
-      />
-    ) : (
-      <SendButton
-        key="send"
-        action={ESendAction.Send}
-        disabled={!canSend}
-        loading={sending}
-        besidePressable={trailingPressable}
-        onPress={onSend}
-      />
-    )}
+    <SendButton
+      action={onStop === undefined ? ESendAction.Send : ESendAction.Stop}
+      disabled={onStop === undefined && !canSend}
+      loading={onStop === undefined && sending}
+      besidePressable={trailingPressable}
+      onPress={onStop ?? onSend}
+    />
   </View>
 )
 
