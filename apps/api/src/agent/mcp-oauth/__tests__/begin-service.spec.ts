@@ -94,7 +94,7 @@ describe('McpOauthBeginService', () => {
     })
 
     expect(answer.status).toBe(200)
-    expect(answer.body).toEqual({ url: AUTHORIZE_URL })
+    expect(answer.body).toEqual({ url: 'https://api.byatlas.io/mcp-oauth/start/s' })
     expect(calls[0]).toMatchObject({
       userId: 'user-1',
       source: 'cloud',

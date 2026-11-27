@@ -3,12 +3,14 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import { toast } from 'sonner'
 
+import { stateOfStartLink } from '@dltech/atlas-core'
 import type { McpOauthServer } from '@dltech/atlas-wire/web'
 
-import { isDesktopHost } from '@/features/desktop/desktop-attributes'
+import { openBrowserReturn } from '@/features/auth/browser-return'
 import { api, cloudCall } from '@/lib/api-client'
 import { EQueryState, useCloudQuery } from '@/lib/use-cloud-query'
 
+import { rememberMcpSignIn } from './mcp-signin-attempts'
 import { beginMcpSignIn, type McpSignInScreen } from './mcp-signin-request'
 import {
   authStateOf,
@@ -26,7 +28,7 @@ export type McpOauth = {
   repoServers: McpOauthServer[]
   stateOf: (server: McpOauthServer | undefined) => EMcpAuthState
   isBusy: (serverId: string) => boolean
-  signIn: (serverId: string) => void
+  signIn: (args: { serverId: string; label: string }) => void
   signOut: (serverId: string) => void
   forget: (serverId: string) => Promise<boolean>
   now: number
@@ -76,31 +78,20 @@ export function useMcpOauth(scope: McpOauthScope = { kind: 'user' }): McpOauth {
   }, [failed])
 
   const signIn = useCallback(
-    (serverId: string) => {
-      setBusyId(serverId)
-      let redirecting = false
+    (args: { serverId: string; label: string }) => {
+      setBusyId(args.serverId)
       void runAction({
         work: async () => {
-          const desktop = isDesktopHost(window)
-          const result = await beginMcpSignIn({
-            serverId,
-            surface: desktop ? 'desktop' : 'web',
-            screen,
-          })
-          if (result.ok && desktop) {
-            window.open(result.url, '_blank', 'noopener')
+          const result = await beginMcpSignIn({ serverId: args.serverId, screen })
+          if (!result.ok) {
+            toast.info(`Sign-in isn't available for this server: ${result.reason}`)
             return
           }
-          if (result.ok) {
-            redirecting = true
-            window.location.assign(result.url)
-            return
-          }
-          toast.info(`Sign-in isn't available for this server: ${result.reason}`)
+          const state = stateOfStartLink(result.url)
+          if (state !== undefined) rememberMcpSignIn({ state, label: args.label })
+          openBrowserReturn({ url: result.url })
         },
-      }).finally(() => {
-        if (!redirecting) setBusyId(null)
-      })
+      }).finally(() => setBusyId(null))
     },
     [screen],
   )

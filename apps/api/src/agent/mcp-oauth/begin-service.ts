@@ -72,6 +72,6 @@ export class McpOauthBeginService {
       url: serverUrl,
       returnTarget: { surface: body.surface, screen: body.screen },
     })
-    return begun.ok ? { status: 200, body: { url: begun.url } } : refused(422, begun.reason)
+    return begun.ok ? { status: 200, body: { url: begun.startUrl } } : refused(422, begun.reason)
   }
 }

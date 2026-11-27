@@ -16,11 +16,6 @@ export enum EMcpOauthAccessOutcome {
   NeedsAuth = 'needs-auth',
 }
 
-export enum EMcpOauthCallbackResult {
-  Connected = 'connected',
-  Failed = 'failed',
-}
-
 export enum EMcpServerSource {
   Cloud = 'cloud',
   Repo = 'repo',
@@ -31,19 +26,7 @@ export enum EMcpOauthReturnSurface {
   Desktop = 'desktop',
 }
 
-export const DESKTOP_URL_SCHEME = 'atlas'
-export const DESKTOP_OPEN_HOST = 'open'
-
-export const MCP_OAUTH_CALLBACK_PATH = '/v1/mcp/oauth/callback'
-export const MCP_OAUTH_RESULT_PARAM = 'mcpOauth'
-export const MCP_OAUTH_SERVER_PARAM = 'mcpServer'
-export const MCP_OAUTH_REASON_PARAM = 'mcpReason'
-
 const serverUrlSchema = z.url({ protocol: /^https?$/ })
-const returnToSchema = z
-  .string()
-  .regex(/^\/(?![/\\])[^\\\u0000-\u001f\u007f]*$/, 'returnTo must be a same-origin path')
-  .max(512)
 
 export const mcpOauthServerRefSchema = z.strictObject({ serverId: z.string().min(1) })
 export type McpOauthServerRef = z.infer<typeof mcpOauthServerRefSchema>
@@ -65,7 +48,6 @@ export const mcpOauthScreenSchema = z.union([
 export type McpOauthScreen = z.infer<typeof mcpOauthScreenSchema>
 
 export const mcpOauthBeginInputSchema = mcpOauthServerRefSchema.extend({
-  returnTo: returnToSchema.optional(),
   surface: z.enum(EMcpOauthReturnSurface).optional(),
   screen: mcpOauthScreenSchema.optional(),
 })

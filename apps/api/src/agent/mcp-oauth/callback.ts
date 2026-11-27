@@ -4,13 +4,7 @@ import type { Db } from '@dltech/atlas-db'
 import type { SecretCipher } from '@dltech/atlas-pods/config/secret-cipher'
 import type { BrowserReturnService } from '../browser-return/service'
 import { providerErrorOf } from './provider-error'
-import {
-  callbackAnswerOf,
-  DEFAULT_RETURN_TARGET,
-  returnPathOf,
-  surfaceOf,
-  type CallbackAnswer,
-} from './redirect'
+import { DEFAULT_RETURN_TO, returnPathOf } from './redirect'
 import { sameServerUrl, sealJson, unsealJson } from './seal'
 import { serverUrlOf } from './server-url'
 import { guardedFetch, type HostResolver } from './ssrf'
@@ -31,18 +25,23 @@ export type QueryParams = { get(name: string): string | null | undefined }
 
 export type CallbackRequest = { query: QueryParams; cookie?: string | undefined }
 
+export type CallbackAnswer =
+  | { kind: 'redirect'; location: string; setCookie?: string | undefined }
+  | { kind: 'page'; html: string; setCookie?: string | undefined }
+
 export type CallbackHandler = (request: CallbackRequest) => Promise<CallbackAnswer>
 
 export type McpOauthCallbackArgs = {
   db: Db
   cipher: SecretCipher
-  webOrigin: string
   returns: Pick<BrowserReturnService, 'answer'>
   fetch?: OAuthFetch | undefined
   now?: (() => number) | undefined
   allowLocalTargets?: boolean | undefined
   resolveHost?: HostResolver | undefined
 }
+
+const DEFAULT_SCREEN: McpReturnScreen = { kind: 'settings', scope: 'user' }
 
 const ownsRow = async (args: {
   store: McpOauthStore
@@ -68,35 +67,21 @@ export const mcpOauthCallbackOf = (args: McpOauthCallbackArgs) => {
         schema: sealedPendingSchema,
       }).returnTarget.screen
     } catch {
-      return DEFAULT_RETURN_TARGET.screen
+      return DEFAULT_SCREEN
     }
   }
 
   const answerOf = async (args2: {
-    pending: PendingRow | null
+    state: string
     cookieHeader: string | undefined
     outcome: ReturnOutcome
+    fallbackWebPath: string
   }): Promise<CallbackAnswer> => {
-    const { pending } = args2
-    if (pending === null)
-      return callbackAnswerOf({
-        webOrigin: args.webOrigin,
-        target: DEFAULT_RETURN_TARGET,
-        reason: args2.outcome.reason,
-      })
-    const screen = screenOf(pending)
-    if (screen.kind !== 'session')
-      return callbackAnswerOf({
-        webOrigin: args.webOrigin,
-        target: { surface: surfaceOf(pending.surface), screen },
-        serverUrl: pending.serverUrl,
-        reason: args2.outcome.reason,
-      })
     const answer = await args.returns.answer({
-      state: pending.id,
+      state: args2.state,
       cookieHeader: args2.cookieHeader,
       outcome: args2.outcome,
-      fallbackWebPath: returnPathOf(screen),
+      fallbackWebPath: args2.fallbackWebPath,
     })
     return answer.kind === 'redirect'
       ? { kind: 'redirect', location: answer.location, setCookie: answer.clearCookie }
@@ -151,8 +136,14 @@ export const mcpOauthCallbackOf = (args: McpOauthCallbackArgs) => {
     const claim =
       state === undefined || state === '' ? null : await store.claimPending({ id: state })
     const pending = claim === null || claim.kind === 'missing' ? null : claim.pending
+    const fallbackWebPath = pending === null ? DEFAULT_RETURN_TO : returnPathOf(screenOf(pending))
     const answeredOf = async (outcome: ReturnOutcome): Promise<CallbackAnswer> =>
-      await answerOf({ pending, cookieHeader: request.cookie, outcome })
+      await answerOf({
+        state: state ?? '',
+        cookieHeader: request.cookie,
+        outcome,
+        fallbackWebPath,
+      })
     const failedAs = async (reason: string): Promise<CallbackAnswer> =>
       await answeredOf({ result: EReturnResult.Failed, reason })
     if (pending === null || claim === null) return await failedAs('unknown_state')

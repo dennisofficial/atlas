@@ -1,21 +1,10 @@
-import { EMcpOauthReturnSurface, EMcpServerSource } from '@dltech/atlas-wire'
-import { z } from 'zod'
-import { clientInformationSchema, type HostResolver } from '../../../agent'
+import { EMcpServerSource } from '@dltech/atlas-wire'
+import type { HostResolver } from '../../../agent'
 
 export enum EGrantRowStatus {
   Active = 'active',
   Expired = 'expired',
 }
-
-export const sealedPendingSchema = z.strictObject({
-  codeVerifier: z.string(),
-  clientInfo: clientInformationSchema,
-  tokenEndpoint: z.string(),
-  authMethods: z.array(z.string()).exactOptional(),
-  resource: z.string().exactOptional(),
-  redirectUri: z.string(),
-})
-export type SealedPending = z.infer<typeof sealedPendingSchema>
 
 export interface ServerGrantRow {
   id: string
@@ -36,17 +25,6 @@ export interface ServerGrantRow {
   oauthUpdatedAt: Date | null
 }
 
-export interface PendingRow {
-  id: string
-  userId: string
-  serverUrl: string
-  sealed: string
-  returnTo: string
-  returnSurface: EMcpOauthReturnSurface
-  expiresAt: Date
-  mcpServerId: string | null
-}
-
 export interface AttemptFence {
   id: string
   attemptId: string
@@ -54,8 +32,6 @@ export interface AttemptFence {
 }
 
 export abstract class McpOauthStore {
-  abstract insertPending(row: PendingRow): Promise<void>
-  abstract takePending(args: { id: string }): Promise<PendingRow | null>
   abstract findServer(args: { id: string }): Promise<ServerGrantRow | null>
   abstract listServers(args: {
     userId?: string | undefined
@@ -102,8 +78,6 @@ export abstract class McpOauthFetcher {
 }
 
 export abstract class McpOauthConfig {
-  abstract readonly redirectUri: string
-  abstract readonly webOrigin: string
   abstract readonly allowLocalTargets: boolean
   abstract readonly resolveHost?: HostResolver | undefined
 }

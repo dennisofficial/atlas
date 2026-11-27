@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'bun:test'
 import { EMcpOauthAccessOutcome, EMcpServerSource } from '@dltech/atlas-wire'
-import { AUTH, SERVER, TEST_CONFIG, json } from './mcp-oauth.fakes'
+import { AUTH, SERVER, TEST_REDIRECT_URI, json } from './mcp-oauth.fakes'
 import { sealJson, type SealedGrant } from '../../../agent'
 import { EGrantRowStatus } from './mcp-oauth.types'
 import {
@@ -106,7 +106,7 @@ describe('McpOauthAccessService.accessToken', () => {
       clientInfo: { clientId: 'client-1' },
       tokens: { accessToken: 'access-0', expiresAt: new Date(START - 1).toISOString() },
       tokenEndpoint: `${AUTH}/token`,
-      redirectUri: TEST_CONFIG.redirectUri,
+      redirectUri: TEST_REDIRECT_URI,
     }
     await env.store.writeGrant({
       id: server.id,
@@ -207,7 +207,7 @@ describe('McpOauthAccessService repo servers', () => {
       clientInfo: { clientId: 'client-1' },
       tokens: { accessToken: 'access-0', expiresAt: new Date(START + 3_600_000).toISOString() },
       tokenEndpoint: `${AUTH}/token`,
-      redirectUri: TEST_CONFIG.redirectUri,
+      redirectUri: TEST_REDIRECT_URI,
     }
     await env.store.writeGrant({
       id: repo.id,
@@ -240,7 +240,7 @@ describe('McpOauthAccessService repo servers', () => {
           clientInfo: { clientId: 'client-1' },
           tokens: { accessToken: 'access-0' },
           tokenEndpoint: `${AUTH}/token`,
-          redirectUri: TEST_CONFIG.redirectUri,
+          redirectUri: TEST_REDIRECT_URI,
         } satisfies SealedGrant,
       }),
     })
