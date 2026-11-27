@@ -117,6 +117,22 @@ describe('the outcome the service pod command records', () => {
   })
 })
 
+describe('a second restart of an ad-hoc service before the first ending is recorded', () => {
+  it('restarts the replacement instead of refusing on the stopped id', async () => {
+    const harness = rig()
+    const first = await startOf(harness)
+    const handle = serviceHandlerOf(harness.ctx)
+
+    const once = await handle(contextOf({ action: 'restart', serviceId: first }))
+    const twice = await handle(contextOf({ action: 'restart', serviceId: first }))
+
+    const stops = harness.calls.flatMap((call) => (call.op === 'services.stop' ? [call] : []))
+    expect([once, twice]).toEqual([{ kind: 'done' }, { kind: 'done' }])
+    expect(stops).toHaveLength(2)
+    expect(stops[1]?.serviceId).not.toBe(first)
+  })
+})
+
 describe('a second restart of a declared service before the first ending is recorded', () => {
   it('restarts the replacement instead of refusing on the stopped id', async () => {
     const harness = rig()

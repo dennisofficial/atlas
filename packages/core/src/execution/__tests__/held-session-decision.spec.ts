@@ -8,6 +8,7 @@ const base: HeldSnapshot = {
   turn: 'idle',
   stopPending: false,
   messagePending: false,
+  commandPending: false,
   parked: false,
   resumable: false,
   idleDue: false,
@@ -101,6 +102,51 @@ const cases: { name: string; snapshot: HeldSnapshot; action: EHeldAction }[] = [
   {
     name: 'draining waits past the idle deadline',
     snapshot: { ...base, draining: true, idleDue: true },
+    action: EHeldAction.Wait,
+  },
+  {
+    name: 'a pending command waits instead of starting a turn',
+    snapshot: { ...base, commandPending: true },
+    action: EHeldAction.Wait,
+  },
+  {
+    name: 'a pending command holds the pod past the idle deadline',
+    snapshot: { ...base, commandPending: true, idleDue: true },
+    action: EHeldAction.Wait,
+  },
+  {
+    name: 'a parked session waits for a pending command instead of releasing',
+    snapshot: { ...base, commandPending: true, parked: true },
+    action: EHeldAction.Wait,
+  },
+  {
+    name: 'a message beats a pending command',
+    snapshot: { ...base, commandPending: true, messagePending: true },
+    action: EHeldAction.StartTurn,
+  },
+  {
+    name: 'a pending command is prepared before it can run',
+    snapshot: { ...base, commandPending: true, workspace: EWorkspaceState.Unprepared },
+    action: EHeldAction.Prepare,
+  },
+  {
+    name: 'a pending command waits while the workspace prepares',
+    snapshot: { ...base, commandPending: true, workspace: EWorkspaceState.Preparing },
+    action: EHeldAction.Wait,
+  },
+  {
+    name: 'a pending command retries a failed workspace',
+    snapshot: {
+      ...base,
+      commandPending: true,
+      workspace: EWorkspaceState.Failed,
+      retryPending: true,
+    },
+    action: EHeldAction.Prepare,
+  },
+  {
+    name: 'a pending command waits for the running turn',
+    snapshot: { ...base, commandPending: true, turn: 'running' },
     action: EHeldAction.Wait,
   },
   {

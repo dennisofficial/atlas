@@ -28,6 +28,7 @@ import { countRunningShells, shellHoldOf } from './held-shells'
 import {
   actionableEntries,
   carriesPodResized,
+  isCommandEntry,
   isInterrupt,
   isNoticeEntry,
   isStop,
@@ -130,6 +131,7 @@ export const readHeldAction = async (args: {
   const messagePending =
     actionable.some(
       (entry) =>
+        !isCommandEntry(entry) &&
         !startsNoTurn(entry) &&
         !heldEndings.has(entry.inboxId) &&
         !(repairHeld && isNoticeEntry(entry)),
@@ -138,6 +140,9 @@ export const readHeldAction = async (args: {
       ids: logIds.filter((id) => !noticeIds.has(id) && !heldEndings.has(id)),
       failure: workspace.failure,
     }).length > 0
+  const commandPending = actionable.some(
+    (entry) => isCommandEntry(entry) && !startsNoTurn(entry) && !heldEndings.has(entry.inboxId),
+  )
   const quiet = idleReleaseDue({
     turnRunning: args.turnRunning,
     runtime: args.runtime,
@@ -171,6 +176,7 @@ export const readHeldAction = async (args: {
       turn: args.turnRunning ? 'running' : 'idle',
       stopPending: actionable.some(isStop),
       messagePending,
+      commandPending,
       resumable,
       parked,
       workspace: workspace.state,

@@ -31,6 +31,7 @@ export const eventsOf = (bodies: readonly RecordEventBody[]): RecordEvent[] =>
 const depsOf = (args: {
   entries?: readonly InboxEntry[] | undefined
   parkedAt?: string | null | undefined
+  commandKind?: string | undefined
 }): HeldSessionDeps =>
   ({
     sessionId: 'session-1',
@@ -40,6 +41,9 @@ const depsOf = (args: {
       endTerminals: async () => 0,
     } as unknown as ControlPlane,
     timers: { now: () => 0 },
+    ...(args.commandKind === undefined
+      ? {}
+      : { commands: { byInboxKind: new Map([[args.commandKind, {}]]) } }),
   }) as unknown as HeldSessionDeps
 
 const recordOf = (events: readonly RecordEvent[]): SessionRecord =>
@@ -58,11 +62,13 @@ export const snapshotOf = async (args: {
   inbox?: readonly InboxEntry[] | undefined
   parked?: boolean | undefined
   turnRunning?: boolean | undefined
+  commandKind?: string | undefined
 }) => {
   return await readHeldAction({
     deps: depsOf({
       entries: args.inbox,
       parkedAt: args.parked === true ? PARK_AT : null,
+      ...(args.commandKind === undefined ? {} : { commandKind: args.commandKind }),
     }),
     threadId: THREAD,
     draining: false,

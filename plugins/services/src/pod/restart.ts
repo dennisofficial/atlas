@@ -78,6 +78,33 @@ const restartDeclared = async (args: {
   })
 }
 
+const launchedIdOf = (outcome: ToolOutcome): string | undefined => {
+  if (!outcome.ok) return undefined
+  const output = outcome.output
+  if (typeof output !== 'object' || output === null || !('serviceId' in output)) return undefined
+  return typeof output.serviceId === 'string' ? output.serviceId : undefined
+}
+
+const newestDeclaredOf = (args: {
+  ctx: PluginPodContext
+  name: string
+  root: string
+}): string | undefined =>
+  servicesOfEvents(args.ctx.events())
+    .filter((row) => row.name === args.name && row.root === args.root)
+    .at(-1)?.serviceId
+
+const rememberReplacement = (args: {
+  state: ServicePodState
+  from: readonly string[]
+  to: string | undefined
+}): void => {
+  if (args.to === undefined) return
+  for (const from of args.from) {
+    if (from !== '' && from !== args.to) args.state.replacedBy.set(from, args.to)
+  }
+}
+
 export const restartService = async (args: {
   ctx: PluginPodContext
   state: ServicePodState
@@ -86,10 +113,11 @@ export const restartService = async (args: {
   signal?: AbortSignal | undefined
 }): Promise<ToolOutcome> => {
   const { ctx, state, input } = args
+  const requested = input.serviceId ?? ''
+  const serviceId = state.replacedBy.get(requested) ?? requested
   if (input.name !== undefined) {
     return restartDeclared({ ctx, state, name: input.name, place: args.place, signal: args.signal })
   }
-  const serviceId = input.serviceId ?? ''
   const row = servicesOfEvents(ctx.events()).find((kept) => kept.serviceId === serviceId)
   if (row === undefined || row.command === '') {
     return failureOutcome(
@@ -100,19 +128,27 @@ export const restartService = async (args: {
     )
   }
   if (row.name !== undefined && row.declarationHash !== undefined && row.root !== undefined) {
-    return restartDeclared({
+    const outcome = await restartDeclared({
       ctx,
       state,
       name: row.name,
       place: { root: row.root, ...(row.branch === undefined ? {} : { branch: row.branch }) },
       signal: args.signal,
     })
+    if (outcome.ok) {
+      rememberReplacement({
+        state,
+        from: [requested, serviceId],
+        to: newestDeclaredOf({ ctx, name: row.name, root: row.root }),
+      })
+    }
+    return outcome
   }
   if (row.status === EServiceStatus.Running) {
     const failed = await stopForRestart({ ctx, state, row, signal: args.signal })
     if (failed !== undefined) return failed
   }
-  return launchService({
+  const outcome = await launchService({
     ctx,
     state,
     command: row.command,
@@ -123,4 +159,6 @@ export const restartService = async (args: {
     declarationHash: row.declarationHash,
     signal: args.signal,
   })
+  rememberReplacement({ state, from: [requested, serviceId], to: launchedIdOf(outcome) })
+  return outcome
 }
