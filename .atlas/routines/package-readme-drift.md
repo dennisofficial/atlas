@@ -33,6 +33,10 @@
 - `packages/protocol`: the 64 KiB service-log tail lives in `apps/api/src/api/platform/sessions/services.service.ts:7`.
 - `packages/previews`: "`expose` takes a per-pod advisory lock" covers the row writes, not the Cloudflare create; the claim is still true.
 - `packages/sandbox`: "the v1 serve reserve" names the legacy reserve on purpose.
+- `packages/ui-native`: "a `selectable` Text on iOS is a `UITextView`" holds; the peer uses `UITextView` only when `selectable` is set.
+- `packages/ui-native`: the web `Spinner` `Loader2Icon` is lucide's alias of `LoaderCircle`.
+- `packages/client`: "the last 8 closed follows" is `WARM_FOLLOW_LIMIT` (`src/stream/warm-follows.ts:1`).
+- `packages/protocol`: the 18 ops in 10 groups match `src/ops/index.ts:17-30`.
 
 ## Runs
 
@@ -63,3 +67,11 @@
 - Corrected 16 READMEs. Most fixes: omitted public exports (`readPodStopBusy`, `sealPreviewTunnel`, `parkPod`, `sessionBootViewOf`, `validateMediaBytes`, quick-stop restores, core retention and shell names) and the new project group layer (skills, mcp, wire).
 - Removed names a consumer cannot import: host `readKey`, `planStep`, `stepDigestOf`, `crashSettleOf`; previews `PreviewTunnelClaims`.
 - Possible bugs: `SUBSCRIPTIONS_VIEW` still unregistered; `applyServePriority` and `SERVE_MEMORY_RESERVE` have no caller; `putMemory` skips the body limit; api-router does not export `ApiCredentials`.
+
+### 2026-11-27
+
+- Window: 26 h. 9 changed READMEs. Rotation: `packages/protocol`, `packages/sandbox` (no drift).
+- Corrected 10 READMEs. Most fixes: omitted public exports (core boot steps and `contextWindowLabel`, host `trace` and `timings`, protocol `/testing`, models `CatalogueProvider`).
+- Wrong claims: protocol usage `age` and egress projection, services `publicUrl` starts its service, observability `featureForTool` class.
+- Removed services `serviceHandlerOf` and `src/pod/commands.ts`, observability `src/ports.ts`.
+- Possible bugs: host `PrepareSpan.timingsOf` lets host timings overwrite a runtime timing of the same name.

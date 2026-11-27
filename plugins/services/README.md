@@ -52,12 +52,12 @@ its roster and its preview URLs.
 
 `service` takes one `action`:
 
-| Action    | What it does                                                                                                                                                                                                                                 |
-| --------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `start`   | Start a declared `name` or an ad-hoc `command`, never both. A `port` makes the call wait until the port answers, then publishes a URL. `exposePort: false` skips the exposure and returns no URL, so the service stays local to the sandbox. |
-| `stop`    | Signal the service and its process group. It takes a `serviceId` or a `name`.                                                                                                                                                                |
-| `restart` | Stop the service if it runs, then start it under a new id. A `name` re-reads the declaration.                                                                                                                                                |
-| `list`    | Name each service with id, name, state and port. `runningOnly` leaves out ended services.                                                                                                                                                    |
+| Action    | What it does                                                                                                                                                                                                                                                                                                      |
+| --------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `start`   | Start a declared `name` or an ad-hoc `command`, never both. A `port` makes the call wait until the port answers, then publishes a URL. A command that exits before the port answers fails the call at once. `exposePort: false` skips the exposure and returns no URL, so the service stays local to the sandbox. |
+| `stop`    | Signal the service and its process group. It takes a `serviceId` or a `name`.                                                                                                                                                                                                                                     |
+| `restart` | Stop the service if it runs, then start it under a new id. A `name` re-reads the declaration.                                                                                                                                                                                                                     |
+| `list`    | Name each service with id, name, state and port. `runningOnly` leaves out ended services.                                                                                                                                                                                                                         |
 
 `start` also takes a `description` and a `workdir` for an ad-hoc `command`, and a `readyTimeoutMs` in either form.
 
@@ -69,13 +69,10 @@ its roster and its preview URLs.
 | ---------- | ---------------------- | -------------------------------------------------------------------------------- |
 | `/service` | `<stop\|restart> <id>` | Stop or restart a service by id. Runs in the host, never in a session catalogue. |
 
-`serviceHandlerOf(ctx)` in `src/pod/commands.ts` calls the same `stopServiceAction` and
-`restartService` the `service` tool calls, so a service stopped from a drawer and one stopped by
-the model take one code path. It appends one `command-applied` row naming its inbox id once it has
-acted, so a holder that takes the session over does not run the command again. It takes no `start` action: a declared-but-stopped service has no
-row, so the operator has nothing to act on. It refuses a line with no service id, and a refused
-stop or restart carries the daemon's own sentence. `servicesClient` gives one hook,
-`services-roster`, which applies to the `service-*` events.
+`/service` calls the same stop and restart paths as the `service` tool. It takes no `start` action:
+a declared-but-stopped service has no row, so the operator has nothing to act on. It refuses a line
+with no service id, and a refused stop or restart carries the daemon's own sentence.
+`servicesClient` gives one hook, `services-roster`, which applies to the `service-*` events.
 
 ## Usage
 
@@ -102,7 +99,7 @@ definePlugin({
 - A declared service runs in the checkout the thread stands in. In a worktree, its `.atlas/services.yaml` is read, a relative `cwd` resolves inside the worktree, and its `setup` runs once for that worktree.
 - One declared name runs once per checkout. Two worktrees run the same name at once: the second gets a port of its own (derived from the name and the checkout) when another service already runs on the declared port, so its preview URL differs too. The command must listen on `$PORT`.
 - A process outside the services that holds the declared port does not move the service. A container published on that port answers the ready check, and a real clash fails loudly with the port in use.
-- `${services.<name>.url|port|publicUrl}` in `env` resolves against the services of the same checkout, and starts them first.
+- `${services.<name>.url}` and `${services.<name>.port}` in `env` resolve against the services of the same checkout, and start them first. `${services.<name>.publicUrl}` resolves against the same checkout, but it does not start the service.
 - `stop`, `restart` and the stale mark of a `name` act on the service of the current checkout. A list row names the worktree branch.
 - `start` takes a `name` or a `command`, never both.
 - When the daemon restarts, or a host reattaches after one, each declared service that was running

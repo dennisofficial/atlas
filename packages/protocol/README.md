@@ -93,11 +93,24 @@ that serves it advertises `EDaemonCapability.McpRequest`.
 ### Speak the session API
 
 - `sessionListInputSchema`, `sessionSummarySchema`, `sessionListOutputSchema`: the session list.
-- `sessionCreateInputSchema`, `sessionPostInputSchema`, `sessionEventsOutputSchema`: create, post, read.
+- `sessionCreateInputSchema`, `sessionPostInputSchema`, `sessionEventsInputSchema`,
+  `sessionEventsOutputSchema`: create a session, post a message and read its events.
+- `sessionViewInputSchema`, `sessionViewOutputSchema`: the status, context meter, spend, checkouts
+  and linked pull requests of one session.
+- `sessionWithdrawInputSchema`, `sessionRetryInputSchema`, `sessionStopInputSchema`,
+  `sessionCommandInputSchema`, `sessionCommandsOutputSchema`: withdraw a queued message, retry,
+  stop, run a command and list the commands.
+- `sessionWakeInputSchema`, `sessionSleepPodInputSchema`, `sessionHoldPodInputSchema`,
+  `sessionPodMetricsInputSchema`, `podMetricsFrameSchema`: the pod power of a session, and its
+  metrics stream.
+- `sessionDraftPutInputSchema`, `sessionDraftGetInputSchema`, `sessionDraftClearInputSchema`: the
+  unsent message of a session, or of the composer before a session exists.
+- `sessionChangesInputSchema`, `sessionChangesOutputSchema`, `sessionChangeContentInputSchema`,
+  `sessionChangeContentOutputSchema`: the changed files of each checkout, and one file at one side.
 - `sessionSubscriptionSchema`, `sessionSubscribeInputSchema`, `sessionUnsubscribeInputSchema`: a subscription has no expiry. `mediaPresignInputSchema`, `mediaConfirmInputSchema`, `mediaUrlInputSchema`: a composer upload, its confirmation, and the signed read of a stored picture.
 - `ESandboxProvider`, `ECredentialSource`, `ESandboxStatus`: the sandbox provider, its source and status.
 - `usageReportInputSchema`, `usageReportDtoSchema`, `usageWindowDtoSchema`: a plan account's usage
-  as the API reports it, by account id or by provider, with the age of the reading.
+  as the API reports it, by account id or by provider, with the time of the reading.
 
 ### Carry a message payload
 
@@ -109,14 +122,17 @@ that serves it advertises `EDaemonCapability.McpRequest`.
 ### Repair a diagram
 
 - `diagramRepairInputSchema`, `diagramRepairOutputSchema`: repair a Mermaid diagram in place, and
-  return its new source. `diagramRepairListInputSchema`, `diagramRepairListOutputSchema`: list the
-  repairs that a session holds.
+  return the repaired source, or the reason that it failed. `diagramRepairListInputSchema`,
+  `diagramRepairListOutputSchema`: list the repairs that a session holds.
 
 ### Speak the stream protocol
 
 - `parseServerMessage(raw)`, `parseClientMessage(raw)`: parse a frame, or refuse it.
 - `STREAM_PROTOCOL_VERSION`, `STREAM_MAX_CLIENT_FRAME_BYTES`, `STREAM_TAIL_EVENTS`: the limits.
-- `EStreamClose`, `EStreamErrorCode`, `EStreamSurface`: the close reason, error and surface. An `events` frame carries `cursor`: the stored `{seq, hash}` of its last event, which a client resumes from. The events themselves may be projected for egress, so a hash of the frame is not the stored one.
+- `EStreamClose`, `EStreamErrorCode`, `EStreamSurface`: the close reason, error and surface. An
+  `events` frame carries `cursor`, the stored `{seq, hash}` of its last event, and `head`, the stored
+  position at the head of the thread. A client resumes from `cursor` or `head`, not from a hash of
+  the frame.
 
 ### Run the daemon side of the link
 
@@ -130,7 +146,19 @@ that serves it advertises `EDaemonCapability.McpRequest`.
 
 - `MAC_LINK_PATH`, `jsonRpcMessageSchema`, `macServerTransportSchema`: the relay and its transport.
 - `macLinkPresenceKey(userId)`, `macLinkChannel(userId)`: the presence key and channel of a user.
-- `macHostFrameSchema`, `macClientFrameSchema`, `macRelayFrameSchema`: the three frame directions.
+- `macHostFrameSchema`, `macClientFrameSchema`, `macRelayFrameSchema`: the host frames, the client
+  frames, and the relay envelope that carries one frame to a peer.
+
+### Test against a fake daemon
+
+- `createInMemoryDaemon({ version, sandboxName, secret, groups? })`: a daemon that serves the link
+  from memory. `inMemoryDaemonToken`: the token that its hello frame needs.
+- `FrameQueue`, `sessionOverQueue({ queue, sendText, close, closed })`: a queue of parsed daemon
+  frames, and a host session that sends over it.
+- `MemoryFileSystem`, `fakeDaemonGroups({ fs })`: an in-memory filesystem, and the fake op groups
+  that run over it.
+- `describeDaemonConformance(target)`, `DaemonConformanceTarget`, `DaemonHandle`: the suite that a
+  daemon target must pass.
 
 ## Usage
 

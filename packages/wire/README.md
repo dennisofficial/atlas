@@ -98,7 +98,9 @@ settings, grants, skills and MCP servers apply to each project in it. `projectSc
   `routedUrlOf(sandbox)`, `assertLiveSession`.
 - `SANDBOX_REGION`, `SANDBOX_SERVE_PORT`, `WORKSPACE_PATH`, `SANDBOX_TIMEOUT_MS`.
 - `settleRetry`, `imageOptimizeRetry`, `retrySleep(policy)`: the retry policies.
-- `EBootStep`, `BOOT_STEP_ORDER`, `BOOT_STEP_EVENT_TYPE`: the boot progress the pod reports.
+- `EBootStep`, `EBootStepState`, `EBootStepOutcome`, `BOOT_STEP_ORDER`: the boot progress the pod
+  reports. `@dltech/atlas-core` owns them, and wire re-exports them.
+- `BOOT_STEP_EVENT_TYPE`: the event that carries one boot step.
 
 ## Usage
 

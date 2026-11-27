@@ -69,6 +69,8 @@ BUN_TEST_INCREMENTAL=1 bun test
   `BUN_TEST_INCREMENTAL_GLOBAL_INPUTS`. A change to it changes the global key and reruns everything.
 - Put an environment variable name that a spec reads in `BUN_TEST_INCREMENTAL_ENV`, as a
   comma-separated list, to add it to the global key.
+- Put `BUN_TEST_INCREMENTAL_SUMMARY_DIR` in the environment to write one JSON summary for each test
+  process: its project, its global key, `reused`, `executed` and `failedFiles`.
 - Each passing record is its own file, named by its content. Restoring several copies of the cache
   into one directory, as each CI shard does, therefore never replaces a newer record with a stale
   one. A miss caused by a changed input names the pass it was compared to.
