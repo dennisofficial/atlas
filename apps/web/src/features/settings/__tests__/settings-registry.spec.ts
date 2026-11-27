@@ -2,13 +2,7 @@ import { describe, expect, it } from 'bun:test'
 import { existsSync } from 'node:fs'
 import { join } from 'node:path'
 
-import {
-  ESettingsPage,
-  SETTINGS_NAV,
-  filterNav,
-  hrefOfPage,
-  settingsPageOfPath,
-} from '../settings-nav'
+import { ESettingsPage, SETTINGS_NAV, hrefOfPage, settingsPageOfPath } from '../settings-nav'
 import { EPageStatus, SETTINGS_PAGE_STATUS } from '../status/page-status'
 
 const SETTINGS_APP_DIR = join(import.meta.dir, '../../../app/(private)/settings')
@@ -26,17 +20,10 @@ describe('settings page registry', () => {
     }
   })
 
-  it('filters nav items by label or group label', () => {
-    const memory = filterNav({ groups: SETTINGS_NAV, query: 'memory' })
-    expect(memory.flatMap((group) => group.items.map((item) => item.page))).toEqual([
-      ESettingsPage.Memory,
-    ])
-    const library = filterNav({ groups: SETTINGS_NAV, query: 'library' })
-    expect(library.flatMap((group) => group.items.map((item) => item.page))).toEqual([
-      ESettingsPage.Access,
-      ESettingsPage.Groups,
-    ])
-    expect(filterNav({ groups: SETTINGS_NAV, query: 'zzz' })).toEqual([])
+  it('gives every nav item its icon', () => {
+    for (const item of SETTINGS_NAV.flatMap((group) => group.items)) {
+      expect(item.icon).toBeDefined()
+    }
   })
 })
 

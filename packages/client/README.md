@@ -29,6 +29,7 @@ The headless client library that web, the TUI and the mobile app share.
 | `@dltech/atlas-client/crew`                     | The crew readout, the sub-agent state and the background work.                                                                                                 |
 | `@dltech/atlas-client/session`                  | The session create input, the rewind, the summarise, the image upload, the composer attachments, the message input, the draft sync and the sandbox start view. |
 | `@dltech/atlas-client/account`                  | The Atlas Cloud device-code login.                                                                                                                             |
+| `@dltech/atlas-client/settings`                 | The settings page and section lists that every surface lists and filters: user, project and group scope.                                                       |
 | `@dltech/atlas-client/browser-return`           | The outcomes a browser sign-in brought back, held by the state of its start link.                                                                              |
 | `@dltech/atlas-client/transcript`               | The transcript rows, the tool runs and the turn rows.                                                                                                          |
 | `@dltech/atlas-client/stream-fixture`           | A fake scheduler and transport, and the event factories, for a spec.                                                                                           |
@@ -51,6 +52,15 @@ The headless client library that web, the TUI and the mobile app share.
 - `nestPeers(rows)` nests each teammate under its spawner. `peerBucketOf({ row })` and
   `EPeerBucket` give a row's bucket; `splitTeammates(rows)` gives its active and done teammates.
   `isRecentProject(args)`, `lastActivityAt(args)` and `RECENT_PROJECT_WINDOW_MS` keep new projects.
+
+### List settings
+
+- `ESettingsPage`, `SETTINGS_NAV`, `labelOfPage(page)`, `filterNav({ groups, query })`: the user-level
+  settings pages, in nav groups, labelled and searchable. `filterNav` keeps whatever a surface adds
+  to an item, such as its icon.
+- `EProjectSettingsSection`, `PROJECT_SECTIONS`: the project settings sections in web order.
+- `EGroupSettingsSection`, `GROUP_SECTIONS`: the group settings sections, which inherit the project
+  sections and add the group-only ones.
 
 ### Keep the log and the view
 

@@ -9,6 +9,7 @@ import { barHeaderOptionsOf, usesGlassHeader } from '../../navigation/glass-head
 import { pushedHeaderOptionsOf } from '../../navigation/header-options'
 import { InAppNoticesProvider } from '../../notifications/in-app-notices-provider'
 import { SessionsDrawerProvider } from '../../sessions/sessions-drawer-state'
+import { SETTINGS_STACK_SCREENS } from '../../settings/settings-routes'
 import { sessionIdOfPathname } from '../../thread/session/presence-state'
 import { usePresenceReport } from '../../thread/session/use-presence-report'
 
@@ -71,13 +72,6 @@ const AppStack = () => {
         }}
       />
       <Stack.Screen
-        name="project-settings/[projectId]"
-        options={{
-          ...pushedHeaderOptions,
-          ...pushedHeaderOptionsOf({ title: 'Project settings', barWidth }),
-        }}
-      />
-      <Stack.Screen
         name="diagram"
         options={{
           title: 'Diagram',
@@ -101,13 +95,16 @@ const AppStack = () => {
           ...pushedHeaderOptionsOf({ title: 'Dictation lab', barWidth }),
         }}
       />
-      <Stack.Screen
-        name="settings"
-        options={{
-          ...pushedHeaderOptions,
-          ...pushedHeaderOptionsOf({ title: 'Settings', barWidth }),
-        }}
-      />
+      {SETTINGS_STACK_SCREENS.map((screen) => (
+        <Stack.Screen
+          key={screen.name}
+          name={screen.name}
+          options={{
+            ...pushedHeaderOptions,
+            ...pushedHeaderOptionsOf({ title: screen.title, barWidth }),
+          }}
+        />
+      ))}
     </Stack>
   )
 }
