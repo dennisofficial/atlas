@@ -1,4 +1,5 @@
 import {
+  CallHandedOffError,
   CallInterruptedError,
   type ActiveWorktree,
   type OnToolOutput,
@@ -8,6 +9,8 @@ import {
   type ToolOutcome,
 } from '@dltech/atlas-core'
 import { errorClassOf, logFieldsOf, type LogPort } from '@dltech/atlas-observability'
+
+import { HandoffAborted } from '../loop/retry-ledger'
 
 const messageOf = (error: unknown): string =>
   error instanceof Error ? error.message : String(error)
@@ -39,6 +42,7 @@ export async function invokeTool(args: {
     })
   } catch (error) {
     if (error instanceof CallInterruptedError) throw error
+    if (error instanceof CallHandedOffError) throw new HandoffAborted()
     args.logPort?.error({
       source: 'tools.dispatch',
       message: `the ${args.call.name} tool threw`,
