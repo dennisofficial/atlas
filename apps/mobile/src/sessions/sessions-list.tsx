@@ -68,14 +68,12 @@ export const SessionsList = ({
   onQueryChange,
   query,
   showsSearchField,
-  trailingInset = 0,
 }: {
   activeId: string | null
   onOpen: (entry: ISessionEntry) => void
   onQueryChange: (text: string) => void
   query: string
   showsSearchField: boolean
-  trailingInset?: number
 }) => {
   const theme = useTheme()
   const insets = useSafeAreaInsets()
@@ -163,14 +161,7 @@ export const SessionsList = ({
           onLayout={handleListLayout}
           onScrollToIndexFailed={handleScrollToIndexFailed}
           style={{ backgroundColor: theme.sidebar }}
-          contentContainerStyle={[
-            styles.list,
-            {
-              paddingBottom: space(8) + insets.bottom,
-              paddingRight: LIST_EDGE_INSET + trailingInset,
-            },
-          ]}
-          scrollIndicatorInsets={{ right: trailingInset }}
+          contentContainerStyle={[styles.list, { paddingBottom: space(8) + insets.bottom }]}
           keyboardDismissMode={showsSearchField ? 'on-drag' : 'none'}
           contentInsetAdjustmentBehavior="automatic"
           sections={sections}

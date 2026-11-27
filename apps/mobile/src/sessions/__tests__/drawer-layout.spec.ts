@@ -5,7 +5,6 @@ import { ESessionsListLayout } from '../../layout/posture'
 import { OVERLAY_MIN_WIDTH, OVERLAY_WIDTH_RATIO } from '../sessions-overlay'
 import {
   drawerDockedOf,
-  drawerColumnReachOf,
   drawerGeometryOf,
   drawerHidableOf,
   drawerOpenByDefaultOf,
@@ -178,20 +177,5 @@ describe('paneWidthOf', () => {
     expect(
       paneWidthOf({ listLayout: ESessionsListLayout.Stacked, width: 440, drawerOpen: true }),
     ).toBe(440)
-  })
-})
-
-describe('drawerColumnReachOf', () => {
-  it('lets the full-width list reach under the Duo column so its bar buttons move there', () => {
-    expect(drawerColumnReachOf({ listLayout: ESessionsListLayout.Stacked, columnInset: 62 })).toBe(
-      62,
-    )
-  })
-
-  it('keeps the overlay and the panel clear of the column', () => {
-    expect(drawerColumnReachOf({ listLayout: ESessionsListLayout.Overlay, columnInset: 62 })).toBe(
-      0,
-    )
-    expect(drawerColumnReachOf({ listLayout: ESessionsListLayout.Panel, columnInset: 62 })).toBe(0)
   })
 })

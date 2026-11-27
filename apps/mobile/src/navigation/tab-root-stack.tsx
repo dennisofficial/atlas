@@ -5,13 +5,7 @@ import { SideInsetFrame } from '../layout/side-inset-frame'
 import { useContentWidth } from '../layout/use-content-width'
 import { tabHeaderOptionsOf } from './header-options'
 
-export const TabRootStack = ({
-  title,
-  offersNewSession = true,
-}: {
-  title: string
-  offersNewSession?: boolean
-}) => {
+export const TabRootStack = ({ title }: { title: string }) => {
   const theme = useTheme()
   const contentWidth = useContentWidth()
   return (
@@ -19,10 +13,7 @@ export const TabRootStack = ({
       <Stack screenOptions={{ contentStyle: { backgroundColor: theme.sidebar } }}>
         <Stack.Screen
           name="index"
-          options={{
-            ...tabHeaderOptionsOf({ title, barWidth: contentWidth, offersNewSession }),
-            animation: 'none',
-          }}
+          options={{ ...tabHeaderOptionsOf({ title, barWidth: contentWidth }), animation: 'none' }}
         />
       </Stack>
     </SideInsetFrame>
