@@ -33,6 +33,10 @@ export const dampingRatioOf = (spring: ISpring): number =>
 
 export const COLOR_TRANSITION_MS = 200
 
+export const ICON_SWAP_MS = 180
+
+export const ICON_SWAP_FROM_SCALE = 0.5
+
 export const PRESSED_SCALE = 1.08
 export const PRESS_IN_SPRING: ISpring = { damping: 17, stiffness: 400, mass: 0.5 }
 export const RELEASE_SPRING: ISpring = { damping: 28, stiffness: 400, mass: 0.5 }

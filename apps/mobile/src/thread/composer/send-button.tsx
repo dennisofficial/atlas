@@ -2,12 +2,21 @@ import { Icon, Spinner, useTheme } from '@dltech/atlas-ui-native'
 import type { SemanticTheme } from '@dltech/atlas-ui/tokens'
 import { ArrowUp, type LucideIcon, Square } from 'lucide-react-native'
 import { Pressable, StyleSheet } from 'react-native'
-import Animated, { useAnimatedStyle, useSharedValue, withSpring } from 'react-native-reanimated'
+import Animated, {
+  Easing,
+  Keyframe,
+  LayoutAnimationConfig,
+  useAnimatedStyle,
+  useSharedValue,
+  withSpring,
+} from 'react-native-reanimated'
 
 import { playPressHaptic } from './send-haptic'
 import {
   COLOR_TRANSITION_MS,
   ESendAction,
+  ICON_SWAP_FROM_SCALE,
+  ICON_SWAP_MS,
   type ISendButtonProps,
   PRESSED_SCALE,
   PRESS_IN_SPRING,
@@ -21,6 +30,19 @@ const ICON: Record<ESendAction, LucideIcon> = {
   [ESendAction.Send]: ArrowUp,
   [ESendAction.Stop]: Square,
 }
+
+const HIDDEN = { opacity: 0, transform: [{ scale: ICON_SWAP_FROM_SCALE }] }
+const SHOWN = { opacity: 1, transform: [{ scale: 1 }] }
+
+const ICON_IN = new Keyframe({
+  0: HIDDEN,
+  100: { ...SHOWN, easing: Easing.out(Easing.cubic) },
+}).duration(ICON_SWAP_MS)
+
+const ICON_OUT = new Keyframe({
+  0: SHOWN,
+  100: { ...HIDDEN, easing: Easing.in(Easing.cubic) },
+}).duration(ICON_SWAP_MS)
 
 const colorsOf = ({
   action,
@@ -80,11 +102,20 @@ export const SendButton = ({
             },
           ]}
         >
-          {loading ? (
-            <Spinner color={colors.foreground} />
-          ) : (
-            <Icon icon={ICON[action]} color={colors.foreground} size={14} />
-          )}
+          <LayoutAnimationConfig skipEntering skipExiting>
+            <Animated.View
+              key={loading ? 'loading' : action}
+              entering={ICON_IN}
+              exiting={ICON_OUT}
+              style={styles.glyph}
+            >
+              {loading ? (
+                <Spinner color={colors.foreground} />
+              ) : (
+                <Icon icon={ICON[action]} color={colors.foreground} size={14} />
+              )}
+            </Animated.View>
+          </LayoutAnimationConfig>
         </Animated.View>
       </Pressable>
     </Animated.View>
@@ -98,5 +129,14 @@ const styles = StyleSheet.create({
     height: SEND_BUTTON_SIZE,
     justifyContent: 'center',
     width: SEND_BUTTON_SIZE,
+  },
+  glyph: {
+    bottom: 0,
+    left: 0,
+    position: 'absolute',
+    right: 0,
+    top: 0,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
 })
