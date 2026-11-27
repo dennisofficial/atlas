@@ -51,7 +51,7 @@ const restartDeclared = async (args: {
     )
   }
   const running = runningDeclaredOf({
-    rows: servicesOfEvents(ctx.events()),
+    rows: servicesOfEvents(ctx.events()).filter((row) => !args.state.stopping.has(row.serviceId)),
     name: args.name,
     root: place.root,
   })

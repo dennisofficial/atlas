@@ -15,6 +15,7 @@ import type { SessionPaneValue } from './pane-value'
 import { previewPortsOf } from './preview-ports'
 import { enteredWorktreePathOf } from '../data/entered-worktree'
 import { contextChangesOf } from '../data/context-files'
+import { usePreviewWake } from '../data/use-preview-wake'
 import { useTurnEndCount } from '@/features/threads/data/use-git-changes'
 
 export type PaneSnapshot = Pick<SessionSnapshot, 'view' | 'status' | 'shells' | 'foldable'>
@@ -26,7 +27,6 @@ export type SessionPaneWiring = {
   ports: PreviewPort[]
   shellTails: Readonly<Record<string, string>>
   openBrowser: (url: string) => void
-  openBrowserTab: () => void
 }
 
 export function useSessionPaneWiring(args: {
@@ -54,13 +54,19 @@ export function useSessionPaneWiring(args: {
   const turnEnds = useTurnEndCount(isSessionWorking(status))
   const ports = useMemo(() => previewPortsOf(model.previews), [model.previews])
   const openBrowserTab = useCallback(() => openTab(ESessionPaneTab.Browser), [openTab])
-  const openBrowser = useCallback(
+  const handleOpen = useCallback(
     (url: string) => {
       openBrowserUrl({ sessionId, url, ports })
       openBrowserTab()
     },
     [sessionId, ports, openBrowserTab],
   )
+  const openBrowser = usePreviewWake({
+    sessionId,
+    power: status?.pod?.power?.phase,
+    ports,
+    open: handleOpen,
+  })
   const paneValue = useMemo<SessionPaneValue>(
     () => ({
       sessionId,
@@ -106,5 +112,5 @@ export function useSessionPaneWiring(args: {
       pane.consumePodSizeRequest,
     ],
   )
-  return { paneValue, ports, shellTails, openBrowser, openBrowserTab }
+  return { paneValue, ports, shellTails, openBrowser }
 }

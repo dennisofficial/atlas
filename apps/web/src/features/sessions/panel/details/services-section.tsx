@@ -155,25 +155,21 @@ export function SessionServicesSection() {
                   </span>
                 }
                 trailing={
-                  paused ? (
-                    <PausedTag />
-                  ) : (
-                    <span className="flex items-center gap-1">
-                      <ServiceVerbs sessionId={sessionId} service={row} />
-                      {preview === undefined ? null : (
-                        <button
-                          type="button"
-                          aria-label={`Open ${preview.label}`}
-                          title={preview.url}
-                          onClick={() => openBrowser(preview.url)}
-                          className="flex items-center gap-0.5 rounded-sm outline-none hover:text-foreground focus-visible:ring-2 focus-visible:ring-ring/50"
-                        >
-                          open
-                          <ArrowUpRightIcon aria-hidden className="size-3" />
-                        </button>
-                      )}
-                    </span>
-                  )
+                  <span className="flex items-center gap-1">
+                    {paused ? <PausedTag /> : <ServiceVerbs sessionId={sessionId} service={row} />}
+                    {preview === undefined ? null : (
+                      <button
+                        type="button"
+                        aria-label={`Open ${preview.label}`}
+                        title={preview.url}
+                        onClick={() => openBrowser(preview.url)}
+                        className="flex items-center gap-0.5 rounded-sm outline-none hover:text-foreground focus-visible:ring-2 focus-visible:ring-ring/50"
+                      >
+                        open
+                        <ArrowUpRightIcon aria-hidden className="size-3" />
+                      </button>
+                    )}
+                  </span>
                 }
                 label={`Open the ${name} log`}
                 onSelect={() => setOpened(row.serviceId)}

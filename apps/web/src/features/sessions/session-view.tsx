@@ -324,10 +324,9 @@ export function SessionView({ sessionId }: { sessionId: string }) {
   return (
     <SessionPaneProvider value={wiring.paneValue}>
       <SessionPreviewsProvider
-        sessionId={sessionId}
         ports={wiring.ports}
         loaded={snapshot.view !== undefined}
-        onOpened={wiring.openBrowserTab}
+        onOpen={wiring.openBrowser}
       >
         <ThreadPanelProvider value={panel}>
           <div className="flex min-h-0 flex-1 flex-col">
