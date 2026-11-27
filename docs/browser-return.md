@@ -91,7 +91,7 @@ sign-in results for flows, not tokens.
 - iOS opens `atlas://auth/callback` through `WebBrowser.openAuthSessionAsync` and the system hands
   the code back to the app (`apps/mobile/src/auth/sign-in-flow.ts`).
 - The TUI runs the RFC 8252 loopback as well, on the `/desktop/auth/callback` path its listener
-  serves (`startLoopbackWait` in `apps/tui/src/app/browser-return/loopback-server.ts`). A terminal
+  serves (`startLoopbackWait` in `@dltech/atlas-client/loopback`). A terminal
   that cannot open a browser on its own machine uses the RFC 8628 device code instead:
   `loginFlowOf` chooses the device code over SSH (`SSH_CONNECTION`, `SSH_TTY`) or on Linux with no
   `DISPLAY` and no `WAYLAND_DISPLAY`. The listener gives up, or fails to bind, and the flow falls
@@ -148,8 +148,25 @@ const answer = await returns.answer({
 ## Provider subscriptions (Claude, ChatGPT)
 
 The provider clients Atlas borrows accept only loopback redirects, so no Atlas callback can receive
-their code. The TUI binds the loopback the provider allows (ChatGPT `127.0.0.1:1455`, then `1457`;
-Claude `localhost:<free port>`), starts the attempt with `providerSignIn.begin({ flow: 'loopback',
-redirectUri })`, and finishes it with `providerSignIn.complete`. Over SSH or with no display it keeps
-paste (Claude) and the device code (ChatGPT). Web and iOS keep those flows; Mac moves to the loopback
-in a host release.
+their code. The TUI and Mac host bind the loopback the provider allows (ChatGPT
+`127.0.0.1:1455`, then `1457`; Claude `localhost:<free port>`), start the attempt with
+`providerSignIn.begin({ flow: 'loopback', redirectUri })`, and finish it with
+`providerSignIn.complete`. The Bun-only `@dltech/atlas-client/loopback` entry point owns the
+listener and provider return validation, so both clients use the same checks and cancellation.
+Over SSH or with no display the TUI keeps paste (Claude) and the device code (ChatGPT).
+Web and iOS keep those flows.
+
+The Mac web payload starts the guarded `POST /desktop/provider-sign-in/start { provider }`
+route. The host binds first, calls begin with its bearer, opens the system browser and returns
+`{ attemptId }`. It receives and exchanges the code itself; no authorization code crosses into the
+web payload. `GET /desktop/provider-sign-in/status?attempt=<id>` reads the host's in-memory
+`pending`, `signed-in`, `failed` or `cancelled` outcome. The payload polls this **local host**
+every two seconds, not the network API, and refreshes its account list on `signed-in`.
+`POST /desktop/provider-sign-in/stop { attemptId }` closes the listener on cancel or unmount.
+Sign-out and host shutdown also cancel active attempts.
+
+This needs the new Mac host build and the next web deploy. An old host answers 404 on start;
+a host that cannot bind, begin or open the browser answers 409 or 502 with a fallback reason.
+The web payload falls back to paste (Claude) or device code (ChatGPT) in those cases.
+Merging to main triggers `.github/workflows/ci.yml`'s `mac-release` job for this host change;
+there is no manual release step.

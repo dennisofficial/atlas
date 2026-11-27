@@ -9,6 +9,8 @@ import {
   type ProviderSignInBegin,
 } from '@dltech/atlas-wire/web'
 
+import { isDesktopHost } from '@/features/desktop/desktop-attributes'
+import { EDesktopProviderResult, signInThroughDesktop } from './desktop-provider-sign-in'
 import { errorMessageOf } from './error-message'
 import {
   beginProviderSignIn,
@@ -23,12 +25,14 @@ export enum EProviderSignInState {
   AwaitingCode = 'awaiting-code',
   Submitting = 'submitting',
   Waiting = 'waiting',
+  Browser = 'browser',
   Failed = 'failed',
 }
 
 export type ProviderSignInFlow =
   | { status: EProviderSignInState.Idle }
   | { status: EProviderSignInState.Starting }
+  | { status: EProviderSignInState.Browser }
   | { status: EProviderSignInState.AwaitingCode; authorizeUrl: string }
   | { status: EProviderSignInState.Submitting; authorizeUrl: string }
   | {
@@ -57,17 +61,21 @@ export function useProviderSignIn(args: {
   const { provider, onChanged } = args
   const [flow, setFlow] = useState<ProviderSignInFlow>(IDLE)
   const run = useRef(0)
+  const desktopRun = useRef<AbortController | null>(null)
   const attempt = useRef<{ attemptId: string; authorizeUrl: string } | null>(null)
 
   useEffect(
     () => () => {
       run.current += 1
+      desktopRun.current?.abort()
     },
     [],
   )
 
   const cancel = useCallback(() => {
     run.current += 1
+    desktopRun.current?.abort()
+    desktopRun.current = null
     attempt.current = null
     setFlow(IDLE)
   }, [])
@@ -103,12 +111,30 @@ export function useProviderSignIn(args: {
 
   const start = useCallback(() => {
     run.current += 1
+    desktopRun.current?.abort()
+    const controller = new AbortController()
+    desktopRun.current = controller
     const id = run.current
     const isCurrent = () => run.current === id
     attempt.current = null
     setFlow({ status: EProviderSignInState.Starting })
     void (async () => {
       try {
+        if (isDesktopHost(window)) {
+          const result = await signInThroughDesktop({
+            provider,
+            signal: controller.signal,
+            onWaiting: () => {
+              if (isCurrent()) setFlow({ status: EProviderSignInState.Browser })
+            },
+          })
+          if (!isCurrent()) return
+          if (result !== EDesktopProviderResult.Fallback) {
+            setFlow(IDLE)
+            if (result === EDesktopProviderResult.SignedIn) onChanged()
+            return
+          }
+        }
         const begun = await beginProviderSignIn(provider)
         if (!isCurrent()) return
         if (begun.flow === EProviderSignInFlow.PasteCode) {
@@ -138,9 +164,11 @@ export function useProviderSignIn(args: {
             status: EProviderSignInState.Failed,
             message: errorMessageOf(error),
           })
+      } finally {
+        if (isCurrent()) desktopRun.current = null
       }
     })()
-  }, [provider, waitForApproval])
+  }, [provider, waitForApproval, onChanged])
 
   const submitCode = useCallback(
     (code: string) => {

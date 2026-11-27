@@ -10,13 +10,13 @@ import {
   parsedUrlOf,
 } from '@dltech/atlas-core'
 
-import type { LoopbackCopy } from '../browser-return/loopback-page'
+import type { LoopbackCopy } from './loopback-page'
 import {
   startLoopbackListener,
   type LoopbackAccepted,
   type LoopbackListener,
   type LoopbackListenerSpec,
-} from '../browser-return/loopback-server'
+} from './loopback-server'
 
 export type ProviderLoopbackShape = {
   ports: readonly number[]
@@ -36,10 +36,12 @@ export type ProviderLoopbackReturn = { code: string } | { error: string }
 export type ProviderLoopbackDone = { attemptId: string; code: string }
 
 export type ProviderLoopback = {
+  attemptId: string
   port: number
   redirectUri: string
   authorizeUrl: string
   done: Promise<ProviderLoopbackDone | undefined>
+  outcome: Promise<ProviderLoopbackReturn | undefined>
   stop: () => void
 }
 
@@ -116,10 +118,12 @@ export const startProviderLoopback = async (args: {
   timeoutMs?: number | undefined
   signal?: AbortSignal | undefined
 }): Promise<ProviderLoopback> => {
+  const isCancelled = () => args.signal?.aborted === true
+  if (isCancelled()) throw new Error('the sign-in was cancelled')
   const shape = providerLoopbackOf(args.provider)
   if (shape === undefined) throw new Error(`no loopback for ${args.provider}`)
 
-  const held: { state: string | undefined } = { state: undefined }
+  const held: { state: string | undefined; closed: boolean } = { state: undefined, closed: false }
   const listener = bindOnFreePort({
     copy: providerLoopbackCopyOf(shape),
     ports: args.ports ?? shape.ports,
@@ -137,30 +141,24 @@ export const startProviderLoopback = async (args: {
 
   const handleAbort = () => listener.stop()
   args.signal?.addEventListener('abort', handleAbort, { once: true })
+  void listener.outcome.then(() => {
+    held.closed = true
+    args.signal?.removeEventListener('abort', handleAbort)
+  })
   const redirectUri = shape.redirectUriOf(listener.port)
   let begun: ProviderSignInLoopbackBegin
   try {
     begun = await args.begin({ redirectUri })
+    if (isCancelled()) throw new Error('the sign-in was cancelled')
+    if (held.closed) throw new Error('the sign-in listener stopped')
+    held.state = begun.state
+    const launched = await args.open(begun.authorizeUrl)
+    if (launched === false) throw new Error('the browser could not open')
+    if (isCancelled()) throw new Error('the sign-in was cancelled')
   } catch (error) {
     listener.stop()
     throw error
   }
-  if (args.signal?.aborted === true) throw new Error('the sign-in was cancelled')
-  held.state = begun.state
-
-  let launched: unknown
-  try {
-    launched = args.open(begun.authorizeUrl)
-  } catch {
-    listener.stop()
-  }
-
-  void Promise.resolve(launched).then(
-    (started) => {
-      if (started === false) listener.stop()
-    },
-    () => listener.stop(),
-  )
 
   const done = listener.outcome.then((returned) =>
     returned === undefined || 'error' in returned
@@ -169,7 +167,9 @@ export const startProviderLoopback = async (args: {
   )
 
   return {
+    attemptId: begun.attemptId,
     port: listener.port,
+    outcome: listener.outcome,
     redirectUri,
     authorizeUrl: begun.authorizeUrl,
     done,

@@ -71,6 +71,15 @@ describe('desktop guard', () => {
     expect((await fetch(`${host.url}/desktop/health`)).status).toBe(403)
   })
 
+  test('provider sign-in routes require the desktop cookie', async () => {
+    for (const action of ['start', 'status?attempt=one', 'stop']) {
+      const response = await fetch(`${host.url}/desktop/provider-sign-in/${action}`, {
+        method: action.startsWith('status') ? 'GET' : 'POST',
+      })
+      expect(response.status).toBe(403)
+    }
+  })
+
   test('wrong cookie is 403', async () => {
     const res = await fetch(`${host.url}/desktop/health`, {
       headers: { cookie: 'atlas_desktop=wrong' },

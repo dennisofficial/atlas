@@ -1,3 +1,4 @@
+import type { ProviderSignInHandler } from './provider-sign-in-routes'
 import type { ApnsRouteHandler } from './apns-routes'
 import { APP_INFO_PATH, type IDesktopAppInfo } from './app-info'
 import type { AuthHandler } from './auth/routes'
@@ -14,6 +15,7 @@ export function createDesktopRouter({
   app,
   pane,
   apns,
+  providerSignIn,
 }: {
   auth?: AuthHandler | undefined
   updates?: IDesktopUpdatesPort | undefined
@@ -21,6 +23,7 @@ export function createDesktopRouter({
   app?: IDesktopAppInfo | undefined
   pane?: IPanePort | undefined
   apns?: ApnsRouteHandler | undefined
+  providerSignIn?: ProviderSignInHandler | undefined
 } = {}): (request: Request, pathname: string) => Response | Promise<Response> {
   const routes = new Map<string, DesktopRouteHandler>()
   routes.set('/desktop/health', () => Response.json({ ok: true }))
@@ -39,6 +42,8 @@ export function createDesktopRouter({
     if (paned) return paned
     const pushed = await apns?.(request, pathname)
     if (pushed) return pushed
+    const provider = await providerSignIn?.(request, pathname)
+    if (provider) return provider
     const signedIn = auth === undefined ? undefined : await auth(request, pathname)
     return signedIn ?? new Response('Not Found', { status: 404 })
   }

@@ -12,6 +12,7 @@
     "./account": "./src/account/index.ts",
     "./settings": "./src/settings/index.ts",
     "./browser-return": "./src/browser-return/index.ts",
+    "./loopback": "./src/loopback/index.ts",
     "./transcript": "./src/transcript/index.ts",
     "./stream-fixture": "./src/stream/__tests__/support.ts",
     "./transcript-fixture": "./src/transcript/__tests__/fixture.ts",
