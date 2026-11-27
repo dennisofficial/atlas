@@ -5,6 +5,7 @@ import { cloudConfigStore } from '../cloud-config-store'
 import { InsecureDatabaseUrlError } from '../database-url'
 import { envSecretsReader } from '../env-secrets'
 import { mcpControlPort, offlineMacLink } from '../mcp-control'
+import { operatorRequestRegistry } from '../operator-control'
 import { projectFilesSourceOf } from '../project-files'
 
 const insecureUrlOf = (host: string): string => `postgres://u:p@${host}/atlas?sslmode=disable`
@@ -83,5 +84,9 @@ describe('database-backed config ports', () => {
     expectOpensHostEnvDatabase(
       await failureOf(() => mcpControlPort({ env: hostEnv, macLink: offlineMacLink }).of('s-1')),
     )
+  })
+
+  it('opens the operator request registry on the host env database', async () => {
+    expectOpensHostEnvDatabase(await failureOf(() => operatorRequestRegistry(hostEnv)))
   })
 })
