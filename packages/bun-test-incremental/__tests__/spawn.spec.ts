@@ -74,6 +74,31 @@ describe('spawn classifier', () => {
     expect(recorded.sort()).toEqual([join(repoRoot, 'dep.ts'), join(repoRoot, 'main.ts')])
   })
 
+  test('a bun script started through setsid or nohup is classified by the script', () => {
+    const { repoRoot, recorded, classify } = setup({
+      'main.ts': "import { value } from './dep'\nconsole.log(value)",
+      'dep.ts': 'export const value = 1',
+    })
+    expect(classify([['setsid', 'bun', 'main.ts'], { cwd: repoRoot }]).uncacheable).toBe(false)
+    expect(
+      classify([['nohup', 'setsid', '-w', 'bun', 'main.ts'], { cwd: repoRoot }]).uncacheable,
+    ).toBe(false)
+    expect(recorded).toContain(join(repoRoot, 'dep.ts'))
+  })
+
+  test('a wrapper keeps an unknown wrapped program uncacheable', () => {
+    const { repoRoot, classify } = setup({ 'package.json': '{}' })
+    expect(classify([['setsid', 'cat', 'package.json'], { cwd: repoRoot }]).uncacheable).toBe(true)
+    expect(classify([['setsid'], { cwd: repoRoot }]).uncacheable).toBe(true)
+  })
+
+  test('mkfifo, pgrep and pkill read no repo input', () => {
+    const { repoRoot, outside, classify } = setup({})
+    expect(classify([['mkfifo', join(outside, 'gate')], { cwd: repoRoot }]).uncacheable).toBe(false)
+    expect(classify([['pgrep', '-f', outside], { cwd: repoRoot }]).uncacheable).toBe(false)
+    expect(classify([['pkill', '-9', '-f', outside], { cwd: repoRoot }]).uncacheable).toBe(false)
+  })
+
   test('a bun script that cannot be read is uncacheable', () => {
     const { repoRoot, classify } = setup({})
     expect(classify([['bun', 'missing.ts'], { cwd: repoRoot }]).uncacheable).toBe(true)

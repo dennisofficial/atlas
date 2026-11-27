@@ -60,9 +60,15 @@ function freePort(): Promise<number> {
   })
 }
 
-async function waitForHealth({ base }: { base: string }): Promise<void> {
+async function waitForHealth({
+  base,
+  exited,
+}: {
+  base: string
+  exited: () => boolean
+}): Promise<void> {
   const deadline = Date.now() + BOOT_TIMEOUT_MS
-  while (Date.now() < deadline) {
+  while (Date.now() < deadline && !exited()) {
     const alive = await fetch(`${base}/v1/health`).then(
       (response) => response.status === 200,
       () => false,
@@ -72,6 +78,8 @@ async function waitForHealth({ base }: { base: string }): Promise<void> {
   }
   throw new Error('api did not answer /v1/health under bun in time')
 }
+
+const BOOT_ATTEMPTS = 3
 
 const describeWithHost =
   TEST_DATABASE_URL === undefined || TEST_REDIS_URL === undefined ? describe.skip : describe
@@ -83,20 +91,37 @@ describeWithHost('api under the bun runtime', () => {
   let output = ''
   let databaseUrl = ''
 
-  beforeAll(async () => {
-    await ensureTestDatabase()
-    const assigned = process.env.DATABASE_URL
-    if (assigned === undefined) throw new Error('DATABASE_URL is unset')
-    databaseUrl = assigned
-    port = await freePort()
-    base = `http://127.0.0.1:${port}`
-    child = spawn('bun', ['src/main.ts'], { cwd: API_ROOT, env: probeEnv({ port, databaseUrl }) })
-    child.stdout?.on('data', (chunk: Buffer) => (output += chunk.toString()))
-    child.stderr?.on('data', (chunk: Buffer) => (output += chunk.toString()))
-    await waitForHealth({ base }).catch((failure: unknown) => {
-      throw new Error(`${String(failure)}\n${output}`)
-    })
-  }, BOOT_TIMEOUT_MS + 120_000)
+  beforeAll(
+    async () => {
+      await ensureTestDatabase()
+      const assigned = process.env.DATABASE_URL
+      if (assigned === undefined) throw new Error('DATABASE_URL is unset')
+      databaseUrl = assigned
+      for (let attempt = 1; ; attempt++) {
+        port = await freePort()
+        base = `http://127.0.0.1:${port}`
+        output = ''
+        child = spawn('bun', ['src/main.ts'], {
+          cwd: API_ROOT,
+          env: probeEnv({ port, databaseUrl }),
+        })
+        child.stdout?.on('data', (chunk: Buffer) => (output += chunk.toString()))
+        child.stderr?.on('data', (chunk: Buffer) => (output += chunk.toString()))
+        const booting = child
+        const booted = await waitForHealth({ base, exited: () => booting.exitCode !== null }).then(
+          () => true,
+          () => false,
+        )
+        if (booted) return
+        child.kill('SIGKILL')
+        const portTaken = output.includes('EADDRINUSE')
+        if (!portTaken || attempt === BOOT_ATTEMPTS) {
+          throw new Error(`api did not answer /v1/health under bun in time\n${output}`)
+        }
+      }
+    },
+    BOOT_ATTEMPTS * BOOT_TIMEOUT_MS + 120_000,
+  )
 
   afterAll(async () => {
     child.kill('SIGKILL')

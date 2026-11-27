@@ -13,8 +13,8 @@ const briefKeyOf = (stepKey: string): string => `${stepKey}:brief`
 
 const stableWorktreeOf = (
   worktree: WorktreeEntryInfo | undefined,
-): Pick<WorktreeEntryInfo, 'path' | 'branch'> | undefined =>
-  worktree === undefined ? undefined : { path: worktree.path, branch: worktree.branch }
+): Pick<WorktreeEntryInfo, 'path'> | undefined =>
+  worktree === undefined ? undefined : { path: worktree.path }
 
 export type CrewRoomArgs = Omit<
   ChildRunArgs,

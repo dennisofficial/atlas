@@ -76,3 +76,27 @@ describe('a spawn into a named worktree, replayed in one tool call', () => {
     }
   })
 })
+
+describe('a spawn into a worktree whose branch was renamed before the replay', () => {
+  it('adopts the child the first attempt opened instead of starting a second', async () => {
+    const { room, parent } = await rigOf()
+    const spawn = async (branch: string) =>
+      await spawnInStep(() =>
+        room.spawn({
+          agentType: 'general-purpose',
+          intent: 'probe',
+          prompt: BRIEF,
+          worktree: { path: WORKTREE_PATH, branch },
+        }),
+      )
+    try {
+      const first = await spawn(NAME)
+      const replay = await spawn('renamed')
+
+      expect(replay.agentId).toBe(first.agentId)
+      expect(ofType(parent.events, 'agent-spawned')).toHaveLength(1)
+    } finally {
+      await room.stopAll()
+    }
+  })
+})

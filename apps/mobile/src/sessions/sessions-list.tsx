@@ -4,8 +4,8 @@ import { router } from 'expo-router'
 import { useMemo, useState } from 'react'
 import { RefreshControl, SectionList, StyleSheet, View } from 'react-native'
 import { LayoutAnimationConfig } from 'react-native-reanimated'
+import { useSafeAreaInsets } from 'react-native-safe-area-context'
 
-import { usePosture } from '../layout/use-posture'
 import { AnimatedListCell, AnimatedListItem, useFreshKeys } from './animated-list-cell'
 import { DoneToggle } from './done-toggle'
 import { EmptyProjectRow } from './empty-project-row'
@@ -74,7 +74,7 @@ export const SessionsList = ({
   showsSearchField: boolean
 }) => {
   const theme = useTheme()
-  const posture = usePosture()
+  const insets = useSafeAreaInsets()
   const { partition, loadState, refreshing, refresh, reload, now, setArchiveOverride } =
     useSessions()
   const { handleArchive, failure } = useArchiveSession({ setArchiveOverride, reload })
@@ -149,10 +149,7 @@ export const SessionsList = ({
     <LayoutAnimationConfig skipEntering skipExiting>
       <SectionList
         style={{ backgroundColor: theme.sidebar }}
-        contentContainerStyle={[
-          styles.list,
-          { paddingBottom: space(8) + posture.clearance.bottom },
-        ]}
+        contentContainerStyle={[styles.list, { paddingBottom: space(8) + insets.bottom }]}
         keyboardDismissMode={showsSearchField ? 'on-drag' : 'none'}
         contentInsetAdjustmentBehavior="automatic"
         sections={sections}

@@ -17,6 +17,11 @@ Applies [0021](../decisions/0021-v2-loop-runs-on-the-agent-host.md) (D8),
   before starts its turn at once, and only a pod call waits on the workspace gate. An idle session stays
   parked across an agent-host deploy ([architecture §13](../architecture.md)).
 - The `v2` prefix was dropped from names: `sessions.*`, `agentHost.*`, the task `reconcile-holders`.
+- The `reconcile-holders` task no longer exists: connection-bound leases deleted it on 2026-11-05
+  ([0025](../decisions/0025-v2-connection-bound-leases.md)). Points 3 and 5 were rewritten on
+  2026-11-27 to state what the code does: presence locks and a claim loop, a drain that writes
+  nothing (#2999), and a handoff that replays each recorded step instead of guessing (#3002, #3023,
+  #3026).
 - Where the slice stands: the roadmap's Current state and [handoffs/slice-4.md](../handoffs/slice-4.md).
 
 ## Goal
@@ -35,8 +40,9 @@ shells, services, MCP, sub-agents and GitHub into plugins (slice 7), local runti
 
 - **The control plane library** is done and poll-only: `ControlPlane`
   (`packages/control/src/control-plane.ts:57`) has `append`, `readEvents` (≤1000 per page),
-  `post`, `readInbox`, `grant`/`renew`/`revoke` (explicit `ttlMs`, no default) and
-  `currentLease`. Nothing wakes a reader. Postgres adapter: `src/postgres/postgres-store.ts`.
+  `post`, `readInbox`, `claimNext`/`grant`/`revoke`/`currentLease` (no `renew` and no TTL since
+  [0025](../decisions/0025-v2-connection-bound-leases.md)). Nothing wakes a reader. Postgres adapter:
+  `src/postgres/postgres-store.ts`.
 - **The record has three v2-only events** (`packages/core/src/record/event.ts:22-31`):
   `history-rewound`, `history-summarised`, `input-consumed`. There is nothing for a hook
   decision, a retry deadline or an aborted model stream.
@@ -162,17 +168,14 @@ sequenceDiagram
     W2->>PG: grant lease (epoch 4 to 5)
     PG-->>W2: CAS failed, drop it
   end
-  Note over W2,PG: A notification lost in a dropped connection is recovered by the resync on reconnect; a crashed holder by the 1-minute reconcile task
+  Note over W2,PG: A notification lost in a dropped connection is recovered by the resync on reconnect; a crashed holder by its presence lock freeing
   W1->>PG: read log in pages, read inbox
   W1->>D: connect(session, epoch 5), or boot sandbox + upload daemon
-  loop every 5 s while holding
-    W1->>PG: renew lease (TTL 30 s)
-  end
   W1->>W1: model step (stream from provider)
   W1-->>R: live tokens (atlas:session-live)
   W1->>PG: append [input-consumed 7, assistant-said, tool-called, tool-dispatched]
   Note over W1,PG: tool-dispatched must commit before the tool starts
-  W1->>D: run(key = runId:callId, bootId)
+  W1->>D: run(key = the step key, bootId)
   D->>D: write "running" to disk, then spawn bash in its own box
   D-->>W1: output chunks (forwarded to atlas:session-live)
   D->>D: write "done" + result to disk
@@ -224,14 +227,14 @@ sequenceDiagram
 
 ### 1. The packages and services (the `pod` rename)
 
-| Where                           | What                                                                                                                                                                                                                                    |
-| ------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `packages/protocol`             | New. Zod schemas only: agent host ⇄ daemon frames and the v2 API inputs. `wire` is not touched; it becomes `protocol` at cutover (0019)                                                                                                 |
-| `packages/host`                 | New, replaces 0019's `pod`. The agent host library: claiming and renewing leases, the per-thread record cache and per-event appends, inbox wake, running `agent`, the daemon client and the daemon-backed tool ports, the clean handoff |
-| `apps/agent-host`               | New. The Render service: plain Bun, composes `host` with the model adapters and builtin tools (copied from `harness` on 2026-11-04; the host imports no v1 code). No Nest, no tRPC                                                      |
-| `apps/daemon`                   | New. The in-sandbox daemon. Built into one JavaScript file that the agent host ships inside its own image and uploads to the sandbox                                                                                                    |
-| `apps/trigger`, `packages/jobs` | New (0022). trigger.dev app with one task, `v2-reconcile-holders` (point 3); its contract in `packages/jobs` (zod only)                                                                                                                 |
-| `apps/api`                      | Gains a `v2` tRPC namespace (point 9). No v1 route changes                                                                                                                                                                              |
+| Where                           | What                                                                                                                                                                                                                       |
+| ------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `packages/protocol`             | New. Zod schemas only: agent host ⇄ daemon frames and the v2 API inputs. `wire` is not touched; it becomes `protocol` at cutover (0019)                                                                                    |
+| `packages/host`                 | New, replaces 0019's `pod`. The agent host library: claiming leases, the per-thread record cache and per-event appends, inbox wake, running `agent`, the daemon client and the daemon-backed tool ports, the clean handoff |
+| `apps/agent-host`               | New. The Render service: plain Bun, composes `host` with the model adapters and builtin tools (copied from `harness` on 2026-11-04; the host imports no v1 code). No Nest, no tRPC                                         |
+| `apps/daemon`                   | New. The in-sandbox daemon. Built into one JavaScript file that the agent host ships inside its own image and uploads to the sandbox                                                                                       |
+| `apps/trigger`, `packages/jobs` | New (0022). trigger.dev app for the background jobs; it holds no session-holding task (point 3); its contract in `packages/jobs` (zod only)                                                                                |
+| `apps/api`                      | Gains a `v2` tRPC namespace (point 9). No v1 route changes                                                                                                                                                                 |
 
 Plain terms: the "pod" package splits in two because the two halves now run on different machines.
 `host` is everything the agent host does; the daemon is everything the sandbox does.
@@ -267,51 +270,49 @@ OAuth refresh would gain a second home, which is the kind of fork v2 exists to r
 
 ### 3. Placement: agent hosts claim sessions themselves
 
-There is no separate scheduler. Claiming is part of the agent host; the periodic safety net is a
-trigger.dev task, because the agent host runs no timers of its own beyond its sessions' loops
-([0022](../decisions/0022-v2-background-jobs-in-apps-trigger.md)):
+There is no separate scheduler and no periodic job. Claiming is part of the agent host: one claim
+loop per host, pulling work out of Postgres
+([0026](../decisions/0026-v2-hosts-pull-sessions.md)):
 - **Wake (built 2026-11-04).** Posting to a session's inbox (message or stop), creating a session, and a
   revoke that leaves work behind each call `pg_notify('atlas_session_wake', sessionId)` inside the write
   transaction, so a notification exists only if the write committed. Every agent host `LISTEN`s on one
-  direct connection (`DATABASE_DIRECT_URL`). One below its capacity tries to `grant` the lease, and the CAS
-  on the epoch lets exactly one win; the others drop it. Every reconnect emits a resync: the host claims
-  `sessionsNeedingHolder` and each held session re-reads its inbox.
-- **Reconcile (in `apps/trigger`, not the agent host).** A crashed holder emits no event, so a trigger.dev
-  scheduled task, `reconcile-holders` (first named `v2-reconcile-holders`), runs every minute (trigger.dev's
-  finest schedule). It finds sessions with unconsumed inbox entries, an unfinished turn or an unprepared
-  workspace and no live lease (one store query, `sessionsNeedingHolder({ limit })`, backed by an index) and
-  notifies for each through `ControlPlane.wake`. It claims nothing itself; the agent hosts claim as for
-  any wake. Its contract lives in `packages/jobs`, its logic (the query) in `packages/control`, so
-  neither app imports the other. Slice 3 scaffolded `apps/trigger` (own `trigger.config.ts`, own tier file,
-  own trigger.dev project) with this one task; it needs only `DATABASE_URL`.
-- **Superseded 2026-11-04:** the first design published `atlas:session-wake` on Redis, from the API and from
-  the reconcile task. Pub/sub is fire-and-forget, and with Redis down no wake path existed, because
-  reconcile published through Redis too. See 0021, Amendments.
-- **What stays in the agent host** is what belongs to a session's loop: lease renewal, the sandbox
+  direct connection (`DATABASE_DIRECT_URL`). A notification is a doorbell, not the work: it rings the
+  claim loop, which asks `plane.claimNext({ hostId, limit })` and takes what needs a holder with
+  `FOR UPDATE OF l SKIP LOCKED`, so a full host asks for nothing and two hosts never take the same
+  session (`packages/host/src/holder/claim-loop.ts`). Every reconnect resyncs the same way and each
+  held session re-reads its inbox, so a doorbell lost in a dropped connection costs at most one tick
+  (20 s ± 20 %, `sweepMs` in `session-holder-args.ts:61`). Retry state lives on the lease row
+  (`attempts`, `retryAfter`), so a host crash counts and a restart forgets nothing.
+- **Reconcile: removed 2026-11-05.** The design had a trigger.dev task, `reconcile-holders`, run every
+  minute, because a crashed holder emits no event. Connection-bound leases replaced it
+  ([0025](../decisions/0025-v2-connection-bound-leases.md)): a holder is alive while its Postgres
+  presence lock is held, so its death is itself an event. A SIGKILLed holder's lock frees in
+  about 100 ms (106–107 ms measured); a machine death or partition costs about 60 s, because
+  PlanetScale's proxy drops the dead backend. The host waiting on that peer's lock returns, rings its
+  own claim loop, and `claimNext` takes any session whose holder is not present. `apps/trigger` holds
+  no task for this, and a timer that looked for work would be a second liveness signal beside the lock.
+- **What stays in the agent host** is what belongs to a session's loop: the presence lock, the sandbox
   keep-alive and the idle rule's per-session deadline. The stop poll during a turn is gone (superseded
   2026-11-04); a stop is a wake.
-- **Holding.** The holder renews every 5 s with a 30 s TTL. Lease times (`renewedAt`, expiry) use
-  the database's clock (`now()` in the transaction), never a machine's own, so clock skew between
-  hosts cannot shorten or stretch a lease. The lease now lives on the agent host, so
-  a saturated sandbox cannot make it lapse (R4 becomes easy). A clean restart hands its sessions
-  over immediately (point 5). A crash is noticed by the next reconcile run after the TTL, so its
-  sessions resume within about 90 s (30 s TTL + up to 60 s), unless a new message wakes them
-  sooner.
+- **Holding.** A lease is live while its holder's presence lock is granted exclusively, and the epoch is
+  the fence: an append compares the epoch under `FOR SHARE` on the lease row and never reads `pg_locks`
+  (0025). There is no renewal and no TTL, so nothing has to be kept alive by a timer and a host whose
+  lock connection dies stops appending, registers a new host id and reclaims through the normal path.
+  Time comes from the database (`now()`), never a machine's clock. A clean restart hands its sessions
+  over at once (point 5); a crash is noticed when the lock frees, not by a sweep.
 - **Release when idle.** After v1's 30-minute quiet rule, the agent host stops the sandbox and
   releases the lease together (point 7). The next message wakes both.
 - **Capacity.** Each agent host takes at most `AGENT_HOST_MAX_SESSIONS` (start at 25; slice 3 measures
   memory per held session and sets it).
 
 **Why not a job queue (BullMQ) or trigger.dev.** A queue hands out jobs that run to completion;
-a session is held for hours, renewed, and must be taken away from a holder that stops renewing.
-A queue would still need the epoch fence on top, because it cannot stop a zombie consumer from
-writing. The lease in Postgres already is that fence, so a queue would be a second source of
-truth about who owns a session. trigger.dev runs bounded tasks (this project caps them at 300 s,
-`apps/api/trigger.config.ts`) and checkpoints by freezing the process, which drops the daemon
-WebSocket; turns run p50 3.5 min and p90 32 min. trigger.dev keeps its v1 jobs (crons, sweeps)
-for session holding; v2's one periodic job, the reconcile pass, is a trigger.dev task (0022). The
-whole mechanism is three parts: the lease row (exists), a Postgres notification (latency; a Redis wake message in the first design, superseded 2026-11-04), and the
-one-minute reconcile task (safety net).
+a session is held for hours and must be taken away from a holder that died. A queue would still need
+the epoch fence on top, because it cannot stop a zombie consumer from writing. The lease in Postgres
+already is that fence, so a queue would be a second source of truth about who owns a session.
+trigger.dev runs bounded tasks (this project caps them at 300 s, `apps/api/trigger.config.ts`) and
+checkpoints by freezing the process, which drops the daemon WebSocket; turns run p50 3.5 min and
+p90 32 min. So no timer holds, watches or looks for a session: the mechanism is the lease row, the
+presence lock that says whether its holder is alive, and a Postgres notification for latency.
 
 ### 4. The record cache and append latency (~1 s)
 
@@ -323,11 +324,11 @@ one-minute reconcile task (safety net).
   turn produces tens of events, so batching would buy nothing and would add an unflushed tail to
   lose on a crash). `tool-dispatched` commits before the tool runs, as today. Exit check: the time
   from an event's `at` to its commit stays under 1 s at p99.
-- **Refused versus unreachable.** A _refusal_ (`stale-epoch`, `lease-expired`) means the lease is
-  gone: the loop stops and the host drops the session at once. _Unreachable_ (a network error or
-  timeout) is retried with backoff; an append is idempotent by `(threadId, seq)` and hash, so a
-  retry after an unknown outcome is safe. Past TTL − 5 s without success the host self-fences
-  (point 5). Any other refusal is a bug and fails the turn loudly.
+- **Refused versus unreachable.** A _refusal_ (`stale-epoch`) means the lease is gone: the loop
+  stops and the host drops the session at once. _Unreachable_ (a network error or timeout) is retried
+  with backoff until its retry deadline (`appendRetryMs`, 30 s), because an append is idempotent by
+  `(threadId, seq)` and hash, so a retry after an unknown outcome is safe. No timer guards a TTL.
+  Any other refusal is a bug and fails the turn loudly.
 - **Live output** (token deltas, tool output as it streams) is not an event. The agent host
   publishes it on Redis `atlas:session-live:<sessionId>`. Slice 5 serves it to clients over SSE; slice 3
   publishes it and tests that it arrives.
@@ -338,29 +339,52 @@ cache is the simplest correct thing for a single holder.
 
 ### 5. An agent host restart is a clean handoff; a crash is a slower one
 
-| What happened to the agent host          | Who notices                                               | New holder starts                    | Lost                                   |
-| ---------------------------------------- | --------------------------------------------------------- | ------------------------------------ | -------------------------------------- |
-| SIGTERM (deploy, Render restart)         | The agent host itself: revokes, notifying if work remains | ~1 s after it lets go                | Nothing; a step past 270 s is re-asked |
-| Crash, OOM, host lost, network partition | Nobody until the lease expires                            | ≤ ~90 s (30 s TTL + 1 min reconcile) | The in-flight model step (re-asked)    |
+A lease is live while its holder's Postgres presence lock is held
+([0025](../decisions/0025-v2-connection-bound-leases.md)). There is no renewal, no TTL and no
+reconcile task: a dead holder is an event, not something a timer looks for.
 
-In both cases running tools keep running in the daemon and are collected (point 6), and every
-event already appended stays. A crashed agent host that comes back, or a partitioned one that never
-noticed, is fenced twice: Postgres refuses its appends (old epoch) and the daemon has closed its
-connection (point 6, rule 4). It also **fences itself**: if it has not renewed successfully for
-TTL − 5 s, it stops starting tools and stops its loops before anyone else can take over, so even
-its own clock never lets two holders act at once.
+| What happened to the agent host      | Who notices                                                                         | New holder starts                                                | Lost                           |
+| ------------------------------------ | ----------------------------------------------------------------------------------- | ---------------------------------------------------------------- | ------------------------------ |
+| SIGTERM (deploy, Render restart)     | The host itself: it drains, then revokes at epoch + 1                               | About a second later, on the `NOTIFY` the revoke writes          | Only the model step (re-asked) |
+| SIGKILL or OOM                       | Postgres: the socket closes and the presence lock frees (106–107 ms measured, 0025) | Under a second: the ring waiter returns and the claim loop scans | Only the model step            |
+| Machine death or a network partition | PlanetScale's proxy drops the dead backend after about 60 s (0025)                  | About 60 s                                                       | Only the model step            |
+
+Two backstops remain, and neither is a cron: the claim loop ticks every 20 s ± 20 % (`sweepMs`,
+`packages/host/src/holder/session-holder-args.ts:61`, driven by `ClaimLoop` in `claim-loop.ts`), and
+every `LISTEN` reconnect resyncs by claiming what needs a holder and re-reading each held inbox. A
+doorbell lost in a dropped connection therefore costs at most one tick, never a stuck session.
+
+In every case the tools already running keep running in the daemon, and every event already appended
+stays. A crashed host that comes back, or a partitioned one that never noticed, is fenced twice:
+Postgres refuses its appends (old epoch) and the daemon closed its connection at the higher epoch
+(point 6, rule 4). It also fences itself: when its presence lock is lost it drops every held session,
+so each fences its record and stops its loop, registers a new host id and reclaims through the normal
+path (`HolderPresence.handleLost`, `packages/host/src/holder/holder-presence.ts:54-60`, and
+`SessionHolder.handlePresenceLost`, `session-holder.ts:165-177`).
 
 On SIGTERM (Render deploy or restart; grace set to Render's maximum, 300 s):
-1. Stop claiming sessions.
-2. A loop between steps pauses at once (the existing pause check).
-3. A loop waiting on a tool is left as it is. The tool keeps running in the daemon (point 7).
-4. A loop waiting on the model may finish its **current model step** (one streamed response: some
-   text and the tool calls it asks for) until the drain deadline (grace minus 30 s, so 270 s). It
-   does not finish the turn; the turn's remaining steps run on the next holder. Most steps end
-   long before the deadline; the deadline exists for long thinking. Past it the stream is
-   aborted, the partial output is appended marked `aborted: 'handoff'`, and the next holder asks
-   again. Appends after the abort get a 10 s grace past the drain deadline (0021, third amendment). PR 1 measures step duration from production `assistant-said` timestamps.
-5. Revoke every held lease (epoch + 1), then exit.
+1. Stop claiming. The host drops its wake and resync subscriptions, then stops the demand loops, the
+   presence and the claim loop (`session-holder.ts:105-126`).
+2. Every held session drains (`HeldSession.beginDrain` → `HeldDrain.handoff`,
+   `packages/host/src/holder/held-drain.ts:22`). The pause stops the loop at its next step boundary,
+   sub-agents pause, and the daemon link is marked detached: no new call waits on it and a waiting
+   answer is refused (`RemoteCalls.handoff`, `packages/host/src/calls/remote-calls-state.ts:173-181`).
+3. In-flight work gets until the drain cap, `DRAIN_IN_FLIGHT_CAP_MS` = 240 s
+   (`packages/host/src/holder/drain-cap.ts:1`). At the cap the drain aborts the **model stream only**
+   (`PauseSignal.abortModelStep`). The text that stream produced is appended as
+   `assistant-said{interrupted: true, aborted: 'handoff'}`
+   (`packages/agent/src/loop/step-drafts.ts:102-109`, `record/append-drafts.ts:35-39`), and the next
+   holder asks the model again. That is the only loss an operator sees.
+4. The drain settles no call and writes no line for one: no `tool-result`, no `detached` dispatch, no
+   `cancel`. The loop drops the drafts of a call the host hands over (`detachTool`,
+   `packages/host/src/holder/held-runner.ts:219-222` over `InFlightSteps`), so the record gains
+   nothing for it. The pod work itself is not cancelled; it belongs to the daemon.
+5. The record tail flushes (10 s cap, `DRAIN_STREAM_ABORT_CAP_MS`), then the lease is revoked at
+   epoch + 1 with `wantsHolder` when work remains (`HeldEnding.handBack`, `held-ending.ts:140-175`).
+
+The whole drain is bounded by 260 s: the 240 s cap plus `LEASE_HAND_BACK_MARGIN_MS` 20 s
+(`drain-cap.ts:3-7`, `DRAIN_HANDOFF_BUDGET_MS` in
+`apps/api/src/agent/host/shutdown-sequence.ts:37`), inside Render's `maxShutdownDelaySeconds: 300`.
 
 Revoking is what makes this safe. After step 5, anything a leftover loop tries to write is refused
 as `stale-epoch`, so the old agent host cannot fork the record, even if it is slow to die.
@@ -371,74 +395,116 @@ v1 clients parse the string, never the TypeScript name
 files (`agent`, `client`, `harness`, `serve`, `wire`) with no change on the wire. The string is
 renamed at cutover, when no v1 client is left to read it.
 
-### 6. A new holder resumes the turn, and no tool runs twice
+### 6. A new holder resumes the turn, and no step runs twice
 
 On claim, if the thread's last turn did not end (a consumed input without a turn end, or calls
-dispatched without a result), the agent host calls the loop's existing `resume`. Dispatch recovery
-gains one step: before it treats a call as crashed, it sends the call's `run` again by its key
-(`runId:callId`).
+dispatched without a result), the agent host calls the loop's existing `resume`. Recovery then takes
+two decisions: what to do with a call the record left open, once at claim, and what to do with each
+op of that call's body, when the body replays.
+
+**Every pod op has a step key.** A `ctx.call` op runs in a scope that is the call id, so its step key
+is `<callId>.<n>` (`nextKey`, `packages/host/src/calls/call-scope.ts:82-88`). Before the op is sent,
+the host appends the fact `effect-started` at that key with the op name and its digest
+(`recordStep`, `packages/host/src/holder/record/call-steps.ts:37-59`, called from
+`plugin-call.ts:110-136`). A replay plans each op with `planStep`
+(`packages/core/src/record/calls/steps.ts:20-45`): the earliest recorded step with the same op and the
+same digest that this replay has not yet consumed is reused, and anything else takes a slot above the
+highest recorded index. The digest leaves out `env`, the tunnel token and the fields the daemon mints
+(`step-digest.ts`). Reads (`glob`, `grep`, `readFile` and the side-effect-free pod ops) take a random
+key and are never recorded, so a replay simply reads again; a random key must not attach to a stale
+read from an earlier attempt.
+
+**A reused step asks before it acts.** The host sends nothing until the daemon answers for the key
+(`Answers.ask`, `packages/host/src/calls/call-decide.ts:13-40`), and `recoverCall` turns the record's
+facts and that answer into one action (`packages/core/src/record/calls/recover.ts:27-52`):
+
+| Log and daemon answer                                        | New holder                                                                     |
+| ------------------------------------------------------------ | ------------------------------------------------------------------------------ |
+| `tool-result` recorded                                       | `ack` only. Nothing runs                                                       |
+| the step answers `done`                                      | `run` the same key: the daemon returns the journaled result and spawns nothing |
+| the step answers `running`                                   | `run` the same key: attach at the delivered offset and wait                    |
+| the step answers `never-seen`, same `bootId`                 | `run` the same key: this is the first run                                      |
+| the step answers `never-seen`, other `bootId`                | A read-only op runs again; an effectful op is `interrupted`                    |
+| the daemon answers `unavailable`                             | `wait`: nothing is sent, the call stays pending, and the next hello asks again |
+| the call names no dispatch boot, or the link has no boot yet | `wait`                                                                         |
+
+`wait` is a real state, not a timeout. A held call holds the turn open: the model is told nothing
+and the transcript shows the call as still running.
+
+**The call-level decision at claim.** Before the body of a crashed call may run, the host decides
+what the record and the daemon already prove. `crashSettleOf`
+(`packages/host/src/holder/crash-settle.ts:9-19`) answers for each call the record left open, and
+`settleCrashedCalls` (`packages/agent/src/loop/dispatch-recovery.ts:35-52`) writes the one result it
+owns:
+
+| Log                                                | New holder                                                                                                                                                                   |
+| -------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `tool-result` recorded                             | `ack` only. The body does not run                                                                                                                                            |
+| the call recorded steps `<callId>.<n>`             | **hold**: the body replays and each op answers for itself in the table above                                                                                                 |
+| a built-in pod tool (`bash`, `exec`, the file ops) | **hold**: `run(key)` is idempotent, so the daemon answers `done`, `running` or `never-seen`                                                                                  |
+| a host tool whose effect is a read                 | **hold**: a read is safe to repeat                                                                                                                                           |
+| a host tool with no recorded step                  | **interrupt**: `tool-result{interrupted: true}`, "…was interrupted by a process restart before its result was recorded; its effects are unknown — check before repeating it" |
+
+The last row is the one to know: an effectful host tool that recorded no step has no identity to
+replay, so the host neither runs its body again nor claims it succeeded. `interrupted` also lands on a
+pod op whose step answers `never-seen` on a different `bootId`, which is the sandbox restarting. No
+deadline writes it: a call that the daemon cannot answer waits.
 
 **The call protocol.** Four rules, each enforced in one place:
-1. **No run without a record.** The agent host sends `run` only after `tool-dispatched` has committed
-   at its epoch (today's fail-closed dispatch). An agent host whose lease lapsed cannot commit, so it
-   cannot start a tool.
-2. **The daemon writes before it spawns.** On `run(key)` the daemon writes `running` for
-   the key to disk and fsyncs, then spawns. On exit it writes `done` with the result, then
-   replies. A `run` for a key it already has never spawns again: it attaches (running) or returns
-   the result (done). `run` is the only way to ask about a call: sent again, it attaches or returns, so there is no
-   separate collect.
+1. **No run without a record.** A call's `tool-dispatched` commits at the host's epoch, and each op's
+   `effect-started` fact commits before that op is sent. A host whose lease lapsed can commit
+   neither, so it can start no work.
+2. **The daemon writes before it spawns.** On `run(key)` the daemon writes `running` for the key to
+   disk and fsyncs, then spawns. On exit it writes `done` with the result, then replies. A `run` for a
+   key it already has never spawns again: it attaches (running) or returns the result (done). `run` is
+   the only way to ask about a call: sent again, it attaches or returns, so there is no separate
+   collect.
 3. **Record before ack.** The agent host sends `ack(key)` only after the `tool-result` has committed.
    The daemon deletes the key on `ack`. Until then the result waits on disk. Unacknowledged results
-   are pruned only when the daemon boots (a new `bootId`, so recovery treats a pruned key as a
-   sandbox restart, never as "never arrived").
-4. **The daemon follows the highest epoch.** A connection at a higher epoch closes the older one;
-   `run`, `ack` and `cancel` from an older epoch are refused (a late `ack` from a zombie must not
-   delete a result the new holder has not recorded yet). Rule 2 makes even a late duplicate harmless.
+   are pruned only when the daemon boots, so a pruned key comes with a new `bootId` and reads as a
+   sandbox restart, never as "never arrived".
+4. **The daemon follows the highest epoch.** A connection at a higher epoch closes the older one, and
+   `run`, `ack` and `cancel` from an older epoch are refused, so a late `ack` from a zombie cannot
+   delete a result the new holder has not recorded yet. Rule 2 makes even a late duplicate harmless.
 
-`tool-dispatched` gains the daemon's `bootId`, which the host learns from the daemon's hello reply
-(it is not sent per call). A sandbox tool's `tool-dispatched` is therefore committed only after the
-daemon has answered, so every dispatched call names the boot it went to (an optional field v1 never writes; the only change
-to an existing event body).
-
-**What the new holder does for each unfinished call.** It first reads the record, then sends `run` again and reads the
-daemon's answer:
-
-| Record has                   | Daemon says                    | New holder                                                                  |
-| ---------------------------- | ------------------------------ | --------------------------------------------------------------------------- |
-| `tool-result`                | anything                       | Sends `ack` (cleanup only)                                                  |
-| `tool-dispatched`, no result | done                           | Appends the result, then `ack`                                              |
-| `tool-dispatched`, no result | running                        | Attaches to the output stream and waits, as for any running call            |
-| `tool-dispatched`, no result | never seen, same `bootId`      | The call never arrived. Runs it: this is its first run                      |
-| `tool-dispatched`, no result | never seen, different `bootId` | The sandbox restarted. v1's rule: read-only calls rerun, others interrupted |
+`tool-dispatched` gains the daemon's `bootId`, which the host learns from the daemon's hello reply (it
+is not sent per call). For a built-in pod tool, the append waits for the link, so the dispatch names
+the boot the call went to (`dispatchBootOf`, `record/record-commit.ts:89-106`); for any other tool it
+records the boot of a linked daemon when there is one. A sandbox tool's `tool-dispatched` is
+therefore committed only after the daemon has answered. This is an optional field v1 never writes,
+and the only change to an existing event body.
 
 **The interleavings you asked about:**
 
-| What happens                                                          | Why it is safe                                                                                            |
-| --------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------- |
-| Agent host rotates after bash finished, before the result is recorded | The result is on the daemon's disk (rule 2); the new holder collects and records it (row 2)               |
-| Agent host rotates after recording, before `ack`                      | The record has the result; the new holder only acks (row 1). Nothing runs                                 |
-| Agent host rotates while bash runs                                    | Bash keeps running; the daemon drops the old connection at the new epoch; the new holder attaches (row 3) |
-| Bash finishes in the gap between the two connections                  | The daemon writes `done` with nobody connected; the new holder collects it (row 2)                        |
-| The old agent host's result append races the revocation               | Either it committed (row 1) or Postgres refused it as `stale-epoch` (row 2). Never both                   |
-| Old and new agent host both send `run` for the same key               | Rule 2: the second attaches. One spawn                                                                    |
-| The old agent host never learned it lost the lease                    | Its appends are refused (rule 1) and its connection is closed (rule 4)                                    |
-| The daemon dies between writing `running` and spawning                | Its `bootId` changes; row 5 applies, the same as a sandbox death                                          |
+| What happens                                                          | Why it is safe                                                                                                                                                                                                          |
+| --------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Agent host rotates after bash finished, before the result is recorded | The result is on the daemon's disk (rule 2); the new holder collects and records it                                                                                                                                     |
+| Agent host rotates after recording, before `ack`                      | The record has the result; the new holder only acks. Nothing runs                                                                                                                                                       |
+| Agent host rotates while bash runs                                    | Bash keeps running; the daemon drops the old connection at the new epoch; the new holder attaches                                                                                                                       |
+| Bash finishes in the gap between the two connections                  | The daemon writes `done` with nobody connected; the new holder collects it                                                                                                                                              |
+| The old agent host's result append races the revocation               | Either it committed, or Postgres refused it as `stale-epoch`. Never both                                                                                                                                                |
+| Old and new agent host both send `run` for the same key               | Rule 2: the second attaches. One spawn                                                                                                                                                                                  |
+| The old agent host never learned it lost the lease                    | Its appends are refused (rule 1) and its connection is closed (rule 4)                                                                                                                                                  |
+| The daemon dies between writing `running` and spawning                | Its `bootId` changes, so the step answers `never-seen` on a different boot: an effectful op is interrupted, a read reruns                                                                                               |
+| A plugin tool's op was in the pod when the host rotated               | That op is a recorded step, so it answers for itself: the new holder attaches to a running op or returns a done one                                                                                                     |
+| A stdio MCP tool call                                                 | It is one daemon step (`mcp.request`, `packages/protocol/src/ops/mcp.ts:43`), keyed by its step key, so a replay answers and attaches to the same request. `mcp.close`, `list`, `read`, `send` and `spawn` take no step |
+| A stop's pod work outlives its host                                   | The stop is recorded as owed work and whichever holder reaches the daemon next cancels the scope (`stop-debts.ts`, `cancel-obligations.ts`)                                                                             |
 
 **Code shape: three deep modules, each with a small interface.** The protocol is the riskiest code
 in the slice. It lives in three modules; each hides a lot behind a few methods, and nothing outside
-them knows how calls are stored, reattached or recovered. The smaller files inside each module are
+them knows how ops are stored, reattached or recovered. The smaller files inside each module are
 internal and never imported from outside it.
 
-| Module (interface)                                                                                                                         | Hides                                                                                                         | Tested through                                            |
-| ------------------------------------------------------------------------------------------------------------------------------------------ | ------------------------------------------------------------------------------------------------------------- | --------------------------------------------------------- |
-| **Call protocol** (`core/src/record/calls`): `step(state, input) -> { state, effects }` and `recover(recordFacts, daemonAnswer) -> action` | The call states, the four rules, the recovery table. Pure                                                     | The simulation (below) and its invariant checks           |
-| **Call ledger** (daemon, `apps/daemon/src/calls`): `run(key, op)` (idempotent: spawn, attach or return), `ack(key)`, `cancel(key)`         | The journal on disk with fsync, output offsets, spawning into a cgroup box, pruning at boot                   | The daemon conformance suite over the WebSocket           |
-| **Remote calls** (host, `packages/host/src/calls`): `invoke(key, op, signal) -> result` and `recoverOpen(calls)`                           | The WebSocket link (epoch hello, ping, reconnect, reattach at offset), `ack` after commit, the recovery steps | The host exit seam, with the fake daemon and the real one |
+| Module (interface)                                                                                                                                       | Hides                                                                                                              | Tested through                                            |
+| -------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------ | --------------------------------------------------------- |
+| **Call protocol** (`core/src/record/calls`): `planStep({scopeKey, recorded, consumed, op, digest, nextSlot})` and `recoverCall({facts, answer, bootId})` | The step slots, the call states, the four rules, the recovery table. Pure                                          | The simulation (below) and its invariant checks           |
+| **Call ledger** (daemon, `apps/daemon/src`): `run(key, op)` (idempotent: spawn, attach or return), `ack(key)`, `cancel(key)`, `mcp.request`              | The journal on disk with fsync, output offsets, spawning into a cgroup box, pruning at boot                        | The daemon conformance suite over the WebSocket           |
+| **Remote calls** (host, `packages/host/src/calls`): `invoke(key, op, signal) -> result`, `openCall`, `decideCall`, `handoff`                             | The WebSocket link (epoch hello, ping, reconnect, reattach at offset), the ask before a replay, `ack` after commit | The host exit seam, with the fake daemon and the real one |
 
 The call ledger and remote calls both drive the pure call protocol, so the rules live in one place
 and the simulation checks the same code the processes run. The `agent` loop sees none of this: the
-daemon-backed tool ports are thin adapters over `invoke`, and dispatch recovery calls
-`recoverOpen`.
+daemon-backed tool ports are thin adapters over `invoke`, and dispatch recovery asks `crashSettleOf`
+and `settleCrashedCalls`.
 
 **The fake daemon is held to the real one.** Host tests use an in-memory daemon so they run fast.
 The daemon conformance suite runs against **both** the real daemon and the fake, so the fake can
@@ -446,8 +512,8 @@ never behave differently from the real thing (two adapters, one suite, as slice 
 control store).
 
 **The agent host's other deep module: the session holder.** `packages/host` exposes one more
-interface, `SessionHolder { start(), drain(deadline) }`, which hides claiming (on wake),
-renewal, self-fencing, the record cache and per-event appends, sandbox lifecycle and the idle rule.
+interface, `SessionHolder { start(), drain(deadline) }`, which hides claiming (on a doorbell),
+the presence lock, the record cache and per-event appends, sandbox lifecycle and the idle rule.
 `apps/agent-host` is its only production caller: it builds the adapters, calls `start()`, and calls
 `drain()` on SIGTERM. Time, Redis and the control store are injected, so every lease case runs on a
 fake clock in milliseconds.
@@ -550,9 +616,9 @@ need no daemon. Dispatch recovery's v1 rule covers them.
 | Agent host ⇄ daemon            | Drop, proxy restart, half-open socket | Ping every 10 s, dead after 3 missed. Reconnect with backoff and jitter (250 ms to 10 s, forever while holding). Calls keep running; on reconnect the agent host collects every open key                                                                          |
 | Agent host ⇄ daemon            | Output lost during the gap            | Output chunks carry a byte offset; the daemon keeps each running call's output on disk; the same holder resumes from the last offset it saw; a new holder after a crash re-reads the output from offset 0 off the daemon's disk, so nothing is missing or doubled |
 | Agent host ⇄ daemon            | Slow (high latency, low bandwidth)    | No call has a network timeout shorter than its own tool timeout; slowness delays, never fails. Large reads stream in chunks                                                                                                                                       |
-| Agent host ⇄ Postgres          | Blip, failover, slow query            | Appends and renewals retry with backoff inside the lease TTL. An append is idempotent by `(threadId, seq)` and hash, so a retry after an unknown outcome is safe. Past TTL − 5 s the agent host self-fences                                                       |
-| Agent host ⇄ Postgres `LISTEN` | Connection dropped                    | Reconnect with capped backoff; every reconnect resyncs (claim `sessionsNeedingHolder`, re-read each held inbox), so a missed notification is recovered by an event, not a timer. The reconcile task covers a crashed holder                                       |
-| Agent host ⇄ Redis             | Down or a message lost                | Redis carries live frames only, so an outage loses live deltas and nothing else; clients recover from the record. Wakes and stops are Postgres notifications (superseded 2026-11-04: a reconcile-task wake and a 2 s stop poll)                                   |
+| Agent host ⇄ Postgres          | Blip, failover, slow query            | Appends retry with backoff until `appendRetryMs` (30 s). An append is idempotent by `(threadId, seq)` and hash, so a retry after an unknown outcome is safe. A `stale-epoch` refusal means the lease is gone, so the loop stops at once                           |
+| Agent host ⇄ Postgres `LISTEN` | Connection dropped                    | Reconnect with capped backoff; every reconnect resyncs (`claimNext`, re-read each held inbox), so a missed notification is recovered by a doorbell or the next 20 s tick. A crashed holder is noticed when its presence lock frees (0025), not by a task          |
+| Agent host ⇄ Redis             | Down or a message lost                | Redis carries live frames only, so an outage loses live deltas and nothing else; clients recover from the record. Wakes and stops are Postgres notifications (superseded 2026-11-04: the first design woke through Redis and polled a stop every 2 s)             |
 | Agent host ⇄ API config        | API slow or down                      | Cached credentials and settings are used until they expire; a model call that needs a fresh token waits and shows "waiting for credentials"                                                                                                                       |
 | Agent host ⇄ model             | Provider errors, stalls               | The existing retry machinery, with each retry deadline recorded through `OnceLedger` (point 8)                                                                                                                                                                    |
 | Daemon restarted               | Sandbox OOM, resume, upload           | New `bootId`; point 6's last row                                                                                                                                                                                                                                  |
@@ -681,27 +747,28 @@ the record and the lease (P6), never written separately, so it cannot drift. `v2
 returns one of these, with a reason and a since-time; slice 4 makes it a view and slice 5 renders
 it.
 
-| State                   | Comes from                                                          | Shown as                             |
-| ----------------------- | ------------------------------------------------------------------- | ------------------------------------ |
-| Sent                    | Inbox entry exists, not consumed                                    | The message, marked sent             |
-| Starting                | Lease held, sandbox booting or daemon connecting                    | "Starting sandbox"                   |
-| Thinking                | Input consumed, model step in flight                                | "Thinking" (live tokens if any)      |
-| Running a tool          | `tool-dispatched` without a result                                  | The tool and its live output         |
-| Waiting to retry        | A recorded retry deadline with `notBefore` in the future            | "Retrying in 12 s" and the reason    |
-| Waiting for credentials | The agent host could not get a usable model credential              | "Waiting for model account"          |
-| Resuming                | An unfinished turn and no live lease (crash or handoff in progress) | "Reconnecting…", for at most one TTL |
-| Idle                    | Turn ended, nothing pending                                         | Nothing                              |
-| Failed                  | `run-failed`, with its typed failure                                | The failure card                     |
+| State                   | Comes from                                                          | Shown as                                    |
+| ----------------------- | ------------------------------------------------------------------- | ------------------------------------------- |
+| Sent                    | Inbox entry exists, not consumed                                    | The message, marked sent                    |
+| Starting                | Lease held, sandbox booting or daemon connecting                    | "Starting sandbox"                          |
+| Thinking                | Input consumed, model step in flight                                | "Thinking" (live tokens if any)             |
+| Running a tool          | `tool-dispatched` without a result                                  | The tool and its live output                |
+| Waiting to retry        | A recorded retry deadline with `notBefore` in the future            | "Retrying in 12 s" and the reason           |
+| Waiting for credentials | The agent host could not get a usable model credential              | "Waiting for model account"                 |
+| Resuming                | An unfinished turn and no live lease (crash or handoff in progress) | "Reconnecting…", for at most one claim tick |
+| Idle                    | Turn ended, nothing pending                                         | Nothing                                     |
+| Failed                  | `run-failed`, with its typed failure                                | The failure card                            |
 
 A clean handoff shows "Resuming" for about a second, or not at all if no client polls in that
-window. A crash shows it for up to about 90 s. A tool that kept running through the handoff keeps
+window. A crash shows it for under a second (the presence lock frees at once) and about 60 s after a
+machine death or a partition. A tool that kept running through the handoff keeps
 streaming its output once the new holder attaches.
 
 ## Seams under test
 
 1. **The host** (`SessionHolder` and remote calls), driven through `apps/agent-host`'s composition with
    the in-memory `ControlPlane`, the scripted model from `agent/testing`, a fake clock, and either
-   the fake daemon or a real daemon process on loopback. This is the exit seam; claim, renew,
+   the fake daemon or a real daemon process on loopback. This is the exit seam; claim, presence,
    self-fence and release are tested here, never through internals.
 2. **The daemon**, through its WebSocket protocol: one conformance suite over every operation, run
    on Linux CI against the real daemon **and** the fake. The cgroup tests run only where cgroup v2
@@ -717,7 +784,7 @@ streaming its output once the new holder attaches.
 1. **RTT measured** from Render into `iad1` and written up (done first).
 2. **Scripted session:** a multi-turn session with bash, read, write, edit and grep runs through
    the daemon, locally (two agent-host processes, test Postgres, local daemon) and live once.
-3. **Kill mid model stream:** SIGKILL the holder; the second agent host takes over within the TTL and
+3. **Kill mid model stream:** SIGKILL the holder; the second agent host takes over at its next tick and
    finishes the turn. With SIGTERM instead, the partial output is in the record marked aborted.
 4. **Kill mid tool:** SIGKILL the holder while `bash` sleeps; the call keeps running, the next
    holder collects its result, and the daemon's run count for that key is 1.
@@ -761,7 +828,7 @@ invariants holding, the turn completed, and the user-visible states in the expec
 | F7  | Postgres unreachable for 45 s                                               | Agent host self-fences at 25 s; another agent host resumes; no double run                                           |
 | F8  | Append commits but the reply is lost                                        | Retry recognised as already committed; no fork                                                                      |
 | F9  | Redis down for the whole session                                            | Unaffected: wakes and stops are Postgres notifications; only live frames are lost; completes (rewritten 2026-11-04) |
-| F10 | SIGKILL the holder mid model stream *                                       | Resumed ≤ ~90 s; step re-asked; "Resuming" shown                                                                    |
+| F10 | SIGKILL the holder mid model stream *                                       | Resumed within a claim tick (≤ ~20 s); step re-asked; "Resuming" shown                                              |
 | F11 | SIGKILL the holder mid bash *                                               | Bash survives; collected; run count 1                                                                               |
 | F12 | SIGTERM during a 5-minute bash *                                            | Handoff ~1 s; bash collected by the new holder                                                                      |
 | F13 | SIGKILL the holder between `tool-dispatched` and `run`                      | New holder runs it once (same `bootId`)                                                                             |
@@ -781,7 +848,8 @@ Four PRs, each green with v1 unchanged. I ask before each push, PR and merge.
    `OnceLedger` port (no-op in v1) + the `HandoffPaused` rename + the RTT write-up.
 2. `apps/daemon`, the shared cgroup module, the daemon conformance suite.
 3. `packages/host`, `apps/agent-host`, the `v2.*` API namespace, the store query for placement,
-   `packages/jobs` and `apps/trigger` with the `v2-reconcile-holders` task (0022). Then
+   `packages/jobs` and `apps/trigger` with the `v2-reconcile-holders` task (0022; the task itself was
+   deleted on 2026-11-05 by 0025). Then
    the Render service is created.
 4. The live exit tests, the docs (roadmap Current state, 0021 amended for the rename deferral and
    the toggle, architecture §5 updated: the agent host appends to Postgres directly) and the handoff.
@@ -793,8 +861,9 @@ stopped sandbox was never re-woken while held, and the interrupted bash re-ran o
 that keep-alive never renewed a sandbox and that status stayed `thinking` after record-only events. Fixed in
 #1889 to #1893; 9, F12 and F18 then passed live the same evening.
 
-F12 in production: the drain deadline is 270 s, so a holder finishes a running call before handing off rather
-than handing off a live call after ~1 s (that path is the local F12 spec with `drainMs: 500`).
+F12 in production: the drain let the holder finish a running call before handing off rather than
+handing off a live call after ~1 s (that path is the local F12 spec with `drainMs: 500`). The cap is
+now 240 s of the 260 s handoff budget, and only the model stream is aborted at it (#2999).
 
 A bash interrupted by a sandbox restart reached the model with the right "interrupted by a process restart"
 message (context assembly reads `error` first), but the stored result also kept the tool's `Exit code: 1` as

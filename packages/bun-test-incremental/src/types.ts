@@ -46,7 +46,6 @@ export class FileRecord {
   readonly paths = emptyObserved().paths
   readonly env = new Set<string>()
   readonly pending = new Set<PendingOp>()
-  readonly spawned: string[] = []
   readonly inputHashes = new Map<DependencyKey, string>()
   readonly loadedAt = Date.now()
   onRead: ((op: PendingOp) => void) | undefined

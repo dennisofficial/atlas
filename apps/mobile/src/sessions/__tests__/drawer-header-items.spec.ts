@@ -1,10 +1,9 @@
 import { describe, expect, it } from 'bun:test'
 
-import { EControlsPlacement, ESessionsListLayout } from '../../layout/posture'
+import { ESessionsListLayout } from '../../layout/posture'
 import {
   drawerBarItemsOf,
   drawerSearchBarPropsOf,
-  showsAccountViewOf,
   usesNativeSearchOf,
 } from '../drawer-header-items'
 
@@ -29,13 +28,6 @@ describe('usesNativeSearchOf', () => {
   it('keeps the native bar search on every other layout', () => {
     expect(usesNativeSearchOf({ listLayout: ESessionsListLayout.Stacked })).toBe(true)
     expect(usesNativeSearchOf({ listLayout: ESessionsListLayout.Overlay })).toBe(true)
-  })
-})
-
-describe('showsAccountViewOf', () => {
-  it('shows the account avatar in the header only when the controls sit in the bottom bar', () => {
-    expect(showsAccountViewOf({ controls: EControlsPlacement.BottomBar })).toBe(true)
-    expect(showsAccountViewOf({ controls: EControlsPlacement.Rail })).toBe(false)
   })
 })
 

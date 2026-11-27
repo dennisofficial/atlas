@@ -74,3 +74,16 @@ export const drawerDockedOf = ({
   geometry: TDrawerGeometry
   open: boolean
 }): boolean => geometry.permanent && open
+
+export const paneWidthOf = ({
+  listLayout,
+  windowWidth,
+  drawerOpen,
+}: {
+  listLayout: ESessionsListLayout
+  windowWidth: number
+  drawerOpen: boolean
+}): number => {
+  const geometry = drawerGeometryOf({ listLayout, width: windowWidth })
+  return drawerDockedOf({ geometry, open: drawerOpen }) ? windowWidth - geometry.width : windowWidth
+}
