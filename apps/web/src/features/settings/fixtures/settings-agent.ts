@@ -1,6 +1,6 @@
 import { EBrand } from '@dltech/atlas-ui/components/brand-mark'
 
-export const INSTRUCTIONS_CHAR_LIMIT = 8000
+export { INSTRUCTIONS_CHAR_LIMIT } from '@dltech/atlas-client/settings'
 
 export enum EBuiltInAgentType {
   Builder = 'builder',

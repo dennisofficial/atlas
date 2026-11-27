@@ -17,7 +17,7 @@ const gatewayOf = (calls: McpOauthBeginArgs[]): McpOauthGateway => ({
     return {
       ok: true,
       url: AUTHORIZE_URL,
-      startUrl: 'https://api.byatlas.io/mcp-oauth/start/s',
+      startUrl: 'https://api.byatlas.io/return/start/s',
       expiresAt: 'x',
     }
   },
@@ -31,9 +31,13 @@ const serviceOver = (args: { db: Db; calls?: McpOauthBeginArgs[] }) =>
     gateway: gatewayOf(args.calls ?? []),
   })
 
-const bodyOf = (args: { serverId: string; scope?: 'user' | 'project' | 'group' }) => ({
+const bodyOf = (args: {
+  serverId: string
+  scope?: 'user' | 'project' | 'group'
+  surface?: 'web' | 'desktop'
+}) => ({
   serverId: args.serverId,
-  surface: 'web' as const,
+  surface: args.surface ?? ('web' as const),
   screen:
     args.scope === 'project'
       ? ({ kind: 'settings', scope: 'project', id: 'proj-1' } as const)
@@ -94,13 +98,26 @@ describe('McpOauthBeginService', () => {
     })
 
     expect(answer.status).toBe(200)
-    expect(answer.body).toEqual({ url: AUTHORIZE_URL })
+    expect(answer.body).toEqual({ url: 'https://api.byatlas.io/return/start/s?surface=web' })
     expect(calls[0]).toMatchObject({
       userId: 'user-1',
       source: 'cloud',
       name: 'posthog',
       returnTarget: { surface: 'web', screen: { kind: 'settings', scope: 'user' } },
     })
+  })
+
+  it('names the surface an older client asked for, which opens the link unchanged', async () => {
+    const { db } = testDb()
+    await seedOwner(db)
+    await seedCloudServer({ db, name: 'posthog' })
+
+    const answer = await serviceOver({ db, calls: [] }).begin({
+      userId: 'user-1',
+      body: bodyOf({ serverId: 'srv-posthog', surface: 'desktop' }),
+    })
+
+    expect(answer.body).toEqual({ url: 'https://api.byatlas.io/return/start/s?surface=desktop' })
   })
 
   it('begins a project server in the project it lives in', async () => {

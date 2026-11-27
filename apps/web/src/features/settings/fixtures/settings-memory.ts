@@ -1,19 +1,3 @@
-import { EMemoryScope, type MemoryScopeGroup } from './settings-memory-types'
+export { formatMemoryDate, memoryGroupLabel } from '@dltech/atlas-client/settings'
 
 export * from './settings-memory-types'
-
-const MEMORY_DATE_FORMAT = new Intl.DateTimeFormat('en-US', {
-  month: 'short',
-  day: 'numeric',
-  year: 'numeric',
-  timeZone: 'UTC',
-})
-
-export function formatMemoryDate(updatedAt: string): string {
-  return MEMORY_DATE_FORMAT.format(new Date(updatedAt))
-}
-
-export function memoryGroupLabel(group: MemoryScopeGroup): string {
-  if (group.scope === EMemoryScope.Group) return group.name ?? group.groupId ?? 'Group'
-  return group.project ?? 'Global'
-}

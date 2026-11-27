@@ -3,26 +3,14 @@ import { createServer, type Server } from 'node:http'
 import type { AddressInfo } from 'node:net'
 import { db } from '@dltech/atlas-db'
 import { seedUser, useTestDatabase } from '@dltech/atlas-db/testing'
-import { EMcpOauthAccessOutcome, EMcpOauthBeginOutcome, EMcpServerSource } from '@dltech/atlas-wire'
+import { EMcpOauthAccessOutcome, EMcpServerSource } from '@dltech/atlas-wire'
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from 'bun:test'
 import { EnvService } from '../src/_core/config/env/env.service'
 import { SecretCipherService } from '../src/_lib/crypto/secret-cipher.service'
 import { PgRefreshLock } from '../src/_lib/refresh-lock/pg-refresh-lock'
-import { McpOauthService } from '../src/api/cloud/mcp-oauth/mcp-oauth.service'
-import {
-  FakeMcpFetcher,
-  AUTH,
-  SERVER as FAKE_SERVER,
-  installIssuer,
-  json,
-} from '../src/api/cloud/mcp-oauth/mcp-oauth.fakes'
 import { McpOauthAccessService } from '../src/api/cloud/mcp-oauth/mcp-oauth-access.service'
 import { sealJson, type SealedGrant } from '../src/agent'
-import {
-  EGrantRowStatus,
-  McpOauthClock,
-  type McpOauthFetcher,
-} from '../src/api/cloud/mcp-oauth/mcp-oauth.types'
+import { McpOauthClock, type McpOauthFetcher } from '../src/api/cloud/mcp-oauth/mcp-oauth.types'
 import { PrismaMcpOauthStore } from '../src/api/cloud/mcp-oauth/prisma-mcp-oauth.store'
 
 const HEX_KEY = 'a1b2c3d4e5f6a1b2c3d4e5f6a1b2c3d4e5f6a1b2c3d4e5f6a1b2c3d4e5f6a1b2'
@@ -51,11 +39,8 @@ describe('mcp oauth grants over real PostgreSQL', () => {
   const foreignId = `mcp-foreign-${runId}`
   const cipher = new SecretCipherService(new EnvService({ SECRETS_ENCRYPTION_KEY: HEX_KEY }))
   const database = useTestDatabase()
-  const config = {
-    redirectUri: 'http://localhost/cb',
-    webOrigin: 'http://localhost',
-    allowLocalTargets: true,
-  }
+  const redirectUri = 'http://localhost/cb'
+  const config = { allowLocalTargets: true }
   let issuer: Server
   let tokenEndpoint = ''
   let exchanges = 0
@@ -91,7 +76,7 @@ describe('mcp oauth grants over real PostgreSQL', () => {
     await new PrismaMcpOauthStore().writeGrant({
       id: args.id,
       serverUrl: new URL(args.serverUrl).toString(),
-      sealed: sealJson({ cipher, value: grantPayload(tokenEndpoint, config.redirectUri) }),
+      sealed: sealJson({ cipher, value: grantPayload(tokenEndpoint, redirectUri) }),
     })
   }
 
@@ -152,45 +137,5 @@ describe('mcp oauth grants over real PostgreSQL', () => {
 
     const foreign = await a!.accessToken({ userId: foreignId, ...accessArgs })
     expect(foreign.outcome).toBe(EMcpOauthAccessOutcome.NeedsAuth)
-  })
-
-  it('reuses the registered client on a second begin against real Postgres', async () => {
-    const fetcher = new FakeMcpFetcher()
-    installIssuer(fetcher)
-    fetcher.on(`${AUTH}/token`, () =>
-      json({ access_token: 'a', refresh_token: 'r', expires_in: 3600 }),
-    )
-    const store = new PrismaMcpOauthStore()
-    const service = new McpOauthService(store, cipher, new RealClock(), fetcher, {
-      redirectUri: 'https://web.test/v1/mcp/oauth/callback',
-      webOrigin: 'https://web.test',
-      allowLocalTargets: false,
-      resolveHost: async () => ['93.184.216.34'],
-    })
-    const serverId = `srv-begin-${runId}`
-    await db.orm.public.McpServer.create({
-      id: serverId,
-      userId: ownerId,
-      source: 'cloud',
-      name: 'begin-server',
-      sealedSpec: cipher.encrypt(
-        JSON.stringify({
-          name: 'begin-server',
-          transport: { kind: 'http', url: FAKE_SERVER },
-        }),
-      ),
-    })
-    const begin = () => service.begin({ userId: ownerId, serverId })
-    const first = await begin()
-    expect(first.outcome).toBe(EMcpOauthBeginOutcome.Redirect)
-    const state = new URL(
-      first.outcome === EMcpOauthBeginOutcome.Redirect ? first.authorizationUrl : '',
-    ).searchParams.get('state')
-    await service.complete({ state: state ?? '', code: 'c', sessionUserId: ownerId })
-    const row = await store.findServer({ id: serverId })
-    expect(row?.oauthStatus).toBe(EGrantRowStatus.Active)
-    const second = await begin()
-    expect(second.outcome).toBe(EMcpOauthBeginOutcome.Redirect)
-    expect(fetcher.callsTo(`${AUTH}/register`)).toHaveLength(1)
   })
 })

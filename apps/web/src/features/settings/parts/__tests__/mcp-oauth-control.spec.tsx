@@ -91,7 +91,7 @@ describe('McpOauthControl', () => {
     await act(async () => {
       button?.dispatchEvent(new MouseEvent('click', { bubbles: true, cancelable: true }))
     })
-    expect(signIn).toHaveBeenCalledWith('srv_1')
+    expect(signIn).toHaveBeenCalledWith({ serverId: 'srv_1', label: 'mcp.example.com' })
   })
 
   it('labels an expired grant Sign in again', async () => {

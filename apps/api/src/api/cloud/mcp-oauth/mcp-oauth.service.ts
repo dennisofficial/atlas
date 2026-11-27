@@ -1,33 +1,10 @@
-import {
-  EMcpOauthBeginOutcome,
-  EMcpOauthReturnSurface,
-  EMcpServerSource,
-  type McpOauthBeginResult,
-  type McpOauthServer,
-} from '@dltech/atlas-wire'
+import { EMcpServerSource, type McpOauthServer } from '@dltech/atlas-wire'
 import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common'
-import {
-  assertPublicHost,
-  buildAuthorizationUrl,
-  discoverOauthEndpoints,
-  exchangeAuthorizationCode,
-  generatePkce,
-  guardedFetch,
-  OAuthError,
-  oauthClientFor,
-  sealJson,
-  SsrfRejectedError,
-  unsealJson,
-  type SealedGrant,
-} from '../../../agent'
 import { SecretCipherService } from '../../../_lib/crypto/secret-cipher.service'
-import { callbackRedirectOf, DEFAULT_RETURN_TO } from './mcp-oauth-redirect'
-import { serverUrlOf, toWireMcpOauthServer } from './mcp-oauth-server-view'
-import { McpOauthClock, McpOauthConfig, McpOauthFetcher, McpOauthStore } from './mcp-oauth.types'
-import { sealedPendingSchema } from './mcp-oauth.types'
-import type { SealedPending, ServerGrantRow } from './mcp-oauth.types'
+import { toWireMcpOauthServer } from './mcp-oauth-server-view'
+import { McpOauthStore } from './mcp-oauth.types'
+import type { ServerGrantRow } from './mcp-oauth.types'
 
-const PENDING_TTL_MS = 10 * 60_000
 const PROJECT_NOT_FOUND_MESSAGE = 'project not found'
 const GROUP_NOT_FOUND_MESSAGE = 'group not found'
 const SERVER_NOT_FOUND = 'mcp server not found'
@@ -37,9 +14,6 @@ export class McpOauthService {
   constructor(
     private readonly store: McpOauthStore,
     private readonly cipher: SecretCipherService,
-    private readonly clock: McpOauthClock,
-    private readonly fetcher: McpOauthFetcher,
-    private readonly config: McpOauthConfig,
   ) {}
 
   async servers(args: {
@@ -55,156 +29,6 @@ export class McpOauthService {
       }),
     )
     return rows.map((row) => toWireMcpOauthServer({ cipher: this.cipher, row }))
-  }
-
-  async begin(args: {
-    userId: string
-    serverId: string
-    returnTo?: string | undefined
-    surface?: EMcpOauthReturnSurface | undefined
-  }): Promise<McpOauthBeginResult> {
-    const row = await this.ownedServer({
-      userId: args.userId,
-      serverId: args.serverId,
-    })
-    const serverUrl = this.serverUrlOf(row)
-    if (serverUrl === undefined) {
-      return this.unsupported(
-        'only an http server without its own Authorization header can sign in',
-      )
-    }
-    const fetch = this.guarded()
-    try {
-      await assertPublicHost({
-        url: serverUrl,
-        allowLocalTargets: this.config.allowLocalTargets,
-        resolveHost: this.config.resolveHost,
-      })
-      const found = await discoverOauthEndpoints({
-        serverUrl,
-        fetch,
-        allowLocalTargets: this.config.allowLocalTargets,
-      })
-      if (!found.supported) return this.unsupported(found.reason)
-      const clientInfo = await oauthClientFor({
-        row,
-        cipher: this.cipher,
-        nowMs: this.clock.now(),
-        redirectUri: this.config.redirectUri,
-        tokenEndpoint: found.tokenEndpoint,
-        ...(found.registrationEndpoint === undefined
-          ? {}
-          : { registrationEndpoint: found.registrationEndpoint }),
-        ...(found.scope === undefined ? {} : { scope: found.scope }),
-        fetch,
-      })
-      if (clientInfo === undefined) {
-        return this.unsupported('the server offers no dynamic client registration')
-      }
-      const pkce = generatePkce()
-      const pending: SealedPending = {
-        codeVerifier: pkce.verifier,
-        clientInfo,
-        tokenEndpoint: found.tokenEndpoint,
-        redirectUri: this.config.redirectUri,
-        ...(found.authMethods === undefined ? {} : { authMethods: found.authMethods }),
-        ...(found.resource === undefined ? {} : { resource: found.resource }),
-      }
-      await this.store.insertPending({
-        id: pkce.state,
-        userId: args.userId,
-        serverUrl,
-        sealed: sealJson({ cipher: this.cipher, value: pending }),
-        returnTo: args.returnTo ?? DEFAULT_RETURN_TO,
-        returnSurface: args.surface ?? EMcpOauthReturnSurface.Web,
-        expiresAt: new Date(this.clock.now() + PENDING_TTL_MS),
-        mcpServerId: row.id,
-      })
-      return {
-        outcome: EMcpOauthBeginOutcome.Redirect,
-        authorizationUrl: buildAuthorizationUrl({
-          authorizationEndpoint: found.authorizationEndpoint,
-          clientId: clientInfo.clientId,
-          redirectUri: this.config.redirectUri,
-          pkce,
-          ...(found.scope === undefined ? {} : { scope: found.scope }),
-          ...(found.resource === undefined ? {} : { resource: found.resource }),
-        }),
-      }
-    } catch (error) {
-      if (error instanceof SsrfRejectedError || error instanceof OAuthError) {
-        return this.unsupported(error.message)
-      }
-      return this.unsupported(`could not reach the server: ${String(error)}`.slice(0, 200))
-    }
-  }
-
-  async complete(args: {
-    state?: string | undefined
-    code?: string | undefined
-    error?: string | undefined
-    errorDescription?: string | undefined
-    sessionUserId?: string | undefined
-    malformed?: boolean | undefined
-  }): Promise<string> {
-    const pending =
-      args.state === undefined || args.state === ''
-        ? null
-        : await this.store.takePending({ id: args.state })
-    if (pending === null) {
-      return this.redirect({
-        returnTo: DEFAULT_RETURN_TO,
-        reason: 'unknown_state',
-      })
-    }
-    const { returnTo, serverUrl } = pending
-    const surface = pending.returnSurface
-    const failed = (reason: string) => this.redirect({ returnTo, surface, serverUrl, reason })
-    if (pending.mcpServerId === null) return failed('unknown_state')
-    if (args.malformed === true) return failed('invalid_request')
-    if (args.sessionUserId !== pending.userId) return failed('session_mismatch')
-    if (pending.expiresAt.getTime() < this.clock.now()) return failed('expired')
-    if (args.error !== undefined) return failed(args.errorDescription ?? args.error)
-    if (args.code === undefined || args.code === '') return failed('missing_code')
-
-    const row = await this.store.findServer({ id: pending.mcpServerId })
-    if (row === null) return failed('server_changed')
-    if (this.serverUrlOf(row) !== pending.serverUrl) return failed('server_changed')
-
-    try {
-      const sealed = unsealJson({
-        cipher: this.cipher,
-        sealed: pending.sealed,
-        schema: sealedPendingSchema,
-      })
-      const tokens = await exchangeAuthorizationCode({
-        tokenEndpoint: sealed.tokenEndpoint,
-        code: args.code,
-        codeVerifier: sealed.codeVerifier,
-        redirectUri: sealed.redirectUri,
-        client: sealed.clientInfo,
-        authMethods: sealed.authMethods,
-        resource: sealed.resource,
-        nowMs: this.clock.now(),
-        fetch: this.guarded(),
-      })
-      const grant: SealedGrant = {
-        clientInfo: sealed.clientInfo,
-        tokens,
-        tokenEndpoint: sealed.tokenEndpoint,
-        redirectUri: sealed.redirectUri,
-        ...(sealed.authMethods === undefined ? {} : { authMethods: sealed.authMethods }),
-        ...(sealed.resource === undefined ? {} : { resource: sealed.resource }),
-      }
-      await this.store.writeGrant({
-        id: row.id,
-        serverUrl,
-        sealed: sealJson({ cipher: this.cipher, value: grant }),
-      })
-      return this.redirect({ returnTo, surface, serverUrl })
-    } catch {
-      return failed('exchange_failed')
-    }
   }
 
   async disconnect(args: { userId: string; serverId: string }): Promise<void> {
@@ -265,30 +89,5 @@ export class McpOauthService {
     const owner = await this.store.groupOwner({ groupId: args.groupId })
     if (owner !== args.userId) throw new NotFoundException(GROUP_NOT_FOUND_MESSAGE)
     return args.groupId
-  }
-
-  private serverUrlOf(row: ServerGrantRow): string | undefined {
-    return serverUrlOf({ cipher: this.cipher, row })
-  }
-
-  private guarded() {
-    return guardedFetch({
-      fetch: (input, init) => this.fetcher.fetch(input, init),
-      allowLocalTargets: this.config.allowLocalTargets,
-      resolveHost: this.config.resolveHost,
-    })
-  }
-
-  private unsupported(reason: string): McpOauthBeginResult {
-    return { outcome: EMcpOauthBeginOutcome.Unsupported, reason }
-  }
-
-  private redirect(args: {
-    returnTo: string
-    surface?: EMcpOauthReturnSurface | undefined
-    serverUrl?: string | undefined
-    reason?: string | undefined
-  }): string {
-    return callbackRedirectOf({ webOrigin: this.config.webOrigin, ...args })
   }
 }
