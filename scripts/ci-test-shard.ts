@@ -1,7 +1,8 @@
 import { readFileSync } from 'node:fs'
+import { availableParallelism } from 'node:os'
 import { join } from 'node:path'
 
-export type TestPackage = { dir: string; name: string; script: string }
+export type TestPackage = { dir: string; name: string; script: string; specs: number }
 export type ShardCommand = { name: string; dir: string; command: string }
 
 const SHARDABLE = /^bun test(\s[^&|;]*)?$/
@@ -15,12 +16,36 @@ export function shardCommands(args: {
   total: number
 }): ShardCommand[] {
   const { packages, shard, total } = args
-  return packages.flatMap((pkg) => {
+  const largestFirst = [...packages].sort((left, right) => right.specs - left.specs)
+  return largestFirst.flatMap((pkg) => {
     if (SHARDABLE.test(pkg.script)) {
       return [{ name: pkg.name, dir: pkg.dir, command: `${pkg.script} --shard=${shard}/${total}` }]
     }
     return shard === 1 ? [{ name: pkg.name, dir: pkg.dir, command: pkg.script }] : []
   })
+}
+
+function specCount(dir: string): number {
+  const specs = new Bun.Glob('**/*.{spec,test}.{ts,tsx}').scanSync({ cwd: dir })
+  return [...specs].filter((path) => !path.includes('node_modules/')).length
+}
+
+export async function runPooled<T>(args: {
+  items: readonly T[]
+  limit: number
+  run: (item: T) => Promise<number>
+}): Promise<number[]> {
+  const codes: number[] = new Array(args.items.length)
+  let next = 0
+  const worker = async () => {
+    while (next < args.items.length) {
+      const index = next++
+      const item = args.items[index]
+      if (item !== undefined) codes[index] = await args.run(item)
+    }
+  }
+  await Promise.all(Array.from({ length: Math.max(1, args.limit) }, worker))
+  return codes
 }
 
 function testPackages(root: string): TestPackage[] {
@@ -36,7 +61,8 @@ function testPackages(root: string): TestPackage[] {
     const script =
       typeof scripts === 'object' && scripts !== null ? Reflect.get(scripts, 'test') : undefined
     if (typeof name !== 'string' || typeof script !== 'string' || EXCLUDED.has(name)) return []
-    return [{ dir: join(root, manifest.slice(0, -'/package.json'.length)), name, script }]
+    const dir = join(root, manifest.slice(0, -'/package.json'.length))
+    return [{ dir, name, script, specs: specCount(dir) }]
   })
 }
 
@@ -73,7 +99,7 @@ if (import.meta.main) {
   const [shard, total] = (process.argv[2] ?? '1/1').split('/').map(Number)
   if (!shard || !total || shard > total) throw new Error(`usage: ci-test-shard.ts <n>/<total>`)
   const commands = shardCommands({ packages: testPackages(process.cwd()), shard, total })
-  const codes = await Promise.all(commands.map(runCommand))
+  const codes = await runPooled({ items: commands, limit: availableParallelism(), run: runCommand })
   const failed = commands.filter((_, index) => codes[index] !== 0).map((command) => command.name)
   if (failed.length > 0) {
     console.error(`failed: ${failed.join(', ')}`)
