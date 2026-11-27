@@ -34,7 +34,7 @@ import { COMPOSER_ITEM_GAP } from '../../../../thread/composer/composer-shape'
 import { ContextReading } from '../../../../thread/composer/context-reading'
 import { PlanUsage } from '../../../../thread/composer/plan-usage'
 import { StaleCard } from '../../../../thread/composer/stale-card'
-import { BlockingStrip } from '../../../../thread/components/blocking-strip'
+import { BlockingStatus } from '../../../../thread/components/blocking-status'
 import { useAttachments } from '../../../../thread/composer/use-attachments'
 import { usePlanUsage } from '../../../../thread/composer/use-plan-usage'
 import { OperatorRequestDock } from '../../../../thread/components/operator-request-card'
@@ -215,12 +215,8 @@ export default function SessionScreen() {
               {session.startFailure === undefined ? null : (
                 <StartFailedCard reason={session.startFailure.reason} onRetry={session.retry} />
               )}
-              {session.blocking === undefined ? null : (
-                <BlockingStrip command={session.blocking} now={session.now} />
-              )}
               <Composer
                 working={session.working}
-                joined={session.blocking !== undefined}
                 attachments={attachments}
                 onSend={session.send}
                 onStop={session.stop}
@@ -230,6 +226,7 @@ export default function SessionScreen() {
                 entries={session.commands.entries}
                 clientActions={session.commands.clientActions}
                 trailingPressable={false}
+                status={<BlockingStatus command={session.blocking} now={session.now} />}
                 trailing={
                   <View style={styles.trailing}>
                     <PlanUsage report={usage} />
