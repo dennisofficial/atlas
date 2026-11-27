@@ -52,6 +52,29 @@ describe('holder.prepare span', () => {
     })
   })
 
+  it('adds the work the runtime timed inside a prepare attempt', async () => {
+    const trace = new RecordingTracer()
+    const clock = new FakeClock()
+    const rig = await makeRig({
+      trace,
+      clock,
+      prepare: async (onStep) => {
+        onStep?.({ step: EWorkspaceStep.Sandbox, state: EWorkspaceStepState.Started })
+        clock.advance(40)
+        onStep?.({ step: EWorkspaceStep.Sandbox, state: EWorkspaceStepState.Done })
+        clock.advance(900)
+        return { ok: true, timings: { access: 100, toolchain: 800 } }
+      },
+    })
+    await seedSession(rig)
+    await rig.holder.start()
+    await rig.wake()
+    expect(await flushUntil({ check: () => prepareSpanEnded(trace) })).toBe(true)
+
+    const [span] = trace.named(ESpan.Prepare)
+    expect(span?.fields.timings).toMatchObject({ sandbox: 40, access: 100, toolchain: 800 })
+  })
+
   it('times the steps from when their reports were produced, not when the span subscribed', async () => {
     const trace = new RecordingTracer()
     const span = new PrepareSpan({

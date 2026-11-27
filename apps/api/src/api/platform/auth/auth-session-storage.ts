@@ -62,9 +62,24 @@ export function redisSessionStorage(args: {
   }
 }
 
-export function sessionStorageFromEnv(url: string | undefined): SecondaryStorage | undefined {
+const REDIS_COMMAND_TIMEOUT_MS = 2_000
+
+export function sessionStorageFromEnv(args: {
+  url: string | undefined
+  commandTimeoutMs?: number | undefined
+  log?: StorageLog | undefined
+}): SecondaryStorage | undefined {
+  const { url } = args
   if (url === undefined || url === '') return undefined
+  const timeoutMs = args.commandTimeoutMs ?? REDIS_COMMAND_TIMEOUT_MS
   return redisSessionStorage({
-    redis: new Redis(url, { lazyConnect: true, keepAlive: 10_000, maxRetriesPerRequest: 3 }),
+    redis: new Redis(url, {
+      lazyConnect: true,
+      keepAlive: 10_000,
+      maxRetriesPerRequest: 3,
+      connectTimeout: timeoutMs,
+      commandTimeout: timeoutMs,
+    }),
+    log: args.log,
   })
 }

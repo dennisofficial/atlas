@@ -128,7 +128,9 @@ export class HeldSession {
       ending: this.ending,
       record: () => this.record,
       childrenPause: () => this.crew?.pauseAll(),
+      childrenRunning: () => this.crew?.runningCount() ?? 0,
       pendingHandoff: () => this.runtime?.remoteCalls.handoff(),
+      trace: () => this.runtime?.trace,
     })
   }
 
