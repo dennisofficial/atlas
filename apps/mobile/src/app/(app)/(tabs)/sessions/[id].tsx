@@ -25,10 +25,7 @@ import { leadingHeaderOptionsOf } from '../../../../navigation/header-options'
 import { SessionsButton } from '../../../../navigation/sessions-button'
 import { CommandListSheet } from '../../../../thread/composer/command-list-sheet'
 import { Composer } from '../../../../thread/composer/composer'
-import { COMPOSER_ITEM_GAP } from '../../../../thread/composer/composer-shape'
-import { COMPOSER_FOOTER_RESERVE } from '../../../../thread/composer/composer-shape'
-import { ContextReading } from '../../../../thread/composer/context-reading'
-import { PlanUsage } from '../../../../thread/composer/plan-usage'
+import { ContextRing } from '../../../../thread/composer/context-ring'
 import { StaleCard } from '../../../../thread/composer/stale-card'
 import { BlockingStatus } from '../../../../thread/components/blocking-status'
 import { useAttachments } from '../../../../thread/composer/use-attachments'
@@ -66,7 +63,6 @@ export default function SessionScreen() {
     dockHeight,
     keyboardInset,
     safeBottom: insets.bottom,
-    reserve: COMPOSER_FOOTER_RESERVE,
   })
   const transcriptRows = useMemo(
     () => [...session.rows, ...session.stagedRows],
@@ -166,7 +162,7 @@ export default function SessionScreen() {
           messageActions={session.messageActions}
         />
         {session.loaded ? (
-          <KeyboardDock overlay reserve={COMPOSER_FOOTER_RESERVE}>
+          <KeyboardDock overlay>
             <View onLayout={handleDockLayout}>
               {session.failure === null || session.startFailure !== undefined ? null : (
                 <View style={styles.operator}>
@@ -223,12 +219,7 @@ export default function SessionScreen() {
                 entries={session.commands.entries}
                 clientActions={session.commands.clientActions}
                 status={<BlockingStatus command={session.blocking} now={session.now} />}
-                footer={
-                  <View style={styles.trailing}>
-                    <PlanUsage report={usage} />
-                    <ContextReading context={session.context} />
-                  </View>
-                }
+                trailing={<ContextRing context={session.context} usage={usage} />}
               >
                 <SessionModelControls model={model} />
               </Composer>
@@ -280,10 +271,5 @@ const styles = StyleSheet.create({
   },
   state: {
     flexShrink: 1,
-  },
-  trailing: {
-    alignItems: 'center',
-    flexDirection: 'row',
-    gap: COMPOSER_ITEM_GAP,
   },
 })

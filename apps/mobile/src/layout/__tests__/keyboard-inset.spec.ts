@@ -43,13 +43,4 @@ describe('dockPaddingOf', () => {
     expect(dockPaddingOf({ keyboardHeight: -180, safeBottom: 34 })).toBe(180)
     expect(dockPaddingOf({ keyboardHeight: -336, safeBottom: 34 })).toBe(336)
   })
-
-  it('lets a reserve below the composer sit in the home indicator space while the keyboard is down', () => {
-    expect(dockPaddingOf({ keyboardHeight: 0, safeBottom: 34, reserve: 12 })).toBe(34)
-  })
-
-  it('keeps the reserve clear of the keyboard and of a screen edge without a home indicator', () => {
-    expect(dockPaddingOf({ keyboardHeight: -336, safeBottom: 34, reserve: 12 })).toBe(348)
-    expect(dockPaddingOf({ keyboardHeight: 0, safeBottom: 0, reserve: 12 })).toBe(12)
-  })
 })
