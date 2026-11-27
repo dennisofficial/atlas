@@ -1,7 +1,7 @@
 import { useTheme } from '@dltech/atlas-ui-native'
 import type { ReactNode } from 'react'
 import { ScrollView, StyleSheet, View } from 'react-native'
-import Animated, { LayoutAnimationConfig } from 'react-native-reanimated'
+import Animated from 'react-native-reanimated'
 
 import { AttachButton } from './attach-button'
 import type { EAttachSource } from './attach-sources'
@@ -58,25 +58,13 @@ export const ComposerControls = ({
       </ScrollView>
     )
   const sendButton = (
-    <LayoutAnimationConfig skipEntering>
-      {onStop !== undefined ? (
-        <SendButton
-          key="stop"
-          action={ESendAction.Stop}
-          besidePressable={trailingPressable}
-          onPress={onStop}
-        />
-      ) : (
-        <SendButton
-          key="send"
-          action={ESendAction.Send}
-          disabled={!canSend}
-          loading={sending}
-          besidePressable={trailingPressable}
-          onPress={onSend}
-        />
-      )}
-    </LayoutAnimationConfig>
+    <SendButton
+      action={onStop === undefined ? ESendAction.Send : ESendAction.Stop}
+      disabled={onStop === undefined && !canSend}
+      loading={onStop === undefined && sending}
+      besidePressable={trailingPressable}
+      onPress={onStop ?? onSend}
+    />
   )
 
   if (dictation === undefined) {
