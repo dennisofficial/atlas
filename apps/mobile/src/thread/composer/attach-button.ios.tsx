@@ -27,7 +27,7 @@ export const AttachButton = ({ onPick }: AttachButtonProps) => {
         label={<Image systemName="plus" size={16} color={theme.foreground} />}
         modifiers={[
           accessibilityLabel('Attach a file'),
-          buttonStyle('glass'),
+          buttonStyle('bordered'),
           buttonBorderShape('circle'),
           menuIndicator('hidden'),
         ]}

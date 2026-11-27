@@ -77,7 +77,8 @@ describe('pg host watch', () => {
     await killer.query(
       `SELECT pg_terminate_backend(pid) FROM pg_locks
        WHERE locktype = 'advisory' AND mode = 'ExclusiveLock' AND granted
-         AND classid = $1::oid AND objid = $2::oid AND objsubid = 2`,
+         AND classid = $1::oid AND objid = $2::oid AND objsubid = 2
+         AND database = (SELECT oid FROM pg_database WHERE datname = current_database())`,
       [PG_PRESENCE_LOCK_NAMESPACE, hostId],
     )
   }
@@ -91,7 +92,7 @@ describe('pg host watch', () => {
 
   const watchers = async (): Promise<number> => {
     const { rows } = await (await sql()).query<{ count: string }>(
-      `SELECT count(*) FROM pg_stat_activity WHERE application_name = $1 AND state = 'active'
+      `SELECT count(*) FROM pg_stat_activity WHERE application_name = $1 AND datname = current_database() AND state = 'active'
          AND wait_event_type = 'Lock'`,
       [WATCH_APP],
     )
@@ -204,7 +205,7 @@ describe('pg host watch', () => {
     const killer = await sql()
     await killer.query(
       `SELECT pg_terminate_backend(pid) FROM pg_stat_activity
-       WHERE application_name = $1 AND pid <> pg_backend_pid()`,
+       WHERE application_name = $1 AND datname = current_database() AND pid <> pg_backend_pid()`,
       [WATCH_APP],
     )
     expect(await armed(1)).toBe(true)
@@ -219,7 +220,7 @@ describe('pg host watch', () => {
     await settle(600)
     expect(await watchers()).toBe(0)
     const { rows } = await (await sql()).query(
-      'SELECT 1 FROM pg_stat_activity WHERE application_name = $1',
+      'SELECT 1 FROM pg_stat_activity WHERE application_name = $1 AND datname = current_database()',
       [WATCH_APP],
     )
     expect(rows).toEqual([])

@@ -51,7 +51,7 @@ describe('pg listener', () => {
   const terminate = async (applicationName: string): Promise<void> => {
     const killer = await sender()
     const { rows } = await killer.query<{ pid: number }>(
-      `SELECT pid FROM pg_stat_activity WHERE application_name = $1`,
+      `SELECT pid FROM pg_stat_activity WHERE application_name = $1 AND datname = current_database()`,
       [applicationName],
     )
     const target = rows[0]
@@ -161,7 +161,7 @@ describe('pg change feed', () => {
       expect(log.entries.filter((entry) => entry.message.includes('malformed'))).toHaveLength(2)
 
       const { rows } = await client.query<{ pid: number }>(
-        `SELECT pid FROM pg_stat_activity WHERE application_name = $1`,
+        `SELECT pid FROM pg_stat_activity WHERE application_name = $1 AND datname = current_database()`,
         [applicationName],
       )
       const target = rows[0]

@@ -158,7 +158,7 @@ describe('pg wake listener', () => {
     expect(await waitFor({ check: () => resyncs === 1 })).toBe(true)
 
     const { rows: backends } = await killer.query<{ pid: number }>(
-      `SELECT pid FROM pg_stat_activity WHERE application_name = 'wake-listener-kill-test'`,
+      `SELECT pid FROM pg_stat_activity WHERE application_name = 'wake-listener-kill-test' AND datname = current_database()`,
     )
     const target = backends[0]
     if (target === undefined) throw new Error('listener backend not found')

@@ -35,6 +35,7 @@ describe('releaseFifo', () => {
     makeFifo({ path: gate })
     const reader = Bun.spawn({
       cmd: ['sh', '-c', `sleep 0.25; cat '${gate}' > '${out}'`],
+      cwd: dir,
       stdin: 'ignore',
       stdout: 'ignore',
       stderr: 'ignore',
