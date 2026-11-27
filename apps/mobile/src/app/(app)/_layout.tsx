@@ -4,7 +4,9 @@ import { router, Stack, usePathname } from 'expo-router'
 import { useAuth } from '../../auth/auth-provider'
 import { SideInsetLayout, WindowInsetsProvider } from '../../layout/side-inset-frame'
 import { PostureProvider } from '../../layout/use-posture'
+import { useContentWidth } from '../../layout/use-content-width'
 import { barHeaderOptionsOf, usesGlassHeader } from '../../navigation/glass-header'
+import { pushedHeaderOptionsOf } from '../../navigation/header-options'
 import { InAppNoticesProvider } from '../../notifications/in-app-notices-provider'
 import { SessionsDrawerProvider } from '../../sessions/sessions-drawer-state'
 import { sessionIdOfPathname } from '../../thread/session/presence-state'
@@ -21,6 +23,7 @@ const CancelButton = () => (
 
 const AppStack = () => {
   const theme = useTheme()
+  const barWidth = useContentWidth()
   const pushedHeaderOptions = {
     headerBackButtonDisplayMode: 'minimal' as const,
     ...barHeaderOptionsOf({
@@ -62,11 +65,17 @@ const AppStack = () => {
       />
       <Stack.Screen
         name="agents/[agentId]"
-        options={{ title: 'Sub-agent', ...pushedHeaderOptions }}
+        options={{
+          ...pushedHeaderOptions,
+          ...pushedHeaderOptionsOf({ title: 'Sub-agent', barWidth }),
+        }}
       />
       <Stack.Screen
         name="project-settings/[projectId]"
-        options={{ title: 'Project settings', ...pushedHeaderOptions }}
+        options={{
+          ...pushedHeaderOptions,
+          ...pushedHeaderOptionsOf({ title: 'Project settings', barWidth }),
+        }}
       />
       <Stack.Screen
         name="diagram"
@@ -87,9 +96,18 @@ const AppStack = () => {
       />
       <Stack.Screen
         name="dictation-lab"
-        options={{ title: 'Dictation lab', ...pushedHeaderOptions }}
+        options={{
+          ...pushedHeaderOptions,
+          ...pushedHeaderOptionsOf({ title: 'Dictation lab', barWidth }),
+        }}
       />
-      <Stack.Screen name="settings" options={{ title: 'Settings', ...pushedHeaderOptions }} />
+      <Stack.Screen
+        name="settings"
+        options={{
+          ...pushedHeaderOptions,
+          ...pushedHeaderOptionsOf({ title: 'Settings', barWidth }),
+        }}
+      />
     </Stack>
   )
 }
