@@ -1,0 +1,87 @@
+[
+  {
+    "id": "table.BrowserReturnPending",
+    "label": "Create table \"BrowserReturnPending\"",
+    "summary": "Creates table \"BrowserReturnPending\"",
+    "operationClass": "additive",
+    "target": {
+      "id": "postgres",
+      "details": {
+        "schema": "public",
+        "objectType": "table",
+        "name": "BrowserReturnPending"
+      }
+    },
+    "precheck": [
+      {
+        "description": "ensure table \"BrowserReturnPending\" does not exist",
+        "sql": "SELECT (to_regclass($1)) IS NULL AS \"result\"",
+        "params": [
+          "\"public\".\"BrowserReturnPending\""
+        ]
+      }
+    ],
+    "execute": [
+      {
+        "description": "create table \"BrowserReturnPending\"",
+        "sql": "CREATE TABLE \"public\".\"BrowserReturnPending\" (\n  \"callbackPath\" text NOT NULL,\n  \"createdAt\" timestamptz(3) DEFAULT (now()) NOT NULL,\n  \"expiresAt\" timestamptz(3) NOT NULL,\n  \"flow\" text NOT NULL,\n  \"port\" int4,\n  \"providerUrlSealed\" text NOT NULL,\n  \"state\" text NOT NULL,\n  \"surface\" text DEFAULT 'web' NOT NULL,\n  \"userId\" text,\n  \"webPath\" text NOT NULL,\n  PRIMARY KEY (\"state\")\n)",
+        "params": []
+      }
+    ],
+    "postcheck": [
+      {
+        "description": "verify table \"BrowserReturnPending\" exists",
+        "sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"pg_class\" AS \"c\" WHERE (\"c\".\"oid\" = to_regclass($1) AND (\"c\".\"relkind\" = $2 OR \"c\".\"relkind\" = $3))) AS \"result\"",
+        "params": [
+          "\"public\".\"BrowserReturnPending\"",
+          "r",
+          "p"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "index.BrowserReturnPending.BrowserReturnPending_expiresAt_idx",
+    "label": "Create index \"BrowserReturnPending_expiresAt_idx\" on \"BrowserReturnPending\"",
+    "operationClass": "additive",
+    "target": {
+      "id": "postgres",
+      "details": {
+        "schema": "public",
+        "objectType": "index",
+        "name": "BrowserReturnPending_expiresAt_idx",
+        "table": "BrowserReturnPending"
+      }
+    },
+    "precheck": [
+      {
+        "description": "ensure index \"BrowserReturnPending_expiresAt_idx\" does not exist",
+        "sql": "SELECT (to_regclass($1)) IS NULL AS \"result\"",
+        "params": [
+          "\"public\".\"BrowserReturnPending_expiresAt_idx\""
+        ]
+      }
+    ],
+    "execute": [
+      {
+        "description": "create index \"BrowserReturnPending_expiresAt_idx\"",
+        "sql": "CREATE INDEX \"BrowserReturnPending_expiresAt_idx\" ON \"public\".\"BrowserReturnPending\" (\"expiresAt\")",
+        "params": []
+      }
+    ],
+    "postcheck": [
+      {
+        "description": "verify index \"BrowserReturnPending_expiresAt_idx\" exists on \"BrowserReturnPending\" with the planned definition",
+        "sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"pg_class\" AS \"c\" INNER JOIN \"pg_index\" AS \"i\" ON \"i\".\"indexrelid\" = \"c\".\"oid\" INNER JOIN \"pg_am\" AS \"m\" ON \"m\".\"oid\" = \"c\".\"relam\" WHERE (\"c\".\"oid\" = to_regclass($1) AND (\"c\".\"relkind\" = $2 OR \"c\".\"relkind\" = $3) AND \"i\".\"indrelid\" = to_regclass($4) AND NOT (\"i\".\"indisunique\") AND \"m\".\"amname\" = $5 AND (\"i\".\"indexprs\" IS NULL AND (SELECT coalesce(jsonb_agg(key_attribute.attname ORDER BY key_column.position), '[]'::jsonb) FROM unnest(\"i\".\"indkey\"::int2[]) WITH ORDINALITY AS key_column(attnum, position) JOIN pg_attribute key_attribute ON key_attribute.attrelid = \"i\".\"indrelid\" AND key_attribute.attnum = key_column.attnum) = ($6)::jsonb) AND \"i\".\"indpred\" IS NULL)) AS \"result\"",
+        "params": [
+          "\"public\".\"BrowserReturnPending_expiresAt_idx\"",
+          "i",
+          "I",
+          "\"public\".\"BrowserReturnPending\"",
+          "btree",
+          "[\"expiresAt\"]"
+        ]
+      }
+    ]
+  }
+]

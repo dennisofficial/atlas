@@ -36,6 +36,10 @@
       "model": "BlobRef",
       "namespace": "public"
     },
+    "BrowserReturnPending": {
+      "model": "BrowserReturnPending",
+      "namespace": "public"
+    },
     "ChangeBlob": {
       "model": "ChangeBlob",
       "namespace": "public"
@@ -1307,6 +1311,123 @@
               },
               "namespaceId": "public",
               "table": "BlobRef"
+            }
+          },
+          "BrowserReturnPending": {
+            "fields": {
+              "callbackPath": {
+                "nullable": false,
+                "type": {
+                  "codecId": "pg/text@1",
+                  "kind": "scalar"
+                }
+              },
+              "createdAt": {
+                "nullable": false,
+                "type": {
+                  "codecId": "pg/timestamptz-date@1",
+                  "kind": "scalar",
+                  "typeParams": {
+                    "precision": 3
+                  }
+                }
+              },
+              "expiresAt": {
+                "nullable": false,
+                "type": {
+                  "codecId": "pg/timestamptz-date@1",
+                  "kind": "scalar",
+                  "typeParams": {
+                    "precision": 3
+                  }
+                }
+              },
+              "flow": {
+                "nullable": false,
+                "type": {
+                  "codecId": "pg/text@1",
+                  "kind": "scalar"
+                }
+              },
+              "port": {
+                "nullable": true,
+                "type": {
+                  "codecId": "pg/int4@1",
+                  "kind": "scalar"
+                }
+              },
+              "providerUrlSealed": {
+                "nullable": false,
+                "type": {
+                  "codecId": "pg/text@1",
+                  "kind": "scalar"
+                }
+              },
+              "state": {
+                "nullable": false,
+                "type": {
+                  "codecId": "pg/text@1",
+                  "kind": "scalar"
+                }
+              },
+              "surface": {
+                "nullable": false,
+                "type": {
+                  "codecId": "pg/text@1",
+                  "kind": "scalar"
+                }
+              },
+              "userId": {
+                "nullable": true,
+                "type": {
+                  "codecId": "pg/text@1",
+                  "kind": "scalar"
+                }
+              },
+              "webPath": {
+                "nullable": false,
+                "type": {
+                  "codecId": "pg/text@1",
+                  "kind": "scalar"
+                }
+              }
+            },
+            "relations": {},
+            "storage": {
+              "fields": {
+                "callbackPath": {
+                  "column": "callbackPath"
+                },
+                "createdAt": {
+                  "column": "createdAt"
+                },
+                "expiresAt": {
+                  "column": "expiresAt"
+                },
+                "flow": {
+                  "column": "flow"
+                },
+                "port": {
+                  "column": "port"
+                },
+                "providerUrlSealed": {
+                  "column": "providerUrlSealed"
+                },
+                "state": {
+                  "column": "state"
+                },
+                "surface": {
+                  "column": "surface"
+                },
+                "userId": {
+                  "column": "userId"
+                },
+                "webPath": {
+                  "column": "webPath"
+                }
+              },
+              "namespaceId": "public",
+              "table": "BrowserReturnPending"
             }
           },
           "ChangeBlob": {
@@ -11617,6 +11738,90 @@
               },
               "uniques": []
             },
+            "BrowserReturnPending": {
+              "columns": {
+                "callbackPath": {
+                  "codecId": "pg/text@1",
+                  "dataType": "pg/text",
+                  "nullable": false
+                },
+                "createdAt": {
+                  "codecId": "pg/timestamptz-date@1",
+                  "dataType": "pg/timestamptz",
+                  "default": {
+                    "expression": "now()",
+                    "kind": "function"
+                  },
+                  "nullable": false,
+                  "typeParams": {
+                    "precision": 3
+                  }
+                },
+                "expiresAt": {
+                  "codecId": "pg/timestamptz-date@1",
+                  "dataType": "pg/timestamptz",
+                  "nullable": false,
+                  "typeParams": {
+                    "precision": 3
+                  }
+                },
+                "flow": {
+                  "codecId": "pg/text@1",
+                  "dataType": "pg/text",
+                  "nullable": false
+                },
+                "port": {
+                  "codecId": "pg/int4@1",
+                  "dataType": "pg/int4",
+                  "nullable": true
+                },
+                "providerUrlSealed": {
+                  "codecId": "pg/text@1",
+                  "dataType": "pg/text",
+                  "nullable": false
+                },
+                "state": {
+                  "codecId": "pg/text@1",
+                  "dataType": "pg/text",
+                  "nullable": false
+                },
+                "surface": {
+                  "codecId": "pg/text@1",
+                  "dataType": "pg/text",
+                  "default": {
+                    "kind": "literal",
+                    "value": "web"
+                  },
+                  "nullable": false
+                },
+                "userId": {
+                  "codecId": "pg/text@1",
+                  "dataType": "pg/text",
+                  "nullable": true
+                },
+                "webPath": {
+                  "codecId": "pg/text@1",
+                  "dataType": "pg/text",
+                  "nullable": false
+                }
+              },
+              "foreignKeys": [],
+              "indexes": [
+                {
+                  "columns": [
+                    "expiresAt"
+                  ],
+                  "name": "BrowserReturnPending_expiresAt_idx",
+                  "unique": false
+                }
+              ],
+              "primaryKey": {
+                "columns": [
+                  "state"
+                ]
+              },
+              "uniques": []
+            },
             "ChangeBlob": {
               "columns": {
                 "createdAt": {
@@ -19029,7 +19234,7 @@
         "kind": "postgres-schema"
       }
     },
-    "storageHash": "c779b18d69fd0e645aa1ed3e4d552bf07119a0f8e3425748b58e06b81715798b"
+    "storageHash": "16728f3bc2230e97bb7643a13fa9505d4e74bff2ae34f3336296bf1e287cef18"
   },
   "execution": {
     "executionHash": "0e6f989bb6c7c489039e329d87ab4c7469f87c12c726c4dcf40ed6296bf343c1",
