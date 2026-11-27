@@ -5,12 +5,12 @@ import { useCallback, useState } from 'react'
 import { Alert, StyleSheet, useWindowDimensions, View } from 'react-native'
 import { SafeAreaProvider, useSafeAreaInsets } from 'react-native-safe-area-context'
 
-import { postureOf } from '../../layout/posture'
-import { photoHeaderOptionsOf } from '../../thread/photos/photo-header-options'
-import { chromeVisibleAfter, EPhotoChromeEvent } from '../../thread/photos/photo-zoom'
-import { photoOf } from '../../thread/photos/photo-store'
-import { sharePhoto } from '../../thread/photos/share-photo'
-import { ZoomablePhoto } from '../../thread/photos/zoomable-photo'
+import { postureOf } from '../../../layout/posture'
+import { photoHeaderOptionsOf } from '../../../thread/photos/photo-header-options'
+import { chromeVisibleAfter, EPhotoChromeEvent } from '../../../thread/photos/photo-zoom'
+import { photoOf } from '../../../thread/photos/photo-store'
+import { sharePhoto } from '../../../thread/photos/share-photo'
+import { ZoomablePhoto } from '../../../thread/photos/zoomable-photo'
 
 const PhotoViewer = () => {
   const theme = useTheme()

@@ -21,9 +21,12 @@ web spinner), never `ActivityIndicator`.
   (`src/navigation/header-options.tsx`), which places the title as a `custom` item in
   `unstable_headerLeftItems`. Its `titleButtons` counts every bar button on the screen plus one
   spare slot. With too little room, iOS moves every bar item into one overflow "…" menu.
-- **Hiding the bar on a live screen:** do not toggle `headerShown` from state. The change remounts
-  the screen's content, so its state and any scroll or zoom reset (#3036, measured in the photo
-  viewer). Keep `headerShown: true` on a transparent bar and empty its items instead.
+- **Hiding the bar on a live screen:** a modal (`fullScreenModal`, `modal`) that shows a header
+  renders its content inside a nested native stack (`isHeaderInModal`,
+  react-native-screens `ScreenStackItem.tsx:101`). Toggling `headerShown` there swaps that tree and
+  remounts the content, so its state, scroll and zoom reset. To hide and show the bar with the
+  native animation, give the modal its own `Stack` (`_layout.tsx`) with `headerShown: false` on
+  the modal and toggle `headerShown` on the screen inside it, as `src/app/(app)/photo/` does.
 - **Bar buttons:** use native bar button items (`unstable_headerLeftItems`,
   `unstable_headerRightItems`) with SF Symbols. Then iOS 26+ gives them the glass style. Use a
   React Native button in the bar only as the non-iOS fallback.
@@ -56,7 +59,7 @@ web spinner), never `ActivityIndicator`.
   itself.
 - A `fullScreenModal` draws outside `RailContentFrame`. It pads right by `posture.railWidth`
   itself, and wraps itself in its own `SafeAreaProvider`: while it is open, the root insets and
-  `usePosture()` keep the orientation it opened in. See `src/app/(app)/photo.tsx`.
+  `usePosture()` keep the orientation it opened in. See `src/app/(app)/photo/index.tsx`.
 - The check viewports, the Duo included, are in `docs/mobile/devices.md`.
 
 ## Shipping
