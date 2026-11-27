@@ -105,9 +105,9 @@ sign-in results for flows, not tokens.
 | `mcp`    | the MCP transcript card's sign-in, or a settings page | `/sessions/<id>`, `/settings/integrations`, `/projects/<id>/settings/mcp`, `/groups/<id>/settings/mcp` | the roster row, read by the next turn |
 | `github` | `github.beginRedirect` from integrations settings     | `/settings/integrations`                                                                               | `github.get` connection               |
 
-GitHub connect opens a browser on web, Mac and a local TUI. `github.beginRedirect` returns `{url}`;
-a future iOS integrations screen can call it and pass that URL to `openBrowserReturn` using the
-same recipe above. No iOS settings entry is added by this flow. The provider callback is exactly
+GitHub connect opens a browser on web, Mac, iOS and a local TUI. The iOS integrations screen calls
+`github.beginRedirect`, passes its `{url}` to `openBrowserReturn`, and reads `useReturnOutcome` to
+refresh the connection or show the failure reason. The provider callback is exactly
 `https://api.byatlas.io/v1/github/oauth/callback` in production; local and test configurations derive
 `/v1/github/oauth/callback` from their public API origin. The callback exchanges the authorization
 code with the OAuth App secret and finds the operator from the open `github` state, not a cookie.
