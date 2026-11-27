@@ -133,6 +133,17 @@ assembly, settings, ports, and the record folds. It imports `zod` and nothing el
 - `SPAWN_FILES_MAX_COUNT` (32), `SPAWN_FILE_MAX_BYTES` (256 KB), `SPAWN_FILES_MAX_BYTES` (1 MB), `ATLAS_CONTEXT_DIR_ENV`: the limits and the folder variable.
 - `attachedFilesLineOf(files)`, `spawnBriefOf({brief, files})`: the line that names the attached paths. `contextFileKindOf({path, head})`, `contextMediaKindOf(path)`, `contextMimeOf(path)`, `EContextFileKind`: whether a context file is text, an image, bytes, video or audio, and its media type. A mirrored file has no size limit.
 
+### Return a browser sign-in to the surface that started it
+
+- `EReturnSurface`, `returnTargetOf({ state, cookie, recorded })`: the surface a sign-in returns to.
+  The cookie for the same state wins, the recorded target is the fallback, and a `tui` target
+  without a usable port returns to the web.
+- `startLinkOf`, `startLinkFor({ url, surface, port })`, `stateOfStartLink`, `isStartLink`: the
+  `/return/start/<state>` link a client opens.
+- `returnLinkOf(...)`, `browserReturnOf(url)`, `withoutReturnParams(url)`: the return link for each
+  surface and its parser. `returnOutcomeOf({ durable, local })`: the durable result wins.
+- `loopbackReplyOf(...)`: the checks a TUI loopback listener makes. See `docs/browser-return.md`.
+
 ## Usage
 
 ```ts

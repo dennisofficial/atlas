@@ -10,6 +10,7 @@
     "./crew": "./src/crew/index.ts",
     "./session": "./src/session/index.ts",
     "./account": "./src/account/index.ts",
+    "./browser-return": "./src/browser-return/index.ts",
     "./transcript": "./src/transcript/index.ts",
     "./stream-fixture": "./src/stream/__tests__/support.ts",
     "./transcript-fixture": "./src/transcript/__tests__/fixture.ts",

@@ -4,6 +4,7 @@ export * from './json/schema'
 export * from './json/value'
 export * from './json/partial'
 export * from './provider'
+export * from './browser-return'
 
 export * from './events/body'
 export * from './events/said-body'
