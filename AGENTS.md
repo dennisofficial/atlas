@@ -74,7 +74,8 @@ where the compiler should enforce a dependency rule.
   stays on Vitest (`bun --bun vitest run`).
 - Tests are incremental (`packages/bun-test-incremental`). With `BUN_TEST_INCREMENTAL=1` (always
   on in CI) only a spec whose inputs changed runs. A failure is never cached. Never add path
-  filters or sharding to CI. The nightly runs everything.
+  filters to CI. The test job runs as eight `bun test --shard` jobs (`scripts/ci-test-shard.ts`),
+  each with its own cache; every file runs on exactly one shard. The nightly runs everything.
 - Live Docker specs run only with `ATLAS_LIVE_DOCKER=1`, which CI does not set (several need
   repair).
 - A v2 feature whose work outlives a turn or a prepare (a background setup script, a bash call)

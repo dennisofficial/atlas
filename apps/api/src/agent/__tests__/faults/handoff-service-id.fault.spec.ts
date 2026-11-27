@@ -57,7 +57,7 @@ describeHandoff({
       what: 'the service call to be dispatched',
       check: async () => (await dispatchesOf(ctx)).length === 1,
     })
-    await ctx.waitFor('started', 30_000)
+    await ctx.waitFor('started', POD_EFFECT_WAIT_MS)
     return hostA
   },
 
