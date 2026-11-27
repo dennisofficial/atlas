@@ -44,10 +44,12 @@ describe('ios project sections', () => {
     }
   })
 
-  it('routes overview and mcp in web order', () => {
+  it('routes overview, sandbox, mcp and pull requests in nav order', () => {
     expect(routedProjectSections().map((item) => item.section)).toEqual([
       EProjectSettingsSection.Overview,
+      EProjectSettingsSection.Sandbox,
       EProjectSettingsSection.Mcp,
+      EProjectSettingsSection.PullRequests,
     ])
   })
 })
@@ -60,10 +62,12 @@ describe('ios group sections', () => {
     }
   })
 
-  it('routes the group instructions and mcp in web order', () => {
+  it('routes group overview, instructions, sandbox and mcp in nav order', () => {
     expect(IOS_PENDING_GROUP_SECTIONS.has(EGroupSettingsSection.Instructions)).toBe(false)
     expect(routedGroupSections().map((item) => item.section)).toEqual([
+      EProjectSettingsSection.Overview,
       EGroupSettingsSection.Instructions,
+      EProjectSettingsSection.Sandbox,
       EProjectSettingsSection.Mcp,
     ])
   })
