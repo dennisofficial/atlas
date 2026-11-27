@@ -109,6 +109,7 @@ const AppStack = () => {
                 }),
             ...pushedHeaderOptions,
             ...pushedHeaderOptionsOf({ title: screen.title, barWidth }),
+            ...(screen.presentation === undefined ? {} : { presentation: screen.presentation }),
           }}
         />
       ))}

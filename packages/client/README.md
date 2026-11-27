@@ -29,7 +29,7 @@ The headless client library that web, the TUI and the mobile app share.
 | `@dltech/atlas-client/crew`                     | The crew readout, the sub-agent state and the background work.                                                                                                 |
 | `@dltech/atlas-client/session`                  | The session create input, the rewind, the summarise, the image upload, the composer attachments, the message input, the draft sync and the sandbox start view. |
 | `@dltech/atlas-client/account`                  | The Atlas Cloud device-code login and the PKCE pair a browser sign-in needs.                                                                                   |
-| `@dltech/atlas-client/settings`                 | The settings page and section lists that every surface lists and filters, plus the instructions and memory logic those pages share.                            |
+| `@dltech/atlas-client/settings`                 | The settings page and section lists, and the instructions, memory, project, group, sandbox and pull-request settings logic.                                    |
 | `@dltech/atlas-client/browser-return`           | The outcomes a browser sign-in brought back, held by the state of its start link.                                                                              |
 | `@dltech/atlas-client/transcript`               | The transcript rows, the tool runs and the turn rows.                                                                                                          |
 | `@dltech/atlas-client/stream-fixture`           | A fake scheduler and transport, and the event factories, for a spec.                                                                                           |
@@ -82,6 +82,24 @@ The headless client library that web, the TUI and the mobile app share.
   `ESignInMethodProvider`: which methods a user has, and the two rows a settings page shows.
 - `linkReturnOf(params)`, `ELinkReturnKind`: the outcome a Google link came back with.
 - `unlinkRefusalOf(args)`, `SESSION_NOT_FRESH`, `UNREACHABLE`: the refusals a settings page names.
+
+### Edit a project or a group
+
+- `overviewDraftOf(project)`, `overviewSaveBodyOf({ project, draft })`, `overviewDraftsEqual`,
+  `overviewDraftIsValid`, `identityOf(project)`, `shipOptionsOf(behavior)`: the project overview
+  draft, its save body and its ship-behavior options, legacy merge included.
+- `additionalRepositoryProblem({ value })`, `canAddAdditionalRepository`,
+  `addAdditionalRepository`, `editAdditionalRepository`, `removeAdditionalRepository`: the
+  additional-repositories list, capped at the wire limit.
+- `groupNameProblem({ name })`, `groupMembersOf`, `groupCandidatesOf`, `groupMemberSummaryOf`,
+  `GROUP_DESCRIPTION`, `GROUP_DELETE_DESCRIPTION`: a group's name rule and its membership.
+- `SANDBOX_SETTING_KEYS`, `inheritedSandboxOf`, `ownValuesOf`, `sandboxOfValues`,
+  `sizeSettingValuesOf`, `diskSettingValuesOf`: a sandbox's own and inherited size and disk.
+  `savedSizeValueOf`, `sizeValueToSave`, `savedDiskValueOf`, `diskValueToSave`,
+  `sandboxSizeOptionsOf`, `sandboxDiskOptionsOf`: its selections and the options including the
+  account default. `DEFAULT_SANDBOX_SIZE`, `defaultDiskGbOf`, `sizeKeyOf`, `INHERIT_VALUE`.
+- `prCommentEditorsOf(values)`, `prCommentEditorChanges({ draft })`, `MUTED_EDITORS_KEY`,
+  `URGENT_EDITORS_KEY`, `settingChangeOf`: the muted and urgent pull-request comment editors.
 
 ### Keep the log and the view
 
