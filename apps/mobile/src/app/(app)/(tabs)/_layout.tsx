@@ -1,3 +1,4 @@
+import { useTheme } from '@dltech/atlas-ui-native'
 import { usePathname } from 'expo-router'
 import { NativeTabs } from 'expo-router/native-tabs'
 
@@ -6,10 +7,15 @@ import { APP_TAB_ITEMS, EAppTab } from '../../../navigation/tabs'
 import { useSessionsDrawer } from '../../../sessions/sessions-drawer-state'
 
 export default function TabsLayout() {
+  const theme = useTheme()
   const pathname = usePathname()
   const { open: drawerOpen } = useSessionsDrawer()
   return (
-    <NativeTabs hidden={tabBarHiddenOf({ pathname, drawerOpen })}>
+    <NativeTabs
+      hidden={tabBarHiddenOf({ pathname, drawerOpen })}
+      tintColor={theme.foreground}
+      iconColor={{ default: theme.mutedForeground, selected: theme.foreground }}
+    >
       <NativeTabs.Trigger name={EAppTab.Sessions}>
         <NativeTabs.Trigger.Icon
           sf={{
