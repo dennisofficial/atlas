@@ -8,9 +8,8 @@ import { openUrlIn } from '../open-in-browser'
 import {
   EPreviewWait,
   previewNeedsWake,
-  previewOpensOnReady,
+  previewReloadsOnWake,
   previewWaitOf,
-  previewWaitsForPod,
   revealedPreview,
   reloadedPreviews,
 } from '../preview-wake'
@@ -41,14 +40,6 @@ describe('previewWaitOf', () => {
   })
 })
 
-describe('previewWaitsForPod', () => {
-  it('lets only an awake pod load a preview', () => {
-    expect(previewWaitsForPod(EPreviewWait.Awake)).toBe(false)
-    expect(previewWaitsForPod(EPreviewWait.Waking)).toBe(true)
-    expect(previewWaitsForPod(EPreviewWait.Asleep)).toBe(true)
-  })
-})
-
 describe('previewNeedsWake', () => {
   it('asks for a wake only from a pod that sleeps', () => {
     expect(previewNeedsWake(EPreviewWait.Asleep)).toBe(true)
@@ -57,19 +48,26 @@ describe('previewNeedsWake', () => {
   })
 })
 
-describe('previewOpensOnReady', () => {
-  it('opens on the first tunnel-ready signal the click has not seen', () => {
-    expect(previewOpensOnReady({ seen: 'at-1', now: 'at-2' })).toBe(true)
-    expect(previewOpensOnReady({ seen: undefined, now: 'at-1' })).toBe(true)
+describe('previewReloadsOnWake', () => {
+  it('reloads on the step out of waiting', () => {
+    expect(previewReloadsOnWake({ before: EPreviewWait.Asleep, now: EPreviewWait.Awake })).toBe(
+      true,
+    )
+    expect(previewReloadsOnWake({ before: EPreviewWait.Waking, now: EPreviewWait.Awake })).toBe(
+      true,
+    )
   })
 
-  it('does not open again on the ready signal that was already there', () => {
-    expect(previewOpensOnReady({ seen: 'at-1', now: 'at-1' })).toBe(false)
-    expect(previewOpensOnReady({ seen: undefined, now: undefined })).toBe(false)
-  })
-
-  it('does not open when the ready signal leaves the window', () => {
-    expect(previewOpensOnReady({ seen: 'at-1', now: undefined })).toBe(false)
+  it('does not reload an awake pod or one that stays away', () => {
+    expect(previewReloadsOnWake({ before: EPreviewWait.Awake, now: EPreviewWait.Awake })).toBe(
+      false,
+    )
+    expect(previewReloadsOnWake({ before: EPreviewWait.Asleep, now: EPreviewWait.Waking })).toBe(
+      false,
+    )
+    expect(previewReloadsOnWake({ before: EPreviewWait.Asleep, now: EPreviewWait.Asleep })).toBe(
+      false,
+    )
   })
 })
 

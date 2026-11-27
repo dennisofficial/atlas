@@ -23,14 +23,10 @@ export const previewWaitOf = (phase: EPodPowerPhase | undefined): EPreviewWait =
   return EPreviewWait.Awake
 }
 
-export const previewWaitsForPod = (wait: EPreviewWait): boolean => wait !== EPreviewWait.Awake
-
 export const previewNeedsWake = (wait: EPreviewWait): boolean => wait === EPreviewWait.Asleep
 
-export const previewOpensOnReady = (args: {
-  seen: string | undefined
-  now: string | undefined
-}): boolean => args.now !== undefined && args.now !== args.seen
+export const previewReloadsOnWake = (args: { before: EPreviewWait; now: EPreviewWait }): boolean =>
+  args.before !== EPreviewWait.Awake && args.now === EPreviewWait.Awake
 
 const previewPortOfTab = (args: {
   tab: BrowserTab

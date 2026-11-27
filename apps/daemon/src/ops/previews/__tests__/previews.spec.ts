@@ -12,12 +12,7 @@ import {
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 
-import {
-  CallFailureError,
-  type CallOp,
-  type DaemonEvent,
-  type PreviewTunnelStatus,
-} from '@dltech/atlas-protocol'
+import { CallFailureError, type CallOp, type PreviewTunnelStatus } from '@dltech/atlas-protocol'
 import type { CallContext, DaemonGroup, RegisteredOp } from '@dltech/atlas-protocol/engine'
 
 import { previewsGroup } from '..'
@@ -139,7 +134,6 @@ describe('the pod tunnel', () => {
   let argvPath: string
   let pidPath: string
   let group: DaemonGroup
-  let published: DaemonEvent[]
 
   const binaryOf = (args: { dir: string; script: string }): string => {
     mkdirSync(args.dir, { recursive: true })
@@ -176,7 +170,7 @@ describe('the pod tunnel', () => {
       ...(options.previewSuspendGapMs === undefined
         ? {}
         : { previewSuspendGapMs: options.previewSuspendGapMs }),
-    })({ publish: (event) => published.push(event) })
+    })({ publish: () => undefined })
 
   const ensure = async (tunnelToken?: string): Promise<PreviewTunnelStatus> =>
     (await runOp(
@@ -208,7 +202,6 @@ describe('the pod tunnel', () => {
     argvPath = join(dir, 'argv.txt')
     pidPath = join(dir, 'pid.txt')
     tokenFile = join(dir, 'previews.json')
-    published = []
     binaryOf({ dir: join(dir, 'bin'), script: READY_SCRIPT })
     group = groupOf()
   })
@@ -352,11 +345,11 @@ describe('the pod tunnel', () => {
     ).toHaveLength(starts.length)
   })
 
-  it('publishes a ready signal each time the tunnel registers', async () => {
+  it('reports the time the tunnel registered in its status', async () => {
     const up = await ensure('secret-token')
     expect(up.state).toBe('up')
     expect(up.upAt).toBeString()
-    expect(published).toMatchObject([{ type: 'previews.ready', at: up.upAt as string }])
+    expect((await status()).upAt).toBe(up.upAt as string)
   })
 
   it('re-dials cloudflared after the pod did not run, with no host call', async () => {
@@ -371,7 +364,6 @@ describe('the pod tunnel', () => {
     expect(up.restarts).toBeGreaterThanOrEqual(1)
     expect(up.pid).not.toBe(first.pid as number)
     expect(up.upAt).not.toBe(first.upAt as string)
-    expect(published.filter((event) => event.type === 'previews.ready')).toHaveLength(2)
   })
 
   it('leaves a tunnel that keeps ticking alone', async () => {

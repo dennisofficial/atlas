@@ -30,7 +30,6 @@ export type TunnelSupervisorArgs = {
   readyTimeoutMs: number
   heartbeatMs?: number | undefined
   suspendGapMs?: number | undefined
-  onUp?(at: string): void
   log(line: string): void
 }
 
@@ -204,7 +203,6 @@ export class TunnelSupervisor {
       this.registered = true
       this.state = 'up'
       this.upAt = new Date().toISOString()
-      this.args.onUp?.(this.upAt)
       return this.status()
     }
     if (this.child === child) {

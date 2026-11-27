@@ -8,8 +8,16 @@ import { isThirdPartyFrameRequest } from './cookies'
 import { rewriteResponseHeaders } from './headers'
 import { DEFAULT_PREVIEW_DOMAIN, isPreviewHost } from './origins'
 import { scriptHashOf, scriptTagOf } from './script'
+import { startingPage } from './starting-page'
+import {
+  DEFAULT_TUNNEL_WAIT,
+  discardResponse,
+  type TunnelWait,
+  type Upstream,
+  upstreamWaitingForTunnel,
+} from './tunnel-wait'
 
-export type Upstream = (request: Request) => Promise<Response>
+export type { Upstream }
 
 export type PreviewEnv = { PREVIEW_DOMAIN?: string | undefined }
 
@@ -21,6 +29,13 @@ const FRAMED_DESTINATIONS = new Set(['iframe'])
 function isWebSocketUpgrade(request: Request): boolean {
   return request.headers.get('upgrade')?.toLowerCase() === 'websocket'
 }
+
+const fetchDestinationOf = (request: Request): string => request.headers.get('sec-fetch-dest') ?? ''
+
+const loadsDocument = (request: Request): boolean =>
+  request.headers.get('sec-fetch-mode') === 'navigate' ||
+  TOP_LEVEL_DESTINATIONS.has(fetchDestinationOf(request)) ||
+  FRAMED_DESTINATIONS.has(fetchDestinationOf(request))
 
 function markerCookieFor(args: {
   request: Request
@@ -60,14 +75,24 @@ export async function handlePreviewRequest(args: {
   request: Request
   upstream: Upstream
   domain?: string | undefined
+  tunnelWait?: TunnelWait | undefined
 }): Promise<Response> {
   const { request, upstream } = args
   const domain = args.domain ?? DEFAULT_PREVIEW_DOMAIN
   const hostname = URL.canParse(request.url) ? new URL(request.url).hostname : ''
   if (hostname === callbackHostOf(domain)) return handleCallbackRequest({ request, domain })
   if (!isPreviewHost(hostname, domain)) return notFound()
-  const response = await upstream(request)
-  if (isWebSocketUpgrade(request) || response.status === SWITCHING_PROTOCOLS_STATUS) return response
+  const answer = await upstreamWaitingForTunnel({
+    request,
+    upstream,
+    wait: args.tunnelWait ?? DEFAULT_TUNNEL_WAIT,
+  })
+  if (isWebSocketUpgrade(request) || answer.response.status === SWITCHING_PROTOCOLS_STATUS) {
+    return answer.response
+  }
+  const waiting = answer.tunnelError && loadsDocument(request)
+  if (waiting) await discardResponse(answer.response)
+  const response = waiting ? startingPage() : answer.response
   const html = isHtml(response)
   const headers = rewriteResponseHeaders({
     headers: response.headers,
