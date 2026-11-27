@@ -1,15 +1,20 @@
-import { KeyRoundIcon } from 'lucide-react'
-import type { ReactNode } from 'react'
+'use client'
 
+import {
+  ESignInMethodAction,
+  ESignInMethodProvider,
+  signInMethodRowsOf,
+  type ISignInMethodRow,
+} from '@dltech/atlas-client/settings'
 import { Badge } from '@dltech/atlas-ui/components/badge'
 import { Button } from '@dltech/atlas-ui/components/button'
+import { KeyRoundIcon } from 'lucide-react'
+import type { ReactNode } from 'react'
 
 import { GoogleLogo } from '@/features/auth/google-logo'
 import type { SignInMethodIds } from '@/lib/auth-accounts'
 
 import { SettingsCard, SettingsRow } from '../settings-layout'
-
-const ONLY_METHOD = 'Your only sign-in method. Add another before removing it.'
 
 export type SignInMethodHandlers = {
   busy: boolean
@@ -25,6 +30,30 @@ function MethodTile({ children }: { children: ReactNode }) {
   )
 }
 
+const mediaOf = (provider: ESignInMethodProvider): ReactNode =>
+  provider === ESignInMethodProvider.Google ? (
+    <MethodTile>
+      <GoogleLogo className="size-4" />
+    </MethodTile>
+  ) : (
+    <MethodTile>
+      <KeyRoundIcon className="size-4" />
+    </MethodTile>
+  )
+
+const handlerOf = ({
+  row,
+  handlers,
+}: {
+  row: ISignInMethodRow
+  handlers: SignInMethodHandlers
+}): (() => void) => {
+  if (row.action === ESignInMethodAction.Link) return handlers.linkGoogle
+  if (row.action === ESignInMethodAction.Unlink) return handlers.unlinkGoogle
+  if (row.action === ESignInMethodAction.SendSetupLink) return handlers.sendSetupLink
+  return handlers.removePassword
+}
+
 export function AccountSignInMethodsCard({
   methods,
   handlers,
@@ -32,92 +61,31 @@ export function AccountSignInMethodsCard({
   methods: SignInMethodIds
   handlers: SignInMethodHandlers
 }) {
-  const hasGoogle = methods.google !== null
-  const hasPassword = methods.password !== null
-  const onlyMethod = hasGoogle !== hasPassword
   return (
     <SettingsCard>
-      <SettingsRow
-        media={
-          <MethodTile>
-            <GoogleLogo className="size-4" />
-          </MethodTile>
-        }
-        title={
-          <>
-            Google
-            <Badge variant={hasGoogle ? 'secondary' : 'outline'}>
-              {hasGoogle ? 'Linked' : 'Not linked'}
-            </Badge>
-          </>
-        }
-        description={
-          hasGoogle && onlyMethod
-            ? ONLY_METHOD
-            : hasGoogle
-              ? 'Sign in with your Google account.'
-              : 'Link your Google account to sign in without a password.'
-        }
-        control={
-          hasGoogle ? (
+      {signInMethodRowsOf({ methods, busy: handlers.busy }).map((row) => (
+        <SettingsRow
+          key={row.provider}
+          media={mediaOf(row.provider)}
+          title={
+            <>
+              {row.label}
+              <Badge variant={row.linked ? 'secondary' : 'outline'}>{row.badge}</Badge>
+            </>
+          }
+          description={row.description}
+          control={
             <Button
-              variant="outline"
+              variant={row.primary ? 'default' : 'outline'}
               size="sm"
-              disabled={onlyMethod || handlers.busy}
-              onClick={handlers.unlinkGoogle}
+              disabled={row.disabled}
+              onClick={handlerOf({ row, handlers })}
             >
-              Unlink
+              {row.actionLabel}
             </Button>
-          ) : (
-            <Button size="sm" disabled={handlers.busy} onClick={handlers.linkGoogle}>
-              Link Google
-            </Button>
-          )
-        }
-      />
-      <SettingsRow
-        media={
-          <MethodTile>
-            <KeyRoundIcon className="size-4" />
-          </MethodTile>
-        }
-        title={
-          <>
-            Password
-            <Badge variant={hasPassword ? 'secondary' : 'outline'}>
-              {hasPassword ? 'Set' : 'Not set'}
-            </Badge>
-          </>
-        }
-        description={
-          hasPassword && onlyMethod
-            ? ONLY_METHOD
-            : hasPassword
-              ? 'Sign in with your email and password.'
-              : 'Set a password to sign in with your email.'
-        }
-        control={
-          hasPassword ? (
-            <Button
-              variant="outline"
-              size="sm"
-              disabled={onlyMethod || handlers.busy}
-              onClick={handlers.removePassword}
-            >
-              Remove
-            </Button>
-          ) : (
-            <Button
-              variant="outline"
-              size="sm"
-              disabled={handlers.busy}
-              onClick={handlers.sendSetupLink}
-            >
-              Send setup link
-            </Button>
-          )
-        }
-      />
+          }
+        />
+      ))}
     </SettingsCard>
   )
 }
