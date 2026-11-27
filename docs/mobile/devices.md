@@ -147,8 +147,10 @@ What the web bundle cannot prove:
 - `apps/mobile/src/app/(app)/(tabs)/_layout.tsx:12` is a native tab bar (`NativeTabs` from
   `expo-router/native-tabs`): Sessions, Routines, Projects and Artifacts, each with a label and an
   SF Symbol. iOS places that bar itself, so the Duo status strip holds it and the app draws nothing
-  there. The bar hides on the sessions tab while the sessions drawer is closed
-  (`src/navigation/root-navigation.ts:31`). Screen content stops at that column: `SideInsetFrame`
+  there. On a phone with no side column the bar sits at the bottom, so it hides on the sessions
+  tab while the sessions drawer is closed and leaves the composer clear. When the window has a
+  side column (`sideColumnInsetOf` > 0, the Duo open or closed), the bar stays in that column on
+  every tab (`src/navigation/root-navigation.ts:31`). Screen content stops at that column: `SideInsetFrame`
   (`src/layout/side-inset-frame.tsx:19`) pads it by `sideColumnInsetOf` (`posture.ts:12`), reached
   through the stack `screenLayout` prop of `(app)/_layout.tsx:35`, `tab-root-stack.tsx:14` and
   `(tabs)/sessions/_layout.tsx:18`.

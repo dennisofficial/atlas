@@ -31,7 +31,9 @@ export const sessionOpenOf = ({
 export const tabBarHiddenOf = ({
   pathname,
   drawerOpen,
+  sideColumn,
 }: {
   pathname: string
   drawerOpen: boolean
-}): boolean => isSessionsPath(pathname) && !drawerOpen
+  sideColumn: boolean
+}): boolean => !sideColumn && isSessionsPath(pathname) && !drawerOpen
