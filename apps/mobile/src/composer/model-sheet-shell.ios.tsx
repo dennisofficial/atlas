@@ -9,7 +9,7 @@ import {
 } from 'react-native-screens'
 
 import { usesGlassHeader } from '../navigation/glass-header'
-import { MODEL_SHEET_TITLE, modelSearchBarPropsOf } from './model-search-bar'
+import { modelSearchBarPropsOf } from './model-search-bar'
 
 export const ModelSheetShell = ({
   query,
@@ -45,8 +45,7 @@ export const ModelSheetShell = ({
           color: theme.foreground,
           hideBackButton: true,
           hideShadow: true,
-          title: MODEL_SHEET_TITLE,
-          titleColor: theme.foreground,
+          title: '',
           translucent: glass,
         }}
       >

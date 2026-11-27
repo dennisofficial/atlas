@@ -3,7 +3,7 @@ import { describe, expect, it } from 'bun:test'
 import { MODEL_SEARCH_PLACEHOLDER, modelSearchBarPropsOf } from '../model-search-bar'
 
 describe('modelSearchBarPropsOf', () => {
-  it('puts a full-width search field under the sheet title and keeps it there while the list scrolls', () => {
+  it('puts a full-width search field at the top of the sheet and keeps it there while the list scrolls', () => {
     expect(modelSearchBarPropsOf()).toMatchObject({
       placement: 'stacked',
       allowToolbarIntegration: false,

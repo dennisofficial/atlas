@@ -1,7 +1,6 @@
 import type { SearchBarProps } from 'react-native-screens'
 
 export const MODEL_SEARCH_PLACEHOLDER = 'Search models'
-export const MODEL_SHEET_TITLE = 'Model'
 
 export const modelSearchBarPropsOf = (): Pick<
   SearchBarProps,
