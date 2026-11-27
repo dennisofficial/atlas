@@ -13,11 +13,10 @@ const NOTICED_PREFIX = 'Atlas noticed — '
 const toneOfFailed = (failed: boolean): ENoticeTone =>
   failed ? ENoticeTone.Failed : ENoticeTone.Ok
 
-export function noticeFieldsOf(entry: TranscriptEntry): {
-  title: string
-  body: string
-  tone: ENoticeTone
-} | null {
+export type NoticeFields = { title: string; body: string; tone: ENoticeTone }
+
+export function noticeFieldsOf(entry: TranscriptEntry): NoticeFields | null {
+  const quiet: NoticeFields = { title: entry.text, body: '', tone: ENoticeTone.Quiet }
   switch (entry.kind) {
     case EEntryKind.SystemNotice:
       return {
@@ -30,7 +29,7 @@ export function noticeFieldsOf(entry: TranscriptEntry): {
     case EEntryKind.OperatorInput:
     case EEntryKind.HistoryCompacted:
     case EEntryKind.TldrWritten:
-      return { title: entry.text, body: '', tone: ENoticeTone.Quiet }
+      return quiet
     case EEntryKind.SandboxNotice: {
       const [title = '', ...rest] = entry.text.split('\n\n')
       return {
@@ -66,6 +65,6 @@ export function noticeFieldsOf(entry: TranscriptEntry): {
     case EEntryKind.PodOom:
       return { title: entry.text, body: entry.command ?? '', tone: ENoticeTone.Failed }
     default:
-      return null
+      return quiet
   }
 }
