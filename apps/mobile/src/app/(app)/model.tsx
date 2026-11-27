@@ -5,7 +5,6 @@ import { SafeAreaProvider, useSafeAreaInsets } from 'react-native-safe-area-cont
 
 import { ModelListBody } from '../../composer/model-picker'
 import { useModelSheetRequest } from '../../composer/model-sheet-request'
-import { ModelSheetShell } from '../../composer/model-sheet-shell'
 import { usePinnedModels } from '../../composer/use-pinned-models'
 
 const handleClose = () => router.back()
@@ -22,23 +21,18 @@ const ModelSheetBody = () => {
 
   if (request === null) return null
   return (
-    <View
-      style={[
-        styles.sheet,
-        { paddingBottom: insets.bottom, paddingLeft: insets.left, paddingRight: insets.right },
-      ]}
-    >
-      <ModelSheetShell query={query} onQueryChange={setQuery}>
-        <ModelListBody
-          models={request.models}
-          selection={request.selection}
-          pinned={pinned}
-          query={query}
-          onPinnedChange={setPinned}
-          onSelect={request.onSelect}
-          onClose={handleClose}
-        />
-      </ModelSheetShell>
+    <View style={[styles.sheet, { paddingBottom: insets.bottom }]}>
+      <ModelListBody
+        models={request.models}
+        selection={request.selection}
+        pinned={pinned}
+        query={query}
+        rowInsets={{ left: insets.left, right: insets.right }}
+        onQueryChange={setQuery}
+        onPinnedChange={setPinned}
+        onSelect={request.onSelect}
+        onClose={handleClose}
+      />
     </View>
   )
 }
