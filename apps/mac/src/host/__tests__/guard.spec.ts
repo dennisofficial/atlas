@@ -80,6 +80,34 @@ describe('desktop guard', () => {
     }
   })
 
+  test('refuses a change requested from another loopback port, even with the cookie', async () => {
+    const cookie = await sessionCookie()
+    const foreign = await fetch(`${host.url}/desktop/provider-sign-in/start`, {
+      method: 'POST',
+      headers: {
+        cookie,
+        origin: 'http://127.0.0.1:1',
+        'sec-fetch-site': 'same-site',
+        'content-type': 'text/plain',
+      },
+      body: JSON.stringify({ provider: 'anthropic' }),
+    })
+    const crossSite = await fetch(`${host.url}/desktop/provider-sign-in/stop`, {
+      method: 'POST',
+      headers: { cookie, 'sec-fetch-site': 'cross-site' },
+      body: JSON.stringify({ attemptId: 'x' }),
+    })
+    const own = await fetch(`${host.url}/desktop/provider-sign-in/stop`, {
+      method: 'POST',
+      headers: { cookie, origin: host.url, 'sec-fetch-site': 'same-origin' },
+      body: JSON.stringify({ attemptId: 'x' }),
+    })
+
+    expect(foreign.status).toBe(403)
+    expect(crossSite.status).toBe(403)
+    expect(own.status).toBe(204)
+  })
+
   test('wrong cookie is 403', async () => {
     const res = await fetch(`${host.url}/desktop/health`, {
       headers: { cookie: 'atlas_desktop=wrong' },

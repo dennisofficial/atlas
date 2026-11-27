@@ -45,6 +45,23 @@ export function startSession({ url, secret }: { url: URL; secret: string }): Res
   })
 }
 
+const SAFE_METHODS: ReadonlySet<string> = new Set(['GET', 'HEAD'])
+
+const OWN_FETCH_SITES: ReadonlySet<string> = new Set(['same-origin', 'none'])
+
+const isOwnOrigin = (args: { request: Request; selfHost: string }): boolean => {
+  if (SAFE_METHODS.has(args.request.method)) return true
+  const site = args.request.headers.get('sec-fetch-site')
+  if (site !== null && !OWN_FETCH_SITES.has(site)) return false
+  const origin = args.request.headers.get('origin')
+  if (origin === null) return true
+  try {
+    return new URL(origin).host === args.selfHost
+  } catch {
+    return false
+  }
+}
+
 export function isAuthorized({
   request,
   secret,
@@ -55,6 +72,7 @@ export function isAuthorized({
   selfHost: string
 }): boolean {
   if (request.headers.get('host') !== selfHost) return false
+  if (!isOwnOrigin({ request, selfHost })) return false
   const cookie = cookieValue({ header: request.headers.get('cookie'), name: SESSION_COOKIE })
   return cookie !== undefined && safeEqual({ a: cookie, b: secret })
 }
