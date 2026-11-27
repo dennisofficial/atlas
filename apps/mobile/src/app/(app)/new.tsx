@@ -71,8 +71,7 @@ const NewSession = () => {
     })
   }, [api])
 
-  const handleModelSelect = (next: IModelSelection | null) => {
-    if (next === null) return
+  const handleModelSelect = (next: IModelSelection) => {
     setModelId(next.model.id)
     setEffort(next.effort)
     setFast(next.fast)
@@ -169,13 +168,7 @@ const NewSession = () => {
           >
             <View style={styles.footer}>
               {modelsReady && settings.ready ? (
-                <ModelSelect
-                  models={models}
-                  selection={selection}
-                  personalId={personalId}
-                  defaultRow={false}
-                  onSelect={handleModelSelect}
-                />
+                <ModelSelect models={models} selection={selection} onSelect={handleModelSelect} />
               ) : null}
               {selection === null || efforts.length === 0 ? null : (
                 <EffortSelect selection={selection} onChange={handleEffortSelect} />

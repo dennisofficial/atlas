@@ -22,7 +22,6 @@ export const SessionModelControls = ({ model }: { model: SessionModelChoice }) =
         models={model.models}
         selection={selection}
         pinnedRef={model.pinnedRef}
-        personalId={model.personalId}
         onSelect={model.onSelect}
       />
       {selection === null || selection.model.efforts.length === 0 ? null : (

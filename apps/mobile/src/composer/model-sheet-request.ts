@@ -6,9 +6,7 @@ import type { IModelOption, IModelSelection } from './model-options'
 export type TModelSheetRequest = {
   models: readonly IModelOption[]
   selection: IModelSelection | null
-  personalId: string
-  defaultRow: boolean
-  onSelect: (selection: IModelSelection | null) => void
+  onSelect: (selection: IModelSelection) => void
 }
 
 const listeners = new Set<() => void>()
