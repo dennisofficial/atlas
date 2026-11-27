@@ -147,6 +147,26 @@ describe('incremental pass cache', () => {
     }
   })
 
+  test('an env var a later preload sets per run does not invalidate a cached pass', () => {
+    const fixture = new Fixture({
+      'setup.ts': 'process.env.FX_RUN_DB = `db_${process.pid}`\n',
+      '__tests__/db.spec.ts':
+        "import { expect, test } from 'bun:test'\ntest('db', () => { expect(process.env.FX_RUN_DB).toStartWith('db_') })\n",
+    })
+    const preload = ['--preload', './setup.ts']
+    expect(fixture.run('1', preload).recorded).toBe(1)
+    expect(fixture.run('1', preload).executed).toEqual([])
+  })
+
+  test('the runner image version is not an input of a spec that enumerates env', () => {
+    const fixture = new Fixture({
+      '__tests__/spread.spec.ts':
+        "import { expect, test } from 'bun:test'\ntest('spread', () => { expect(Object.keys({ ...process.env }).length).toBeGreaterThan(0) })\n",
+    })
+    fixture.run('1', [], { ImageVersion: '20261116.202' })
+    expect(fixture.run('1', [], { ImageVersion: '20261122.9' }).executed).toEqual([])
+  })
+
   test('a spec that starts a child process is never cached', () => {
     const fixture = new Fixture({
       '__tests__/spawn.spec.ts':
