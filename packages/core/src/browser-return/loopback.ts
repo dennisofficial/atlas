@@ -20,12 +20,14 @@ export const loopbackRequestOk = (args: {
   url: string
   port: number
   path: string
+  hosts?: readonly string[] | undefined
 }): boolean => {
   if (args.method !== 'GET') return false
   if (args.address === undefined || !LOOPBACK_ADDRESSES.has(args.address)) return false
   const parsed = parsedUrlOf(args.url)
   if (parsed === undefined) return false
-  if (parsed.hostname !== LOOPBACK_HOST || Number(parsed.port) !== args.port) return false
+  const hosts = args.hosts ?? [LOOPBACK_HOST]
+  if (!hosts.includes(parsed.hostname) || Number(parsed.port) !== args.port) return false
   return parsed.pathname === args.path
 }
 

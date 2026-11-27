@@ -28,6 +28,9 @@ import {
   signInElsewhere,
   signInProvider,
 } from './accounts-api'
+import { ELoginFlow } from './account/login-flow'
+import { startBrowserSignIn, type BrowserSignInJob } from './account/browser-sign-in'
+import { providerLoopbackOf } from './account/provider-loopback'
 import type { ProviderSignInBegin, SessionApi } from './session-api'
 import { pollSignInUntilSettled } from './sign-in-poll'
 
@@ -40,6 +43,7 @@ export type AccountFlows = {
   handleOpenUrl: () => void
   clearTicket: () => void
   stopPoll: () => void
+  stopBrowser: () => void
 }
 
 export function useAccountFlows(args: {
@@ -47,17 +51,24 @@ export function useAccountFlows(args: {
   held: MutableRefObject<AccountsState | null>
   put: (next: AccountsState | null) => void
   refresh: (change?: (state: AccountsState) => AccountsState) => void
-  openUrl: (url: string) => void
+  openUrl: (url: string) => unknown
   onChanged: () => void
+  flow: ELoginFlow
   minPollIntervalMs?: number | undefined
 }): AccountFlows {
   const { api, held, put, refresh, openUrl, onChanged } = args
   const ticket = useRef<{ attemptId: string } | null>(null)
   const polling = useRef<{ cancelled: boolean } | null>(null)
+  const browser = useRef<BrowserSignInJob | null>(null)
 
   const stopPoll = useCallback(() => {
     if (polling.current !== null) polling.current.cancelled = true
     polling.current = null
+  }, [])
+
+  const stopBrowser = useCallback(() => {
+    browser.current?.stop()
+    browser.current = null
   }, [])
 
   const clearTicket = useCallback(() => {
@@ -112,15 +123,9 @@ export function useAccountFlows(args: {
     [api, args.minPollIntervalMs, failWith, onChanged, openUrl, put, refresh],
   )
 
-  const beginLogin = useCallback(
-    (current: AccountsState) => {
-      const provider = current.rows[current.index]?.provider
-      if (provider === undefined || api === null) return
-
-      if (!acceptsPastedCode(provider) && !acceptsDeviceCode(provider)) {
-        put(failed({ state: current, reason: signInElsewhere(provider) }))
-        return
-      }
+  const beginRemote = useCallback(
+    (current: AccountsState, provider: EAuthProvider) => {
+      if (api === null) return
 
       void api
         .beginProviderSignIn({ provider: signInProvider(provider) })
@@ -140,6 +145,53 @@ export function useAccountFlows(args: {
         .catch((failure: unknown) => failWith(reasonOf(failure)))
     },
     [api, beginDevice, failWith, held, openUrl, put],
+  )
+
+  const beginBrowser = useCallback(
+    (provider: EAuthProvider) => {
+      if (api === null) return
+      stopBrowser()
+      browser.current = startBrowserSignIn({
+        api,
+        provider,
+        open: openUrl,
+        onStateUpdate: (change) => {
+          const now = held.current
+          if (now !== null) put(change(now))
+        },
+        onSignedIn: () => {
+          onChanged()
+          refresh((next) => ({ ...backToList(next), notice: 'Signed in.' }))
+        },
+        onFallback: () => {
+          const now = held.current
+          if (now !== null) beginRemote(now, provider)
+        },
+        onFailed: failWith,
+      })
+    },
+    [api, beginRemote, failWith, held, onChanged, openUrl, put, refresh, stopBrowser],
+  )
+
+  const beginLogin = useCallback(
+    (current: AccountsState) => {
+      const provider = current.rows[current.index]?.provider
+      if (provider === undefined || api === null) return
+
+      if (!acceptsPastedCode(provider) && !acceptsDeviceCode(provider)) {
+        put(failed({ state: current, reason: signInElsewhere(provider) }))
+        return
+      }
+
+      const browserShape = providerLoopbackOf(provider)
+      if (args.flow === ELoginFlow.Loopback && browserShape !== undefined) {
+        beginBrowser(provider)
+        return
+      }
+
+      beginRemote(current, provider)
+    },
+    [api, args.flow, beginBrowser, beginRemote, put],
   )
 
   const askForKey = useCallback(
@@ -239,5 +291,6 @@ export function useAccountFlows(args: {
     handleOpenUrl,
     clearTicket,
     stopPoll,
+    stopBrowser,
   }
 }

@@ -49,13 +49,13 @@ export const anthropicManualAuthorizeUrl = (pkce: Pkce): string =>
     manualCode: true,
   })
 
-// The loopback authorize request omits the `code=true` the paste-back flow sends — that param is
-// what asks Anthropic for the manual code page (Claude Code 2.1.287; spike, 2026-10-02).
+// Claude Code 2.1.332 sends `code=true` with a loopback redirect too (read from its npm package
+// on 2026-11-27), so the loopback request matches the client it borrows.
 export const anthropicLoopbackAuthorizeUrl = (args: { pkce: Pkce; redirectUri: string }): string =>
   authorizeUrlWith({
     pkce: args.pkce,
     redirectUri: args.redirectUri,
-    manualCode: false,
+    manualCode: true,
   })
 
 export const anthropicLoginFrom = (args: { raw: unknown; nowMs: number }): OauthLogin => {

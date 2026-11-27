@@ -37,7 +37,7 @@ const routedGroups = () =>
   })).filter((group) => group.items.length > 0)
 
 export default function SettingsScreen() {
-  const { user, signOut } = useAuth()
+  const { signOut } = useAuth()
   const update = useUpdateInfo()
   const [query, setQuery] = useState('')
   const groups = filterNav({ groups: routedGroups(), query })
@@ -60,10 +60,6 @@ export default function SettingsScreen() {
           },
         }}
       />
-      <Section title="Account">
-        <Row label="Email" value={user?.email ?? 'Unknown account'} />
-        {user?.name === undefined ? null : <Row label="Name" value={user.name} />}
-      </Section>
       {groups.map((group, index) => (
         <Section key={group.label ?? `group-${index}`} title={group.label}>
           {group.items.map((item) => {

@@ -1,25 +1,24 @@
+import {
+  type ISignInMethodIds,
+  SESSION_NOT_FRESH,
+  accountSchema,
+  signInMethodsOf,
+  unlinkRefusalOf,
+} from '@dltech/atlas-client/settings'
 import { z } from 'zod'
 
 import { AuthApiError, authFetch, failWith, postJson, readBody } from './auth-api'
 
-const CREDENTIAL_PROVIDER = 'credential'
 const GOOGLE_PROVIDER = 'google'
 
-const accountsSchema = z.array(z.object({ id: z.string(), providerId: z.string() }))
-
-export type SignInMethodIds = {
-  google: string | null
-  password: string | null
-}
+export type SignInMethodIds = ISignInMethodIds
 
 export async function listSignInMethods(): Promise<SignInMethodIds> {
   const response = await authFetch('/api/auth/list-accounts')
   if (!response.ok) await failWith(response, 'Could not load your sign-in methods')
-  const parsed = accountsSchema.safeParse(await response.json().catch(() => null))
+  const parsed = z.array(accountSchema).safeParse(await response.json().catch(() => null))
   if (!parsed.success) throw new AuthApiError('Could not load your sign-in methods')
-  const idOf = (providerId: string): string | null =>
-    parsed.data.find((account) => account.providerId === providerId)?.id ?? null
-  return { google: idOf(GOOGLE_PROVIDER), password: idOf(CREDENTIAL_PROVIDER) }
+  return signInMethodsOf(parsed.data)
 }
 
 export async function linkGoogleUrl(args: { origin: string }): Promise<string> {
@@ -37,9 +36,6 @@ export async function linkGoogleUrl(args: { origin: string }): Promise<string> {
   return body.url
 }
 
-const SESSION_NOT_FRESH = 'SESSION_NOT_FRESH'
-const SIGN_IN_AGAIN = 'Sign out and back in, then remove this sign-in method.'
-
 export async function unlinkSignInMethod(accountId: string): Promise<void> {
   const response = await postJson({ path: '/api/auth/unlink-account', body: { accountId } })
   if (response.ok) return
@@ -47,7 +43,8 @@ export async function unlinkSignInMethod(accountId: string): Promise<void> {
     await failWith(response, 'Could not remove that sign-in method')
   } catch (cause) {
     if (cause instanceof AuthApiError && cause.code === SESSION_NOT_FRESH) {
-      throw new AuthApiError(SIGN_IN_AGAIN, { code: SESSION_NOT_FRESH })
+      const refusal = unlinkRefusalOf({ message: cause.message, code: cause.code })
+      throw new AuthApiError(refusal.message, { code: SESSION_NOT_FRESH })
     }
     throw cause
   }

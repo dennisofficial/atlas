@@ -19,6 +19,9 @@ export type TRouteOfId = (args: { id: string }) => Href
 
 export const SETTINGS_STACK_SCREENS: readonly ISettingsStackScreen[] = [
   { name: 'settings/index', title: 'Settings' },
+  { name: 'settings/account', title: 'Account' },
+  { name: 'settings/account/edit', title: 'Edit profile' },
+  { name: 'settings/security', title: 'Devices & Sessions' },
   { name: 'settings/groups', title: 'Groups' },
   { name: 'settings/group-form', title: 'Group', presentation: 'modal' },
   { name: 'settings/group-assign', title: 'Assign projects', presentation: 'modal' },
@@ -38,6 +41,8 @@ export const SETTINGS_STACK_SCREENS: readonly ISettingsStackScreen[] = [
 ]
 
 export const IOS_SETTINGS_ROUTES: Partial<Record<ESettingsPage, Href>> = {
+  [ESettingsPage.Account]: '/settings/account',
+  [ESettingsPage.Security]: '/settings/security',
   [ESettingsPage.Groups]: '/settings/groups',
   [ESettingsPage.Instructions]: '/settings/instructions',
   [ESettingsPage.Memory]: '/settings/memory',
@@ -63,7 +68,6 @@ export const IOS_GROUP_SECTION_ROUTES: Partial<Record<TGroupSection, TRouteOfId>
 }
 
 export const IOS_PENDING_PAGES: ReadonlySet<ESettingsPage> = new Set([
-  ESettingsPage.Account,
   ESettingsPage.Integrations,
   ESettingsPage.Skills,
   ESettingsPage.ModelsEffort,
@@ -71,7 +75,6 @@ export const IOS_PENDING_PAGES: ReadonlySet<ESettingsPage> = new Set([
   ESettingsPage.Classifier,
   ESettingsPage.Access,
   ESettingsPage.Appearance,
-  ESettingsPage.Security,
   ESettingsPage.Agent,
   ESettingsPage.Experimental,
   ESettingsPage.Quality,
