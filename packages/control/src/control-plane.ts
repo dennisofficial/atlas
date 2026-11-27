@@ -583,6 +583,7 @@ export class ControlPlane {
     limit: number
     visible: boolean
     hiddenTypes?: readonly RecordEventType[] | undefined
+    onlyTypes?: readonly RecordEventType[] | undefined
     maxBytes?: number | undefined
   }): Promise<ReadEventsPage> {
     const limit = clampLimit(params.limit)
@@ -595,6 +596,7 @@ export class ControlPlane {
         limit,
         visible: params.visible,
         hiddenTypes: params.hiddenTypes,
+        onlyTypes: params.onlyTypes,
         maxBytes: params.maxBytes,
         eventSchema: this.eventSchema,
       })

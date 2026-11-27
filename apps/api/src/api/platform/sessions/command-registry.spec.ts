@@ -10,7 +10,24 @@ import {
 import { composePlugins } from '@dltech/atlas-plugin-sdk'
 import { createFixturePlugin } from '@dltech/atlas-plugin-sdk/testing'
 import { nativeCommands } from '@dltech/atlas-native-commands'
-import { commandCatalogue, nativeCommandRegistry, postCommand } from './command-registry'
+import {
+  commandCatalogue,
+  controlCommandHandlers,
+  nativeCommandRegistry,
+  postCommand,
+} from './command-registry'
+
+const SUGGESTED = 'Suggested Name'
+
+const post = (
+  params: Omit<Parameters<typeof postCommand>[0], 'controlHandlers'> & {
+    controlHandlers?: Parameters<typeof postCommand>[0]['controlHandlers']
+  },
+) =>
+  postCommand({
+    controlHandlers: controlCommandHandlers({ suggestName: async () => SUGGESTED }),
+    ...params,
+  })
 
 const seed = async () => {
   const context = setupSessionsService()
@@ -21,7 +38,7 @@ const seed = async () => {
 describe('nativeCommandRegistry', () => {
   it('accepts rewind with a sequence and posts it under the command inbox kind', async () => {
     const { plane, sessionId } = await seed()
-    const posted = await postCommand({
+    const posted = await post({
       plane,
       registry: nativeCommandRegistry(),
       sessionId,
@@ -37,7 +54,7 @@ describe('nativeCommandRegistry', () => {
   it('runs rename inline, answers {} and appends nothing to the inbox', async () => {
     const { plane, sessionId } = await seed()
     await plane.titleUntitledSession({ sessionId, title: 'Auto' })
-    const answered = await postCommand({
+    const answered = await post({
       plane,
       registry: nativeCommandRegistry(),
       sessionId,
@@ -49,9 +66,23 @@ describe('nativeCommandRegistry', () => {
     expect(await plane.readInbox({ sessionId, afterId: 0, limit: 10 })).toEqual([])
   })
 
+  it('names the session from its transcript when rename has no name', async () => {
+    const { plane, sessionId } = await seed()
+    await plane.titleUntitledSession({ sessionId, title: 'Auto' })
+    const answered = await post({
+      plane,
+      registry: nativeCommandRegistry(),
+      sessionId,
+      name: 'rename',
+      args: {},
+    })
+    expect(answered).toEqual({})
+    expect((await plane.readSession({ sessionId }))?.title).toBe(SUGGESTED)
+  })
+
   it('refuses rename with an empty name and leaves the title', async () => {
     const { plane, sessionId } = await seed()
-    const refused = postCommand({
+    const refused = post({
       plane,
       registry: nativeCommandRegistry(),
       sessionId,
@@ -66,8 +97,8 @@ describe('nativeCommandRegistry', () => {
   it('still queues a pod command with its inbox id after a rename', async () => {
     const { plane, sessionId } = await seed()
     const registry = nativeCommandRegistry()
-    await postCommand({ plane, registry, sessionId, name: 'rename', args: { name: 'A' } })
-    const posted = await postCommand({
+    await post({ plane, registry, sessionId, name: 'rename', args: { name: 'A' } })
+    const posted = await post({
       plane,
       registry,
       sessionId,
@@ -79,7 +110,7 @@ describe('nativeCommandRegistry', () => {
 
   it('refuses rewind with arguments the schema rejects', async () => {
     const { plane, sessionId } = await seed()
-    const refused = postCommand({
+    const refused = post({
       plane,
       registry: nativeCommandRegistry(),
       sessionId,
@@ -92,7 +123,7 @@ describe('nativeCommandRegistry', () => {
 
   it('refuses a command that runs in the client', async () => {
     const { plane, sessionId } = await seed()
-    const refused = postCommand({
+    const refused = post({
       plane,
       registry: nativeCommandRegistry(),
       sessionId,
@@ -107,7 +138,7 @@ describe('nativeCommandRegistry', () => {
 
   it('refuses an unregistered name', async () => {
     const { plane, sessionId } = await seed()
-    const refused = postCommand({
+    const refused = post({
       plane,
       registry: nativeCommandRegistry(),
       sessionId,
@@ -129,7 +160,7 @@ describe('a plugin command', () => {
   it('posts a plugin pod command to the inbox under its command kind', async () => {
     const { plane, sessionId } = await seed()
     const { registry } = fixture()
-    const posted = await postCommand({
+    const posted = await post({
       plane,
       registry,
       sessionId,
@@ -144,7 +175,7 @@ describe('a plugin command', () => {
   it('runs a plugin control command inline without touching the inbox', async () => {
     const { plane, sessionId } = await seed()
     const { registry, composed, record } = fixture()
-    const answered = await postCommand({
+    const answered = await post({
       plane,
       registry,
       sessionId,

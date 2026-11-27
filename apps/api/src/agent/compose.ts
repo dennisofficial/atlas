@@ -14,7 +14,7 @@ import {
 import {
   nativeCommandHandlers,
   nativeCommands,
-  nativeControlHandlers,
+  nativeControlHandlersOf,
   cancelResize,
   resize,
 } from '@dltech/atlas-native-commands'
@@ -26,6 +26,8 @@ import { mcpControlPort } from './config/mcp-control'
 import type { MacLink } from './mac-link/port'
 import { SecretCipher } from '@dltech/atlas-pods/config/secret-cipher'
 import { composedPluginsOf } from './registered-plugins'
+import type { SessionNamer } from './naming/session-namer'
+import { sessionNameSuggesterOf } from './naming/session-name-suggester'
 import type { ChangeContentStore, ContextContentStore, ControlPlane } from '@dltech/atlas-control'
 import type { LogPort, ProductAnalytics, TracePort } from '@dltech/atlas-observability'
 
@@ -62,6 +64,7 @@ export type ComposeAgentHostArgs = {
   sandbox: SandboxProviderRegistry
   config: ConfigSource
   tokens: Pick<ModelTokenService, 'issue'>
+  namer: SessionNamer
   github: Pick<GithubTokenReader, 'read'>
   signingKey: Pick<SigningKeyReader, 'read'>
   timers?: HostTimers | undefined
@@ -127,7 +130,14 @@ export const composeAgentHost = (args: ComposeAgentHostArgs): SessionHolder => {
     commandHandlers: nativeCommandHandlers,
     podCommands: [composedPlugins.pod.commands],
     controlHandlers: new Map([
-      ...nativeControlHandlers,
+      ...nativeControlHandlersOf({
+        suggestName: sessionNameSuggesterOf({
+          plane: args.plane,
+          namer: args.namer,
+          onFault: (fault) =>
+            args.log?.warn({ source: 'rename', message: `naming failed: ${String(fault)}` }),
+        }),
+      }),
       [resize.spec.name, podResizeHandlerOf({ plane: args.plane, dispatcher: args.dispatcher })],
       [cancelResize.spec.name, podResizeCancelHandlerOf({ plane: args.plane })],
     ]),

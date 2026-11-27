@@ -4,7 +4,7 @@ import { cancelResize, cancelResizeArgs } from './cancel-resize/spec'
 import { help } from './help/spec'
 import { mcp } from './mcp/spec'
 import { model } from './model/spec'
-import { renameHandler, type RenamePlane } from './rename/control'
+import { renameHandlerOf, type RenamePlane, type SessionNameSuggester } from './rename/control'
 import { resize, RESIZE_MAX_DISK_GB, resizeArgs } from './resize/spec'
 import { resume } from './resume/spec'
 import { resumeHandler } from './resume/pod'
@@ -40,10 +40,12 @@ export const nativeCommandHandlers: ReadonlyMap<string, CommandHandler<unknown>>
   [resume.inboxKind, resumeHandler],
 ])
 
-export const nativeControlHandlers: ReadonlyMap<
-  string,
-  ControlCommandHandler<RenamePlane, unknown>
-> = new Map([[rename.spec.name, renameHandler]])
+export const nativeControlHandlersOf = (deps: {
+  suggestName: SessionNameSuggester
+}): ReadonlyMap<string, ControlCommandHandler<RenamePlane, unknown>> =>
+  new Map([[rename.spec.name, renameHandlerOf(deps)]])
+
+export type { RenamePlane, SessionNameSuggester } from './rename/control'
 
 export {
   cancelResize,
@@ -59,7 +61,7 @@ export {
   skills,
 }
 export type { ResizeArgs } from './resize/spec'
-export { REFUSAL_RENAME_NEEDS_NAME } from './rename/spec'
+export { REFUSAL_RENAME_NO_SUGGESTION } from './rename/spec'
 export { REFUSAL_RESIZE_USAGE } from './resize/spec'
 export {
   REFUSAL_NOT_A_MESSAGE,

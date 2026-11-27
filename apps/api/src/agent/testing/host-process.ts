@@ -6,7 +6,7 @@ import { ControlPlane } from '@dltech/atlas-control'
 import {
   nativeCommandHandlers,
   nativeCommands,
-  nativeControlHandlers,
+  nativeControlHandlersOf,
   resize,
 } from '@dltech/atlas-native-commands'
 import { composedPluginsOf, controlEventSchema } from '../registered-plugins'
@@ -269,7 +269,7 @@ const main = async (): Promise<void> => {
     commandHandlers: nativeCommandHandlers,
     podCommands: [composedPlugins.pod.commands],
     controlHandlers: new Map([
-      ...nativeControlHandlers,
+      ...nativeControlHandlersOf({ suggestName: async () => null }),
       [resize.spec.name, podResizeHandlerOf({ plane, dispatcher: noPodResizeDispatcher })],
     ]),
     log,

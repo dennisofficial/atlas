@@ -1,4 +1,5 @@
 import type { ControlCommandHandler } from '@dltech/atlas-commands'
+import type { SessionNameSuggester } from '@dltech/atlas-native-commands'
 import type { ControlPlane, ControlSessionRow } from '@dltech/atlas-control'
 import { defineCommand, ECommandGroup, ECommandRunsIn } from '@dltech/atlas-commands'
 import { z } from 'zod'
@@ -25,6 +26,7 @@ export const modelSet = defineCommand({
 export const modelSetHandlers = (args: {
   plane: ControlPlane
   session: ControlSessionRow
+  suggestName: SessionNameSuggester
 }): ReadonlyMap<string, ControlCommandHandler<ControlPlane, unknown>> => {
   const handler: ControlCommandHandler<ControlPlane, unknown> = async ({ args: raw }) => {
     const parsed = modelSetArgs.parse(raw)
@@ -35,5 +37,8 @@ export const modelSetHandlers = (args: {
       }),
     )
   }
-  return new Map([...controlCommandHandlers(), [modelSet.spec.name, handler]])
+  return new Map([
+    ...controlCommandHandlers({ suggestName: args.suggestName }),
+    [modelSet.spec.name, handler],
+  ])
 }
