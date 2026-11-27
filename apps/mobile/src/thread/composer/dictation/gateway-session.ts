@@ -10,6 +10,10 @@ import {
 
 export const FINAL_TIMEOUT_MS = 3000
 
+export const NO_AUDIO_TIMEOUT_MS = 3000
+
+export const NO_AUDIO_MESSAGE = 'The microphone sent no audio. Try again.'
+
 export interface IGatewayAudioBuffer {
   data: ArrayBuffer
   sampleRate: number
@@ -33,12 +37,14 @@ export const startGatewaySession = async ({
   open = openTranscription,
   onEvent,
   onSettle = () => undefined,
+  noAudioTimeoutMs = NO_AUDIO_TIMEOUT_MS,
 }: {
   stream: IDictationAudioStream
   requestToken: DictationTokenRequest
   open?: OpenTranscription
   onEvent: (event: TDictationEvent) => void
   onSettle?: () => void | Promise<void>
+  noAudioTimeoutMs?: number
 }): Promise<IGatewaySession> => {
   let spoken: ISpoken = EMPTY_SPOKEN
   let connection: ITranscriptionConnection | undefined
@@ -46,6 +52,7 @@ export const startGatewaySession = async ({
   let stopping = false
   let settled = false
   let finalTimer: ReturnType<typeof setTimeout> | undefined
+  let noAudioTimer: ReturnType<typeof setTimeout> | undefined
   let resolveSettled: () => void = () => undefined
   const settledPromise = new Promise<void>((resolve) => {
     resolveSettled = resolve
@@ -61,6 +68,7 @@ export const startGatewaySession = async ({
     if (settled) return
     settled = true
     if (finalTimer !== undefined) clearTimeout(finalTimer)
+    if (noAudioTimer !== undefined) clearTimeout(noAudioTimer)
     stopMicrophone()
     connection?.close()
     resolveSettled()
@@ -83,6 +91,7 @@ export const startGatewaySession = async ({
 
   await stream.start()
   capturing = true
+  noAudioTimer = setTimeout(() => fail(NO_AUDIO_MESSAGE), noAudioTimeoutMs)
   const { token, url } = await requestToken()
   connection = open({
     url,
@@ -110,6 +119,8 @@ export const startGatewaySession = async ({
   return {
     acceptBuffer: (buffer) => {
       if (settled || stopping) return
+      if (noAudioTimer !== undefined) clearTimeout(noAudioTimer)
+      noAudioTimer = undefined
       const chunk = microphoneChunkOf(buffer)
       onEvent({ type: EDictationEvent.Level, level: chunk.level })
       for (const frame of audioFramesOf({ samples: chunk.samples })) connection?.sendAudio(frame)

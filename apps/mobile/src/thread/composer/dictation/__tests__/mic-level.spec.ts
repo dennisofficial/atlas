@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'bun:test'
 
-import { MIC_GAIN, micLevelOf } from '../mic-level'
+import { MIC_CEILING_DB, MIC_FLOOR_DB, micLevelOf } from '../mic-level'
 
 const samplesOf = (values: readonly number[]): Int16Array => Int16Array.from(values)
 
@@ -26,10 +26,22 @@ describe('micLevelOf', () => {
     expect(level).toBeLessThanOrEqual(1)
   })
 
-  it('scales a quiet tone by the gain and clamps a loud one', () => {
-    const quiet = micLevelOf({ samples: toneOf({ peak: 0.01, count: 512 }) })
-    const loud = micLevelOf({ samples: toneOf({ peak: 0.5, count: 512 }) })
-    expect(quiet).toBeCloseTo(0.01 * MIC_GAIN * Math.SQRT1_2, 3)
-    expect(loud).toBe(1)
+  it('maps loudness in decibels between the floor and the ceiling', () => {
+    const amplitudeOf = (decibels: number) => Math.SQRT2 * 10 ** (decibels / 20)
+    const middle = (MIC_FLOOR_DB + MIC_CEILING_DB) / 2
+    expect(
+      micLevelOf({ samples: toneOf({ peak: amplitudeOf(MIC_FLOOR_DB - 6), count: 512 }) }),
+    ).toBe(0)
+    expect(micLevelOf({ samples: toneOf({ peak: amplitudeOf(middle), count: 512 }) })).toBeCloseTo(
+      0.5,
+      1,
+    )
+    expect(
+      micLevelOf({ samples: toneOf({ peak: amplitudeOf(MIC_CEILING_DB), count: 512 }) }),
+    ).toBeCloseTo(1, 1)
+  })
+
+  it('shows quiet speech from an unprocessed iPhone microphone', () => {
+    expect(micLevelOf({ samples: toneOf({ peak: 0.005, count: 512 }) })).toBeGreaterThan(0.2)
   })
 })

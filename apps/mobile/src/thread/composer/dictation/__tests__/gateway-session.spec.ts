@@ -2,7 +2,7 @@ import { describe, expect, it } from 'bun:test'
 
 import { EDictationEvent, type TDictationEvent } from '../dictation-engine'
 import { ETranscriptPart, type TTranscriptPart } from '../gateway-protocol'
-import { startGatewaySession } from '../gateway-session'
+import { NO_AUDIO_MESSAGE, startGatewaySession } from '../gateway-session'
 import type { ITranscriptionConnection, ITranscriptionHandlers } from '../transcription-connection'
 
 const collect = () => {
@@ -87,6 +87,11 @@ const bufferOf = (sample: number) => ({
   channels: 1,
 })
 
+const NO_AUDIO_TIMEOUT_MS = 20
+
+const waitPastNoAudioTimeout = () =>
+  new Promise((resolve) => setTimeout(resolve, NO_AUDIO_TIMEOUT_MS * 3))
+
 const sessionOf = async () => {
   const { events, onEvent } = collect()
   const { stream, calls: streamCalls } = streamOf()
@@ -98,6 +103,7 @@ const sessionOf = async () => {
     open: connection.open,
     onEvent,
     onSettle: settle.onSettle,
+    noAudioTimeoutMs: NO_AUDIO_TIMEOUT_MS,
   })
   return { session, events, streamCalls, settle: settle.calls, connection }
 }
@@ -212,5 +218,24 @@ describe('startGatewaySession', () => {
     session.acceptBuffer(bufferOf(16384))
 
     expect(connection.calls.audio).toBe(0)
+  })
+
+  it('reports a microphone that sends no audio and stops it', async () => {
+    const { events, streamCalls, connection } = await sessionOf()
+
+    await waitPastNoAudioTimeout()
+
+    expect(events).toEqual([{ type: EDictationEvent.Error, message: NO_AUDIO_MESSAGE }])
+    expect(streamCalls.stopped).toBe(1)
+    expect(connection.calls.closed).toBe(1)
+  })
+
+  it('stays quiet about the microphone once the first buffer arrives', async () => {
+    const { session, events } = await sessionOf()
+
+    session.acceptBuffer(bufferOf(16384))
+    await waitPastNoAudioTimeout()
+
+    expect(events.map((event) => event.type)).toEqual([EDictationEvent.Level])
   })
 })
