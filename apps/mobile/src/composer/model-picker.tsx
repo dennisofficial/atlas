@@ -10,22 +10,27 @@ import {
 import { radius, space } from '@dltech/atlas-ui/tokens'
 import { Search } from 'lucide-react-native'
 import { useState } from 'react'
-import { ScrollView, StyleSheet, View } from 'react-native'
+import { SectionList, StyleSheet, View } from 'react-native'
 
+import {
+  EModelListItem,
+  hasModelMatchesOf,
+  modelListSectionsOf,
+  type TModelListItem,
+  type TModelListSection,
+} from './model-list-sections'
 import {
   type IModelOption,
   type IModelSelection,
-  modelGroupsOf,
   personalModelLabelOf,
-  pinnedModelsOf,
-  searchModelsOf,
   selectionOf,
   togglePinnedModel,
-  withoutPinned,
 } from './model-options'
 import { DefaultRow, ModelRow } from './model-picker-rows'
 import { presentModelSheet } from './model-sheet-request'
 import { ModelTrigger } from './model-trigger'
+
+const INITIAL_ROWS = 12
 
 type Props = {
   models: readonly IModelOption[]
@@ -49,8 +54,7 @@ export const ModelListBody = ({
 }: Props & { onClose: () => void }) => {
   const theme = useTheme()
   const [query, setQuery] = useState('')
-  const pinnedShown = searchModelsOf({ models: pinnedModelsOf({ models, pinned }), query })
-  const groups = modelGroupsOf(searchModelsOf({ models: withoutPinned({ models, pinned }), query }))
+  const sections = modelListSectionsOf({ models, pinned, query, defaultRow })
   const personalLabel = personalModelLabelOf({ models, personalId })
 
   const handleModel = (model: IModelOption) => {
@@ -72,18 +76,27 @@ export const ModelListBody = ({
 
   const handlePin = (id: string) => onPinnedChange(togglePinnedModel({ pinned, id }))
 
-  const row = (model: IModelOption) => (
-    <ModelRow
-      key={model.id}
-      model={model}
-      selected={model.id === selection?.model.id}
-      pinned={pinned.includes(model.id)}
-      onTogglePin={() => handlePin(model.id)}
-      onPress={() => handleModel(model)}
-    />
-  )
+  const renderItem = ({ item }: { item: TModelListItem }) =>
+    item.kind === EModelListItem.Default ? (
+      <DefaultRow label={personalLabel} selected={selection === null} onPress={handleDefault} />
+    ) : (
+      <ModelRow
+        model={item.model}
+        selected={item.model.id === selection?.model.id}
+        pinned={pinned.includes(item.model.id)}
+        onTogglePin={() => handlePin(item.model.id)}
+        onPress={() => handleModel(item.model)}
+      />
+    )
 
-  const nothingMatches = groups.length === 0 && pinnedShown.length === 0
+  const renderSectionHeader = ({ section }: { section: TModelListSection }) =>
+    section.title === null ? null : (
+      <Text size={ETextRole.Xs} tone={ETextTone.Muted} style={styles.group}>
+        {section.title}
+      </Text>
+    )
+
+  const emptyNote = models.length === 0 ? 'No models yet' : 'No models match'
 
   return (
     <>
@@ -106,42 +119,27 @@ export const ModelListBody = ({
           style={styles.searchInput}
         />
       </View>
-      <ScrollView
+      <SectionList
+        sections={sections}
+        keyExtractor={(item) => item.key}
+        renderItem={renderItem}
+        renderSectionHeader={renderSectionHeader}
+        stickySectionHeadersEnabled={false}
+        initialNumToRender={INITIAL_ROWS}
+        maxToRenderPerBatch={INITIAL_ROWS}
+        windowSize={5}
         automaticallyAdjustKeyboardInsets
         keyboardDismissMode="interactive"
         keyboardShouldPersistTaps="handled"
         style={styles.list}
-      >
-        {defaultRow && query.trim() === '' ? (
-          <DefaultRow label={personalLabel} selected={selection === null} onPress={handleDefault} />
-        ) : null}
-        {models.length === 0 ? (
-          <Text size={ETextRole.Sm} tone={ETextTone.Muted} style={styles.empty}>
-            No models yet
-          </Text>
-        ) : null}
-        {models.length > 0 && nothingMatches ? (
-          <Text size={ETextRole.Sm} tone={ETextTone.Muted} style={styles.empty}>
-            No models match
-          </Text>
-        ) : null}
-        {pinnedShown.length === 0 ? null : (
-          <View>
-            <Text size={ETextRole.Xs} tone={ETextTone.Muted} style={styles.group}>
-              Pinned
+        ListFooterComponent={
+          hasModelMatchesOf(sections) ? undefined : (
+            <Text size={ETextRole.Sm} tone={ETextTone.Muted} style={styles.empty}>
+              {emptyNote}
             </Text>
-            {pinnedShown.map(row)}
-          </View>
-        )}
-        {groups.map((group) => (
-          <View key={group.providerId}>
-            <Text size={ETextRole.Xs} tone={ETextTone.Muted} style={styles.group}>
-              {group.provider}
-            </Text>
-            {group.models.map(row)}
-          </View>
-        ))}
-      </ScrollView>
+          )
+        }
+      />
     </>
   )
 }
