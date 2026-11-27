@@ -37,6 +37,13 @@ export default (): ExpoConfig => ({
         cameraPermission: 'Atlas uses the camera only when you take a photo to send.',
       },
     ],
+    [
+      'expo-audio',
+      {
+        microphonePermission:
+          'Atlas uses the microphone to turn your speech into text in the composer.',
+      },
+    ],
     'posthog-react-native/expo',
     [
       'expo-splash-screen',
