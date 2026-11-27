@@ -14,6 +14,7 @@ import {
   View,
 } from 'react-native'
 
+import type { MessageActionHandlers } from '../message-actions'
 import { EMessageAuthor, ERowKind, type SessionNameOf, type ThreadRow } from '../rows'
 import { listBottomPaddingOf, nativeBottomInsetOf } from '../../layout/transcript-inset'
 import { useKeyboard } from '../../layout/use-keyboard'
@@ -85,6 +86,7 @@ export const Transcript = ({
   bottomInset = 0,
   queued,
   background,
+  messageActions,
 }: {
   rows: readonly ThreadRow[]
   working: boolean
@@ -101,6 +103,7 @@ export const Transcript = ({
   bottomInset?: number
   queued?: QueuedTurnsProps | undefined
   background?: BackgroundWait | null | undefined
+  messageActions?: MessageActionHandlers | undefined
 }) => {
   const listRef = useRef<FlatList<ThreadRow>>(null)
   const tail = useRef<TTailFollow>(FOLLOWING_TAIL)
@@ -127,10 +130,11 @@ export const Transcript = ({
           agentLinks={agentLinks}
           sessionNameOf={sessionNameOf}
           onOpenAgent={onOpenAgent}
+          messageActions={messageActions}
         />
       </View>
     ),
-    [threadId, sessionId, agentLinks, sessionNameOf, onOpenAgent],
+    [threadId, sessionId, agentLinks, sessionNameOf, onOpenAgent, messageActions],
   )
 
   const pinToTail = () => {

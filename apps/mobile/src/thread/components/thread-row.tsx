@@ -1,5 +1,6 @@
 import { memo } from 'react'
 
+import type { MessageActionHandlers } from '../message-actions'
 import { ERowKind, type SessionNameOf, type ThreadRow } from '../rows'
 import type { AgentLinks } from '../session/agent-links'
 import { ImagesRowView } from './images-row'
@@ -15,6 +16,7 @@ const ThreadRowContent = ({
   agentLinks,
   onOpenAgent,
   queuedLabel,
+  messageActions,
 }: {
   row: ThreadRow
   threadId: string | undefined
@@ -23,6 +25,7 @@ const ThreadRowContent = ({
   agentLinks?: AgentLinks | undefined
   onOpenAgent?: ((agentId: string) => void) | undefined
   queuedLabel?: string | undefined
+  messageActions?: MessageActionHandlers | undefined
 }) => (
   <>
     {row.kind === ERowKind.Message ? (
@@ -32,6 +35,7 @@ const ThreadRowContent = ({
         sessionId={sessionId}
         sessionNameOf={sessionNameOf}
         queuedLabel={queuedLabel}
+        messageActions={messageActions}
       />
     ) : null}
     {row.kind === ERowKind.Work ? <WorkRowView row={row} onOpenAgent={onOpenAgent} /> : null}

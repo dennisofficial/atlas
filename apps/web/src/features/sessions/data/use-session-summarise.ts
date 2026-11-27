@@ -9,7 +9,7 @@ import type { TranscriptSummarise } from '@/features/threads/data/use-summarise'
 import { messageOf } from '@/features/threads/data/message-of'
 
 import { sessionsApi } from './sessions-api'
-import { requestSummarise, summariseCopyOf, summarisePointsOf } from './session-summarise'
+import { requestSummarise, summariseCopyOf, summarisePointsOf } from '@dltech/atlas-client/session'
 
 export type SessionSummarise = {
   transcript: TranscriptSummarise
