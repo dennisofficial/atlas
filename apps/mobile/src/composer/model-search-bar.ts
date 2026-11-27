@@ -15,7 +15,7 @@ export const modelSearchBarPropsOf = (): Pick<
   allowToolbarIntegration: false,
   autoCapitalize: 'none',
   hideNavigationBar: false,
-  hideWhenScrolling: false,
+  hideWhenScrolling: true,
   obscureBackground: false,
   placeholder: MODEL_SEARCH_PLACEHOLDER,
   placement: 'stacked',
