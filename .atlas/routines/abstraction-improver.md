@@ -2,8 +2,13 @@
 
 ## Backlog (ranked)
 
-1. `apps/tui/src/build/info.ts` `clientVersionHeader` / `versionLabel` — `xOf(buildInfo())` conveniences, many callers; low value.
-2. Small: `packages/client/src/stream/plugin-views.ts` `pluginViewOf` (no production caller); `packages/ui-native/src/use-theme.ts` `useScheme`.
+1. `packages/github`: `normalizedRepo` re-exports core `normalizedPrRepo` twice (`github-pr-identity.ts:3`, `github-linked-prs.ts:12`); ~25 importers. Fold `control/src/repo-name.ts` `repoFullNameOf` (same rule) in too.
+2. `packages/host/src/holder/record/record-facts.ts` `factsOfKindsIn` — set-of-kinds generic, only caller passes one kind.
+3. `packages/wire/src/sandbox-sh.ts` — unimported duplicate of pods' `sandbox-sh.ts`.
+4. Dead exports: `plugins/mcp/src/pod/resources.ts` `toolsSnapshotOf`/`serverIdFor`; `packages/pods/src/pods/pod-busy.ts` `readPodBusy` (spec/README only).
+5. `plugins/services/src/pod/status.ts` `hasEvent` — `type` param only takes two constants.
+6. `apps/web/.../setting-fields.ts` `fieldChanges` = `diffChanges`; `apps/tui/src/store/crew-visits.ts` re-export barrel; `apps/api/.../pod-sizing.service.ts` `PodSizing` type (one impl, no fake).
+7. Low: tui `clientVersionHeader`/`versionLabel`; `useScheme` (ui-native); tui `*_MENU_ROWS` alias chain; `screenOnReturn`.
 
 ## Ruled out (earn their keep)
 
@@ -16,6 +21,8 @@
 - `PromptFragment`, hook base classes — plugin extension points.
 - `registryOf<T>`, `createSessionsList`, `command-registry`, `scoped-config.factory`, `github-sweep-scheduler` factories, terminal/key/frame registries — real behavior.
 - `thread-stream-adapter.ts` — adds cursor emission.
+- `pluginViewOf` — 4 plugin callers, safe own-key lookup + parse.
+- `plugins/web` `readerPortOf`/`searchPortOf` — README names them the second-backend seam.
 - Web personal-settings API one-liners (`putSecret`, `deleteMcpServer`, …) — each pairs a named request with `cloudCall`; inlining churns specs for little gain.
 
 ## Log
@@ -56,3 +63,9 @@
 - Removed `FileCapabilitiesPort` and the always-`true` `acceptsFileParts` (core `ports/file-capabilities.port.ts`): no production binding, so the `read` tool's refusal guard never fired; dropped its registry entry and the spec-only `NoFiles` fake.
 - Existing `read-files.spec.ts` pins the PDF path; mutation-checked by refusing file types (5 fail). `port-registry.spec.ts` mutation-checked by re-adding the key (typecheck fails).
 - Open PRs #3005/#3001/#2968 touched none of these files.
+
+### 2026-11-27
+
+- Flattened six tui drawer wrappers (`accountsCells`, `servicesCells`, `rewindCells`, `shellsCells`, `switcherCells`, `threadsCells`), each `drawerCells(args)`, and six unreferenced `*_INSET = DRAWER_INSET` aliases; components call `drawerCells` directly.
+- Pinned the services log wrap (new `services-render.spec.tsx`) and the accounts notice wrap (`accounts-render.spec.tsx`); the other four drawers were already pinned. Mutation-checked all six with width ±8.
+- Open PRs #3089/#3071/#2968 touched none of these files.
