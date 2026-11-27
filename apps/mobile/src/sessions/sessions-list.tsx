@@ -75,8 +75,9 @@ export const SessionsList = ({
 }) => {
   const theme = useTheme()
   const posture = usePosture()
-  const { partition, loadState, refreshing, refresh, now, setArchiveOverride } = useSessions()
-  const { handleArchive, failure } = useArchiveSession({ setArchiveOverride, refresh })
+  const { partition, loadState, refreshing, refresh, reload, now, setArchiveOverride } =
+    useSessions()
+  const { handleArchive, failure } = useArchiveSession({ setArchiveOverride, reload })
   const [toggled, setToggled] = useState<ReadonlySet<string>>(new Set())
   const sections = useMemo(
     () => sectionsOf({ partition, query, toggled }),

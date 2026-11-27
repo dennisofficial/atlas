@@ -12,10 +12,10 @@ export type THandleArchive = (args: { entry: ISessionEntry; archived: boolean })
 
 export const useArchiveSession = ({
   setArchiveOverride,
-  refresh,
+  reload,
 }: {
   setArchiveOverride: TSetArchiveOverride
-  refresh: () => Promise<void>
+  reload: () => Promise<void>
 }): { handleArchive: THandleArchive; failure: string | null } => {
   const { api } = useAuth()
   const pathname = usePathname()
@@ -41,7 +41,7 @@ export const useArchiveSession = ({
       if (outcome.deselect) selectedSessionStore().select(null)
       applyNavigation(outcome.navigation)
     }
-    await refresh()
+    await reload()
   }
 
   return { handleArchive, failure }
