@@ -93,14 +93,14 @@ const startMcpCall = async (ctx: HandoffContext): Promise<HostProcess> => {
     await waitUntil({
       what: 'the MCP tool snapshot to load',
       check: async () => (await snapshotsOf(ctx)) >= 1,
-      timeoutMs: 90_000,
+      timeoutMs: POD_EFFECT_WAIT_MS,
     })
     await ctx.release('ready')
     await waitUntil({
       what: 'the fixture server to be dispatched the MCP call',
       check: async () => (await dispatchesOf(ctx)).length === 1,
     })
-    await ctx.waitFor('started', 30_000)
+    await ctx.waitFor('started', POD_EFFECT_WAIT_MS)
     return hostA
   } catch (error: unknown) {
     const message = error instanceof Error ? error.message : String(error)

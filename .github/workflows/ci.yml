@@ -154,7 +154,7 @@ jobs:
   # no git-diff pre-filter: `bun test --changed` selects by the static import graph, so a boundary
   # spec that reads the source tree at runtime (`src/api/architecture.spec.ts`) imports no repo
   # module and a diff to the code it scans never selected it. There is no paths filter. The fault
-  # specs are CPU-bound on one 4-core runner, so the files are split across four shard jobs by
+  # specs are CPU-bound on one 4-core runner, so the files are split across eight shard jobs by
   # `bun test --shard`; every file still runs on exactly one shard. Each shard saves its own
   # immutable cache keyed by shard and run id; each restore picks the newest for its shard and this
   # ref, then main's. GitHub scopes caches by ref, so a PR reads main's cache but main never
@@ -165,7 +165,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        shard: [1, 2, 3, 4]
+        shard: [1, 2, 3, 4, 5, 6, 7, 8]
     env:
       BUN_TEST_INCREMENTAL: ${{ github.event_name == 'workflow_dispatch' && 'force' || '1' }}
       ATLAS_TEST_DATABASE_URL: postgresql://atlas:atlas@localhost:55441/atlas_test
@@ -210,7 +210,7 @@ jobs:
       - run: bun install
 
       # `bun test --shard` deals files round-robin by sorted index, so adding one spec moves most of
-      # its package's files to another shard. Every shard therefore restores all four caches into
+      # its package's files to another shard. Every shard therefore restores all eight caches into
       # one directory: a file finds its cached pass whichever shard it lands on.
       - name: restore shard 1's incremental test cache
         id: restore
@@ -249,6 +249,42 @@ jobs:
             incremental-tests-s4-${{ github.ref }}-
             incremental-tests-s4-refs/heads/main-
 
+      - name: restore shard 5's incremental test cache
+        uses: actions/cache/restore@v6
+        with:
+          path: .cache/incremental-tests
+          key: incremental-tests-s5-${{ github.ref }}-${{ github.run_id }}-${{ github.run_attempt }}
+          restore-keys: |
+            incremental-tests-s5-${{ github.ref }}-
+            incremental-tests-s5-refs/heads/main-
+
+      - name: restore shard 6's incremental test cache
+        uses: actions/cache/restore@v6
+        with:
+          path: .cache/incremental-tests
+          key: incremental-tests-s6-${{ github.ref }}-${{ github.run_id }}-${{ github.run_attempt }}
+          restore-keys: |
+            incremental-tests-s6-${{ github.ref }}-
+            incremental-tests-s6-refs/heads/main-
+
+      - name: restore shard 7's incremental test cache
+        uses: actions/cache/restore@v6
+        with:
+          path: .cache/incremental-tests
+          key: incremental-tests-s7-${{ github.ref }}-${{ github.run_id }}-${{ github.run_attempt }}
+          restore-keys: |
+            incremental-tests-s7-${{ github.ref }}-
+            incremental-tests-s7-refs/heads/main-
+
+      - name: restore shard 8's incremental test cache
+        uses: actions/cache/restore@v6
+        with:
+          path: .cache/incremental-tests
+          key: incremental-tests-s8-${{ github.ref }}-${{ github.run_id }}-${{ github.run_attempt }}
+          restore-keys: |
+            incremental-tests-s8-${{ github.ref }}-
+            incremental-tests-s8-refs/heads/main-
+
       # Each package's `test` script is `bun test` run from the package, so its bunfig.toml preload
       # (bun-test.setup.ts + the bun-test-incremental preload + any test-home-setup.ts) applies. A
       # single `bun test` from the root would skip those preloads and sweep in deprecated/. evals
@@ -260,7 +296,7 @@ jobs:
       # (`bun run --filter` would wait on workspace dependencies, and `bun run --parallel` drops the
       # --shard argument). A script that is not a plain `bun test` runs whole on shard 1.
       - name: test
-        run: bun scripts/ci-test-shard.ts ${{ matrix.shard }}/4
+        run: bun scripts/ci-test-shard.ts ${{ matrix.shard }}/8
         env:
           BUN_TEST_INCREMENTAL_SUMMARY_DIR: ${{ runner.temp }}/summaries
 

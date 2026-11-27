@@ -1,5 +1,5 @@
 import { describe, expect, test } from 'bun:test'
-import { runPooled, shardCommands } from '../ci-test-shard'
+import { coresHeldBy, runPooled, shardCommands } from '../ci-test-shard'
 
 const packages = [
   { dir: '/r/packages/core', name: 'core', script: 'bun test', specs: 400 },
@@ -12,7 +12,11 @@ describe('shardCommands', () => {
   test('every plain bun test script runs its own slice of files on each shard, largest first', () => {
     const commands = shardCommands({ packages, shard: 2, total: 4 })
     expect(commands).toEqual([
-      { name: 'api', dir: '/r/apps/api', command: 'bun test --parallel --no-isolate --shard=2/4' },
+      {
+        name: 'api',
+        dir: '/r/apps/api',
+        command: 'bun test --parallel=2 --no-isolate --shard=2/4',
+      },
       { name: 'core', dir: '/r/packages/core', command: 'bun test --shard=2/4' },
     ])
   })
@@ -33,6 +37,7 @@ describe('runPooled', () => {
     const codes = await runPooled({
       items: [3, 1, 2, 0, 4],
       limit: 2,
+      weightOf: () => 1,
       run: async (item) => {
         running++
         peak = Math.max(peak, running)
@@ -43,5 +48,29 @@ describe('runPooled', () => {
     })
     expect(peak).toBe(2)
     expect(codes).toEqual([3, 1, 2, 0, 4])
+  })
+})
+
+describe('coresHeldBy', () => {
+  test('a package that runs its own parallel workers holds every core while it runs', async () => {
+    const [api, core] = shardCommands({ packages, shard: 1, total: 4 })
+    if (api === undefined || core === undefined) throw new Error('expected api and core')
+    expect(coresHeldBy(api, 4)).toBe(4)
+    expect(coresHeldBy(core, 4)).toBe(1)
+    const overlapped: string[] = []
+    let active = 0
+    await runPooled({
+      items: [api, core],
+      limit: 4,
+      weightOf: (command) => coresHeldBy(command, 4),
+      run: async (command) => {
+        active++
+        if (active > 1) overlapped.push(command.name)
+        await Bun.sleep(5)
+        active--
+        return 0
+      },
+    })
+    expect(overlapped).toEqual([])
   })
 })

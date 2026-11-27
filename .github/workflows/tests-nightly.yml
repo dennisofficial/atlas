@@ -63,7 +63,7 @@ jobs:
 
       - run: bun install
 
-      # ci.yml shards the suite four ways, each with its own cache; restoring all four into one
+      # ci.yml shards the suite eight ways, each with its own cache; restoring all eight into one
       # directory gives the union of passes an incremental ci run would reuse.
       - name: restore shard 1's incremental test cache
         uses: actions/cache/restore@v6
@@ -96,6 +96,38 @@ jobs:
           key: incremental-tests-s4-${{ github.ref }}-${{ github.run_id }}
           restore-keys: |
             incremental-tests-s4-${{ github.ref }}-
+
+      - name: restore shard 5's incremental test cache
+        uses: actions/cache/restore@v6
+        with:
+          path: .cache/incremental-tests
+          key: incremental-tests-s5-${{ github.ref }}-${{ github.run_id }}
+          restore-keys: |
+            incremental-tests-s5-${{ github.ref }}-
+
+      - name: restore shard 6's incremental test cache
+        uses: actions/cache/restore@v6
+        with:
+          path: .cache/incremental-tests
+          key: incremental-tests-s6-${{ github.ref }}-${{ github.run_id }}
+          restore-keys: |
+            incremental-tests-s6-${{ github.ref }}-
+
+      - name: restore shard 7's incremental test cache
+        uses: actions/cache/restore@v6
+        with:
+          path: .cache/incremental-tests
+          key: incremental-tests-s7-${{ github.ref }}-${{ github.run_id }}
+          restore-keys: |
+            incremental-tests-s7-${{ github.ref }}-
+
+      - name: restore shard 8's incremental test cache
+        uses: actions/cache/restore@v6
+        with:
+          path: .cache/incremental-tests
+          key: incremental-tests-s8-${{ github.ref }}-${{ github.run_id }}
+          restore-keys: |
+            incremental-tests-s8-${{ github.ref }}-
 
       - name: plan what the cache would skip
         env:
