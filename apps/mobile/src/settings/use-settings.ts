@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react'
-import { Platform } from 'react-native'
+import { AppState, Platform } from 'react-native'
 
 import { useAuth } from '../auth/auth-provider'
 import { createPushApi } from '../push/push-api'
@@ -78,9 +78,22 @@ export const usePermissionStatus = (): string => {
   const [status, setStatus] = useState('unavailable')
   useEffect(() => {
     if (!updatesSupported) return
-    void import('../push/permission-status').then(({ readPermissionStatus }) => {
-      void readPermissionStatus().then(setStatus)
+    let cancelled = false
+    const handleRead = () => {
+      void import('../push/permission-status').then(({ readPermissionStatus }) => {
+        void readPermissionStatus().then((next) => {
+          if (!cancelled) setStatus(next)
+        })
+      })
+    }
+    handleRead()
+    const subscription = AppState.addEventListener('change', (state) => {
+      if (state === 'active') handleRead()
     })
+    return () => {
+      cancelled = true
+      subscription.remove()
+    }
   }, [])
   return status
 }
