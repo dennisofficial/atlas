@@ -58,10 +58,18 @@ const readCall = (path: string): ToolCall =>
     failed: false,
   }) as unknown as ToolCall
 
-const settle = async (flush: () => Promise<void>): Promise<void> => {
-  for (let pass = 0; pass < 8; pass += 1) {
-    await Bun.sleep(1)
-    await flush()
+const IMAGE_DECODE_DEADLINE_MS = 10_000
+
+const settleUntilDrawn = async (args: {
+  flush: () => Promise<void>
+  frame: () => string
+  marker: string
+}): Promise<void> => {
+  const deadline = Date.now() + IMAGE_DECODE_DEADLINE_MS
+  while (!args.frame().includes(args.marker)) {
+    if (Date.now() > deadline) throw new Error(`${args.marker} never drew:\n${args.frame()}`)
+    await Bun.sleep(5)
+    await args.flush()
   }
 }
 
@@ -82,7 +90,7 @@ describe('opening an image from the transcript', () => {
       { width: 44, height: 20 },
     )
     await renderOnce()
-    await settle(flush)
+    await settleUntilDrawn({ flush, frame: captureCharFrame, marker: '█' })
 
     const lines = captureCharFrame().split('\n')
     const header = lines.findIndex((line) => line.includes('shot.png'))
@@ -123,7 +131,7 @@ describe('opening an image from the transcript', () => {
       { width: 80, height: 20 },
     )
     await renderOnce()
-    await settle(flush)
+    await settleUntilDrawn({ flush, frame: captureCharFrame, marker: '▣ paste-1.png' })
 
     const lines = captureCharFrame().split('\n')
     const skillRow = lines.findIndex((line) => line.includes('◆ tdd'))

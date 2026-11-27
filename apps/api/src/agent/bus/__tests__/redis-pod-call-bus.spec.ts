@@ -216,12 +216,15 @@ describe.skipIf(process.env.ATLAS_TEST_REDIS_URL === undefined)('redis pod call 
   it('reaches every instance with a pod ready signal', async () => {
     const first = busOf()
     const second = busOf()
+    const ready = { sessionId: `ses-${crypto.randomUUID()}`, hostId: 7 }
     const seen: PodReady[] = []
-    first.onReady((ready) => seen.push(ready))
-    second.onReady((ready) => seen.push(ready))
+    const record = (signal: PodReady) => {
+      if (signal.sessionId === ready.sessionId) seen.push(signal)
+    }
+    first.onReady(record)
+    second.onReady(record)
     await Bun.sleep(100)
 
-    const ready = { sessionId: `ses-${crypto.randomUUID()}`, hostId: 7 }
     await first.ready(ready)
     await until(() => seen.length === 2, 'pod ready on both instances')
 
