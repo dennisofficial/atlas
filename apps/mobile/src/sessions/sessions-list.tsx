@@ -7,6 +7,7 @@ import { LayoutAnimationConfig } from 'react-native-reanimated'
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
 
 import { AnimatedListCell, AnimatedListItem, useFreshKeys } from './animated-list-cell'
+import { ActiveCellProvider, useCenterActiveRow } from './center-active-row'
 import { DoneToggle } from './done-toggle'
 import { EmptyProjectRow } from './empty-project-row'
 import { IndentGuides } from './indent-guides'
@@ -17,6 +18,7 @@ import { BucketProjectLabel, SessionRow } from './session-row'
 import { LIST_EDGE_INSET, LIST_ROW_GAP } from './session-row-layout'
 import { EItemKind, type SectionItem, sectionsOf } from './session-sections'
 import { SearchField } from './search-field'
+import { useSessionsDrawer } from './sessions-drawer-state'
 import { SwipeableSessionRow } from './swipeable-session-row'
 import { useArchiveSession } from './use-archive-session'
 import { ELoadState, useSessions } from './use-sessions'
@@ -88,6 +90,12 @@ export const SessionsList = ({
     [sections],
   )
   const fresh = useFreshKeys(keys)
+  const { open } = useSessionsDrawer()
+  const { listRef, cellReport, handleListLayout, handleScrollToIndexFailed } = useCenterActiveRow({
+    sections,
+    activeId,
+    open,
+  })
 
   const handleToggle = (key: string) =>
     setToggled((current) => {
@@ -146,38 +154,43 @@ export const SessionsList = ({
   }
 
   return (
-    <LayoutAnimationConfig skipEntering skipExiting>
-      <SectionList
-        style={{ backgroundColor: theme.sidebar }}
-        contentContainerStyle={[styles.list, { paddingBottom: space(8) + insets.bottom }]}
-        keyboardDismissMode={showsSearchField ? 'on-drag' : 'none'}
-        contentInsetAdjustmentBehavior="automatic"
-        sections={sections}
-        keyExtractor={(item) => item.key}
-        CellRendererComponent={AnimatedListCell}
-        stickySectionHeadersEnabled={false}
-        ListHeaderComponent={header}
-        ListFooterComponent={<ListStatusView status={status} onRetry={() => void refresh()} />}
-        refreshControl={
-          <RefreshControl
-            refreshing={refreshing}
-            onRefresh={() => void refresh()}
-            tintColor={theme.primary}
-          />
-        }
-        renderSectionHeader={({ section }) => (
-          <SectionHeader
-            section={section}
-            onToggle={handleToggle}
-            onNewSession={handleNewSession}
-            onOpenSettings={handleOpenProjectSettings}
-          />
-        )}
-        renderItem={({ item }) => (
-          <AnimatedListItem fresh={fresh.has(item.key)}>{renderItem(item)}</AnimatedListItem>
-        )}
-      />
-    </LayoutAnimationConfig>
+    <ActiveCellProvider value={cellReport}>
+      <LayoutAnimationConfig skipEntering skipExiting>
+        <SectionList
+          ref={listRef}
+          onLayout={handleListLayout}
+          onScrollToIndexFailed={handleScrollToIndexFailed}
+          style={{ backgroundColor: theme.sidebar }}
+          contentContainerStyle={[styles.list, { paddingBottom: space(8) + insets.bottom }]}
+          keyboardDismissMode={showsSearchField ? 'on-drag' : 'none'}
+          contentInsetAdjustmentBehavior="automatic"
+          sections={sections}
+          keyExtractor={(item) => item.key}
+          CellRendererComponent={AnimatedListCell}
+          stickySectionHeadersEnabled={false}
+          ListHeaderComponent={header}
+          ListFooterComponent={<ListStatusView status={status} onRetry={() => void refresh()} />}
+          refreshControl={
+            <RefreshControl
+              refreshing={refreshing}
+              onRefresh={() => void refresh()}
+              tintColor={theme.primary}
+            />
+          }
+          renderSectionHeader={({ section }) => (
+            <SectionHeader
+              section={section}
+              onToggle={handleToggle}
+              onNewSession={handleNewSession}
+              onOpenSettings={handleOpenProjectSettings}
+            />
+          )}
+          renderItem={({ item }) => (
+            <AnimatedListItem fresh={fresh.has(item.key)}>{renderItem(item)}</AnimatedListItem>
+          )}
+        />
+      </LayoutAnimationConfig>
+    </ActiveCellProvider>
   )
 }
 

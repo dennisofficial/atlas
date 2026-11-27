@@ -102,13 +102,28 @@ describe('drawerHidableOf', () => {
 })
 
 describe('showsHideSessionsButtonOf', () => {
-  it('offers the hide button only beside the content in the panel', () => {
-    expect(showsHideSessionsButtonOf({ listLayout: ESessionsListLayout.Panel })).toBe(true)
+  it('offers the hide button beside the content in the panel', () => {
+    expect(
+      showsHideSessionsButtonOf({ listLayout: ESessionsListLayout.Panel, selected: null }),
+    ).toBe(true)
   })
 
-  it('leaves the overlay and the iPhone list to a tap outside or a swipe', () => {
-    expect(showsHideSessionsButtonOf({ listLayout: ESessionsListLayout.Overlay })).toBe(false)
-    expect(showsHideSessionsButtonOf({ listLayout: ESessionsListLayout.Stacked })).toBe(false)
+  it('offers the hide button on the full-width list when a session sits behind it', () => {
+    expect(
+      showsHideSessionsButtonOf({ listLayout: ESessionsListLayout.Stacked, selected: 'ses_a' }),
+    ).toBe(true)
+  })
+
+  it('leaves out the hide button on the full-width list with no session behind it', () => {
+    expect(
+      showsHideSessionsButtonOf({ listLayout: ESessionsListLayout.Stacked, selected: null }),
+    ).toBe(false)
+  })
+
+  it('leaves the overlay to a tap outside or a swipe', () => {
+    expect(
+      showsHideSessionsButtonOf({ listLayout: ESessionsListLayout.Overlay, selected: 'ses_a' }),
+    ).toBe(false)
   })
 })
 
