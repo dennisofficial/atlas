@@ -1,4 +1,5 @@
 import type { Db } from '@dltech/atlas-db'
+import { EReturnSurface, returnSurfaceOf, startLinkFor } from '@dltech/atlas-core'
 import { z } from 'zod'
 
 import type { SecretCipher } from '@dltech/atlas-pods/config/secret-cipher'
@@ -15,6 +16,9 @@ export const mcpOauthBeginRequestSchema = z.strictObject({
 })
 
 export type McpOauthBeginRequest = z.infer<typeof mcpOauthBeginRequestSchema>
+
+const surfaceOfBody = (surface: string): EReturnSurface =>
+  returnSurfaceOf(surface) ?? EReturnSurface.Web
 
 export type McpOauthBeginAnswer = { status: number; body: unknown }
 
@@ -72,6 +76,13 @@ export class McpOauthBeginService {
       url: serverUrl,
       returnTarget: { surface: body.surface, screen: body.screen },
     })
-    return begun.ok ? { status: 200, body: { url: begun.startUrl } } : refused(422, begun.reason)
+    return begun.ok
+      ? {
+          status: 200,
+          body: {
+            url: startLinkFor({ url: begun.startUrl, surface: surfaceOfBody(body.surface) }),
+          },
+        }
+      : refused(422, begun.reason)
   }
 }

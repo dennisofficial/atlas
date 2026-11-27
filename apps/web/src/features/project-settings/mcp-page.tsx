@@ -241,7 +241,7 @@ function McpContent({
         </>
       }
     >
-      {auth === null ? null : <McpOauthResult reload={auth.reload} />}
+      {auth === null ? null : <McpOauthResult owner={auth.owner} reload={auth.reload} />}
       <SettingsCard>
         {servers.length === 0 ? (
           <ServersEmpty />

@@ -34,7 +34,7 @@ export function McpServersSection({
       description={description}
       actions={<McpAddDialog onAdd={(draft) => void run(() => store.add(draft))} />}
     >
-      <McpOauthResult reload={auth.reload} />
+      <McpOauthResult owner={auth.owner} reload={auth.reload} />
       <McpServerList
         auth={auth}
         servers={store.servers}

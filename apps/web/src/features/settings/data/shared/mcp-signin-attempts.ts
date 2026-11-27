@@ -1,4 +1,8 @@
-export type McpSignInAttempt = { readonly state: string; readonly label: string }
+export type McpSignInAttempt = {
+  readonly state: string
+  readonly label: string
+  readonly owner: string
+}
 
 type HeldAttempt = McpSignInAttempt & { readonly shown: boolean }
 
@@ -17,10 +21,10 @@ export const rememberMcpSignIn = (attempt: McpSignInAttempt): void => {
   }
 }
 
-export const mcpSignInsAwaitingResult = (): readonly McpSignInAttempt[] =>
+export const mcpSignInsAwaitingResult = (owner: string): readonly McpSignInAttempt[] =>
   [...attempts.values()]
-    .filter((attempt) => !attempt.shown)
-    .map((attempt) => ({ state: attempt.state, label: attempt.label }))
+    .filter((attempt) => !attempt.shown && attempt.owner === owner)
+    .map((attempt) => ({ state: attempt.state, label: attempt.label, owner: attempt.owner }))
 
 export const markMcpSignInShown = (state: string): void => {
   const held = attempts.get(state)

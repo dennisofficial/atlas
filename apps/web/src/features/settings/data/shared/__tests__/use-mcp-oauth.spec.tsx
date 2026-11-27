@@ -109,7 +109,11 @@ describe('useMcpOauth', () => {
 
     await flush(() => authOf().signIn({ serverId: 'srv_1', label: 'mcp.example.com' }))
 
-    expect(mcpSignInsAwaitingResult()).toContainEqual({ state: STATE, label: 'mcp.example.com' })
+    expect(mcpSignInsAwaitingResult('user:personal')).toContainEqual({
+      state: STATE,
+      label: 'mcp.example.com',
+      owner: 'user:personal',
+    })
   })
 
   it('leaves the sign-in control idle afterwards, because the page no longer navigates away', async () => {

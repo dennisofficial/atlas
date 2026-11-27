@@ -36,8 +36,8 @@ function McpSignInMessage(props: { attempt: McpSignInAttempt; reload: () => void
   return null
 }
 
-export function McpOauthResult({ reload }: { reload: () => void }) {
-  const attempts = mcpSignInsAwaitingResult()
+export function McpOauthResult({ owner, reload }: { owner: string; reload: () => void }) {
+  const attempts = mcpSignInsAwaitingResult(owner)
   return (
     <>
       {attempts.map((attempt) => (

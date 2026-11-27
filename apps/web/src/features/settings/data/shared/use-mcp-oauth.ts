@@ -24,6 +24,7 @@ import {
 import { runAction } from './run-action'
 
 export type McpOauth = {
+  owner: string
   cloudServer: (name: string) => McpOauthServer | undefined
   repoServers: McpOauthServer[]
   stateOf: (server: McpOauthServer | undefined) => EMcpAuthState
@@ -56,6 +57,7 @@ async function loadServers(input: ScopedRequest['input']): Promise<LoadedServers
 export function useMcpOauth(scope: McpOauthScope = { kind: 'user' }): McpOauth {
   const kind = scope.kind
   const id = scopeIdOf(scope)
+  const owner = `${kind}:${id}`
   const { key, input, screen } = useMemo<ScopedRequest>(
     () => ({
       key: `${kind}:${id}`,
@@ -88,12 +90,12 @@ export function useMcpOauth(scope: McpOauthScope = { kind: 'user' }): McpOauth {
             return
           }
           const state = stateOfStartLink(result.url)
-          if (state !== undefined) rememberMcpSignIn({ state, label: args.label })
+          if (state !== undefined) rememberMcpSignIn({ state, label: args.label, owner })
           openBrowserReturn({ url: result.url })
         },
       }).finally(() => setBusyId(null))
     },
-    [screen],
+    [owner, screen],
   )
 
   const signOut = useCallback(
@@ -120,6 +122,7 @@ export function useMcpOauth(scope: McpOauthScope = { kind: 'user' }): McpOauth {
   )
 
   return {
+    owner,
     cloudServer: (name) => cloudServerOf(servers, name),
     repoServers: repoServersOf(servers),
     stateOf: (server) => (failed ? EMcpAuthState.SignIn : authStateOf(server)),
