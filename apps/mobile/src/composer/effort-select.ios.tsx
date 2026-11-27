@@ -56,7 +56,7 @@ export const EffortSelect = ({
         isPresented={open}
         onIsPresentedChange={handlePresented}
         attachmentAnchor="top"
-        arrowEdge="top"
+        arrowEdge="bottom"
       >
         <Popover.Trigger>
           <RNHostView matchContents>

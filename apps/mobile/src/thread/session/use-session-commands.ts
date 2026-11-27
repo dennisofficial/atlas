@@ -1,17 +1,19 @@
 import type { ApiClient } from '@dltech/atlas-api-router'
 import { EClientAction, type CommandEntry } from '@dltech/atlas-commands'
 import type { RecordEvent } from '@dltech/atlas-core'
-import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
+
+import { presentModelSheet } from '../../composer/model-sheet-request'
 
 import { composerActionsOf, mobileEntriesOf } from './session-commands'
-import { useSessionModelChoice } from './use-session-model-choice'
+import { type SessionModelChoice, useSessionModelChoice } from './use-session-model-choice'
 
 const NO_COMMANDS: readonly CommandEntry[] = []
 
 export type SessionCommands = {
   entries: readonly CommandEntry[]
   clientActions: Record<EClientAction, () => void>
-  model: ReturnType<typeof useSessionModelChoice> & { open: boolean; onClose: () => void }
+  model: SessionModelChoice
   commandList: { open: boolean; onClose: () => void }
 }
 
@@ -22,7 +24,6 @@ export const useSessionCommands = (args: {
   reportHidden: (name: string) => void
 }): SessionCommands => {
   const [commands, setCommands] = useState<readonly CommandEntry[]>(NO_COMMANDS)
-  const [modelOpen, setModelOpen] = useState(false)
   const [listOpen, setListOpen] = useState(false)
 
   useEffect(() => {
@@ -39,6 +40,13 @@ export const useSessionCommands = (args: {
     }
   }, [args.api])
 
+  const model = useSessionModelChoice({
+    api: args.api,
+    sessionId: args.sessionId,
+  })
+  const latestModel = useRef(model)
+  latestModel.current = model
+
   const entries = useMemo(
     () => mobileEntriesOf({ commands, events: args.events }),
     [commands, args.events],
@@ -46,21 +54,23 @@ export const useSessionCommands = (args: {
   const clientActions = useMemo(
     () =>
       composerActionsOf({
-        openModelPicker: () => setModelOpen(true),
+        openModelPicker: () =>
+          presentModelSheet({
+            models: latestModel.current.models,
+            selection: latestModel.current.selection,
+            personalId: latestModel.current.personalId,
+            defaultRow: true,
+            onSelect: latestModel.current.onSelect,
+          }),
         openCommandList: () => setListOpen(true),
         reportHidden: args.reportHidden,
       }),
     [args.reportHidden],
   )
-  const model = useSessionModelChoice({
-    api: args.api,
-    sessionId: args.sessionId,
-  })
-
   return {
     entries,
     clientActions,
-    model: { ...model, open: modelOpen, onClose: () => setModelOpen(false) },
+    model,
     commandList: { open: listOpen, onClose: () => setListOpen(false) },
   }
 }

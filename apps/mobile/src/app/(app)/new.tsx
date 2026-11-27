@@ -1,7 +1,6 @@
 import { initialProjectIdOf } from '@dltech/atlas-client/session'
 import type { Attachment } from '@dltech/atlas-core'
 import { EFontWeight, ETextRole, Text, useTheme } from '@dltech/atlas-ui-native'
-import { decodeModelFavourites, encodeModelFavourites } from '@dltech/atlas-wire/web'
 import { space } from '@dltech/atlas-ui/tokens'
 import { router, useLocalSearchParams, usePathname } from 'expo-router'
 import { useEffect, useState } from 'react'
@@ -54,7 +53,6 @@ const NewSession = () => {
   const { models, ready: modelsReady } = useModels()
   const attachments = useAttachments()
   const settings = useSettings()
-  const [localPinned, setLocalPinned] = useState<string[] | null>(null)
   const personalId = settings.read({ key: 'model.id', schema: z.string() })
   const selection = selectionOf({
     models,
@@ -64,9 +62,6 @@ const NewSession = () => {
   })
   const efforts = effortChoicesOf(selection)
   const projectName = projects.find((entry) => entry.id === projectId)?.name ?? null
-  const pinned =
-    localPinned ??
-    decodeModelFavourites(settings.read({ key: 'model.favourites', schema: z.string() }))
 
   useEffect(() => {
     if (api === undefined) return
@@ -81,13 +76,6 @@ const NewSession = () => {
     setModelId(next.model.id)
     setEffort(next.effort)
     setFast(next.fast)
-  }
-
-  const handlePinnedChange = (ids: string[]) => {
-    setLocalPinned(ids)
-    settings
-      .save({ 'model.favourites': encodeModelFavourites(ids) })
-      .catch(() => setLocalPinned(null))
   }
 
   const handleEffortSelect = (name: string) => setEffort(name)
@@ -184,10 +172,8 @@ const NewSession = () => {
                 <ModelSelect
                   models={models}
                   selection={selection}
-                  pinned={pinned}
                   personalId={personalId}
                   defaultRow={false}
-                  onPinnedChange={handlePinnedChange}
                   onSelect={handleModelSelect}
                 />
               ) : null}
