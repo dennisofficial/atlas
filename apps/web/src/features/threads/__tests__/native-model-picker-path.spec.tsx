@@ -121,6 +121,34 @@ describe('ModelPickerControls', () => {
     await unmount()
   })
 
+  it('falls back to the popover when the panel cannot open', async () => {
+    const shown = []
+    Reflect.set(window, 'atlasDesktop', {
+      nativeModelPicker: true,
+      showModelPicker: (request: unknown) => {
+        shown.push(request)
+        return Promise.resolve({ ok: false, reason: 'no-addon' })
+      },
+      hideModelPicker: () => Promise.resolve(),
+      onModelPickerEvent: () => undefined,
+      offModelPickerEvent: () => undefined,
+    })
+    const unmount = await mount(controls({ native: true }))
+    await act(async () => {
+      nativeTrigger()?.click()
+      await Promise.resolve()
+    })
+    expect(shown).toHaveLength(1)
+    expect(nativeTrigger()).toBeNull()
+    expect(anyTrigger()).not.toBeNull()
+    await act(async () => {
+      anyTrigger()?.click()
+      await Promise.resolve()
+    })
+    expect(shown).toHaveLength(1)
+    await unmount()
+  })
+
   it('ignores the native panel on a surface that did not ask for it', async () => {
     const { calls, bridge } = desktop()
     Reflect.set(window, 'atlasDesktop', bridge)
