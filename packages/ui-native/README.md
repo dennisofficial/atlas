@@ -41,7 +41,9 @@ palette and one type scale. `apps/mobile` is the only consumer.
 ### Draw text
 
 - `Text` with `ITextProps`: a styled text run. It takes a `size` from `ETextRole`, a tone, a
-  family and a weight.
+  family and a weight. A `selectable` Text on iOS is a `UITextView`
+  (`@bsky.app/react-native-uitextview`): a long press selects a word, handles extend the range and
+  the native edit menu acts on it. Nested Text spans keep their style and `onPress`.
 - `ETextRole`, `ETextTone`, `EFontFamily`, `EFontWeight`: the values of those props.
 - `Markdown`: a markdown string as native blocks, including code and tables. The props are
   `value`, `selectable`, `breaks`, `tone` and `renderDiagram`. `renderDiagram` takes
@@ -91,8 +93,8 @@ const Row = ({ label }: { label: string }) => (
 - Use `lucide-react-native` for an icon, and pass it to `Icon`.
 - Show loading with `Spinner`, never the iOS `ActivityIndicator`.
 - Add a component here only when `@dltech/atlas-ui` has no native equivalent.
-- Keep `react-native`, `react`, `react-native-svg` and `lucide-react-native` as peer
-  dependencies. The app supplies them.
+- Keep `react-native`, `react`, `react-native-svg`, `lucide-react-native` and
+  `@bsky.app/react-native-uitextview` as peer dependencies. The app supplies them.
 
 ## See also
 

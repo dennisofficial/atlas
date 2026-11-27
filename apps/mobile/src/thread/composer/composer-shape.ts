@@ -7,6 +7,8 @@ export const COMPOSER_RADIUS = radius(2.4)
 
 export const COMPOSER_INSET = space(2.5)
 
+export const COMPOSER_FIELD_BORDER = 1
+
 export const CHIP_RADIUS = concentricRadiusOf({ outer: COMPOSER_RADIUS, inset: COMPOSER_INSET })
 
 export const CHIP_REMOVE_INSET = space(1)

@@ -12,7 +12,6 @@ import { useState } from 'react'
 import { StyleSheet, View } from 'react-native'
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
 
-import { EControlsPlacement } from '../layout/posture'
 import { usePosture } from '../layout/use-posture'
 import { AccountButton } from '../navigation/account-button'
 import { NewSessionButton } from '../navigation/new-session-button'
@@ -46,7 +45,7 @@ export const SessionsDrawerShell = ({
           Sessions
         </Text>
         <View style={styles.actions}>
-          {posture.controls === EControlsPlacement.BottomBar ? <AccountButton /> : null}
+          <AccountButton />
           <NewSessionButton />
           {showsHideSessionsButtonOf({ listLayout: posture.sessionsList, selected: activeId }) ? (
             <Button

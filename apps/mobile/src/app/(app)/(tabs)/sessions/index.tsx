@@ -5,19 +5,19 @@ import { PanelLeft } from 'lucide-react-native'
 import { useCallback, useEffect } from 'react'
 import { Platform, StyleSheet, View } from 'react-native'
 
-import { usePosture } from '../../../layout/use-posture'
-import { EHeaderLeadingItem, sessionHeaderLeadingOf } from '../../../navigation/header-leading'
-import { newSessionHeaderItemOf } from '../../../navigation/header-options'
-import { NewSessionButton } from '../../../navigation/new-session-button'
-import { sessionsTabHrefOf } from '../../../navigation/root-navigation'
-import { SessionsButton } from '../../../navigation/sessions-button'
-import { opensDrawerWithoutSessionOf } from '../../../sessions/drawer-layout'
-import { useSelectedSession, useSelectedSessionLoaded } from '../../../sessions/selected-session'
-import { useSessionsDrawer } from '../../../sessions/sessions-drawer-state'
+import { usePosture } from '../../../../layout/use-posture'
+import { EHeaderLeadingItem, sessionHeaderLeadingOf } from '../../../../navigation/header-leading'
+import { newSessionHeaderItemOf } from '../../../../navigation/header-options'
+import { NewSessionButton } from '../../../../navigation/new-session-button'
+import { sessionsTabHrefOf } from '../../../../navigation/root-navigation'
+import { SessionsButton } from '../../../../navigation/sessions-button'
+import { opensDrawerWithoutSessionOf } from '../../../../sessions/drawer-layout'
+import { useSelectedSession, useSelectedSessionLoaded } from '../../../../sessions/selected-session'
+import { useSessionsDrawer } from '../../../../sessions/sessions-drawer-state'
 
 const MARK_WIDTH = 96
 const MARK_ASPECT = 1024 / 830
-const mark = require('../../../../assets/images/splash-mark.png')
+const mark = require('../../../../../assets/images/splash-mark.png')
 
 export default function SessionsIndexScreen() {
   const theme = useTheme()

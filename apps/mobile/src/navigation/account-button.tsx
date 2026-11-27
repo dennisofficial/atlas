@@ -1,12 +1,10 @@
 import { Avatar, EAvatarSize } from '@dltech/atlas-ui-native'
 import { radius } from '@dltech/atlas-ui/tokens'
-import { usePathname } from 'expo-router'
+import { router } from 'expo-router'
 import { Pressable, StyleSheet } from 'react-native'
 
 import { useAuth } from '../auth/auth-provider'
-import { usePosture } from '../layout/use-posture'
-import { applyNavigation } from './apply-navigation'
-import { accountNavigationOf } from './root-navigation'
+import { SETTINGS_HREF } from './root-navigation'
 
 export const initialsOf = (label: string): string =>
   label
@@ -18,11 +16,8 @@ export const initialsOf = (label: string): string =>
 
 export const AccountButton = () => {
   const { user } = useAuth()
-  const posture = usePosture()
-  const pathname = usePathname()
   const name = user?.name ?? user?.email ?? 'Signed in'
-  const handlePress = () =>
-    applyNavigation(accountNavigationOf({ controls: posture.controls, pathname }))
+  const handlePress = () => router.push(SETTINGS_HREF)
   return (
     <Pressable
       accessibilityRole="button"

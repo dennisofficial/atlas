@@ -46,6 +46,7 @@ services:
   mobile:
     command: bunx expo start --web --port $PORT
     cwd: apps/mobile
+    port: 3002
     health: /
     needs: [web]
     env:

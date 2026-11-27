@@ -1,14 +1,6 @@
 import { describe, expect, it } from 'bun:test'
 
-import {
-  BOTTOM_BAR_CLEARANCE,
-  contentInsetsOf,
-  EControlsPlacement,
-  ESessionsListLayout,
-  postureOf,
-  RAIL_BOTTOM_GAP,
-  RAIL_MIN_INSET,
-} from '../posture'
+import { ESessionsListLayout, postureOf, sideColumnInsetOf } from '../posture'
 
 const insets = (edges: Partial<{ top: number; right: number; bottom: number; left: number }>) => ({
   top: 0,
@@ -19,75 +11,50 @@ const insets = (edges: Partial<{ top: number; right: number; bottom: number; lef
 })
 
 describe('postureOf', () => {
-  it('puts the controls in a right rail when the status bar is a right column', () => {
+  it('stacks the sessions list on a compact window', () => {
     expect(postureOf({ width: 470, height: 690, insets: insets({ right: 80 }) })).toEqual({
-      controls: EControlsPlacement.Rail,
       sessionsList: ESessionsListLayout.Stacked,
-      railWidth: 80,
-      railBottom: RAIL_BOTTOM_GAP,
-      clearance: { bottom: 0 },
     })
-  })
-
-  it('uses a bottom bar when the status bar is on top', () => {
-    expect(
-      postureOf({ width: 703, height: 1000, insets: insets({ top: 54, bottom: 20 }) }),
-    ).toEqual({
-      controls: EControlsPlacement.BottomBar,
-      sessionsList: ESessionsListLayout.Overlay,
-      railWidth: 0,
-      railBottom: 20 + RAIL_BOTTOM_GAP,
-      clearance: { bottom: 20 + BOTTOM_BAR_CLEARANCE },
-    })
-  })
-
-  it('keeps a narrow right inset below the rail threshold as a bottom bar', () => {
-    expect(
-      postureOf({ width: 430, height: 932, insets: insets({ right: RAIL_MIN_INSET - 1 }) })
-        .controls,
-    ).toBe(EControlsPlacement.BottomBar)
-  })
-
-  it('keeps the symmetric landscape notch insets of a plain iPhone as a bottom bar', () => {
-    expect(
-      postureOf({ width: 932, height: 430, insets: insets({ left: 59, right: 59 }) }).controls,
-    ).toBe(EControlsPlacement.BottomBar)
+    expect(postureOf({ width: 440, height: 956, insets: insets({ top: 62, bottom: 34 }) })).toEqual(
+      { sessionsList: ESessionsListLayout.Stacked },
+    )
   })
 
   it('shows the sessions list as a fixed panel on a wide landscape window', () => {
     expect(postureOf({ width: 1000, height: 703, insets: insets({ right: 80 }) })).toEqual({
-      controls: EControlsPlacement.Rail,
       sessionsList: ESessionsListLayout.Panel,
-      railWidth: 80,
-      railBottom: RAIL_BOTTOM_GAP,
-      clearance: { bottom: 0 },
     })
   })
 
-  it('anchors the rail above the bottom inset so a taller system column never covers it', () => {
+  it('shows the sessions list as an overlay on a wide portrait window', () => {
     expect(
-      postureOf({ width: 470, height: 690, insets: insets({ top: 240, right: 80, bottom: 21 }) })
-        .railBottom,
-    ).toBe(21 + RAIL_BOTTOM_GAP)
+      postureOf({ width: 703, height: 1000, insets: insets({ top: 54, bottom: 20 }) }),
+    ).toEqual({ sessionsList: ESessionsListLayout.Overlay })
   })
 
-  it('measures wideness without the side insets', () => {
+  it('measures the width without the side insets', () => {
     expect(postureOf({ width: 660, height: 900, insets: insets({ right: 80 }) }).sessionsList).toBe(
       ESessionsListLayout.Stacked,
     )
   })
 })
 
-describe('contentInsetsOf', () => {
-  it('gives the rail column to the rail so screens inside the frame see no right inset', () => {
-    const window = insets({ top: 0, right: 80, bottom: 21 })
-    const posture = postureOf({ width: 470, height: 690, insets: window })
-    expect(contentInsetsOf({ insets: window, posture })).toEqual(insets({ bottom: 21 }))
+describe('sideColumnInsetOf', () => {
+  it('claims the right inset when the system column stands on the right', () => {
+    expect(sideColumnInsetOf(insets({ right: 62 }))).toBe(62)
+    expect(sideColumnInsetOf(insets({ right: 80 }))).toBe(80)
+    expect(sideColumnInsetOf(insets({ top: 54, right: 80, bottom: 20 }))).toBe(80)
   })
 
-  it('keeps every inset when the controls are a bottom bar', () => {
-    const window = insets({ top: 54, left: 59, right: 59, bottom: 20 })
-    const posture = postureOf({ width: 932, height: 430, insets: window })
-    expect(contentInsetsOf({ insets: window, posture })).toEqual(window)
+  it('claims nothing on an iPhone in portrait', () => {
+    expect(sideColumnInsetOf(insets({ top: 62, bottom: 34 }))).toBe(0)
+  })
+
+  it('claims nothing when both landscape edges carry the same inset', () => {
+    expect(sideColumnInsetOf(insets({ right: 44, left: 44 }))).toBe(0)
+  })
+
+  it('ignores an inset too small to be the system column', () => {
+    expect(sideColumnInsetOf(insets({ right: 34 }))).toBe(0)
   })
 })

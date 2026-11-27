@@ -19,36 +19,36 @@ import {
   useWindowDimensions,
   View,
 } from 'react-native'
-import { useAuth } from '../../../auth/auth-provider'
-import { KeyboardDock } from '../../../layout/keyboard-dock'
-import { transcriptInsetOf } from '../../../layout/transcript-inset'
-import { useKeyboard } from '../../../layout/use-keyboard'
-import { usePosture } from '../../../layout/use-posture'
-import { GlassSurface } from '../../../navigation/glass-surface'
-import { EHeaderLeadingItem, sessionHeaderLeadingOf } from '../../../navigation/header-leading'
-import { leadingHeaderOptionsOf } from '../../../navigation/header-options'
-import { SessionsButton } from '../../../navigation/sessions-button'
-import { CommandListSheet } from '../../../thread/composer/command-list-sheet'
-import { Composer } from '../../../thread/composer/composer'
-import { COMPOSER_ITEM_GAP } from '../../../thread/composer/composer-shape'
-import { ContextReading } from '../../../thread/composer/context-reading'
-import { PlanUsage } from '../../../thread/composer/plan-usage'
-import { StaleCard } from '../../../thread/composer/stale-card'
-import { BlockingStrip } from '../../../thread/components/blocking-strip'
-import { useAttachments } from '../../../thread/composer/use-attachments'
-import { usePlanUsage } from '../../../thread/composer/use-plan-usage'
-import { OperatorRequestDock } from '../../../thread/components/operator-request-card'
-import { SessionTitle } from '../../../thread/components/session-title'
-import { StartFailedCard } from '../../../thread/components/start-failed-card'
-import { SessionSkeleton } from '../../../thread/components/session-skeleton'
-import { Transcript } from '../../../thread/components/transcript'
-import { selectedSessionStore } from '../../../sessions/selected-session'
-import { paneWidthOf } from '../../../sessions/drawer-layout'
-import { useSessionsDrawer } from '../../../sessions/sessions-drawer-state'
-import { SessionModelControls } from '../../../thread/session/session-model-controls'
-import { useSessionScreen } from '../../../thread/session/use-session-screen'
+import { useAuth } from '../../../../auth/auth-provider'
+import { KeyboardDock } from '../../../../layout/keyboard-dock'
+import { transcriptInsetOf } from '../../../../layout/transcript-inset'
+import { useKeyboard } from '../../../../layout/use-keyboard'
+import { usePosture } from '../../../../layout/use-posture'
+import { GlassSurface } from '../../../../navigation/glass-surface'
+import { EHeaderLeadingItem, sessionHeaderLeadingOf } from '../../../../navigation/header-leading'
+import { leadingHeaderOptionsOf } from '../../../../navigation/header-options'
+import { SessionsButton } from '../../../../navigation/sessions-button'
+import { CommandListSheet } from '../../../../thread/composer/command-list-sheet'
+import { Composer } from '../../../../thread/composer/composer'
+import { COMPOSER_ITEM_GAP } from '../../../../thread/composer/composer-shape'
+import { ContextReading } from '../../../../thread/composer/context-reading'
+import { PlanUsage } from '../../../../thread/composer/plan-usage'
+import { StaleCard } from '../../../../thread/composer/stale-card'
+import { BlockingStatus } from '../../../../thread/components/blocking-status'
+import { useAttachments } from '../../../../thread/composer/use-attachments'
+import { usePlanUsage } from '../../../../thread/composer/use-plan-usage'
+import { OperatorRequestDock } from '../../../../thread/components/operator-request-card'
+import { SessionTitle } from '../../../../thread/components/session-title'
+import { StartFailedCard } from '../../../../thread/components/start-failed-card'
+import { SessionSkeleton } from '../../../../thread/components/session-skeleton'
+import { Transcript } from '../../../../thread/components/transcript'
+import { selectedSessionStore } from '../../../../sessions/selected-session'
+import { paneWidthOf } from '../../../../sessions/drawer-layout'
+import { useSessionsDrawer } from '../../../../sessions/sessions-drawer-state'
+import { SessionModelControls } from '../../../../thread/session/session-model-controls'
+import { useSessionScreen } from '../../../../thread/session/use-session-screen'
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
-import type { ThreadRow } from '../../../thread/rows'
+import type { ThreadRow } from '../../../../thread/rows'
 
 const NO_ROWS: readonly ThreadRow[] = []
 
@@ -133,7 +133,6 @@ export default function SessionScreen() {
               windowWidth,
               drawerOpen,
             }),
-            posture,
           }),
           headerBackVisible: false,
           headerLeft:
@@ -216,12 +215,8 @@ export default function SessionScreen() {
               {session.startFailure === undefined ? null : (
                 <StartFailedCard reason={session.startFailure.reason} onRetry={session.retry} />
               )}
-              {session.blocking === undefined ? null : (
-                <BlockingStrip command={session.blocking} now={session.now} />
-              )}
               <Composer
                 working={session.working}
-                joined={session.blocking !== undefined}
                 attachments={attachments}
                 onSend={session.send}
                 onStop={session.stop}
@@ -231,6 +226,7 @@ export default function SessionScreen() {
                 entries={session.commands.entries}
                 clientActions={session.commands.clientActions}
                 trailingPressable={false}
+                status={<BlockingStatus command={session.blocking} now={session.now} />}
                 trailing={
                   <View style={styles.trailing}>
                     <PlanUsage report={usage} />

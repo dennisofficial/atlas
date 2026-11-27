@@ -1,4 +1,6 @@
-import { Text as NativeText, type TextProps } from 'react-native'
+import { UITextView } from '@bsky.app/react-native-uitextview'
+import type { ReactNode } from 'react'
+import type { TextProps } from 'react-native'
 
 import {
   EFontFamily,
@@ -28,13 +30,16 @@ export const Text = ({
   tight = false,
   leading,
   color,
+  selectionColor,
   style,
   ...props
 }: ITextProps) => {
   const theme = useTheme()
   return (
-    <NativeText
+    <UITextView
       {...props}
+      uiTextView
+      selectionColor={selectionColor ?? theme.primary}
       style={[
         textStyleOf({
           role: size,
@@ -49,3 +54,7 @@ export const Text = ({
     />
   )
 }
+
+export const TextSpan = ({ children }: { children: ReactNode }) => (
+  <UITextView>{children}</UITextView>
+)

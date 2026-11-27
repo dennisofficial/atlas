@@ -157,6 +157,7 @@
       "name": "@dltech/atlas-mobile",
       "version": "1.0.0",
       "dependencies": {
+        "@bsky.app/react-native-uitextview": "2.7.3",
         "@dltech/atlas-api-router": "workspace:*",
         "@dltech/atlas-client": "workspace:*",
         "@dltech/atlas-commands": "workspace:*",
@@ -872,6 +873,7 @@
         "@dltech/atlas-ui": "workspace:*",
       },
       "devDependencies": {
+        "@bsky.app/react-native-uitextview": "2.7.3",
         "@types/bun": "latest",
         "@types/react": "~19.3.0",
         "lucide-react-native": "^1.67.0",
@@ -881,6 +883,7 @@
         "typescript": "6.0.3",
       },
       "peerDependencies": {
+        "@bsky.app/react-native-uitextview": "*",
         "lucide-react-native": "*",
         "react": "*",
         "react-native": "*",
@@ -1398,6 +1401,8 @@
     "@borewit/text-codec": ["@borewit/text-codec@0.2.2", "", {}, "sha512-DDaRehssg1aNrH4+2hnj1B7vnUGEjU6OIlyRdkMd0aUdIUvKXrJfXsy8LVtXAy7DRvYVluWbMspsRhz2lcW0mQ=="],
 
     "@braintree/sanitize-url": ["@braintree/sanitize-url@7.1.2", "", {}, "sha512-jigsZK+sMF/cuiB7sERuo9V7N9jx+dhmHHnQyDSVdpZwVutaBu7WvNYqMDLSgFgfB30n452TP3vjDAvFC973mA=="],
+
+    "@bsky.app/react-native-uitextview": ["@bsky.app/react-native-uitextview@2.7.3", "", { "peerDependencies": { "react": "*", "react-native": ">=0.81.5" } }, "sha512-tY46Dif6W6uPDh5ZB6P4PkxHIjoIJLJVxDHtVCnaShzVeE7f3L6zKRcClJ2te7wI1kdp7VbiFHoNj0cSAeL2LQ=="],
 
     "@bugsnag/cuid": ["@bugsnag/cuid@3.2.2", "", {}, "sha512-7onuYLTMqMmHE9BBPG0YER4nFsU1rB+me1/YIeMusqcLbVbKKuG9u9+BDVDpje5e0llkkrVNOKYwmzM9DRIo7A=="],
 
