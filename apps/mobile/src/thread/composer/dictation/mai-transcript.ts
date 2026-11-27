@@ -8,39 +8,53 @@ export const joinSpoken = ({ head, next }: { head: string; next: string }): stri
   return needsSpace ? `${head} ${next}` : `${head}${next}`
 }
 
-const mergedFinalOf = ({ committed, next }: { committed: string; next: string }): string => {
-  const trimmed = next.trim()
-  if (committed === '') return trimmed
-  if (trimmed === '') return committed
-  if (trimmed.startsWith(committed)) return trimmed
-  if (committed.startsWith(trimmed)) return committed
-  return joinSpoken({ head: committed, next: trimmed })
+export enum ESpokenSource {
+  Delta = 'delta',
+  Segment = 'segment',
 }
 
-export const EMPTY_SPOKEN: ITranscript = { committed: '', interim: '' }
+export interface ISpoken extends ITranscript {
+  source: ESpokenSource
+}
+
+export const EMPTY_SPOKEN: ISpoken = {
+  committed: '',
+  interim: '',
+  source: ESpokenSource.Segment,
+}
+
+const withDelta = ({ spoken, delta }: { spoken: ISpoken; delta: string }): ISpoken => {
+  if (spoken.source === ESpokenSource.Delta)
+    return { source: ESpokenSource.Delta, committed: `${spoken.committed}${delta}`, interim: '' }
+  return {
+    source: ESpokenSource.Delta,
+    committed: joinSpoken({ head: spoken.committed, next: delta }),
+    interim: '',
+  }
+}
+
+const withAuthoritativeText = ({ spoken, text }: { spoken: ISpoken; text: string }): ISpoken => ({
+  source: ESpokenSource.Segment,
+  committed: text.trim() === '' ? spoken.committed : text,
+  interim: '',
+})
 
 export const withTranscriptPart = ({
-  transcript,
+  spoken,
   part,
 }: {
-  transcript: ITranscript
+  spoken: ISpoken
   part: TTranscriptPart
-}): ITranscript => {
+}): ISpoken => {
   switch (part.type) {
     case ETranscriptPart.Delta:
-      return {
-        committed: joinSpoken({ head: transcript.committed, next: part.delta }),
-        interim: '',
-      }
+      return withDelta({ spoken, delta: part.delta })
     case ETranscriptPart.Partial:
-      return { committed: transcript.committed, interim: part.text.trim() }
+      return { ...spoken, interim: part.text.trim() }
     case ETranscriptPart.Final:
     case ETranscriptPart.Finish:
-      return {
-        committed: mergedFinalOf({ committed: transcript.committed, next: part.text }),
-        interim: '',
-      }
+      return withAuthoritativeText({ spoken, text: part.text })
     case ETranscriptPart.Error:
-      return transcript
+      return spoken
   }
 }

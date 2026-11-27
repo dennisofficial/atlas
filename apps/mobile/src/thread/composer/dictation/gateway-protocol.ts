@@ -2,6 +2,8 @@ export const DICTATION_SAMPLE_RATE = 16000
 
 export const MAX_AUDIO_FRAME_BYTES = 64 * 1024
 
+export const MAX_PENDING_AUDIO_BYTES = DICTATION_SAMPLE_RATE * 2 * 10
+
 export const TRANSCRIPTION_SUBPROTOCOL = 'ai-gateway-transcription.v1'
 
 const AUTH_SUBPROTOCOL_PREFIX = 'ai-gateway-auth.'

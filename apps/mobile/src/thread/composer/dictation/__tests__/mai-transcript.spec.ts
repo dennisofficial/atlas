@@ -1,7 +1,18 @@
 import { describe, expect, it } from 'bun:test'
 
-import { ETranscriptPart } from '../gateway-protocol'
-import { EMPTY_SPOKEN, joinSpoken, withTranscriptPart } from '../mai-transcript'
+import { ETranscriptPart, type TTranscriptPart } from '../gateway-protocol'
+import {
+  EMPTY_SPOKEN,
+  ESpokenSource,
+  joinSpoken,
+  type ISpoken,
+  withTranscriptPart,
+} from '../mai-transcript'
+
+const afterOf = (parts: readonly TTranscriptPart[]): ISpoken =>
+  parts.reduce<ISpoken>((spoken, part) => withTranscriptPart({ spoken, part }), EMPTY_SPOKEN)
+
+const deltaOf = (delta: string): TTranscriptPart => ({ type: ETranscriptPart.Delta, delta })
 
 describe('joinSpoken', () => {
   it('keeps a word off the end of a sentence', () => {
@@ -15,78 +26,77 @@ describe('joinSpoken', () => {
 })
 
 describe('withTranscriptPart', () => {
-  it('grows the committed text with each delta', () => {
-    const first = withTranscriptPart({
-      transcript: EMPTY_SPOKEN,
-      part: { type: ETranscriptPart.Delta, delta: 'Hello' },
-    })
-    const second = withTranscriptPart({
-      transcript: first,
-      part: { type: ETranscriptPart.Delta, delta: '.' },
-    })
-    expect(second).toEqual({ committed: 'Hello.', interim: '' })
+  it('joins the deltas exactly as they arrive, without inventing spaces', () => {
+    expect(afterOf([deltaOf('hel'), deltaOf('lo')]).committed).toBe('hello')
   })
 
-  it('replaces the committed text with a final that carries the whole sentence', () => {
-    const afterDeltas = withTranscriptPart({
-      transcript: EMPTY_SPOKEN,
-      part: { type: ETranscriptPart.Delta, delta: 'And so my fellow Americans' },
-    })
-    const final = withTranscriptPart({
-      transcript: afterDeltas,
-      part: { type: ETranscriptPart.Final, text: 'And so my fellow Americans' },
-    })
-    expect(final.committed).toBe('And so my fellow Americans')
+  it('keeps the spacing the service sends inside a sentence', () => {
+    expect(afterOf([deltaOf('Hello'), deltaOf(' there'), deltaOf('!')]).committed).toBe(
+      'Hello there!',
+    )
+  })
+
+  it('replaces the committed text with a cumulative final', () => {
+    const spoken = afterOf([
+      deltaOf('And so'),
+      { type: ETranscriptPart.Final, text: 'And so my fellow Americans' },
+    ])
+    expect(spoken.committed).toBe('And so my fellow Americans')
+  })
+
+  it('lets a final correct what the deltas heard', () => {
+    const spoken = afterOf([
+      deltaOf('I scream'),
+      { type: ETranscriptPart.Finish, text: 'Ice cream' },
+    ])
+    expect(spoken.committed).toBe('Ice cream')
+  })
+
+  it('joins a delta with a space when it follows a segment', () => {
+    const spoken = afterOf([{ type: ETranscriptPart.Final, text: 'And' }, deltaOf('so')])
+    expect(spoken.committed).toBe('And so')
   })
 
   it('shows a partial as interim and leaves the committed text alone', () => {
-    const committed = withTranscriptPart({
-      transcript: EMPTY_SPOKEN,
-      part: { type: ETranscriptPart.Final, text: 'Ask not' },
+    const spoken = afterOf([
+      { type: ETranscriptPart.Final, text: 'Ask not' },
+      { type: ETranscriptPart.Partial, text: 'what your' },
+    ])
+    expect(spoken).toEqual({
+      committed: 'Ask not',
+      interim: 'what your',
+      source: ESpokenSource.Segment,
     })
-    const partial = withTranscriptPart({
-      transcript: committed,
-      part: { type: ETranscriptPart.Partial, text: 'what your' },
-    })
-    expect(partial).toEqual({ committed: 'Ask not', interim: 'what your' })
   })
 
-  it('clears the interim when the next final replaces it', () => {
-    const partial = withTranscriptPart({
-      transcript: { committed: 'Ask not', interim: 'what your' },
+  it('replaces the committed text and clears the interim when a final lands', () => {
+    const spoken = withTranscriptPart({
+      spoken: { committed: 'Ask not', interim: 'what your', source: ESpokenSource.Segment },
       part: { type: ETranscriptPart.Final, text: 'Ask not what your country can do' },
     })
-    expect(partial).toEqual({ committed: 'Ask not what your country can do', interim: '' })
-  })
-
-  it('appends a final that carries only new words', () => {
-    const final = withTranscriptPart({
-      transcript: { committed: 'Ask not', interim: '' },
-      part: { type: ETranscriptPart.Final, text: 'what your country can do' },
+    expect(spoken).toEqual({
+      committed: 'Ask not what your country can do',
+      interim: '',
+      source: ESpokenSource.Segment,
     })
-    expect(final.committed).toBe('Ask not what your country can do')
-  })
-
-  it('keeps the longer text when the final is a shorter hearing of it', () => {
-    const final = withTranscriptPart({
-      transcript: { committed: 'Ask not what your country', interim: '' },
-      part: { type: ETranscriptPart.Final, text: 'Ask not' },
-    })
-    expect(final.committed).toBe('Ask not what your country')
   })
 
   it('takes the finish text as the committed text', () => {
-    const finish = withTranscriptPart({
-      transcript: { committed: 'Ask not', interim: 'what' },
+    const spoken = withTranscriptPart({
+      spoken: { committed: 'Ask not', interim: 'what', source: ESpokenSource.Delta },
       part: { type: ETranscriptPart.Finish, text: 'Ask not what your country can do for you' },
     })
-    expect(finish).toEqual({ committed: 'Ask not what your country can do for you', interim: '' })
+    expect(spoken).toEqual({
+      committed: 'Ask not what your country can do for you',
+      interim: '',
+      source: ESpokenSource.Segment,
+    })
   })
 
   it('leaves the transcript alone for an error part', () => {
-    const transcript = { committed: 'Ask not', interim: 'what' }
+    const spoken = afterOf([deltaOf('Ask not')])
     expect(
-      withTranscriptPart({ transcript, part: { type: ETranscriptPart.Error, message: 'no' } }),
-    ).toBe(transcript)
+      withTranscriptPart({ spoken, part: { type: ETranscriptPart.Error, message: 'no' } }),
+    ).toBe(spoken)
   })
 })

@@ -1,9 +1,4 @@
-import {
-  type AudioStream,
-  type AudioStreamBuffer,
-  requestRecordingPermissionsAsync,
-  setAudioModeAsync,
-} from 'expo-audio'
+import { requestRecordingPermissionsAsync, setAudioModeAsync } from 'expo-audio'
 
 import {
   EDictationEvent,
@@ -13,11 +8,15 @@ import {
   recordingFailedMessageOf,
   type TDictationEvent,
 } from './dictation-engine'
+import { MAX_PENDING_AUDIO_BYTES } from './gateway-protocol'
 import {
   type DictationTokenRequest,
+  type IGatewayAudioBuffer,
   type IGatewaySession,
+  type IDictationAudioStream,
   startGatewaySession,
 } from './gateway-session'
+import type { OpenTranscription } from './transcription-connection'
 
 const RECORDING_MODE = { allowsRecording: true, playsInSilentMode: true }
 
@@ -31,23 +30,41 @@ const SILENT_SESSION: IDictationSession = {
 }
 
 export class GatewayDictationEngine implements IDictationEngine {
-  private readonly stream: AudioStream | null
+  private readonly stream: IDictationAudioStream | null
   private readonly requestToken: DictationTokenRequest
+  private readonly open: OpenTranscription | undefined
   private session: IGatewaySession | undefined
+  private pending: IGatewayAudioBuffer[] = []
+  private pendingBytes = 0
+  private starting = false
 
   constructor({
     stream,
     requestToken,
+    open,
   }: {
-    stream: AudioStream | null
+    stream: IDictationAudioStream | null
     requestToken: DictationTokenRequest
+    open?: OpenTranscription | undefined
   }) {
     this.stream = stream
     this.requestToken = requestToken
+    this.open = open
   }
 
-  handleBuffer = (buffer: AudioStreamBuffer): void => {
-    this.session?.acceptBuffer(buffer)
+  handleBuffer = (buffer: IGatewayAudioBuffer): void => {
+    const session = this.session
+    if (session !== undefined) {
+      session.acceptBuffer(buffer)
+      return
+    }
+    if (!this.starting) return
+    this.pending.push(buffer)
+    this.pendingBytes += buffer.data.byteLength
+    while (this.pendingBytes > MAX_PENDING_AUDIO_BYTES && this.pending.length > 1) {
+      const dropped = this.pending.shift()
+      this.pendingBytes -= dropped?.data.byteLength ?? 0
+    }
   }
 
   start = async ({
@@ -60,35 +77,50 @@ export class GatewayDictationEngine implements IDictationEngine {
       onEvent({ type: EDictationEvent.Error, message: NO_MICROPHONE_MESSAGE })
       return SILENT_SESSION
     }
-    const permission = await requestRecordingPermissionsAsync()
-    if (!permission.granted) {
-      onEvent({ type: EDictationEvent.Error, message: MICROPHONE_DENIED_MESSAGE })
-      return SILENT_SESSION
-    }
+    this.starting = true
     try {
+      const permission = await requestRecordingPermissionsAsync()
+      if (!permission.granted) {
+        this.starting = false
+        onEvent({ type: EDictationEvent.Error, message: MICROPHONE_DENIED_MESSAGE })
+        return SILENT_SESSION
+      }
       await setAudioModeAsync(RECORDING_MODE)
-      this.session = await startGatewaySession({
+      const session = await startGatewaySession({
         stream,
         requestToken: this.requestToken,
+        open: this.open,
         onEvent,
+        onSettle: this.settle,
       })
+      this.session = session
+      this.starting = false
+      this.flush(session)
+      return {
+        stop: () => session.stop(),
+        cancel: () => session.cancel(),
+      }
     } catch (error) {
+      this.starting = false
       stream.stop()
-      await setAudioModeAsync(PLAYBACK_MODE)
+      await this.settle()
       onEvent({ type: EDictationEvent.Error, message: recordingFailedMessageOf(error) })
       return SILENT_SESSION
     }
-    return {
-      stop: async () => {
-        await this.session?.stop()
-        this.session = undefined
-        await setAudioModeAsync(PLAYBACK_MODE)
-      },
-      cancel: () => {
-        this.session?.cancel()
-        this.session = undefined
-        void setAudioModeAsync(PLAYBACK_MODE)
-      },
-    }
+  }
+
+  private settle = async (): Promise<void> => {
+    this.starting = false
+    this.session = undefined
+    this.pending = []
+    this.pendingBytes = 0
+    await setAudioModeAsync(PLAYBACK_MODE).catch(() => undefined)
+  }
+
+  private flush = (session: IGatewaySession): void => {
+    const queued = this.pending
+    this.pending = []
+    this.pendingBytes = 0
+    for (const buffer of queued) session.acceptBuffer(buffer)
   }
 }

@@ -2,9 +2,16 @@ import { useCallback, useEffect, useRef, useState } from 'react'
 
 import type { SharedValue } from 'react-native-reanimated'
 
+import { insertionOf } from './dictation-insertion'
+import { createFinishRequest, type IFinishRequest } from './finish-request'
 import { type ITranscript, transcriptTextOf } from './transcript-model'
 import { useDictation } from './use-dictation'
 import { useGatewayDictationEngine } from './use-gateway-dictation-engine'
+
+export interface IComposerSelection {
+  start: number
+  end: number
+}
 
 export interface IComposerDictationState {
   active: boolean
@@ -14,20 +21,14 @@ export interface IComposerDictationState {
   before: string
   after: string
   displayText: string
+  selection: IComposerSelection | null
   start: () => void
   stop: () => void
   finish: () => Promise<string>
-  handleSelection: (selection: { start: number; end: number }) => void
+  handleSelection: (selection: IComposerSelection) => void
 }
 
 const SETTLE_TIMEOUT_MS = 4000
-
-const joinInto = ({ before, spoken, after }: { before: string; spoken: string; after: string }) => {
-  if (spoken === '') return `${before}${after}`
-  const lead = before === '' || /\s$/.test(before) ? '' : ' '
-  const trail = after === '' || /^[\s.,!?;:)\]}']/.test(after) ? '' : ' '
-  return `${before}${lead}${spoken}${trail}${after}`
-}
 
 export const useComposerDictation = ({
   text,
@@ -39,14 +40,16 @@ export const useComposerDictation = ({
   const engine = useGatewayDictationEngine()
   const dictation = useDictation({ engine })
   const [split, setSplit] = useState({ before: '', after: '' })
+  const [selection, setSelection] = useState<IComposerSelection | null>(null)
   const cursorRef = useRef<number | null>(null)
   const settlingRef = useRef(false)
   const resolveSettledRef = useRef<((next: string) => void) | null>(null)
+  const finishingRef = useRef<IFinishRequest>(createFinishRequest())
   const spoken = transcriptTextOf(dictation.transcript)
   const displayRef = useRef(text)
-  displayRef.current = joinInto({ before: split.before, spoken, after: split.after })
+  displayRef.current = insertionOf({ before: split.before, spoken, after: split.after }).text
 
-  const handleSelection = useCallback(({ start }: { start: number; end: number }) => {
+  const handleSelection = useCallback(({ start }: IComposerSelection) => {
     cursorRef.current = start
   }, [])
 
@@ -54,6 +57,7 @@ export const useComposerDictation = ({
     const cursor = cursorRef.current === null ? text.length : cursorRef.current
     const at = Math.min(Math.max(cursor, 0), text.length)
     settlingRef.current = true
+    setSelection(null)
     setSplit({ before: text.slice(0, at), after: text.slice(at) })
     dictation.start()
   }, [dictation, text])
@@ -64,24 +68,33 @@ export const useComposerDictation = ({
 
   const finish = useCallback(async (): Promise<string> => {
     if (!dictation.active) return text
-    const settled = new Promise<string>((resolve) => {
-      resolveSettledRef.current = resolve
+    return finishingRef.current.request(async () => {
+      const settled = new Promise<string>((resolve) => {
+        resolveSettledRef.current = resolve
+      })
+      const expired = new Promise<string>((resolve) => {
+        setTimeout(() => resolve(displayRef.current), SETTLE_TIMEOUT_MS)
+      })
+      dictation.stop()
+      return Promise.race([settled, expired])
     })
-    const expired = new Promise<string>((resolve) => {
-      setTimeout(() => resolve(displayRef.current), SETTLE_TIMEOUT_MS)
-    })
-    dictation.stop()
-    return Promise.race([settled, expired])
   }, [dictation, text])
 
   useEffect(() => {
     if (dictation.active || !settlingRef.current) return
     settlingRef.current = false
-    const next = joinInto({ before: split.before, spoken, after: split.after })
-    if (next !== text) onChangeText(next)
-    resolveSettledRef.current?.(next)
+    const inserted = insertionOf({ before: split.before, spoken, after: split.after })
+    if (inserted.text !== text) onChangeText(inserted.text)
+    setSelection({ start: inserted.cursor, end: inserted.cursor })
+    resolveSettledRef.current?.(inserted.text)
     resolveSettledRef.current = null
   }, [dictation.active, onChangeText, split, spoken, text])
+
+  useEffect(() => {
+    if (selection === null) return
+    const timer = setTimeout(() => setSelection(null), 0)
+    return () => clearTimeout(timer)
+  }, [selection])
 
   return {
     active: dictation.active,
@@ -91,8 +104,9 @@ export const useComposerDictation = ({
     before: split.before,
     after: split.after,
     displayText: dictation.active
-      ? joinInto({ before: split.before, spoken, after: split.after })
+      ? insertionOf({ before: split.before, spoken, after: split.after }).text
       : text,
+    selection,
     start,
     stop,
     finish,

@@ -25,6 +25,16 @@ const streamOf = () => {
   }
 }
 
+const settledOf = () => {
+  const calls = { settled: 0 }
+  return {
+    calls,
+    onSettle: () => {
+      calls.settled += 1
+    },
+  }
+}
+
 const connectionOf = () => {
   const calls = { audio: 0, finished: 0, closed: 0 }
   let handlers: ITranscriptionHandlers | undefined
@@ -52,9 +62,17 @@ const connectionOf = () => {
       handlers = next
       return socket
     },
+    handlersOf: (): ITranscriptionHandlers => {
+      if (handlers === undefined) throw new Error('the connection never opened')
+      return handlers
+    },
     send: (part: TTranscriptPart) => {
       if (handlers === undefined) throw new Error('the connection never opened')
       handlers.onPart(part)
+    },
+    fail: (message: string) => {
+      if (handlers === undefined) throw new Error('the connection never opened')
+      handlers.onError(message)
     },
     done: () => {
       if (handlers === undefined) throw new Error('the connection never opened')
@@ -69,38 +87,31 @@ const bufferOf = (sample: number) => ({
   channels: 1,
 })
 
+const sessionOf = async () => {
+  const { events, onEvent } = collect()
+  const { stream, calls: streamCalls } = streamOf()
+  const settle = settledOf()
+  const connection = connectionOf()
+  const session = await startGatewaySession({
+    stream,
+    requestToken: async () => ({ token: 'vcst_abc', url: 'wss://gateway.test/x' }),
+    open: connection.open,
+    onEvent,
+    onSettle: settle.onSettle,
+  })
+  return { session, events, streamCalls, settle: settle.calls, connection }
+}
+
 describe('startGatewaySession', () => {
   it('opens the microphone and the socket with the minted token', async () => {
-    const { events, onEvent } = collect()
-    const { stream, calls } = streamOf()
-    const connection = connectionOf()
-    const tokens: Array<{ token: string; url: string }> = []
+    const { events, streamCalls } = await sessionOf()
 
-    await startGatewaySession({
-      stream,
-      requestToken: async () => {
-        tokens.push({ token: 'vcst_abc', url: 'wss://gateway.test/transcription-model' })
-        return { token: 'vcst_abc', url: 'wss://gateway.test/transcription-model' }
-      },
-      open: connection.open,
-      onEvent,
-    })
-
-    expect(calls.started).toBe(1)
-    expect(tokens).toHaveLength(1)
+    expect(streamCalls.started).toBe(1)
     expect(events).toEqual([])
   })
 
   it('reports the level and streams the audio of every buffer', async () => {
-    const { events, onEvent } = collect()
-    const { stream } = streamOf()
-    const connection = connectionOf()
-    const session = await startGatewaySession({
-      stream,
-      requestToken: async () => ({ token: 'vcst_abc', url: 'wss://gateway.test/x' }),
-      open: connection.open,
-      onEvent,
-    })
+    const { session, events, connection } = await sessionOf()
 
     session.acceptBuffer(bufferOf(16384))
 
@@ -110,15 +121,7 @@ describe('startGatewaySession', () => {
   })
 
   it('shows a partial as interim and commits a final as the whole sentence', async () => {
-    const { events, onEvent } = collect()
-    const { stream } = streamOf()
-    const connection = connectionOf()
-    await startGatewaySession({
-      stream,
-      requestToken: async () => ({ token: 'vcst_abc', url: 'wss://gateway.test/x' }),
-      open: connection.open,
-      onEvent,
-    })
+    const { events, connection } = await sessionOf()
 
     connection.send({ type: ETranscriptPart.Partial, text: 'Ask not' })
     connection.send({ type: ETranscriptPart.Partial, text: 'Ask not what' })
@@ -132,15 +135,7 @@ describe('startGatewaySession', () => {
   })
 
   it('ends on the finish part with the whole sentence', async () => {
-    const { events, onEvent } = collect()
-    const { stream } = streamOf()
-    const connection = connectionOf()
-    await startGatewaySession({
-      stream,
-      requestToken: async () => ({ token: 'vcst_abc', url: 'wss://gateway.test/x' }),
-      open: connection.open,
-      onEvent,
-    })
+    const { events, connection } = await sessionOf()
 
     connection.send({ type: ETranscriptPart.Partial, text: 'Ask not' })
     connection.send({ type: ETranscriptPart.Finish, text: 'Ask not what your country can do' })
@@ -153,54 +148,65 @@ describe('startGatewaySession', () => {
   })
 
   it('stops the microphone, asks for the final and resolves once it arrives', async () => {
-    const { events, onEvent } = collect()
-    const { stream, calls } = streamOf()
-    const connection = connectionOf()
-    const session = await startGatewaySession({
-      stream,
-      requestToken: async () => ({ token: 'vcst_abc', url: 'wss://gateway.test/x' }),
-      open: connection.open,
-      onEvent,
-    })
+    const { session, events, streamCalls, settle, connection } = await sessionOf()
 
     const stopped = session.stop()
-    expect(calls.stopped).toBe(1)
+    expect(streamCalls.stopped).toBe(1)
     expect(connection.calls.finished).toBe(1)
 
     connection.send({ type: ETranscriptPart.Finish, text: 'Ask not' })
     await stopped
 
     expect(events.at(-1)).toEqual({ type: EDictationEvent.Ended })
+    expect(connection.calls.closed).toBe(1)
+    expect(settle.settled).toBe(1)
   })
 
-  it('reports a failed connection as an error', async () => {
-    const { events, onEvent } = collect()
-    const { stream } = streamOf()
-    const connection = connectionOf()
-    const session = await startGatewaySession({
-      stream,
-      requestToken: async () => ({ token: 'vcst_abc', url: 'wss://gateway.test/x' }),
-      open: connection.open,
-      onEvent,
-    })
+  it('stops the microphone, closes the socket and restores the audio mode on an error part', async () => {
+    const { session, events, streamCalls, settle, connection } = await sessionOf()
 
     connection.send({ type: ETranscriptPart.Error, message: 'quota' })
 
     expect(events).toEqual([{ type: EDictationEvent.Error, message: 'quota' }])
+    expect(streamCalls.stopped).toBe(1)
     expect(connection.calls.closed).toBe(1)
+    expect(settle.settled).toBe(1)
     await session.stop()
+    expect(streamCalls.stopped).toBe(1)
+    expect(settle.settled).toBe(1)
+  })
+
+  it('cleans up when the socket dies before the finish part', async () => {
+    const { session, events, streamCalls, settle, connection } = await sessionOf()
+
+    connection.fail('Dictation stopped before the speech service sent the text.')
+
+    expect(events).toEqual([
+      {
+        type: EDictationEvent.Error,
+        message: 'Dictation stopped before the speech service sent the text.',
+      },
+    ])
+    expect(streamCalls.stopped).toBe(1)
+    expect(connection.calls.closed).toBe(1)
+    expect(settle.settled).toBe(1)
+    await session.stop()
+    expect(settle.settled).toBe(1)
+  })
+
+  it('stops the microphone and restores the audio mode on cancel', async () => {
+    const { session, streamCalls, settle, connection } = await sessionOf()
+
+    session.cancel()
+    session.cancel()
+
+    expect(streamCalls.stopped).toBe(1)
+    expect(connection.calls.closed).toBe(1)
+    expect(settle.settled).toBe(1)
   })
 
   it('sends nothing once the session ended', async () => {
-    const { onEvent } = collect()
-    const { stream } = streamOf()
-    const connection = connectionOf()
-    const session = await startGatewaySession({
-      stream,
-      requestToken: async () => ({ token: 'vcst_abc', url: 'wss://gateway.test/x' }),
-      open: connection.open,
-      onEvent,
-    })
+    const { session, connection } = await sessionOf()
 
     connection.done()
     session.acceptBuffer(bufferOf(16384))

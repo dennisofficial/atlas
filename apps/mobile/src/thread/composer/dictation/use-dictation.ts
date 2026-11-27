@@ -1,11 +1,12 @@
 import * as Haptics from 'expo-haptics'
-import { useCallback, useReducer, useRef } from 'react'
+import { useCallback, useEffect, useReducer, useRef } from 'react'
 import { type SharedValue, useSharedValue, withTiming } from 'react-native-reanimated'
 
 import {
   EDictationEvent,
   type IDictationEngine,
   type IDictationSession,
+  recordingFailedMessageOf,
   type TDictationEvent,
 } from './dictation-engine'
 import {
@@ -83,6 +84,13 @@ export const useDictation = ({ engine }: { engine: IDictationEngine }): IDictati
     [history, level, release],
   )
 
+  const fail = useCallback(
+    (error: unknown) => {
+      handleEvent({ type: EDictationEvent.Error, message: recordingFailedMessageOf(error) })
+    },
+    [handleEvent],
+  )
+
   const start = useCallback(() => {
     if (statusRef.current !== EDictationStatus.Idle) return
     dispatch({ type: EDictationAction.Start })
@@ -92,17 +100,20 @@ export const useDictation = ({ engine }: { engine: IDictationEngine }): IDictati
     clockRef.current = { level: Date.now(), history: 0 }
     waveformRef.current = emptyWaveformOf()
     history.value = waveformOrderOf(waveformRef.current)
-    void engine.start({ onEvent: handleEvent }).then((session) => {
-      if (discardRef.current) {
-        session.cancel()
-        return
-      }
-      sessionRef.current = session
-      if (!stopPendingRef.current) return
-      stopPendingRef.current = false
-      void session.stop()
-    })
-  }, [engine, handleEvent, history])
+    void engine
+      .start({ onEvent: handleEvent })
+      .then((session) => {
+        if (discardRef.current) {
+          session.cancel()
+          return
+        }
+        sessionRef.current = session
+        if (!stopPendingRef.current) return
+        stopPendingRef.current = false
+        void session.stop().catch(fail)
+      })
+      .catch(fail)
+  }, [engine, fail, handleEvent, history])
 
   const stop = useCallback(() => {
     if (statusRef.current === EDictationStatus.Idle) return
@@ -114,8 +125,8 @@ export const useDictation = ({ engine }: { engine: IDictationEngine }): IDictati
       stopPendingRef.current = true
       return
     }
-    void session.stop()
-  }, [])
+    void session.stop().catch(fail)
+  }, [fail])
 
   const cancel = useCallback(() => {
     const session = sessionRef.current
@@ -126,6 +137,17 @@ export const useDictation = ({ engine }: { engine: IDictationEngine }): IDictati
     dispatch({ type: EDictationAction.Reset })
     release()
   }, [release])
+
+  useEffect(
+    () => () => {
+      discardRef.current = true
+      stopPendingRef.current = false
+      const session = sessionRef.current
+      sessionRef.current = null
+      session?.cancel()
+    },
+    [],
+  )
 
   return {
     active: isDictatingOf(state),

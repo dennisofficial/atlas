@@ -1,7 +1,6 @@
 import { EDictationEvent, type IDictationSession, type TDictationEvent } from './dictation-engine'
 import { ETranscriptPart } from './gateway-protocol'
-import { EMPTY_SPOKEN, joinSpoken, withTranscriptPart } from './mai-transcript'
-import type { ITranscript } from './transcript-model'
+import { EMPTY_SPOKEN, type ISpoken, joinSpoken, withTranscriptPart } from './mai-transcript'
 import { audioFramesOf, microphoneChunkOf } from './pcm-int16'
 import {
   type ITranscriptionConnection,
@@ -33,63 +32,74 @@ export const startGatewaySession = async ({
   requestToken,
   open = openTranscription,
   onEvent,
+  onSettle = () => undefined,
 }: {
   stream: IDictationAudioStream
   requestToken: DictationTokenRequest
   open?: OpenTranscription
   onEvent: (event: TDictationEvent) => void
+  onSettle?: () => void | Promise<void>
 }): Promise<IGatewaySession> => {
-  let transcript: ITranscript = EMPTY_SPOKEN
+  let spoken: ISpoken = EMPTY_SPOKEN
   let connection: ITranscriptionConnection | undefined
-  let finished = false
-  let resolveClosed: () => void = () => undefined
-  const closed = new Promise<void>((resolve) => {
-    resolveClosed = resolve
+  let capturing = false
+  let stopping = false
+  let settled = false
+  let finalTimer: ReturnType<typeof setTimeout> | undefined
+  let resolveSettled: () => void = () => undefined
+  const settledPromise = new Promise<void>((resolve) => {
+    resolveSettled = resolve
   })
 
-  const push = (next: ITranscript) => {
-    if (next.committed !== transcript.committed) {
-      transcript = next
-      onEvent({ type: EDictationEvent.Final, text: next.committed })
-      return
-    }
-    if (next.interim !== transcript.interim) {
-      transcript = next
-      onEvent({ type: EDictationEvent.Partial, text: next.interim })
-    }
+  const stopMicrophone = () => {
+    if (!capturing) return
+    capturing = false
+    stream.stop()
+  }
+
+  const settle = () => {
+    if (settled) return
+    settled = true
+    if (finalTimer !== undefined) clearTimeout(finalTimer)
+    stopMicrophone()
+    connection?.close()
+    resolveSettled()
+    void Promise.resolve(onSettle()).catch(() => undefined)
   }
 
   const complete = () => {
-    if (finished) return
-    finished = true
-    const committed = joinSpoken({ head: transcript.committed, next: transcript.interim })
-    if (committed !== transcript.committed)
-      onEvent({ type: EDictationEvent.Final, text: committed })
+    if (settled) return
+    const committed = joinSpoken({ head: spoken.committed, next: spoken.interim })
+    if (committed !== spoken.committed) onEvent({ type: EDictationEvent.Final, text: committed })
     onEvent({ type: EDictationEvent.Ended })
-    resolveClosed()
+    settle()
   }
 
   const fail = (message: string) => {
-    if (finished) return
-    finished = true
+    if (settled) return
     onEvent({ type: EDictationEvent.Error, message })
-    connection?.close()
-    resolveClosed()
+    settle()
   }
 
   await stream.start()
+  capturing = true
   const { token, url } = await requestToken()
   connection = open({
     url,
     token,
     handlers: {
       onPart: (part) => {
-        if (finished) return
+        if (settled) return
         if (part.type === ETranscriptPart.Error) {
           fail(part.message)
           return
         }
-        push(withTranscriptPart({ transcript, part }))
+        const previous = spoken
+        spoken = withTranscriptPart({ spoken, part })
+        if (spoken.committed !== previous.committed)
+          onEvent({ type: EDictationEvent.Final, text: spoken.committed })
+        else if (spoken.interim !== previous.interim)
+          onEvent({ type: EDictationEvent.Partial, text: spoken.interim })
         if (part.type === ETranscriptPart.Finish) complete()
       },
       onError: fail,
@@ -99,24 +109,20 @@ export const startGatewaySession = async ({
 
   return {
     acceptBuffer: (buffer) => {
-      if (finished) return
+      if (settled || stopping) return
       const chunk = microphoneChunkOf(buffer)
       onEvent({ type: EDictationEvent.Level, level: chunk.level })
       for (const frame of audioFramesOf({ samples: chunk.samples })) connection?.sendAudio(frame)
     },
     stop: async () => {
-      stream.stop()
-      connection?.finish()
-      const timer = setTimeout(complete, FINAL_TIMEOUT_MS)
-      await closed
-      clearTimeout(timer)
-      connection?.close()
+      if (!stopping) {
+        stopping = true
+        stopMicrophone()
+        connection?.finish()
+        finalTimer = setTimeout(complete, FINAL_TIMEOUT_MS)
+      }
+      await settledPromise
     },
-    cancel: () => {
-      finished = true
-      stream.stop()
-      connection?.close()
-      resolveClosed()
-    },
+    cancel: () => settle(),
   }
 }

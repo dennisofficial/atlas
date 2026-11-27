@@ -26,6 +26,7 @@ import { ComposerDropZone } from './composer-drop-zone'
 import { pastedFileOf } from './paste-image'
 import { SlashMenu } from './slash-menu'
 import { completedDraftOf, menuCandidatesOf, menuQueryOf, pickActionOf } from './slash-menu-model'
+import { createSendLock } from './send-lock'
 import type { ComposerAttachments } from './use-attachments'
 import { useComposerDraft } from './use-composer-draft'
 
@@ -73,6 +74,7 @@ export const Composer = ({
   const dictation = useComposerDictation({ text: draft, onChangeText: setDraft })
   const attachmentsRef = useRef(attachments)
   attachmentsRef.current = attachments
+  const sendLock = useRef(createSendLock()).current
 
   const { handleSent } = useComposerDraft({
     sessionId: draftSessionId,
@@ -108,29 +110,33 @@ export const Composer = ({
   }, [restored, draftSessionId])
 
   const handleSend = async () => {
-    if (!canSend) return
-    const spoken = dictation.active ? await dictation.finish() : draft
-    if (clientActions !== undefined) {
-      const action = clientActionOfEntries({ text: spoken, entries })
-      if (action !== null) {
-        clientActions[action]()
-        setDraft('')
-        handleSent(spoken)
+    if (!canSend || !sendLock.acquire()) return
+    try {
+      const spoken = dictation.active ? await dictation.finish() : draft
+      if (clientActions !== undefined) {
+        const action = clientActionOfEntries({ text: spoken, entries })
+        if (action !== null) {
+          clientActions[action]()
+          setDraft('')
+          handleSent(spoken)
+          return
+        }
+      }
+      setSending(true)
+      setFailed(false)
+      const text = spoken.trim()
+      const sent = await onSend({ text, attachments: attachments?.attachments ?? [] })
+      setSending(false)
+      if (!sent) {
+        setFailed(true)
         return
       }
+      setDraft('')
+      handleSent(text)
+      attachments?.clear()
+    } finally {
+      sendLock.release()
     }
-    setSending(true)
-    setFailed(false)
-    const text = spoken.trim()
-    const sent = await onSend({ text, attachments: attachments?.attachments ?? [] })
-    setSending(false)
-    if (!sent) {
-      setFailed(true)
-      return
-    }
-    setDraft('')
-    handleSent(text)
-    attachments?.clear()
   }
 
   const notice =
@@ -227,6 +233,7 @@ export const Composer = ({
                 placeholder={placeholder}
                 value={draft}
                 onChangeText={setDraft}
+                selection={dictation.selection ?? undefined}
                 onSelectionChange={(event) =>
                   dictation.handleSelection(event.nativeEvent.selection)
                 }
