@@ -24,7 +24,12 @@ export const AttachButton = ({ onPick }: AttachButtonProps) => {
   const dark = useIsDark()
   return (
     <View style={styles.box}>
-      <Host colorScheme={dark ? 'dark' : 'light'} alignment="center" style={styles.fill}>
+      <Host
+        colorScheme={dark ? 'dark' : 'light'}
+        alignment="center"
+        ignoreSafeArea="keyboard"
+        style={styles.fill}
+      >
         <Menu
           label={<Image systemName="plus" size={16} color={theme.foreground} />}
           modifiers={[

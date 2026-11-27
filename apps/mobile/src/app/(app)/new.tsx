@@ -30,6 +30,7 @@ import { sessionOpenOf } from '../../navigation/root-navigation'
 import { useSettings } from '../../settings/settings-provider'
 import { kvJsonStore } from '../../storage/kv-json-store'
 import { Composer } from '../../thread/composer/composer'
+import { MODEL_CONTROLS_GAP } from '../../thread/composer/composer-shape'
 import { newSessionProjectOf } from '../../thread/composer/new-session-project'
 import { useAttachments } from '../../thread/composer/use-attachments'
 
@@ -232,6 +233,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     flex: 1,
     flexDirection: 'row',
+    gap: MODEL_CONTROLS_GAP,
     minWidth: 0,
   },
 })

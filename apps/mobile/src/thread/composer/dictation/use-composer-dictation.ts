@@ -2,6 +2,7 @@ import { useCallback, useEffect, useRef, useState } from 'react'
 
 import type { SharedValue } from 'react-native-reanimated'
 
+import { createDictationCursor } from './dictation-cursor'
 import { insertionOf } from './dictation-insertion'
 import { createFinishRequest, type IFinishRequest } from './finish-request'
 import { type ITranscript, transcriptTextOf } from './transcript-model'
@@ -26,6 +27,8 @@ export interface IComposerDictationState {
   stop: () => void
   finish: () => Promise<string>
   handleSelection: (selection: IComposerSelection) => void
+  handleFocus: () => void
+  handleBlur: () => void
 }
 
 const SETTLE_TIMEOUT_MS = 4000
@@ -41,7 +44,7 @@ export const useComposerDictation = ({
   const dictation = useDictation({ engine })
   const [split, setSplit] = useState({ before: '', after: '' })
   const [selection, setSelection] = useState<IComposerSelection | null>(null)
-  const cursorRef = useRef<number | null>(null)
+  const cursorRef = useRef(createDictationCursor())
   const settlingRef = useRef(false)
   const resolveSettledRef = useRef<((next: string) => void) | null>(null)
   const finishingRef = useRef<IFinishRequest>(createFinishRequest())
@@ -50,12 +53,16 @@ export const useComposerDictation = ({
   displayRef.current = insertionOf({ before: split.before, spoken, after: split.after }).text
 
   const handleSelection = useCallback(({ start }: IComposerSelection) => {
-    cursorRef.current = start
+    cursorRef.current.select({ start })
   }, [])
 
+  const handleFocus = useCallback(() => cursorRef.current.focus(), [])
+
+  const handleBlur = useCallback(() => cursorRef.current.blur(), [])
+
   const start = useCallback(() => {
-    const cursor = cursorRef.current === null ? text.length : cursorRef.current
-    const at = Math.min(Math.max(cursor, 0), text.length)
+    const at = cursorRef.current.insertAt({ textLength: text.length })
+    cursorRef.current.suspend()
     settlingRef.current = true
     setSelection(null)
     setSplit({ before: text.slice(0, at), after: text.slice(at) })
@@ -85,6 +92,7 @@ export const useComposerDictation = ({
     settlingRef.current = false
     const inserted = insertionOf({ before: split.before, spoken, after: split.after })
     if (inserted.text !== text) onChangeText(inserted.text)
+    cursorRef.current.settle({ at: inserted.cursor })
     setSelection({ start: inserted.cursor, end: inserted.cursor })
     resolveSettledRef.current?.(inserted.text)
     resolveSettledRef.current = null
@@ -111,5 +119,7 @@ export const useComposerDictation = ({
     stop,
     finish,
     handleSelection,
+    handleFocus,
+    handleBlur,
   }
 }
