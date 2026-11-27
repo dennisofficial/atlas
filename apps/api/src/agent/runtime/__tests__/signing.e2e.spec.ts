@@ -15,6 +15,15 @@ import { createSessionRuntimeFactory } from '../session-runtime-factory'
 
 const scratch: string[] = []
 
+const textOrEmpty = (file: string): string => {
+  try {
+    return readFileSync(file, 'utf8')
+  } catch (error) {
+    if (error instanceof Error && 'code' in error && error.code === 'ENOENT') return ''
+    throw error
+  }
+}
+
 const daemonJournalsHolding = (needle: string): string[] =>
   readdirSync(tmpdir())
     .filter((entry) => entry.startsWith('atlas-api-agent-local-'))
@@ -25,7 +34,7 @@ const daemonJournalsHolding = (needle: string): string[] =>
         .filter((file) => file.isFile() && file.name === 'state.json')
         .map((file) => join(file.parentPath, file.name)),
     )
-    .filter((file) => readFileSync(file, 'utf8').includes(needle))
+    .filter((file) => textOrEmpty(file).includes(needle))
 
 afterEach(() => {
   for (const path of scratch.splice(0)) rmSync(path, { recursive: true, force: true })
