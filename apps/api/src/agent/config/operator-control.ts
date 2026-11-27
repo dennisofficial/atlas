@@ -4,7 +4,7 @@ import { postInboxEntryIn } from '@dltech/atlas-control/postgres'
 import { OperatorRequestRegistry } from '../operator-input'
 import { OperatorSessionStore } from '../operator-input/store'
 import { databaseUrlWithTls } from './database-url'
-import { readAgentHostEnv } from './env'
+import type { AgentHostEnv } from './env'
 import { SecretCipher } from '@dltech/atlas-pods/config/secret-cipher'
 
 const QUERY_TIMEOUT_MS = 10_000
@@ -24,18 +24,12 @@ export const operatorRegistryOf = (args: {
   })
 }
 
-let registry: OperatorRequestRegistry | undefined
-
-export const operatorRequestRegistry = (): OperatorRequestRegistry => {
-  if (registry === undefined) {
-    const env = readAgentHostEnv()
-    const db = createDb(
+export const operatorRequestRegistry = (
+  env: Pick<AgentHostEnv, 'databaseUrl' | 'secretsEncryptionKey'>,
+): OperatorRequestRegistry =>
+  operatorRegistryOf({
+    db: createDb(
       createPool(databaseUrlWithTls(env.databaseUrl), { queryTimeoutMs: QUERY_TIMEOUT_MS }),
-    )
-    registry = operatorRegistryOf({
-      db,
-      cipher: new SecretCipher(env.secretsEncryptionKey),
-    })
-  }
-  return registry
-}
+    ),
+    cipher: new SecretCipher(env.secretsEncryptionKey),
+  })

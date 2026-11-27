@@ -27,9 +27,9 @@ import {
 
 const operatorAnswersProvider: Provider = {
   provide: OPERATOR_ANSWERS,
-  useFactory: (log: LogPort): OperatorAnswerService =>
-    new OperatorAnswerService({ registry: operatorRequestRegistry(), log }),
-  inject: [LOG],
+  useFactory: (log: LogPort, env: AgentHostEnv): OperatorAnswerService =>
+    new OperatorAnswerService({ registry: operatorRequestRegistry(env), log }),
+  inject: [LOG, AGENT_HOST_ENV],
 }
 
 const mcpOauthBeginProvider: Provider = {
