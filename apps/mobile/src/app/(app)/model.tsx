@@ -21,17 +21,13 @@ const ModelSheetBody = () => {
 
   if (request === null) return null
   return (
-    <View
-      style={[
-        styles.sheet,
-        { paddingBottom: insets.bottom, paddingLeft: insets.left, paddingRight: insets.right },
-      ]}
-    >
+    <View style={[styles.sheet, { paddingBottom: insets.bottom }]}>
       <ModelListBody
         models={request.models}
         selection={request.selection}
         pinned={pinned}
         query={query}
+        rowInsets={{ left: insets.left, right: insets.right }}
         onQueryChange={setQuery}
         onPinnedChange={setPinned}
         onSelect={request.onSelect}
@@ -52,6 +48,5 @@ export default function ModelSheetScreen() {
 const styles = StyleSheet.create({
   sheet: {
     flex: 1,
-    paddingTop: 20,
   },
 })
