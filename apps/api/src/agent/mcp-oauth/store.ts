@@ -3,6 +3,7 @@ import { randomUUID } from 'node:crypto'
 import { isUniqueViolation, type Db } from '@dltech/atlas-db'
 
 import { surfaceOf } from './redirect'
+import { setServerRefusal, type ServerRefusal } from './refusal'
 import { sameServerUrl } from './seal'
 import type { AttemptFence, McpServerGrantRow, PendingClaim, PendingRow } from './types'
 
@@ -88,6 +89,7 @@ export class McpOauthStore {
       .affectedCount()
       .build()
     await this.db.execute(expired)
+    if (row.mcpServerId !== null) await this.setRefusal({ id: row.mcpServerId, refusal: null })
     await this.db.orm.public.McpOauthPending.create({
       id: row.id,
       userId: row.userId,
@@ -207,6 +209,10 @@ export class McpOauthStore {
     return (await this.groupOwner({ groupId: args.row.groupId })) === args.userId
   }
 
+  setRefusal(args: { id: string; refusal: ServerRefusal | null }): Promise<void> {
+    return setServerRefusal({ db: this.db, ...args })
+  }
+
   async writeGrant(args: {
     id: string
     generation: number
@@ -220,6 +226,8 @@ export class McpOauthStore {
           "oauthGeneration" = "oauthGeneration" + 1,
           "oauthRefreshAttempt" = NULL,
           "oauthRefreshStartedAt" = NULL,
+          "oauthRefusal" = NULL,
+          "oauthRefusedAt" = NULL,
           "oauthUpdatedAt" = now()
       WHERE "id" = ${args.id}
         AND "oauthGeneration" = ${args.generation}`

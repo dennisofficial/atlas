@@ -77,12 +77,14 @@ export type McpSignInBegin =
 export enum EMcpToken {
   Granted = 'granted',
   SignIn = 'sign-in',
+  Refused = 'refused',
   Unavailable = 'unavailable',
 }
 
 export type McpToken =
   | { kind: EMcpToken.Granted; accessToken: string }
   | { kind: EMcpToken.SignIn }
+  | { kind: EMcpToken.Refused; reason: string }
   | { kind: EMcpToken.Unavailable; reason: string }
 
 export type PodMcpControl = {

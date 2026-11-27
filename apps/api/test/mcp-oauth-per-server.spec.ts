@@ -52,6 +52,7 @@ describe('per-server mcp oauth over real PostgreSQL', () => {
       cipher: new SecretCipher(HEX_KEY),
       publicUrl: 'https://api.test',
       allowLocalTargets: true,
+      returns: { begin: async () => ({ startUrl: '', expiresAt: new Date() }) },
     })
   const sealedTokens = (accessToken: string) =>
     sealJson({

@@ -1,6 +1,6 @@
 'use client'
 
-import { EMcpSignInSurface, signInUrlFor } from '@dltech/atlas-plugin-mcp/core'
+import { EReturnResult, stateOfStartLink, type ReturnOutcome } from '@dltech/atlas-core'
 import { CircleCheckIcon, CircleXIcon, LogInIcon } from 'lucide-react'
 
 import { Button } from '@dltech/atlas-ui/components/button'
@@ -12,19 +12,37 @@ import {
   TraceTitle,
 } from '@dltech/atlas-ui/components/trace'
 
-import { isDesktopHost } from '@/features/desktop/desktop-attributes'
+import { openBrowserReturn, useReturnOutcome } from '@/features/auth/browser-return'
 
 import type { SignInItem } from '../data/transcript-items'
+import { useSignInRetry } from '../sign-in/sign-in-retry'
 
 const NEW_TAB = 'opens in a new tab'
 
-const surfaceOfHost = (): EMcpSignInSurface =>
-  typeof window !== 'undefined' && isDesktopHost(window)
-    ? EMcpSignInSurface.Desktop
-    : EMcpSignInSurface.Web
+const durableOutcomeOf = (item: SignInItem): ReturnOutcome | undefined => {
+  if (item.result === undefined) return undefined
+  if (item.result === 'connected') return { result: EReturnResult.Connected }
+  return item.reason === undefined
+    ? { result: EReturnResult.Failed }
+    : { result: EReturnResult.Failed, reason: item.reason }
+}
 
 export function TranscriptSignIn({ item }: { item: SignInItem }) {
-  if (item.result === 'connected')
+  const retry = useSignInRetry()
+  const outcome = useReturnOutcome({
+    state: stateOfStartLink(item.url) ?? '',
+    durable: durableOutcomeOf(item),
+  })
+
+  const handleSignIn = () => {
+    openBrowserReturn({ url: item.url })
+  }
+
+  const handleTryAgain = () => {
+    if (retry !== null) retry(item.subject)
+  }
+
+  if (outcome?.result === EReturnResult.Connected)
     return (
       <Trace>
         <TraceLine>
@@ -36,7 +54,7 @@ export function TranscriptSignIn({ item }: { item: SignInItem }) {
       </Trace>
     )
 
-  if (item.result === 'failed')
+  if (outcome?.result === EReturnResult.Failed)
     return (
       <Trace>
         <TraceLine status="error">
@@ -44,8 +62,15 @@ export function TranscriptSignIn({ item }: { item: SignInItem }) {
             <CircleXIcon />
           </TraceIcon>
           <TraceTitle>Could not sign in to {item.subject}</TraceTitle>
-          {item.reason === undefined ? null : (
-            <TraceDescription className="min-w-0 flex-1 truncate">{item.reason}</TraceDescription>
+          {outcome.reason === undefined ? null : (
+            <TraceDescription className="min-w-0 flex-1 truncate">
+              {outcome.reason}
+            </TraceDescription>
+          )}
+          {retry === null ? null : (
+            <Button size="xs" variant="outline" onClick={handleTryAgain}>
+              Try again
+            </Button>
           )}
         </TraceLine>
       </Trace>
@@ -59,17 +84,7 @@ export function TranscriptSignIn({ item }: { item: SignInItem }) {
         </TraceIcon>
         <TraceTitle>{item.subject} needs a sign-in</TraceTitle>
         <TraceDescription>{NEW_TAB}</TraceDescription>
-        <Button
-          size="xs"
-          variant="outline"
-          render={
-            <a
-              href={signInUrlFor({ url: item.url, surface: surfaceOfHost() })}
-              target="_blank"
-              rel="noreferrer"
-            />
-          }
-        >
+        <Button size="xs" variant="outline" onClick={handleSignIn}>
           Sign in
         </Button>
       </TraceLine>

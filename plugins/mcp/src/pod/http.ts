@@ -108,6 +108,7 @@ export class HttpClient implements McpTransportClient {
 
   private takeOf(token: McpToken): string | undefined {
     if (token.kind === EMcpToken.Unavailable) throw this.unauthorizedOf()
+    if (token.kind === EMcpToken.Refused) throw new McpTransportError(token.reason)
     const taken = { token: token.kind === EMcpToken.Granted ? token.accessToken : undefined }
     this.held = taken
     return taken.token

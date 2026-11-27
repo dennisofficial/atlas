@@ -5,6 +5,7 @@ import { eventTypesOf } from '@dltech/atlas-plugin-sdk'
 
 import type { AgentHostEnv } from '../config/env'
 import { operatorRequestRegistry } from '../config/operator-control'
+import { browserReturnsOf } from '../browser-return/from-env'
 import { McpOauthBeginService } from '../mcp-oauth/begin-service'
 import { mcpOauthGatewayOf } from '../mcp-oauth/gateway'
 import { OperatorAnswerService } from '../operator-input/answer-service'
@@ -38,7 +39,12 @@ const mcpOauthBeginProvider: Provider = {
     new McpOauthBeginService({
       db,
       cipher,
-      gateway: mcpOauthGatewayOf({ db, cipher, publicUrl: env.publicUrl }),
+      gateway: mcpOauthGatewayOf({
+        db,
+        cipher,
+        publicUrl: env.publicUrl,
+        returns: browserReturnsOf({ db, cipher, env }),
+      }),
     }),
   inject: [DB, CIPHER, AGENT_HOST_ENV],
 }

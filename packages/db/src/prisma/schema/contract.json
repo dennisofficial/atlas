@@ -5252,6 +5252,23 @@
                   }
                 }
               },
+              "oauthRefusal": {
+                "nullable": true,
+                "type": {
+                  "codecId": "pg/text@1",
+                  "kind": "scalar"
+                }
+              },
+              "oauthRefusedAt": {
+                "nullable": true,
+                "type": {
+                  "codecId": "pg/timestamptz-date@1",
+                  "kind": "scalar",
+                  "typeParams": {
+                    "precision": 3
+                  }
+                }
+              },
               "oauthSealed": {
                 "nullable": true,
                 "type": {
@@ -5425,6 +5442,12 @@
                 },
                 "oauthRefreshStartedAt": {
                   "column": "oauthRefreshStartedAt"
+                },
+                "oauthRefusal": {
+                  "column": "oauthRefusal"
+                },
+                "oauthRefusedAt": {
+                  "column": "oauthRefusedAt"
                 },
                 "oauthSealed": {
                   "column": "oauthSealed"
@@ -15192,6 +15215,19 @@
                     "precision": 3
                   }
                 },
+                "oauthRefusal": {
+                  "codecId": "pg/text@1",
+                  "dataType": "pg/text",
+                  "nullable": true
+                },
+                "oauthRefusedAt": {
+                  "codecId": "pg/timestamptz-date@1",
+                  "dataType": "pg/timestamptz",
+                  "nullable": true,
+                  "typeParams": {
+                    "precision": 3
+                  }
+                },
                 "oauthSealed": {
                   "codecId": "pg/text@1",
                   "dataType": "pg/text",
@@ -19234,7 +19270,7 @@
         "kind": "postgres-schema"
       }
     },
-    "storageHash": "16728f3bc2230e97bb7643a13fa9505d4e74bff2ae34f3336296bf1e287cef18"
+    "storageHash": "0afeeb830835c1a111e5003744b1fb67e0fa0e1f89e6213b0ef2535adc60966f"
   },
   "execution": {
     "executionHash": "0e6f989bb6c7c489039e329d87ab4c7469f87c12c726c4dcf40ed6296bf343c1",

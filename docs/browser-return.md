@@ -79,6 +79,18 @@ const handleSignIn = async () => {
 The card shows `outcome` while the screen is open, and the durable outcome after a reload. Do not
 keep a second copy of the outcome per flow: the shared store holds it under the state.
 
+## Flows on the framework
+
+| Flow  | Start                             | Return path      | Durable result                        |
+| ----- | --------------------------------- | ---------------- | ------------------------------------- |
+| `mcp` | the MCP transcript card's sign-in | `/sessions/<id>` | the roster row, read by the next turn |
+
+The MCP transcript card signs in an `http` MCP server. The agent tool `operator_mcp_sign_in` begins
+the flow, and the callback answers a session screen through `BrowserReturnService.answer`, so the
+card on web, Mac, iOS or the TUI shows the outcome at once. The API also keeps a refused sign-in on
+the server row, so the roster reads `failed` with the provider's reason and the card resolves failed
+even after a reload. Settings screens keep the flow's own `mcpOauth` params until they move over.
+
 ## API
 
 A flow keeps its own pending data, meaning the PKCE verifier, the code and whatever else the

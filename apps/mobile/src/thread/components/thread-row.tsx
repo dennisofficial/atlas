@@ -6,7 +6,7 @@ import type { AgentLinks } from '../session/agent-links'
 import { ImagesRowView } from './images-row'
 import { MessageRowView } from './message-row'
 import { NoticeRowView } from './notice-row'
-import { SignInRowView } from './sign-in-row'
+import { type SignInAgainHandler, SignInRowView } from './sign-in-row'
 import { WorkRowView } from './work-row'
 
 const ThreadRowContent = ({
@@ -18,6 +18,7 @@ const ThreadRowContent = ({
   onOpenAgent,
   queuedLabel,
   messageActions,
+  onSignInAgain,
 }: {
   row: ThreadRow
   threadId: string | undefined
@@ -27,6 +28,7 @@ const ThreadRowContent = ({
   onOpenAgent?: ((agentId: string) => void) | undefined
   queuedLabel?: string | undefined
   messageActions?: MessageActionHandlers | undefined
+  onSignInAgain?: SignInAgainHandler | undefined
 }) => (
   <>
     {row.kind === ERowKind.Message ? (
@@ -41,7 +43,9 @@ const ThreadRowContent = ({
     ) : null}
     {row.kind === ERowKind.Work ? <WorkRowView row={row} onOpenAgent={onOpenAgent} /> : null}
     {row.kind === ERowKind.Images ? <ImagesRowView row={row} sessionId={sessionId} /> : null}
-    {row.kind === ERowKind.SignIn ? <SignInRowView row={row} /> : null}
+    {row.kind === ERowKind.SignIn ? (
+      <SignInRowView row={row} onSignInAgain={onSignInAgain} />
+    ) : null}
     {row.kind === ERowKind.Notice ? (
       <NoticeRowView
         row={row}

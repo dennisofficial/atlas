@@ -1,23 +1,14 @@
-import { useTestDatabase } from '@dltech/atlas-db/testing'
+import { EReturnSurface } from '@dltech/atlas-core'
 import type { Db } from '@dltech/atlas-db'
+import { useTestDatabase } from '@dltech/atlas-db/testing'
 import { afterEach, describe, expect, it } from 'bun:test'
 
-import { seedOwner } from '../../config/__tests__/config-reader.fixture'
-import { mcpOauthCallbackOf } from '../callback'
+import { seedGroup, seedOwner } from '../../config/__tests__/config-reader.fixture'
+import { MCP_OAUTH_CALLBACK_PATH } from '../callback'
 import { returnPathOf } from '../redirect'
-import { mcpOauthStartOf } from '../start'
 import type { McpReturnTarget } from '../types'
-import {
-  REDIRECT_URI,
-  TOKEN_ENDPOINT,
-  SERVER_URL,
-  WEB_ORIGIN,
-  cipher,
-  json,
-  restoreFetch,
-  seedCloudServer,
-  stubFetch,
-} from './fixtures'
+import { answerOf, cookieOf, returnsOver, seedPending, tokenFetch } from './callback.fixture'
+import { WEB_ORIGIN, restoreFetch, seedCloudServer } from './fixtures'
 
 const testDb = useTestDatabase()
 
@@ -25,150 +16,172 @@ afterEach(restoreFetch)
 
 const AUTHORIZE_URL = 'https://auth.example.com/authorize?state=state-1'
 
-const SESSION: McpReturnTarget = { surface: 'web', screen: { kind: 'session', id: 'ses_1' } }
-
-const seedPending = async (args: {
-  db: Db
-  id?: string
-  expiresAt?: Date
-  authorizationUrl?: string | undefined
-}): Promise<void> => {
-  await args.db.orm.public.McpOauthPending.create({
-    id: args.id ?? 'state-1',
-    userId: 'user-1',
-    serverUrl: SERVER_URL,
-    sealed: cipher.encrypt(
-      JSON.stringify({
-        codeVerifier: 'verifier-1',
-        clientInfo: { clientId: 'client-1' },
-        tokenEndpoint: TOKEN_ENDPOINT,
-        redirectUri: REDIRECT_URI,
-        authMethods: ['none'],
-        returnTarget: SESSION,
-        ...(args.authorizationUrl === undefined ? {} : { authorizationUrl: args.authorizationUrl }),
-      }),
-    ),
-    returnTo: returnPathOf(SESSION.screen),
-    returnSurface: SESSION.surface,
-    expiresAt: args.expiresAt ?? new Date(Date.now() + 60_000),
-    mcpServerId: 'srv-posthog',
-  })
-}
-
-const seeded = async (args: { authorizationUrl?: string | undefined } = {}) => {
-  const { db } = testDb()
+const seeded = async (args: { db?: Db; id?: string; target?: McpReturnTarget } = {}) => {
+  const db = args.db ?? testDb().db
   await seedOwner(db)
   await seedCloudServer({ db, name: 'posthog' })
-  await seedPending({ db, authorizationUrl: args.authorizationUrl ?? AUTHORIZE_URL })
+  await seedPending({
+    db,
+    id: args.id ?? 'state-1',
+    mcpServerId: 'srv-posthog',
+    ...(args.target === undefined ? {} : { target: args.target }),
+  })
   return db
 }
 
-const cookieHeaderOf = (setCookie: string): string => setCookie.split(';')[0] ?? ''
+const startReturnOf = async (args: { db: Db; surface: EReturnSurface; port?: number }) => {
+  const returns = returnsOver(args.db)
+  await returns.begin({
+    flow: 'mcp',
+    state: 'state-1',
+    providerUrl: AUTHORIZE_URL,
+    callbackPath: MCP_OAUTH_CALLBACK_PATH,
+    webPath: returnPathOf({ kind: 'session', id: 'ses_1' }),
+  })
+  return await returns.start({ state: 'state-1', surface: args.surface, port: args.port })
+}
 
-const tokenFetch = () =>
-  stubFetch((call) =>
-    call.url === TOKEN_ENDPOINT
-      ? json({ access_token: 'at-1', refresh_token: 'rt-1', expires_in: 3600 })
-      : new Response('not found', { status: 404 }),
-  )
-
-const callbackOver = (db: Db) =>
-  mcpOauthCallbackOf({ db, cipher, webOrigin: WEB_ORIGIN, allowLocalTargets: true })
-
-describe('the mcp sign-in start link', () => {
-  it('records the surface, sets a scoped cookie and sends the browser to the provider', async () => {
+describe('the mcp sign-in return', () => {
+  it('returns to the web session the flow started from', async () => {
     const db = await seeded()
+    tokenFetch()
 
-    const answer = await mcpOauthStartOf({ db, cipher })({ state: 'state-1', surface: 'ios' })
+    const answer = await answerOf({ db, query: 'state=state-1&code=code-1' })
 
-    expect(answer.kind).toBe('redirect')
-    if (answer.kind !== 'redirect') return
-    expect(answer.location).toBe(AUTHORIZE_URL)
-    expect(answer.cookie).toContain('Path=/mcp-oauth/callback')
-    expect(answer.cookie).toContain('HttpOnly; Secure; SameSite=Lax')
-    const row = await db.orm.public.McpOauthPending.first({ id: 'state-1' })
-    expect(row?.returnSurface).toBe('ios')
+    expect(answer.status).toBe(302)
+    const location = new URL(answer.location)
+    expect(location.origin).toBe(WEB_ORIGIN)
+    expect(location.pathname).toBe('/sessions/ses_1')
+    expect(location.searchParams.get('atlasReturn')).toBe('connected')
+    expect(location.searchParams.get('atlasState')).toBe('state-1')
   })
 
-  it('starts as web when the link names no surface, as an installed TUI opens it', async () => {
+  it('hands an ios session flow back to the app', async () => {
     const db = await seeded()
+    tokenFetch()
 
-    await mcpOauthStartOf({ db, cipher })({ state: 'state-1', surface: null })
+    const answer = await answerOf({
+      db,
+      query: 'state=state-1&code=code-1',
+      cookie: cookieOf({ state: 'state-1', surface: EReturnSurface.Ios }),
+    })
 
-    const row = await db.orm.public.McpOauthPending.first({ id: 'state-1' })
-    expect(row?.returnSurface).toBe('web')
-  })
-
-  it('refuses an unknown, expired or used link', async () => {
-    const db = await seeded()
-    const start = mcpOauthStartOf({ db, cipher, now: () => Date.now() + 120_000 })
-
-    expect((await start({ state: 'state-1', surface: 'ios' })).kind).toBe('gone')
-    expect((await mcpOauthStartOf({ db, cipher })({ state: 'nope', surface: 'ios' })).kind).toBe(
-      'gone',
+    expect(answer.status).toBe(200)
+    expect(answer.body).toContain(
+      'atlas:///sessions/ses_1?atlasReturn=connected&atlasState=state-1',
     )
   })
-})
 
-describe('the mcp sign-in callback surface', () => {
-  it('returns to the app that started the sign-in, from its cookie', async () => {
-    const db = await seeded()
-    const started = await mcpOauthStartOf({ db, cipher })({ state: 'state-1', surface: 'ios' })
-    if (started.kind !== 'redirect') throw new Error('the start link was refused')
-    await mcpOauthStartOf({ db, cipher })({ state: 'state-1', surface: 'desktop' })
-    tokenFetch()
-
-    const answer = await callbackOver(db)({
-      query: new URLSearchParams('state=state-1&code=code-1'),
-      cookie: `other=1; ${cookieHeaderOf(started.cookie)}`,
-    })
-
-    expect(answer.kind).toBe('page')
-    if (answer.kind !== 'page') return
-    expect(answer.html).toContain('atlas:///sessions/ses_1?mcpOauth=connected')
-  })
-
-  it('falls back to the recorded surface when the browser lost the cookie', async () => {
-    const db = await seeded()
-    await mcpOauthStartOf({ db, cipher })({ state: 'state-1', surface: 'desktop' })
-    tokenFetch()
-
-    const answer = await callbackOver(db)({ query: new URLSearchParams('state=state-1&code=c') })
-
-    expect(answer.kind).toBe('page')
-    if (answer.kind !== 'page') return
-    expect(answer.html).toContain('atlas://open/sessions/ses_1?mcpOauth=connected')
-  })
-
-  it('ignores a forged cookie', async () => {
+  it('hands a desktop flow back to the app, with the web page as a fallback', async () => {
     const db = await seeded()
     tokenFetch()
 
-    const answer = await callbackOver(db)({
-      query: new URLSearchParams('state=state-1&code=c'),
-      cookie: 'atlas_mcp_sign_in=ios',
+    const answer = await answerOf({
+      db,
+      query: 'state=state-1&code=code-1',
+      cookie: cookieOf({ state: 'state-1', surface: EReturnSurface.Desktop }),
     })
 
-    expect(answer).toMatchObject({ kind: 'redirect' })
-  })
-
-  it('names the provider that refused the sign-in', async () => {
-    const db = await seeded()
-    const started = await mcpOauthStartOf({ db, cipher })({ state: 'state-1', surface: 'ios' })
-    if (started.kind !== 'redirect') throw new Error('the start link was refused')
-
-    const answer = await callbackOver(db)({
-      query: new URLSearchParams(
-        'error=server_error&error_description=An+unexpected+error+occurred&state=state-1&iss=https%3A%2F%2Fmcp-auth.wisprflow.com',
-      ),
-      cookie: cookieHeaderOf(started.cookie),
-    })
-
-    expect(answer.kind).toBe('page')
-    if (answer.kind !== 'page') return
-    expect(answer.html).toContain(
-      'mcp-auth.wisprflow.com answered: An unexpected error occurred (server_error)',
+    expect(answer.status).toBe(200)
+    expect(answer.body).toContain(
+      'atlas://open/sessions/ses_1?atlasReturn=connected&atlasState=state-1',
     )
-    expect(answer.html).toContain('atlas:///sessions/ses_1?mcpOauth=failed')
+    expect(answer.body).toContain('Continue in the browser')
+    expect(answer.body).toContain(WEB_ORIGIN)
+  })
+
+  it('answers the loopback listener the tui opened', async () => {
+    const db = await seeded()
+    tokenFetch()
+
+    const answer = await answerOf({
+      db,
+      query: 'state=state-1&code=code-1',
+      cookie: cookieOf({ state: 'state-1', surface: EReturnSurface.Tui, port: 43117 }),
+    })
+
+    expect(answer.status).toBe(302)
+    const location = new URL(answer.location)
+    expect(location.origin).toBe('http://127.0.0.1:43117')
+    expect(location.pathname).toBe('/atlas-return')
+    expect(location.searchParams.get('atlasReturn')).toBe('connected')
+    expect(location.searchParams.get('atlasState')).toBe('state-1')
+  })
+
+  it('falls back to the surface the start link recorded when the browser lost the cookie', async () => {
+    const db = await seeded()
+    await startReturnOf({ db, surface: EReturnSurface.Ios })
+    tokenFetch()
+
+    const answer = await answerOf({ db, query: 'state=state-1&code=code-1' })
+
+    expect(answer.status).toBe(200)
+    expect(answer.body).toContain('atlas:///sessions/ses_1?atlasReturn=connected')
+  })
+
+  it('ignores a return cookie sealed for another sign-in', async () => {
+    const db = await seeded()
+    tokenFetch()
+
+    const answer = await answerOf({
+      db,
+      query: 'state=state-1&code=code-1',
+      cookie: cookieOf({ state: 'state-other', surface: EReturnSurface.Ios }),
+    })
+
+    expect(answer.status).toBe(302)
+    expect(new URL(answer.location).origin).toBe(WEB_ORIGIN)
+  })
+
+  it('clears the return cookie on the callback path so the browser forgets the surface', async () => {
+    const db = await seeded()
+    await startReturnOf({ db, surface: EReturnSurface.Web })
+    tokenFetch()
+
+    const answer = await answerOf({ db, query: 'state=state-1&code=code-1' })
+
+    expect(answer.setCookie).toContain('atlas_return=; Max-Age=0')
+    expect(answer.setCookie).toContain(`Path=${MCP_OAUTH_CALLBACK_PATH}`)
+  })
+
+  it('keeps the legacy params for the project settings page', async () => {
+    const db = await seeded({
+      target: { surface: 'web', screen: { kind: 'settings', scope: 'project', id: 'proj_9' } },
+    })
+    tokenFetch()
+
+    const answer = await answerOf({ db, query: 'state=state-1&code=code-1' })
+
+    const location = new URL(answer.location)
+    expect(location.pathname).toBe('/projects/proj_9/settings/mcp')
+    expect(location.searchParams.get('mcpOauth')).toBe('connected')
+  })
+
+  it('keeps a group settings flow on its page', async () => {
+    const db = await seeded({
+      target: { surface: 'web', screen: { kind: 'settings', scope: 'group', id: 'grp-1' } },
+    })
+    await seedGroup(db)
+    await db.orm.public.McpServer.where({ id: 'srv-posthog' }).updateAndCount({
+      userId: null,
+      groupId: 'grp-1',
+    })
+    tokenFetch()
+
+    const answer = await answerOf({ db, query: 'state=state-1&code=code-1' })
+
+    expect(new URL(answer.location).pathname).toBe('/groups/grp-1/settings/mcp')
+  })
+
+  it('keeps an ios settings flow on the web page, which the app has no route for', async () => {
+    const db = await seeded({
+      target: { surface: 'ios', screen: { kind: 'settings', scope: 'user' } },
+    })
+    tokenFetch()
+
+    const answer = await answerOf({ db, query: 'state=state-1&code=code-1' })
+
+    expect(answer.status).toBe(302)
+    expect(new URL(answer.location).pathname).toBe('/settings/integrations')
   })
 })

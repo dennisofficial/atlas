@@ -14,8 +14,10 @@ import {
   type MacChannel,
   type MacLink,
 } from '../mac-link/port'
+import { browserReturnsOf } from '../browser-return/from-env'
 import { mcpOauthGatewayOf, type McpOauthGateway } from '../mcp-oauth'
 import { sameServerUrl } from '../mcp-oauth/seal'
+import { serverUrlOf, type ServerUrlRow } from '../mcp-oauth/server-url'
 import { databaseUrlWithTls } from './database-url'
 import type { AgentHostEnv } from './env'
 import { SecretCipher } from '@dltech/atlas-pods/config/secret-cipher'
@@ -38,9 +40,11 @@ type ServerRow = {
   name: string
   source: string
   repoUrl: string | null
+  sealedSpec: string | null
   oauthStatus: string | null
   oauthSealed: string | null
   oauthServerUrl: string | null
+  oauthRefusal: string | null
 }
 
 export type McpControlPort = { of(sessionId: string): PodMcpControl }
@@ -52,6 +56,14 @@ const freshTokenOf = (args: { cipher: SecretCipher; sealed: string }): string | 
     const { accessToken, expiresAt } = grant.data.tokens
     if (expiresAt !== undefined && Date.parse(expiresAt) <= Date.now()) return undefined
     return accessToken
+  } catch {
+    return undefined
+  }
+}
+
+const serverUrlIn = (args: { cipher: SecretCipher; row: ServerUrlRow }): string | undefined => {
+  try {
+    return serverUrlOf(args)
   } catch {
     return undefined
   }
@@ -121,6 +133,20 @@ export const mcpControlOf = (args: {
     return [...user, ...group, ...project]
   }
 
+  const refusalAtUrl = (args2: { rows: readonly ServerRow[]; url: string }): string | null => {
+    const direct = args2.rows.find(
+      (candidate) =>
+        sameServerUrl(candidate.repoUrl, args2.url) ||
+        sameServerUrl(candidate.oauthServerUrl, args2.url),
+    )
+    const matched =
+      direct ??
+      args2.rows.find((candidate) =>
+        sameServerUrl(serverUrlIn({ cipher: args.cipher, row: candidate }), args2.url),
+      )
+    return matched?.oauthRefusal ?? null
+  }
+
   const tokenOf = async (args2: {
     owner: Owner
     name: string
@@ -133,8 +159,12 @@ export const mcpControlOf = (args: {
         sameServerUrl(candidate.repoUrl, args2.url) ||
         sameServerUrl(candidate.oauthServerUrl, args2.url),
     )
-    if (row === undefined || row.oauthStatus !== 'active' || row.oauthSealed === null)
-      return { kind: EMcpToken.SignIn }
+    if (row === undefined || row.oauthStatus !== 'active' || row.oauthSealed === null) {
+      const refusal = refusalAtUrl({ rows, url: args2.url })
+      return refusal === null
+        ? { kind: EMcpToken.SignIn }
+        : { kind: EMcpToken.Refused, reason: refusal }
+    }
     const fresh = freshTokenOf({ cipher: args.cipher, sealed: row.oauthSealed })
     if (fresh !== undefined) return { kind: EMcpToken.Granted, accessToken: fresh }
     const refreshed = await args.gateway.refresh({
@@ -219,7 +249,7 @@ export const mcpControlOf = (args: {
 }
 
 export const mcpControlPort = (args: {
-  env: Pick<AgentHostEnv, 'databaseUrl' | 'secretsEncryptionKey' | 'publicUrl'>
+  env: Pick<AgentHostEnv, 'databaseUrl' | 'secretsEncryptionKey' | 'publicUrl' | 'trustedOrigins'>
   macLink: MacLink
 }): McpControlPort => {
   let port: McpControlPort | undefined
@@ -235,7 +265,12 @@ export const mcpControlPort = (args: {
         port = mcpControlOf({
           db,
           cipher,
-          gateway: mcpOauthGatewayOf({ db, cipher, publicUrl: args.env.publicUrl }),
+          gateway: mcpOauthGatewayOf({
+            db,
+            cipher,
+            publicUrl: args.env.publicUrl,
+            returns: browserReturnsOf({ db, cipher, env: args.env }),
+          }),
           macLink: args.macLink,
         })
       }
