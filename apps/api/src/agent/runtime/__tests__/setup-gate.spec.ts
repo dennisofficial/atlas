@@ -26,6 +26,13 @@ import { LocalSandboxProvider } from '../../testing/local-sandbox-provider'
 import { createSessionRuntimeFactory } from '../session-runtime-factory'
 import { SetupGatedTool } from '../tools'
 
+const PREPARE_TIMINGS = {
+  access: expect.any(Number),
+  check: expect.any(Number),
+  files: expect.any(Number),
+  toolchain: expect.any(Number),
+}
+
 const GATE_REASON = POD_WAIT_INTERRUPTED
 
 const invocation = (signal: AbortSignal): ToolInvocation => ({
@@ -187,8 +194,8 @@ describe('SessionRuntime.prepare', () => {
   it('resolves ok once the workspace is ready and keeps answering ok', async () => {
     const { runtime, sandbox } = await runtimeWith({ githubToken: async () => null })
     try {
-      expect(await runtime.prepare()).toEqual({ ok: true })
-      expect(await runtime.prepare()).toEqual({ ok: true })
+      expect(await runtime.prepare()).toEqual({ ok: true, timings: PREPARE_TIMINGS })
+      expect(await runtime.prepare()).toEqual({ ok: true, timings: PREPARE_TIMINGS })
       await runtime.stop()
     } finally {
       await sandbox.stopAll()
@@ -207,7 +214,7 @@ describe('SessionRuntime.prepare', () => {
     try {
       const failed = await runtime.prepare()
       expect(failed).toEqual({ ok: false, reason: 'token endpoint down' })
-      expect(await runtime.prepare()).toEqual({ ok: true })
+      expect(await runtime.prepare()).toEqual({ ok: true, timings: PREPARE_TIMINGS })
       expect(attempts).toBe(2)
       await runtime.stop()
     } finally {
@@ -219,7 +226,10 @@ describe('SessionRuntime.prepare', () => {
     const { runtime, sandbox } = await runtimeWith({ githubToken: async () => null })
     try {
       const seen: WorkspaceStepReport[] = []
-      expect(await runtime.prepare((step) => seen.push(step))).toEqual({ ok: true })
+      expect(await runtime.prepare((step) => seen.push(step))).toEqual({
+        ok: true,
+        timings: PREPARE_TIMINGS,
+      })
       const labels = seen.map((step) => `${step.step}:${step.state}`)
       expect(labels.slice(0, 3)).toEqual(['sandbox:started', 'sandbox:done', 'daemon:done'])
       expect(labels.some((label) => label.startsWith('clone:'))).toBe(true)

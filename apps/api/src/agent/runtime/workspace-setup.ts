@@ -27,6 +27,7 @@ import { prepareFailureResult, prepareWorkspace, resultOf } from './workspace-ma
 import { RepoProgress, repoNamesOf } from './workspace-repos'
 import { runSetupOnce } from './workspace-setup-run'
 import { installToolchain } from './workspace-toolchain'
+import { EPrepareWork, PrepareTimings } from './prepare-timings'
 import {
   checkSentinels,
   clearSetupStarted,
@@ -120,7 +121,9 @@ export const ensureWorkspace = async (args: {
   onOutput?: ((text: string) => void) | undefined
   onSetup?: ((lifecycle: SetupLifecycle) => void) | undefined
   onCheckedOut?: CheckoutReport | undefined
+  timings?: PrepareTimings | undefined
 }): Promise<PrepareResult> => {
+  const timings = args.timings ?? new PrepareTimings()
   const warnings: string[] = []
   const notices: BootNotice[] = []
   const deps: Deps = {
@@ -144,10 +147,12 @@ export const ensureWorkspace = async (args: {
   let prepared = false
   let captured: readonly CapturedBase[] = []
   try {
-    const state = await runInCallScope({
-      scopeKey: phases[0] ?? 'setup:check',
-      body: () => checkSentinels({ deps, sentinels, launchDirectory }),
-    })
+    const state = await timings.time(EPrepareWork.Check, () =>
+      runInCallScope({
+        scopeKey: phases[0] ?? 'setup:check',
+        body: () => checkSentinels({ deps, sentinels, launchDirectory }),
+      }),
+    )
     args.signal?.throwIfAborted()
     const progress = new RepoProgress({
       names: repoNamesOf(workspace),
@@ -196,20 +201,24 @@ export const ensureWorkspace = async (args: {
       await clearSetupStarted({ deps, path: sentinels.setupStarted })
     }
     args.signal?.throwIfAborted()
-    await runInCallScope({
-      scopeKey: phases[2] ?? 'setup:files',
-      body: () =>
-        mountProjectFiles({
-          deps,
-          mounts: args.mounts ?? [],
-          launchDirectory,
-          notices,
-        }),
-    })
+    await timings.time(EPrepareWork.Files, () =>
+      runInCallScope({
+        scopeKey: phases[2] ?? 'setup:files',
+        body: () =>
+          mountProjectFiles({
+            deps,
+            mounts: args.mounts ?? [],
+            launchDirectory,
+            notices,
+          }),
+      }),
+    )
     args.signal?.throwIfAborted()
     // the repository is on disk now, so its pins can be read; the setup script needs them first
     if (await exists({ files: args.files, path: launchDirectory })) {
-      await installToolchain({ deps, launchDirectory, scrub })
+      await timings.time(EPrepareWork.Toolchain, () =>
+        installToolchain({ deps, launchDirectory, scrub }),
+      )
     }
     args.signal?.throwIfAborted()
     const setupStarted =

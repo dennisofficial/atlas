@@ -71,7 +71,7 @@ export const auth = betterAuth({
       : { crossSubDomainCookies: { enabled: true, domain: cookieDomain } }),
   },
   user: { modelName: 'User' },
-  secondaryStorage: sessionStorageFromEnv(process.env.REDIS_URL),
+  secondaryStorage: sessionStorageFromEnv({ url: process.env.REDIS_URL }),
   session: {
     modelName: 'AuthSession',
     cookieCache: { enabled: true, maxAge: 300 },
