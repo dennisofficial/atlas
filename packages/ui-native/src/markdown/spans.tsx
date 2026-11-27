@@ -1,8 +1,8 @@
 import { radius, space, typeScale } from '@dltech/atlas-ui/tokens'
-import { Fragment, type ReactNode } from 'react'
+import type { ReactNode } from 'react'
 import { Linking } from 'react-native'
 
-import { Text } from '../text'
+import { Text, TextSpan } from '../text'
 import { EFontFamily, EFontWeight, ETextTone, RELAXED_LEADING } from '../text-style'
 import { useTheme } from '../use-theme'
 import { EMdSpan, type MdSpan } from './parse'
@@ -20,7 +20,7 @@ export const Spans = ({
   const theme = useTheme()
   return spans.map((span, index) => {
     const key = `${span.type}-${index}`
-    if (span.type === EMdSpan.Text) return <Fragment key={key}>{span.value}</Fragment>
+    if (span.type === EMdSpan.Text) return <TextSpan key={key}>{span.value}</TextSpan>
     if (span.type === EMdSpan.Code) {
       const codeSize = typeScale[style.size].fontSize * INLINE_CODE_SCALE
       return (
