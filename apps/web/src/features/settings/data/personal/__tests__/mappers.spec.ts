@@ -7,12 +7,7 @@ import { EDeviceKind } from '../../../fixtures/settings-security'
 import { deviceNameOf, toDevice } from '../auth-session-api'
 import { base64ToUtf8, encodeFileContent, utf8ToBase64 } from '../file-encoding'
 import { docOf } from '../instructions-api'
-import {
-  appearanceChanges,
-  appearanceFrom,
-  notificationChanges,
-  notificationsFrom,
-} from '../interface-settings'
+import { appearanceChanges, appearanceFrom } from '../interface-settings'
 import { splitCommandLine } from '../../command-line'
 import { toMcpServer, transportOf } from '../mcp-api'
 import { buildGroups, memoryKeyInput } from '../memory-api'
@@ -191,30 +186,6 @@ describe('interface settings', () => {
     expect(saved).toMatchObject({ theme: 'dark', density: 'comfortable', codeFontSize: 13 })
     expect(appearanceChanges({ saved, draft: { ...saved, reduceMotion: true } })).toEqual({
       'web.appearance.reduceMotion': true,
-    })
-  })
-
-  it('reads and diffs the three notification moments', () => {
-    const saved = notificationsFrom(
-      new Map([
-        ['web.notifications.event.finished.push', false],
-        ['web.notifications.timezone', 'Europe/Berlin'],
-      ]),
-    )
-    expect(saved.events).toEqual({ finished: false, errored: true, approval: true })
-    expect(saved.timezone).toBe('Europe/Berlin')
-    const draft = { ...saved, quietFrom: '23:00' }
-    expect(notificationChanges({ saved, draft })).toEqual({
-      'web.notifications.quietFrom': '23:00',
-    })
-  })
-
-  it('writes a moment to its push key and keeps the zone', () => {
-    const saved = notificationsFrom(new Map())
-    const draft = { ...saved, events: { ...saved.events, approval: false }, timezone: 'UTC' }
-    expect(notificationChanges({ saved, draft })).toEqual({
-      'web.notifications.event.approval.push': false,
-      'web.notifications.timezone': 'UTC',
     })
   })
 })

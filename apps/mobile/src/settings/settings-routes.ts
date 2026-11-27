@@ -25,6 +25,8 @@ export const SETTINGS_STACK_SCREENS: readonly ISettingsStackScreen[] = [
   { name: 'settings/instructions', title: 'Instructions' },
   { name: 'settings/memory', title: 'Memory' },
   { name: 'settings/memory-entry', title: 'Memory', sheet: { detents: [0.75, 1] } },
+  { name: 'settings/notifications', title: 'Notifications' },
+  { name: 'settings/notifications-timezone', title: 'Time zone' },
   { name: 'project-settings/[projectId]/index', title: 'Project settings' },
   { name: 'project-settings/[projectId]/overview', title: 'Overview' },
   { name: 'project-settings/[projectId]/sandbox', title: 'Sandbox' },
@@ -39,6 +41,7 @@ export const IOS_SETTINGS_ROUTES: Partial<Record<ESettingsPage, Href>> = {
   [ESettingsPage.Groups]: '/settings/groups',
   [ESettingsPage.Instructions]: '/settings/instructions',
   [ESettingsPage.Memory]: '/settings/memory',
+  [ESettingsPage.Notifications]: '/settings/notifications',
 }
 
 export const IOS_PROJECT_SECTION_ROUTES: Partial<Record<EProjectSettingsSection, TRouteOfId>> = {
@@ -68,7 +71,6 @@ export const IOS_PENDING_PAGES: ReadonlySet<ESettingsPage> = new Set([
   ESettingsPage.Classifier,
   ESettingsPage.Access,
   ESettingsPage.Appearance,
-  ESettingsPage.Notifications,
   ESettingsPage.Security,
   ESettingsPage.Agent,
   ESettingsPage.Experimental,

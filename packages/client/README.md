@@ -29,7 +29,7 @@ The headless client library that web, the TUI and the mobile app share.
 | `@dltech/atlas-client/crew`                     | The crew readout, the sub-agent state and the background work.                                                                                                 |
 | `@dltech/atlas-client/session`                  | The session create input, the rewind, the summarise, the image upload, the composer attachments, the message input, the draft sync and the sandbox start view. |
 | `@dltech/atlas-client/account`                  | The Atlas Cloud device-code login and the PKCE pair a browser sign-in needs.                                                                                   |
-| `@dltech/atlas-client/settings`                 | The settings page and section lists, and the instructions, memory, project, group, sandbox and pull-request settings logic.                                    |
+| `@dltech/atlas-client/settings`                 | The settings page and section lists, and the instructions, memory, notifications, project, group, sandbox and pull-request settings logic.                     |
 | `@dltech/atlas-client/browser-return`           | The outcomes a browser sign-in brought back, held by the state of its start link.                                                                              |
 | `@dltech/atlas-client/transcript`               | The transcript rows, the tool runs and the turn rows.                                                                                                          |
 | `@dltech/atlas-client/stream-fixture`           | A fake scheduler and transport, and the event factories, for a spec.                                                                                           |
@@ -69,6 +69,13 @@ The headless client library that web, the TUI and the mobile app share.
   `memoryScopeOptionsOf(groups)`, `memoryScopeHintOf(group)`, `memoryClearDescriptionOf(group)`,
   `memoryKeyInput(key)`, `formatMemoryDate(updatedAt)`: the memory scopes, their rows, and the copy
   around them.
+- `NOTIFY_MOMENTS`, `notifyEventKey(moment)`, `NotificationSettings`, `notificationsFrom(values)`,
+  `notificationChanges({ saved, draft })`, `withDeviceZone(settings)`, `QUIET_HOUR_OPTIONS`,
+  `NOTIFY_TIMEZONE_KEY` and the quiet-hour keys: the notification moments, quiet hours and their
+  time zone. `NOTIFY_DEVICE_KIND_LABELS`, `notifyDeviceDetailOf({ kind, enabled })`,
+  `withDeviceEnabled(args)`: a registered device's row and its pending switch.
+- `timezoneNames()`, `timezoneChoicesOf({ query, selected })`, `deviceTimezone()`: the time-zone
+  list, common zones first, searched as a user types.
 
 ### Edit a project or a group
 

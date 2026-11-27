@@ -6,12 +6,13 @@ import type { z } from 'zod'
 
 import { useAuth } from '../auth/auth-provider'
 import { createSettingsController, type SettingsController } from './settings-controller'
-import type { SettingsChanges } from './settings-store'
+import type { SettingsChanges, SettingsValues } from './settings-store'
 import { settingsStorage } from './settings-storage'
 
 export type Settings = {
   ready: boolean
   failed: boolean
+  values: SettingsValues
   read: <TValue extends SettingScalar>(args: { key: string; schema: z.ZodType<TValue> }) => TValue
   save: (changes: SettingsChanges) => Promise<void>
   reload: () => void
@@ -55,7 +56,14 @@ export const SettingsProvider = ({
   const reload = useCallback(() => void store.load(), [store])
 
   const value = useMemo<Settings>(
-    () => ({ ready: state.ready, failed: state.failed, read: store.read, save, reload }),
+    () => ({
+      ready: state.ready,
+      failed: state.failed,
+      values: state.values,
+      read: store.read,
+      save,
+      reload,
+    }),
     [state, store, save, reload],
   )
 
