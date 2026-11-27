@@ -12,7 +12,12 @@ import {
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 
-import { CallFailureError, type CallOp, type PreviewTunnelStatus } from '@dltech/atlas-protocol'
+import {
+  CallFailureError,
+  type CallOp,
+  type DaemonEvent,
+  type PreviewTunnelStatus,
+} from '@dltech/atlas-protocol'
 import type { CallContext, DaemonGroup, RegisteredOp } from '@dltech/atlas-protocol/engine'
 
 import { previewsGroup } from '..'
@@ -134,6 +139,7 @@ describe('the pod tunnel', () => {
   let argvPath: string
   let pidPath: string
   let group: DaemonGroup
+  let published: DaemonEvent[]
 
   const binaryOf = (args: { dir: string; script: string }): string => {
     mkdirSync(args.dir, { recursive: true })
@@ -147,6 +153,8 @@ describe('the pod tunnel', () => {
     options: {
       cloudflaredPath?: string | undefined
       previewReadyTimeoutMs?: number | undefined
+      previewHeartbeatMs?: number | undefined
+      previewSuspendGapMs?: number | undefined
     } = {},
   ): DaemonGroup =>
     previewsGroup({
@@ -162,7 +170,13 @@ describe('the pod tunnel', () => {
       ...(options.previewReadyTimeoutMs === undefined
         ? {}
         : { previewReadyTimeoutMs: options.previewReadyTimeoutMs }),
-    })({ publish: () => undefined })
+      ...(options.previewHeartbeatMs === undefined
+        ? {}
+        : { previewHeartbeatMs: options.previewHeartbeatMs }),
+      ...(options.previewSuspendGapMs === undefined
+        ? {}
+        : { previewSuspendGapMs: options.previewSuspendGapMs }),
+    })({ publish: (event) => published.push(event) })
 
   const ensure = async (tunnelToken?: string): Promise<PreviewTunnelStatus> =>
     (await runOp(
@@ -194,6 +208,7 @@ describe('the pod tunnel', () => {
     argvPath = join(dir, 'argv.txt')
     pidPath = join(dir, 'pid.txt')
     tokenFile = join(dir, 'previews.json')
+    published = []
     binaryOf({ dir: join(dir, 'bin'), script: READY_SCRIPT })
     group = groupOf()
   })
@@ -335,6 +350,39 @@ describe('the pod tunnel', () => {
         .split('\n')
         .filter((line) => line !== ''),
     ).toHaveLength(starts.length)
+  })
+
+  it('publishes a ready signal each time the tunnel registers', async () => {
+    const up = await ensure('secret-token')
+    expect(up.state).toBe('up')
+    expect(up.upAt).toBeString()
+    expect(published).toMatchObject([{ type: 'previews.ready', at: up.upAt as string }])
+  })
+
+  it('re-dials cloudflared after the pod did not run, with no host call', async () => {
+    group = groupOf({ previewHeartbeatMs: 20, previewSuspendGapMs: 120 })
+    const first = await ensure('secret-token')
+    expect(first.upAt).toBeString()
+    const blockedUntil = Date.now() + 300
+    while (Date.now() < blockedUntil) {}
+    const starts = await linesUntil({ path: startPath, count: 2, ms: 5_000 })
+    expect(starts.length).toBeGreaterThanOrEqual(2)
+    const up = await statusUntil({ state: 'up', ms: 5_000 })
+    expect(up.restarts).toBeGreaterThanOrEqual(1)
+    expect(up.pid).not.toBe(first.pid as number)
+    expect(up.upAt).not.toBe(first.upAt as string)
+    expect(published.filter((event) => event.type === 'previews.ready')).toHaveLength(2)
+  })
+
+  it('leaves a tunnel that keeps ticking alone', async () => {
+    group = groupOf({ previewHeartbeatMs: 20, previewSuspendGapMs: 1_000 })
+    const first = await ensure('secret-token')
+    await Bun.sleep(400)
+    const starts = await linesUntil({ path: startPath, count: 1, ms: 1_000 })
+    expect(starts).toHaveLength(1)
+    const now = await status()
+    expect(now.pid).toBe(first.pid as number)
+    expect(now.restarts).toBe(0)
   })
 
   it('never resolves cloudflared through PATH', async () => {

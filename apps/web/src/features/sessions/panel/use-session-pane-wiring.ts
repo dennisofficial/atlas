@@ -6,6 +6,7 @@ import type { SessionSnapshot } from '@dltech/atlas-client/stream'
 import { isSessionWorking } from '@dltech/atlas-client/stream'
 import type { SessionViewOutput } from '@dltech/atlas-protocol'
 import type { PreviewPort } from '@dltech/atlas-ui/ai/preview-browser'
+import { latestPreviewsReadyAt } from '@dltech/atlas-plugin-services/core'
 
 import { type SessionViewModel, shellTailTextOf } from '../data/session-view-model'
 import { openBrowserUrl } from './browser/open-browser'
@@ -53,6 +54,7 @@ export function useSessionPaneWiring(args: {
   const contextChanged = useMemo(() => contextChangesOf(foldable), [foldable])
   const turnEnds = useTurnEndCount(isSessionWorking(status))
   const ports = useMemo(() => previewPortsOf(model.previews), [model.previews])
+  const readyAt = useMemo(() => latestPreviewsReadyAt(foldable), [foldable])
   const openBrowserTab = useCallback(() => openTab(ESessionPaneTab.Browser), [openTab])
   const handleOpen = useCallback(
     (url: string) => {
@@ -65,6 +67,7 @@ export function useSessionPaneWiring(args: {
     sessionId,
     power: status?.pod?.power?.phase,
     ports,
+    readyAt,
     open: handleOpen,
   })
   const paneValue = useMemo<SessionPaneValue>(

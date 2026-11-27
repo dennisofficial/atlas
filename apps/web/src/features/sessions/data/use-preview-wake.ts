@@ -8,7 +8,7 @@ import type { PreviewPort } from '@dltech/atlas-ui/ai/preview-browser'
 import {
   EPreviewWait,
   previewNeedsWake,
-  previewOpensOnWake,
+  previewOpensOnReady,
   previewWaitOf,
   previewWaitsForPod,
   reloadedPreviews,
@@ -25,27 +25,32 @@ export function usePreviewWake(args: {
   sessionId: string
   power: EPodPowerPhase | undefined
   ports: readonly PreviewPort[]
+  readyAt: string | undefined
   open: (url: string) => void
 }): (url: string) => void {
-  const { sessionId, power, ports, open } = args
+  const { sessionId, power, ports, readyAt, open } = args
   const wait = previewWaitOf(power)
   const [pending, setPending] = useState<string | undefined>(undefined)
-  const previous = useRef(wait)
+  const seenReady = useRef(readyAt)
   const wake = useCallback(() => requestWake(sessionId), [sessionId])
   const { wakePod } = usePodWake({ sessionId, live: wait === EPreviewWait.Awake, wake })
 
   useEffect(() => {
-    const held = previous.current
-    previous.current = wait
-    if (!previewOpensOnWake({ previous: held, current: wait })) return
+    if (!previewOpensOnReady({ seen: seenReady.current, now: readyAt })) return
+    seenReady.current = readyAt
     updatePreviewBrowser({
       threadId: sessionId,
-      change: ({ state }) => reloadedPreviews({ state, ports }),
+      change: ({ state }) =>
+        reloadedPreviews({
+          state,
+          ports: [...ports],
+          ...(pending === undefined ? {} : { except: pending }),
+        }),
     })
     if (pending === undefined) return
     setPending(undefined)
     open(pending)
-  }, [wait, pending, sessionId, ports, open])
+  }, [readyAt, pending, sessionId, ports, open])
 
   return useCallback(
     (url: string) => {
