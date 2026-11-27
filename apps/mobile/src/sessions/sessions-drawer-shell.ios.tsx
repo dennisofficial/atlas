@@ -14,7 +14,6 @@ import {
 import { usePosture } from '../layout/use-posture'
 import { usesGlassHeader } from '../navigation/glass-header'
 import { LEAD_GAP, TabHeaderTitle } from '../navigation/header-options'
-import { SessionsButton } from '../navigation/sessions-button'
 import { drawerBarItemsOf, drawerSearchBarPropsOf, usesNativeSearchOf } from './drawer-header-items'
 import { showsHideSessionsButtonOf } from './drawer-layout'
 import {
@@ -27,6 +26,7 @@ import {
 import type { ISessionEntry } from './session-groups'
 import { useSessionsDrawer } from './sessions-drawer-state'
 import { SessionsList } from './sessions-list'
+import { useDrawerColumnReach } from './use-drawer-column-reach'
 
 type TDrawerScreenProps = {
   activeId: string | null
@@ -52,6 +52,7 @@ const DrawerScreen = ({ activeId, onOpen }: TDrawerScreenProps) => {
   const nativeSearch = usesNativeSearchOf({ listLayout: posture.sessionsList })
   const { setOpen } = useSessionsDrawer()
   const glass = usesGlassHeader()
+  const columnReach = useDrawerColumnReach()
 
   const handleNewSession = () => router.push('/new')
   const handleSearchFocus = () => setSearch(searchFocusedOf)
@@ -67,13 +68,12 @@ const DrawerScreen = ({ activeId, onOpen }: TDrawerScreenProps) => {
 
   const handleHide = () => setOpen(false)
 
-  const items = drawerBarItemsOf({ onNewSession: handleNewSession })
-  const hideButton = showsHideSessionsButtonOf({
-    listLayout: posture.sessionsList,
-    selected: activeId,
-  }) ? (
-    <SessionsButton label="Hide sessions" onPress={handleHide} />
-  ) : null
+  const items = drawerBarItemsOf({
+    onNewSession: handleNewSession,
+    onHide: showsHideSessionsButtonOf({ listLayout: posture.sessionsList, selected: activeId })
+      ? handleHide
+      : undefined,
+  })
 
   return (
     <ScreenStackItem
@@ -85,19 +85,11 @@ const DrawerScreen = ({ activeId, onOpen }: TDrawerScreenProps) => {
           <>
             {glass ? (
               <ScreenStackHeaderLeftView hidesSharedBackground={false} visibilityPriority="high">
-                <View
-                  style={[
-                    styles.glassTitle,
-                    hideButton === null ? null : styles.glassTitleWithLead,
-                  ]}
-                >
-                  {hideButton}
+                <View style={styles.glassTitle}>
                   <TabHeaderTitle title={SESSIONS_TITLE} />
                 </View>
               </ScreenStackHeaderLeftView>
-            ) : hideButton === null ? null : (
-              <ScreenStackHeaderLeftView>{hideButton}</ScreenStackHeaderLeftView>
-            )}
+            ) : null}
             {nativeSearch ? (
               <ScreenStackHeaderSearchBarView>
                 <SearchBar
@@ -128,6 +120,7 @@ const DrawerScreen = ({ activeId, onOpen }: TDrawerScreenProps) => {
         query={search.query}
         showsSearchField={!nativeSearch}
         onQueryChange={handleSearchText}
+        trailingInset={columnReach}
       />
     </ScreenStackItem>
   )
@@ -139,9 +132,6 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     gap: LEAD_GAP,
     paddingHorizontal: 12,
-  },
-  glassTitleWithLead: {
-    paddingLeft: 4,
   },
   stack: {
     flex: 1,

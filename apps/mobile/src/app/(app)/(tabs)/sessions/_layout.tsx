@@ -42,10 +42,10 @@ const SessionsStack = () => {
 export default function SessionsLayout() {
   const theme = useTheme()
   return (
-    <SideInsetFrame background={theme.sidebar}>
-      <SessionsDrawer>
+    <SessionsDrawer>
+      <SideInsetFrame background={theme.sidebar}>
         <SessionsStack />
-      </SessionsDrawer>
-    </SideInsetFrame>
+      </SideInsetFrame>
+    </SessionsDrawer>
   )
 }

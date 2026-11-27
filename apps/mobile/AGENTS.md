@@ -64,8 +64,10 @@ web spinner), never `ActivityIndicator`.
 - On iPhone Duo the native tab bar sits in the system column on the right. iOS places the bar but
   does not keep screen content out of the column: `SideInsetFrame`
   (`src/layout/side-inset-frame.tsx`) pads the tab's whole `Stack` by `sideColumnInsetOf`
-  (`src/layout/posture.ts:12`), and for sessions the `SessionsDrawer` too, so the native header,
-  the drawer list and the screen content all stop at the column. It wraps the tab's stack in the
+  (`src/layout/posture.ts:12`), so the native header and the screen content stop at the column.
+  The one exception is the full-width sessions drawer: it reaches under the column on purpose
+  (`useDrawerColumnReach`, `src/sessions/use-drawer-column-reach.ts`), because iOS then moves its
+  trailing bar buttons (`+`, hide) into the column. Its list pads itself by that reach. It wraps the tab's stack in the
   tab's `_layout.tsx`, never `screenLayout`: `screenLayout` sits inside the native screen, which
   leaves the native header and a drawer rendered beside the stack at full width. It never wraps
   `NativeTabs`, and the root stack keeps `screenLayout={SideInsetLayout}`, because a frame there

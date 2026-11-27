@@ -2,17 +2,11 @@ import { useTheme } from '@dltech/atlas-ui-native'
 import { SymbolView } from 'expo-symbols'
 import { Pressable, StyleSheet } from 'react-native'
 
-export const SessionsButton = ({
-  label = 'Sessions',
-  onPress,
-}: {
-  label?: string
-  onPress: () => void
-}) => {
+export const SessionsButton = ({ onPress }: { onPress: () => void }) => {
   const theme = useTheme()
   return (
     <Pressable
-      accessibilityLabel={label}
+      accessibilityLabel="Sessions"
       accessibilityRole="button"
       hitSlop={8}
       onPress={onPress}

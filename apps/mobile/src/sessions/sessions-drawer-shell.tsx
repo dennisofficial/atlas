@@ -19,6 +19,7 @@ import { SearchField } from './search-field'
 import type { ISessionEntry } from './session-groups'
 import { useSessionsDrawer } from './sessions-drawer-state'
 import { SessionsList } from './sessions-list'
+import { useDrawerColumnReach } from './use-drawer-column-reach'
 
 export const SessionsDrawerShell = ({
   activeId,
@@ -32,18 +33,12 @@ export const SessionsDrawerShell = ({
   const [query, setQuery] = useState('')
   const { setOpen } = useSessionsDrawer()
   const handleHide = () => setOpen(false)
+  const columnReach = useDrawerColumnReach()
   return (
-    <View style={[styles.content, { paddingTop: insets.top + space(2) }]}>
+    <View
+      style={[styles.content, { paddingTop: insets.top + space(2), paddingRight: columnReach }]}
+    >
       <View style={styles.header}>
-        {showsHideSessionsButtonOf({ listLayout: posture.sessionsList, selected: activeId }) ? (
-          <Button
-            label="Hide sessions"
-            icon={PanelLeft}
-            variant={EButtonVariant.Ghost}
-            size={EButtonSize.IconLg}
-            onPress={handleHide}
-          />
-        ) : null}
         <Text
           size={ETextRole.Lg}
           weight={EFontWeight.Semibold}
@@ -54,6 +49,15 @@ export const SessionsDrawerShell = ({
         </Text>
         <View style={styles.actions}>
           <NewSessionButton />
+          {showsHideSessionsButtonOf({ listLayout: posture.sessionsList, selected: activeId }) ? (
+            <Button
+              label="Hide sessions"
+              icon={PanelLeft}
+              variant={EButtonVariant.Ghost}
+              size={EButtonSize.IconLg}
+              onPress={handleHide}
+            />
+          ) : null}
         </View>
       </View>
       <View style={styles.search}>
