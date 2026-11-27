@@ -4,6 +4,10 @@ import {
   CHIP_RADIUS,
   CHIP_REMOVE_INSET,
   CHIP_REMOVE_SIZE,
+  CHIP_SIZE,
+  CHIP_THUMB_INSET,
+  CHIP_THUMB_RADIUS,
+  CHIP_THUMB_SIZE,
   COMPOSER_INSET,
   COMPOSER_RADIUS,
   concentricRadiusOf,
@@ -26,5 +30,10 @@ describe('composer shape', () => {
 
   test('curves the remove button with the chip corner it sits in', () => {
     expect(CHIP_REMOVE_SIZE / 2 + CHIP_REMOVE_INSET).toBe(CHIP_RADIUS)
+  })
+
+  test('centres a video thumbnail in the chip and curves it with the chip corner', () => {
+    expect(CHIP_THUMB_SIZE + 2 * CHIP_THUMB_INSET).toBe(CHIP_SIZE)
+    expect(CHIP_THUMB_RADIUS + CHIP_THUMB_INSET).toBe(CHIP_RADIUS)
   })
 })

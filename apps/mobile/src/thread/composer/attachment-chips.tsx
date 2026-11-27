@@ -1,21 +1,49 @@
 import { ETextRole, ETextTone, Text, useTheme, withAlpha } from '@dltech/atlas-ui-native'
 import { space } from '@dltech/atlas-ui/tokens'
 import { Image } from 'expo-image'
-import { FileText, FileVideoCamera, X } from 'lucide-react-native'
+import { FileText, FileVideoCamera, Play, X } from 'lucide-react-native'
 import { Pressable, ScrollView, StyleSheet, View } from 'react-native'
 
 import { EAttachmentStatus } from '@dltech/atlas-client/session'
 
-import { describeBytes, isImageMediaType, type HeldAttachment } from './attachment-plan'
-import { CHIP_RADIUS, CHIP_REMOVE_INSET, CHIP_REMOVE_SIZE, COMPOSER_INSET } from './composer-shape'
+import {
+  describeBytes,
+  isImageMediaType,
+  isVideoMediaType,
+  type HeldAttachment,
+} from './attachment-plan'
+import {
+  CHIP_RADIUS,
+  CHIP_REMOVE_INSET,
+  CHIP_REMOVE_SIZE,
+  CHIP_SIZE,
+  CHIP_THUMB_INSET,
+  CHIP_THUMB_RADIUS,
+  CHIP_THUMB_SIZE,
+  COMPOSER_INSET,
+} from './composer-shape'
+import { useVideoThumbnail } from './video-thumbnail'
 
-const CHIP = 72
+const VideoThumb = ({ uri }: { uri: string }) => (
+  <View style={styles.thumb}>
+    <Image source={{ uri }} contentFit="cover" style={styles.preview} />
+    <View style={styles.play}>
+      <Play size={10} color="#ffffff" fill="#ffffff" />
+    </View>
+  </View>
+)
 
-const isVideoMediaType = (mediaType: string): boolean => mediaType.startsWith('video/')
+const FileGlyph = ({ mediaType, color }: { mediaType: string; color: string }) =>
+  isVideoMediaType(mediaType) ? (
+    <FileVideoCamera size={16} color={color} />
+  ) : (
+    <FileText size={16} color={color} />
+  )
 
 const Chip = ({ entry, onRemove }: { entry: HeldAttachment; onRemove: (id: string) => void }) => {
   const theme = useTheme()
   const image = isImageMediaType(entry.mediaType)
+  const thumbnail = useVideoThumbnail({ uri: entry.uri, mediaType: entry.mediaType })
   const uploading = entry.status === EAttachmentStatus.Uploading
   const failed = entry.status === EAttachmentStatus.Failed
   const border = failed ? theme.destructive : withAlpha({ color: theme.foreground, alpha: 0.12 })
@@ -31,19 +59,20 @@ const Chip = ({ entry, onRemove }: { entry: HeldAttachment; onRemove: (id: strin
         styles.chip,
         { backgroundColor: theme.card, borderColor: border },
         image ? styles.imageChip : styles.fileChip,
+        thumbnail === null ? null : styles.videoChip,
       ]}
     >
       {image ? (
         <Image source={{ uri: entry.uri }} contentFit="cover" style={styles.preview} />
       ) : (
         <View style={styles.fileRow}>
-          {isVideoMediaType(entry.mediaType) ? (
-            <FileVideoCamera size={16} color={theme.mutedForeground} />
+          {thumbnail === null ? (
+            <FileGlyph mediaType={entry.mediaType} color={theme.mutedForeground} />
           ) : (
-            <FileText size={16} color={theme.mutedForeground} />
+            <VideoThumb uri={thumbnail} />
           )}
           <View style={styles.fileText}>
-            <Text size={ETextRole.Xs} numberOfLines={1} ellipsizeMode="middle">
+            <Text size={ETextRole.Xs} numberOfLines={2} ellipsizeMode="middle">
               {entry.name}
             </Text>
             <Text size={ETextRole.Xs} tone={failed ? ETextTone.Destructive : ETextTone.Muted}>
@@ -117,15 +146,37 @@ const styles = StyleSheet.create({
     overflow: 'hidden',
   },
   imageChip: {
-    height: CHIP,
-    width: CHIP,
+    height: CHIP_SIZE,
+    width: CHIP_SIZE,
   },
   fileChip: {
-    height: CHIP,
+    height: CHIP_SIZE,
     justifyContent: 'center',
-    paddingLeft: space(2.5),
+    paddingLeft: CHIP_THUMB_INSET,
     paddingRight: CHIP_REMOVE_SIZE + 2 * CHIP_REMOVE_INSET,
     width: 176,
+  },
+  videoChip: {
+    width: 216,
+  },
+  thumb: {
+    alignItems: 'center',
+    borderCurve: 'continuous',
+    borderRadius: CHIP_THUMB_RADIUS,
+    height: CHIP_THUMB_SIZE,
+    justifyContent: 'center',
+    overflow: 'hidden',
+    width: CHIP_THUMB_SIZE,
+  },
+  play: {
+    alignItems: 'center',
+    backgroundColor: withAlpha({ color: '#000000', alpha: 0.45 }),
+    borderRadius: 10,
+    height: 20,
+    justifyContent: 'center',
+    paddingLeft: 1,
+    position: 'absolute',
+    width: 20,
   },
   preview: {
     height: '100%',

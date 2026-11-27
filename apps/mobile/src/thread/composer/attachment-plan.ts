@@ -51,6 +51,8 @@ export const mediaTypeOf = (mediaType: string): string =>
 
 export const isImageMediaType = (mediaType: string): boolean => mediaType.startsWith('image/')
 
+export const isVideoMediaType = (mediaType: string): boolean => mediaType.startsWith('video/')
+
 export const startedAttachment = (args: { id: string; file: PickedFile }): HeldAttachment => ({
   id: args.id,
   name: args.file.name,
