@@ -8,10 +8,6 @@ import {
   CHIP_THUMB_INSET,
   CHIP_THUMB_RADIUS,
   CHIP_THUMB_SIZE,
-  COMPOSER_DOCK_BOTTOM,
-  COMPOSER_FOOTER_GAP,
-  COMPOSER_FOOTER_HEIGHT,
-  COMPOSER_FOOTER_RESERVE,
   COMPOSER_INSET,
   COMPOSER_ITEM_GAP,
   COMPOSER_RADIUS,
@@ -44,16 +40,8 @@ describe('composer shape', () => {
   })
 })
 
-describe('COMPOSER_FOOTER_RESERVE', () => {
-  test('the footer fits in the dock bottom plus the reserve', () => {
-    expect(COMPOSER_DOCK_BOTTOM + COMPOSER_FOOTER_RESERVE).toBe(
-      COMPOSER_FOOTER_GAP + COMPOSER_FOOTER_HEIGHT,
-    )
-  })
-})
-
 describe('COMPOSER_TRIGGER_INSET', () => {
-  test('two neighbouring triggers sit one item gap apart, like the usage and context readings', () => {
+  test('two neighbouring triggers sit one item gap apart', () => {
     expect(2 * COMPOSER_TRIGGER_INSET).toBe(COMPOSER_ITEM_GAP)
   })
 })

@@ -2,13 +2,11 @@ export const transcriptInsetOf = ({
   dockHeight,
   keyboardInset,
   safeBottom,
-  reserve = 0,
 }: {
   dockHeight: number
   keyboardInset: number
   safeBottom: number
-  reserve?: number
-}): number => dockHeight + Math.max(keyboardInset + reserve, safeBottom)
+}): number => dockHeight + Math.max(keyboardInset, safeBottom)
 
 export const nativeBottomInsetOf = ({
   platform,

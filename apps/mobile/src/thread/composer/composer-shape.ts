@@ -29,14 +29,3 @@ export const COMPOSER_ITEM_GAP = space(1.5)
 export const COMPOSER_TRIGGER_INSET = COMPOSER_ITEM_GAP / 2
 
 export const MODEL_CONTROLS_GAP = space(1)
-
-export const COMPOSER_DOCK_BOTTOM = space(3)
-
-export const COMPOSER_FOOTER_GAP = space(1)
-
-export const COMPOSER_FOOTER_HEIGHT = 20
-
-export const COMPOSER_FOOTER_RESERVE = Math.max(
-  0,
-  COMPOSER_FOOTER_GAP + COMPOSER_FOOTER_HEIGHT - COMPOSER_DOCK_BOTTOM,
-)

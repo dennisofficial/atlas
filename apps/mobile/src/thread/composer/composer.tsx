@@ -16,13 +16,7 @@ import { StyleSheet, View } from 'react-native'
 import { mergeIntoDraft } from '../session/staged-send'
 import { GlassSurface } from '../../navigation/glass-surface'
 import { AttachmentChips } from './attachment-chips'
-import { ComposerFooter } from './composer-footer'
-import {
-  COMPOSER_DOCK_BOTTOM,
-  COMPOSER_FIELD_BORDER,
-  COMPOSER_INSET,
-  COMPOSER_RADIUS,
-} from './composer-shape'
+import { COMPOSER_FIELD_BORDER, COMPOSER_INSET, COMPOSER_RADIUS } from './composer-shape'
 import { DictationField } from './dictation/dictation-field'
 import { useComposerDictation } from './dictation/use-composer-dictation'
 import { AttachMenu } from './attach-menu'
@@ -54,7 +48,6 @@ export const Composer = ({
   trailing,
   trailingPressable = true,
   status,
-  footer,
   children,
 }: {
   working: boolean
@@ -72,7 +65,6 @@ export const Composer = ({
   trailing?: ReactNode
   trailingPressable?: boolean
   status?: ReactNode
-  footer?: ReactNode
   children?: ReactNode
 }) => {
   const [draft, setDraft] = useState('')
@@ -253,14 +245,13 @@ export const Composer = ({
           </TextInputWrapper>
         </ComposerDropZone>
       </GlassSurface>
-      {footer === undefined ? null : <ComposerFooter>{footer}</ComposerFooter>}
     </View>
   )
 }
 
 const styles = StyleSheet.create({
   dock: {
-    paddingBottom: COMPOSER_DOCK_BOTTOM,
+    paddingBottom: space(3),
     paddingHorizontal: space(4),
     paddingTop: space(2),
   },
