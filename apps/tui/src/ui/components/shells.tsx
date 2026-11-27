@@ -12,20 +12,9 @@ import {
   type ShellSnapshot,
 } from '../shells-model'
 import { glyph, theme } from '../theme'
-import {
-  drawerCells,
-  DrawerHints,
-  DrawerLine,
-  DRAWER_INSET,
-  EDrawerEdge,
-  SideDrawer,
-} from './drawer'
+import { drawerCells, DrawerHints, DrawerLine, EDrawerEdge, SideDrawer } from './drawer'
 import { clipSpans } from './sidebar/cells'
 import { Spans, type Span } from './spans'
-
-export const SHELLS_INSET = DRAWER_INSET
-
-export const shellsCells = (args: { width: number }): number => drawerCells(args)
 
 /**
  * How far back the panel lets a reader walk. The registry retains more than this, but every row is
@@ -198,7 +187,7 @@ export function Shells(props: {
   onKill: (shellId: string) => void
   onDismiss: () => void
 }): React.ReactNode {
-  const cells = shellsCells({ width: props.width })
+  const cells = drawerCells({ width: props.width })
   const press = usePress()
   const running = props.shells.filter(isShellRunning).length
   const selected = props.selected
