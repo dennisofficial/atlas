@@ -3,6 +3,7 @@ import {
   ECallStatus,
   type CallOp,
   type OkCallResult,
+  type PreviewTunnelStatus,
   type ServiceInfo,
   type ServicesLogResult,
   type ServicesReapResult,
@@ -71,6 +72,16 @@ export const stopService = async (args: {
   })
   if (!answer.ok) return answer
   if (answer.value.op !== 'services.stop') return { ok: false, reason: WRONG_ANSWER }
+  return { ok: true, value: answer.value.value }
+}
+
+export const previewsStatus = async (args: {
+  ctx: Ctx
+  signal?: AbortSignal | undefined
+}): Promise<DaemonCall<PreviewTunnelStatus>> => {
+  const answer = await run({ ctx: args.ctx, signal: args.signal, op: { op: 'previews.status' } })
+  if (!answer.ok) return answer
+  if (answer.value.op !== 'previews.status') return { ok: false, reason: WRONG_ANSWER }
   return { ok: true, value: answer.value.value }
 }
 

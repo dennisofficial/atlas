@@ -47,11 +47,12 @@ const PORTS: PreviewPort[] = [
 
 const opened: string[] = []
 
-function Probe(props: { power: EPodPowerPhase | undefined }) {
+function Probe(props: { power: EPodPowerPhase | undefined; readyAt?: string | undefined }) {
   const open = usePreviewWake({
     sessionId: SESSION,
     power: props.power,
     ports: PORTS,
+    readyAt: props.readyAt,
     open: (url) => opened.push(url),
   })
   const { state } = usePreviewBrowser(SESSION)
@@ -116,7 +117,7 @@ describe('usePreviewWake', () => {
     expect(wakes).toEqual([])
   })
 
-  it('wakes a sleeping pod and opens only once it is awake', async () => {
+  it('wakes a sleeping pod and opens only once the tunnel reports ready', async () => {
     const { container, renderWith } = await mount()
     await renderWith(createElement(Probe, { power: EPodPowerPhase.Asleep }))
     await act(async () => {
@@ -129,18 +130,53 @@ describe('usePreviewWake', () => {
     await renderWith(createElement(Probe, { power: EPodPowerPhase.Starting }))
     expect(opened).toEqual([])
     await renderWith(createElement(Probe, { power: EPodPowerPhase.Steady }))
+    expect(opened).toEqual([])
+    await renderWith(createElement(Probe, { power: EPodPowerPhase.Steady, readyAt: 'at-1' }))
     expect(opened).toEqual([PREVIEW])
   })
 
-  it('reloads a preview already on screen when the pod comes back', async () => {
+  it('does not open on the tunnel-ready signal the click already saw', async () => {
+    const { container, renderWith } = await mount()
+    await renderWith(createElement(Probe, { power: EPodPowerPhase.Asleep, readyAt: 'at-0' }))
+    await act(async () => {
+      container
+        .querySelector('[data-open]')
+        ?.dispatchEvent(new MouseEvent('click', { bubbles: true }))
+    })
+    await renderWith(createElement(Probe, { power: EPodPowerPhase.Steady, readyAt: 'at-0' }))
+    expect(opened).toEqual([])
+    await renderWith(createElement(Probe, { power: EPodPowerPhase.Steady, readyAt: 'at-1' }))
+    expect(opened).toEqual([PREVIEW])
+  })
+
+  it('reloads a preview already on screen when the tunnel reports ready', async () => {
     updatePreviewBrowser({
       threadId: SESSION,
       change: ({ state }) => openTab({ state, url: PREVIEW }),
     })
     const { container, renderWith } = await mount()
-    await renderWith(createElement(Probe, { power: EPodPowerPhase.Asleep }))
+    await renderWith(createElement(Probe, { power: EPodPowerPhase.Asleep, readyAt: 'at-0' }))
     expect(container.querySelector('[data-seqs]')?.getAttribute('data-seqs')).toBe('0,0')
-    await renderWith(createElement(Probe, { power: EPodPowerPhase.Steady }))
+    await renderWith(createElement(Probe, { power: EPodPowerPhase.Steady, readyAt: 'at-0' }))
+    expect(container.querySelector('[data-seqs]')?.getAttribute('data-seqs')).toBe('0,0')
+    await renderWith(createElement(Probe, { power: EPodPowerPhase.Steady, readyAt: 'at-1' }))
     expect(container.querySelector('[data-seqs]')?.getAttribute('data-seqs')).toBe('0,1')
+  })
+
+  it('leaves the reload of the pending preview to the open that follows it', async () => {
+    updatePreviewBrowser({
+      threadId: SESSION,
+      change: ({ state }) => openTab({ state, url: PREVIEW }),
+    })
+    const { container, renderWith } = await mount()
+    await renderWith(createElement(Probe, { power: EPodPowerPhase.Asleep, readyAt: 'at-0' }))
+    await act(async () => {
+      container
+        .querySelector('[data-open]')
+        ?.dispatchEvent(new MouseEvent('click', { bubbles: true }))
+    })
+    await renderWith(createElement(Probe, { power: EPodPowerPhase.Steady, readyAt: 'at-1' }))
+    expect(opened).toEqual([PREVIEW])
+    expect(container.querySelector('[data-seqs]')?.getAttribute('data-seqs')).toBe('0,0')
   })
 })

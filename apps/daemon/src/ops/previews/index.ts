@@ -1,17 +1,21 @@
 import { type DaemonGroupFactory, defineOp } from '@dltech/atlas-protocol/engine'
 
 import { CLOUDFLARED_PATH, PREVIEW_READY_TIMEOUT_MS, type DaemonOpsDeps } from '../deps'
-import { tokenFileOf, TunnelSupervisor } from './tunnel-supervisor'
+import { TunnelSupervisor } from './tunnel-supervisor'
+import { tokenFileOf } from './tunnel-token'
 
 export const previewsGroup =
   (deps: DaemonOpsDeps): DaemonGroupFactory =>
-  () => {
+  (groupCtx) => {
     const log = (line: string): void => console.error(line)
     const supervisor = new TunnelSupervisor({
       binary: deps.cloudflaredPath ?? CLOUDFLARED_PATH,
       env: deps.env,
       file: deps.previewsFile ?? tokenFileOf(deps.home),
       readyTimeoutMs: deps.previewReadyTimeoutMs ?? PREVIEW_READY_TIMEOUT_MS,
+      ...(deps.previewHeartbeatMs === undefined ? {} : { heartbeatMs: deps.previewHeartbeatMs }),
+      ...(deps.previewSuspendGapMs === undefined ? {} : { suspendGapMs: deps.previewSuspendGapMs }),
+      onUp: (at) => groupCtx.publish({ type: 'previews.ready', at }),
       log,
     })
     if (supervisor.storedToken() !== undefined) {

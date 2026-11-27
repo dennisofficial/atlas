@@ -1,16 +1,15 @@
-import { chmodSync, mkdirSync, readFileSync, renameSync, writeFileSync } from 'node:fs'
-import { dirname } from 'node:path'
-
 import { CallFailureError, ECallFailure } from '@dltech/atlas-protocol'
 
 import { ManagedProcess, type ManagedExit } from '../../process/managed'
+import { readStored, type StoredTunnel, writeStored } from './tunnel-token'
 
 const REGISTERED_MARKER = 'Registered tunnel connection'
 const OUTPUT_TAIL_CHARS = 2_000
 const READY_POLL_MS = 100
 const BACKOFF_START_MS = 1_000
 const BACKOFF_MAX_MS = 30_000
-const TOKEN_FILE_MODE = 0o600
+const HEARTBEAT_MS = 5_000
+const SUSPEND_GAP_MS = 30_000
 const decoder = new TextDecoder()
 
 export type TunnelState = 'stopped' | 'starting' | 'up' | 'failed'
@@ -19,6 +18,7 @@ export type TunnelStatus = {
   state: TunnelState
   pid?: number
   restarts: number
+  upAt?: string
   lastError?: string
   tail: string
 }
@@ -28,17 +28,16 @@ export type TunnelSupervisorArgs = {
   env: Record<string, string | undefined>
   file: string
   readyTimeoutMs: number
+  heartbeatMs?: number | undefined
+  suspendGapMs?: number | undefined
+  onUp?(at: string): void
   log(line: string): void
 }
-
-type StoredTunnel = { tunnelToken: string; revision: number; updatedAt: string }
 
 type Readiness =
   | { kind: 'registered' }
   | { kind: 'exited'; exit: ManagedExit }
   | { kind: 'timeout' }
-
-export const tokenFileOf = (home: string): string => `${home}/previews.json`
 
 const messageOf = (error: unknown): string =>
   error instanceof Error ? error.message : String(error)
@@ -48,37 +47,6 @@ const tailOf = (output: string): string =>
 
 const exitLabelOf = (exit: ManagedExit): string =>
   exit.exitCode !== null ? `code ${exit.exitCode}` : `signal ${exit.signal ?? 'unknown'}`
-
-const readStored = (file: string): StoredTunnel | undefined => {
-  let text: string
-  try {
-    text = readFileSync(file, 'utf8')
-  } catch {
-    return undefined
-  }
-  let parsed: unknown
-  try {
-    parsed = JSON.parse(text)
-  } catch {
-    return undefined
-  }
-  if (typeof parsed !== 'object' || parsed === null) return undefined
-  const { tunnelToken, revision, updatedAt } = parsed as Record<string, unknown>
-  if (typeof tunnelToken !== 'string' || tunnelToken === '') return undefined
-  return {
-    tunnelToken,
-    revision: typeof revision === 'number' ? revision : 0,
-    updatedAt: typeof updatedAt === 'string' ? updatedAt : new Date(0).toISOString(),
-  }
-}
-
-const writeStored = (args: { file: string; stored: StoredTunnel }): void => {
-  mkdirSync(dirname(args.file), { recursive: true })
-  const temporary = `${args.file}.tmp`
-  writeFileSync(temporary, `${JSON.stringify(args.stored)}\n`, { mode: TOKEN_FILE_MODE })
-  chmodSync(temporary, TOKEN_FILE_MODE)
-  renameSync(temporary, args.file)
-}
 
 const waitForRegistration = (args: {
   child: ManagedProcess
@@ -113,8 +81,15 @@ export class TunnelSupervisor {
   private timer: ReturnType<typeof setTimeout> | undefined
   private pending: Promise<TunnelStatus> | undefined
   private stopping = false
+  private upAt: string | undefined
+  private lastBeat = Date.now()
+  private redialing = false
+  private readonly heartbeat: ReturnType<typeof setInterval>
 
-  constructor(private readonly args: TunnelSupervisorArgs) {}
+  constructor(private readonly args: TunnelSupervisorArgs) {
+    this.heartbeat = setInterval(() => this.watchForSuspend(), args.heartbeatMs ?? HEARTBEAT_MS)
+    this.heartbeat.unref?.()
+  }
 
   storedToken(): string | undefined {
     this.token ??= readStored(this.args.file)
@@ -132,6 +107,7 @@ export class TunnelSupervisor {
     this.stopping = false
     this.backoffMs = BACKOFF_START_MS
     this.cancelRestart()
+    if (this.redialing) return this.status()
     if (this.child !== undefined) return this.status()
     this.pending ??= this.launch()
     let status: TunnelStatus
@@ -154,6 +130,7 @@ export class TunnelSupervisor {
       state: this.state,
       ...(this.child === undefined ? {} : { pid: this.child.pid }),
       restarts: this.restarts,
+      ...(this.upAt === undefined ? {} : { upAt: this.upAt }),
       ...(this.lastError === undefined ? {} : { lastError: this.lastError }),
       tail: tailOf(this.output),
     }
@@ -161,10 +138,12 @@ export class TunnelSupervisor {
 
   async stop(): Promise<void> {
     this.stopping = true
+    clearInterval(this.heartbeat)
     this.cancelRestart()
     const child = this.child
     this.child = undefined
     this.registered = false
+    this.upAt = undefined
     this.state = 'stopped'
     if (child === undefined) return
     child.kill()
@@ -224,6 +203,8 @@ export class TunnelSupervisor {
     if (readiness.kind === 'registered') {
       this.registered = true
       this.state = 'up'
+      this.upAt = new Date().toISOString()
+      this.args.onUp?.(this.upAt)
       return this.status()
     }
     if (this.child === child) {
@@ -250,6 +231,7 @@ export class TunnelSupervisor {
     this.child = undefined
     const wasRegistered = this.registered
     this.registered = false
+    this.upAt = undefined
     if (this.stopping || !wasRegistered) {
       if (this.stopping) this.state = 'stopped'
       return
@@ -272,6 +254,41 @@ export class TunnelSupervisor {
         this.args.log(`previews: restarting cloudflared failed: ${messageOf(error)}`)
       })
     }, delay)
+  }
+
+  private watchForSuspend(): void {
+    const now = Date.now()
+    const gap = now - this.lastBeat
+    this.lastBeat = now
+    if (gap < (this.args.suspendGapMs ?? SUSPEND_GAP_MS)) return
+    if (this.state !== 'up' || this.child === undefined) return
+    void this.redial({ gapMs: gap })
+  }
+
+  private async redial(args: { gapMs: number }): Promise<void> {
+    if (this.redialing || this.stopping) return
+    this.redialing = true
+    try {
+      this.args.log(
+        `previews: the pod did not run for ${args.gapMs} ms, so cloudflared is restarted instead of waiting for its edge connection to time out`,
+      )
+      this.registered = false
+      this.upAt = undefined
+      this.state = 'starting'
+      this.restarts += 1
+      this.cancelRestart()
+      this.backoffMs = BACKOFF_START_MS
+      const child = this.child
+      this.child = undefined
+      if (child !== undefined) {
+        child.kill()
+        await child.exit().catch(() => undefined)
+      }
+      if (this.stopping) return
+      await this.launch()
+    } finally {
+      this.redialing = false
+    }
   }
 
   private cancelRestart(): void {

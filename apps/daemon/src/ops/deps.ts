@@ -7,6 +7,8 @@ export type DaemonOpsDeps = {
   home: string
   cloudflaredPath?: string | undefined
   previewReadyTimeoutMs?: number | undefined
+  previewHeartbeatMs?: number | undefined
+  previewSuspendGapMs?: number | undefined
   previewsFile?: string | undefined
 }
 
