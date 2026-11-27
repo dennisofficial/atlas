@@ -2,7 +2,12 @@ import { EWorkspaceStep, EWorkspaceStepState } from '@dltech/atlas-core'
 import { expect } from 'bun:test'
 
 import { SETUP_INTERRUPTED_REASON } from '../../runtime/workspace-setup'
-import { describeHandoff, waitUntil, type HandoffContext } from '../../testing/handoff-suite'
+import {
+  describeHandoff,
+  POD_EFFECT_WAIT_MS,
+  waitUntil,
+  type HandoffContext,
+} from '../../testing/handoff-suite'
 import type { HostProcess } from '../../testing/fault-rig'
 
 const SETUP_SCRIPT = 'touch started; echo run >> runs; cat gate; echo end'
@@ -49,10 +54,11 @@ describeHandoff({
       setupScript: SETUP_SCRIPT,
     })
     await ctx.rig.claim({ sessionId: ctx.sessionId, label: 'host-a', timeoutMs: 30_000 })
-    await ctx.waitFor('started', 30_000)
+    await ctx.waitFor('started', POD_EFFECT_WAIT_MS)
     await waitUntil({
       what: 'the setup script to be recorded as started',
       check: async () => startedCount(await setupStepsOf(ctx)) === 1,
+      timeoutMs: POD_EFFECT_WAIT_MS,
     })
     await expectRunning(ctx)
     return hostA
@@ -71,6 +77,7 @@ describeHandoff({
       what: 'the setup script to report its end',
       check: async () =>
         (await setupStepsOf(ctx)).some((step) => step.state === EWorkspaceStepState.Done),
+      timeoutMs: POD_EFFECT_WAIT_MS,
     })
     const steps = await setupStepsOf(ctx)
     expect(startedCount(steps)).toBe(1)
@@ -82,6 +89,7 @@ describeHandoff({
     await waitUntil({
       what: 'the setup finished notice',
       check: async () => (await setupNoticePhasesOf(ctx)).includes('finished'),
+      timeoutMs: POD_EFFECT_WAIT_MS,
     })
     expect(await setupNoticePhasesOf(ctx)).toEqual(['started', 'finished'])
   },
@@ -95,6 +103,7 @@ describeHandoff({
       what: 'the setup script to be reported interrupted',
       check: async () =>
         (await setupStepsOf(ctx)).some((step) => step.state === EWorkspaceStepState.Interrupted),
+      timeoutMs: POD_EFFECT_WAIT_MS,
     })
     const steps = await setupStepsOf(ctx)
     expect(startedCount(steps)).toBe(1)

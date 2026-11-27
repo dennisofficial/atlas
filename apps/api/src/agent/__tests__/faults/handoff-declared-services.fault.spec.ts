@@ -106,8 +106,8 @@ describeHandoff({
       what: 'the declared start to be dispatched',
       check: async () => (await dispatchesOf(ctx)).length === 1,
     })
-    await ctx.waitFor('db-started', 30_000)
-    await ctx.waitFor('setup-waiting', 30_000)
+    await ctx.waitFor('db-started', POD_EFFECT_WAIT_MS)
+    await ctx.waitFor('setup-waiting', POD_EFFECT_WAIT_MS)
     return hostA
   },
 
