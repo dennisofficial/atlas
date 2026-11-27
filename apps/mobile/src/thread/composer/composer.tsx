@@ -7,7 +7,7 @@ import {
   REMOVE_FAILED_FILES,
 } from '@dltech/atlas-client/session'
 import type { Attachment } from '@dltech/atlas-core'
-import { radius, readingType, space } from '@dltech/atlas-ui/tokens'
+import { readingType, space } from '@dltech/atlas-ui/tokens'
 import { ETextRole, ETextTone, Input, Text } from '@dltech/atlas-ui-native'
 import { type PasteEventPayload, TextInputWrapper } from 'expo-paste-input'
 import { type ReactNode, useEffect, useRef, useState } from 'react'
@@ -16,6 +16,7 @@ import { StyleSheet, View } from 'react-native'
 import { mergeIntoDraft } from '../session/staged-send'
 import { GlassSurface } from '../../navigation/glass-surface'
 import { AttachmentChips } from './attachment-chips'
+import { COMPOSER_INSET, COMPOSER_RADIUS } from './composer-shape'
 import { AttachMenu } from './attach-menu'
 import type { EAttachSource } from './attach-sources'
 import { ComposerControls } from './composer-controls'
@@ -213,13 +214,15 @@ const styles = StyleSheet.create({
     paddingTop: space(2),
   },
   field: {
-    borderRadius: radius(2.4),
+    borderCurve: 'continuous',
+    borderRadius: COMPOSER_RADIUS,
     borderWidth: 1,
-    paddingHorizontal: space(2.5),
-    paddingTop: space(2.5),
+    paddingHorizontal: COMPOSER_INSET,
+    paddingTop: COMPOSER_INSET,
   },
   surface: {
-    borderRadius: radius(2.4),
+    borderCurve: 'continuous',
+    borderRadius: COMPOSER_RADIUS,
   },
   joinedDock: {
     paddingTop: 0,

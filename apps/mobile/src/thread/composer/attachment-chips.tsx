@@ -1,14 +1,17 @@
 import { ETextRole, ETextTone, Text, useTheme, withAlpha } from '@dltech/atlas-ui-native'
-import { radius, space } from '@dltech/atlas-ui/tokens'
+import { space } from '@dltech/atlas-ui/tokens'
 import { Image } from 'expo-image'
-import { FileText, X } from 'lucide-react-native'
+import { FileText, FileVideoCamera, X } from 'lucide-react-native'
 import { Pressable, ScrollView, StyleSheet, View } from 'react-native'
 
 import { EAttachmentStatus } from '@dltech/atlas-client/session'
 
 import { describeBytes, isImageMediaType, type HeldAttachment } from './attachment-plan'
+import { CHIP_RADIUS, CHIP_REMOVE_INSET, CHIP_REMOVE_SIZE, COMPOSER_INSET } from './composer-shape'
 
 const CHIP = 72
+
+const isVideoMediaType = (mediaType: string): boolean => mediaType.startsWith('video/')
 
 const Chip = ({ entry, onRemove }: { entry: HeldAttachment; onRemove: (id: string) => void }) => {
   const theme = useTheme()
@@ -34,9 +37,13 @@ const Chip = ({ entry, onRemove }: { entry: HeldAttachment; onRemove: (id: strin
         <Image source={{ uri: entry.uri }} contentFit="cover" style={styles.preview} />
       ) : (
         <View style={styles.fileRow}>
-          <FileText size={16} color={theme.mutedForeground} />
+          {isVideoMediaType(entry.mediaType) ? (
+            <FileVideoCamera size={16} color={theme.mutedForeground} />
+          ) : (
+            <FileText size={16} color={theme.mutedForeground} />
+          )}
           <View style={styles.fileText}>
-            <Text size={ETextRole.Xs} numberOfLines={2} ellipsizeMode="middle">
+            <Text size={ETextRole.Xs} numberOfLines={1} ellipsizeMode="middle">
               {entry.name}
             </Text>
             <Text size={ETextRole.Xs} tone={failed ? ETextTone.Destructive : ETextTone.Muted}>
@@ -100,11 +107,12 @@ export const AttachmentChips = ({
 const styles = StyleSheet.create({
   row: {
     gap: space(2),
-    paddingBottom: space(2),
-    paddingHorizontal: space(1),
+    paddingHorizontal: COMPOSER_INSET,
+    paddingTop: COMPOSER_INSET,
   },
   chip: {
-    borderRadius: radius(1.2),
+    borderRadius: CHIP_RADIUS,
+    borderCurve: 'continuous',
     borderWidth: 1,
     overflow: 'hidden',
   },
@@ -113,9 +121,10 @@ const styles = StyleSheet.create({
     width: CHIP,
   },
   fileChip: {
-    maxWidth: 200,
-    minHeight: CHIP,
-    padding: space(2),
+    height: CHIP,
+    justifyContent: 'center',
+    paddingLeft: space(2.5),
+    paddingRight: CHIP_REMOVE_SIZE + 2 * CHIP_REMOVE_INSET,
     width: 176,
   },
   preview: {
@@ -123,8 +132,9 @@ const styles = StyleSheet.create({
     width: '100%',
   },
   fileRow: {
+    alignItems: 'center',
     flexDirection: 'row',
-    gap: space(1.5),
+    gap: space(2),
   },
   fileText: {
     flex: 1,
@@ -148,12 +158,12 @@ const styles = StyleSheet.create({
   },
   remove: {
     alignItems: 'center',
-    borderRadius: 999,
-    height: 20,
+    borderRadius: CHIP_REMOVE_SIZE / 2,
+    height: CHIP_REMOVE_SIZE,
     justifyContent: 'center',
     position: 'absolute',
-    right: 3,
-    top: 3,
-    width: 20,
+    right: CHIP_REMOVE_INSET,
+    top: CHIP_REMOVE_INSET,
+    width: CHIP_REMOVE_SIZE,
   },
 })

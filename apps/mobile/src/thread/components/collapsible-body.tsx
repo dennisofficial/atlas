@@ -5,7 +5,7 @@ import { ChevronDown, ChevronUp } from 'lucide-react-native'
 import { type LayoutChangeEvent, StyleSheet, View } from 'react-native'
 import Svg, { Defs, LinearGradient, Rect, Stop } from 'react-native-svg'
 
-import { COLLAPSED_BODY_HEIGHT, inboundClampOf } from './inbound-clamp'
+import { COLLAPSED_BODY_HEIGHT, contentHeightAfter, inboundClampOf } from './inbound-clamp'
 
 const FADE_HEIGHT = 64
 const FADE_ID = 'collapsible-body-fade'
@@ -30,8 +30,10 @@ export const CollapsibleBody = ({ children }: { children: ReactNode }) => {
   const [expanded, setExpanded] = useState(false)
   const { overflows, clamped } = inboundClampOf({ contentHeight, expanded })
 
-  const handleLayout = (event: LayoutChangeEvent) =>
-    setContentHeight(event.nativeEvent.layout.height)
+  const handleLayout = (event: LayoutChangeEvent) => {
+    const measured = event.nativeEvent.layout.height
+    setContentHeight((previous) => contentHeightAfter({ previous, measured, clamped }))
+  }
   const handleToggle = () => setExpanded((previous) => !previous)
 
   return (

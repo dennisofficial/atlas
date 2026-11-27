@@ -15,3 +15,13 @@ export const inboundClampOf = ({
   const overflows = contentHeight > COLLAPSED_BODY_HEIGHT
   return { overflows, clamped: overflows && !expanded }
 }
+
+export const contentHeightAfter = ({
+  previous,
+  measured,
+  clamped,
+}: {
+  previous: number
+  measured: number
+  clamped: boolean
+}): number => (clamped ? previous : measured)
