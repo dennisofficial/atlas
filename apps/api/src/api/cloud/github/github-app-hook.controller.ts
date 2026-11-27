@@ -1,5 +1,6 @@
 import {
   BadRequestException,
+  Body,
   Controller,
   Get,
   Header,
@@ -13,6 +14,7 @@ import {
   UnauthorizedException,
   UnsupportedMediaTypeException,
 } from '@nestjs/common'
+import { z } from 'zod'
 import { SkipThrottle } from '@nestjs/throttler'
 import { BackgroundWork } from '../../../_core/ports/background-work'
 import { EnvService } from '../../../_core/config/env/env.service'
@@ -30,6 +32,7 @@ import type {
 import type { GithubPrWebhookRequest } from './github-webhook-request'
 
 const APP_EVENT_TYPES = new Set(['installation', 'installation_repositories'])
+const relayedEnvelope = z.object({ payload: z.string().min(1) })
 
 /**
  * Ingress for the Atlas GitHub App's own webhook (a single URL the app delivers to for every repo
@@ -79,18 +82,50 @@ export class GithubAppHookController {
     @Headers('x-github-delivery') deliveryId: string | undefined,
     @Headers('content-type') contentType: string | undefined,
   ): Promise<{ received: boolean }> {
+    const rawBody = request.rawBody
+    if (rawBody === undefined) throw new UnauthorizedException('missing github webhook body')
+    return this.accept({ rawBody, signature, event, deliveryId, contentType })
+  }
+
+  @Post('relayed-hook')
+  @HttpCode(200)
+  async handleRelayedDelivery(
+    @Body() body: unknown,
+    @Headers('x-hub-signature-256') signature: string | undefined,
+    @Headers('x-github-event') event: string | undefined,
+    @Headers('x-github-delivery') deliveryId: string | undefined,
+    @Headers('content-type') contentType: string | undefined,
+  ): Promise<{ received: boolean }> {
+    const envelope = relayedEnvelope.safeParse(body)
+    if (!envelope.success) {
+      throw new BadRequestException('relayed github webhook requires a base64 payload string')
+    }
+    return this.accept({
+      rawBody: Buffer.from(envelope.data.payload, 'base64'),
+      signature,
+      event,
+      deliveryId,
+      contentType,
+    })
+  }
+
+  private async accept(args: {
+    rawBody: Buffer
+    signature: string | undefined
+    event: string | undefined
+    deliveryId: string | undefined
+    contentType: string | undefined
+  }): Promise<{ received: boolean }> {
+    const { event, deliveryId, rawBody } = args
     const secret = this.env.get('GITHUB_APP_WEBHOOK_SECRET')
     if (secret === undefined || secret.length === 0) {
       throw new ServiceUnavailableException('github app webhook is not configured')
     }
-
-    const rawBody = request.rawBody
-    if (rawBody === undefined) throw new UnauthorizedException('missing github webhook body')
-    if (!verifyGithubSignature({ secret, rawBody, signatureHeader: signature })) {
+    if (!verifyGithubSignature({ secret, rawBody, signatureHeader: args.signature })) {
       throw new UnauthorizedException('invalid github webhook signature')
     }
     if (event === undefined) throw new UnauthorizedException('missing github event header')
-    if (contentType === undefined || !contentType.includes('application/json')) {
+    if (args.contentType === undefined || !args.contentType.includes('application/json')) {
       throw new UnsupportedMediaTypeException('github webhook deliveries must be application/json')
     }
 
