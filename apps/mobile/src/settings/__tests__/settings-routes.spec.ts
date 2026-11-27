@@ -45,6 +45,7 @@ describe('ios project sections', () => {
   it('routes overview first', () => {
     expect(routedProjectSections().map((item) => item.section)).toEqual([
       EProjectSettingsSection.Overview,
+      EProjectSettingsSection.Skills,
     ])
   })
 })
@@ -59,7 +60,9 @@ describe('ios group sections', () => {
 
   it('pends instructions until a group route exists', () => {
     expect(IOS_PENDING_GROUP_SECTIONS.has(EGroupSettingsSection.Instructions)).toBe(true)
-    expect(routedGroupSections()).toEqual([])
+    expect(routedGroupSections().map((item) => item.section)).toEqual([
+      EProjectSettingsSection.Skills,
+    ])
   })
 })
 

@@ -6,7 +6,7 @@ import type { SkillSummary } from '@dltech/atlas-wire/web'
 import { TableHead } from '@dltech/atlas-ui/components/table'
 
 import { relativeTimeOf } from '../data/shared/relative-time'
-import { ariaSortOf, type ESkillSortKey, type SkillSort } from './skill-list-order'
+import { ariaSortOf, type ESkillSortKey, type SkillSort } from '@dltech/atlas-client/settings'
 
 export function SortableHead({
   label,

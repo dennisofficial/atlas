@@ -3,6 +3,7 @@
 import { useMemo } from 'react'
 
 import { EConfigLayer } from '@dltech/atlas-wire/web'
+import { skillsDescriptionOf } from '@dltech/atlas-client/settings'
 
 import { useSkillLayers } from '@/features/settings/data/shared/use-layers'
 import {
@@ -21,11 +22,6 @@ import { EQueryState } from '@/lib/use-cloud-query'
 
 const ownLayerOf = (scope: SettingsScope): EConfigLayer =>
   scope.kind === 'project' ? EConfigLayer.Project : EConfigLayer.Group
-
-const descriptionOf = (scope: SettingsScope): string =>
-  scope.kind === 'project'
-    ? 'Skills stored for this project, loaded in threads on this project.'
-    : 'Skills stored for this group, loaded in every project in it.'
 
 function InheritedSkills({ scope }: { scope: SettingsScope }) {
   const target = useMemo(() => skillTargetOf(scope), [scope])
@@ -64,7 +60,7 @@ export function ProjectSkillsPage() {
       <SkillsListPage
         target={target}
         title="Skills"
-        description={descriptionOf(scope)}
+        description={skillsDescriptionOf(target)}
         detailHref={(name) =>
           `${sectionHrefOf({ scope, section: 'skills' })}/${encodeURIComponent(name)}`
         }

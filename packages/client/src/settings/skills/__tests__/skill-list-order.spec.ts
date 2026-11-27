@@ -17,6 +17,8 @@ function summary(name: string, usedCount30d: number): SkillSummary {
     sizeBytes: 10,
     updatedAt: '2026-11-01T00:00:00Z',
     usage: { usedCount30d, lastUsedAt: null },
+    origin: 'personal',
+    overridesBuiltIn: false,
   }
 }
 

@@ -41,28 +41,19 @@ import { useSkills, type SkillScopeTarget } from '../data/shared/use-skills'
 import { LibraryConfirmDialog } from './library-confirm-dialog'
 import { MemorySelectionBar } from './memory-selection-bar'
 import { NewSkillDialog } from './new-skill-dialog'
-import { SKILL_PRECEDENCE_COPY, formatBytes, formatSkillDate } from './skill-format'
 import {
   cycleSkillSort,
   ESkillSortKey,
-  ESortDirection,
+  formatBytes,
+  formatSkillDate,
+  matchesSkill,
   orderSkills,
+  SKILL_PRECEDENCE_COPY,
   type SkillSort,
-} from './skill-list-order'
+} from '@dltech/atlas-client/settings'
 import { SortableHead, UsageCell } from './skills-table-cells'
 import { SettingsPage } from '../settings-layout'
 import { SkillsTableSkeleton } from '../skeletons/skill-skeletons'
-
-export { ESkillSortKey, ESortDirection, orderSkills }
-
-function matches({ skill, query }: { skill: SkillSummary; query: string }) {
-  const needle = query.trim().toLowerCase()
-  return (
-    needle.length === 0 ||
-    skill.name.toLowerCase().includes(needle) ||
-    skill.description.toLowerCase().includes(needle)
-  )
-}
 
 export function SkillsListPage({
   target,
@@ -123,7 +114,7 @@ export function SkillsTable({
   const [busy, setBusy] = useState(false)
 
   const visible = orderSkills({
-    skills: skills.filter((skill) => matches({ skill, query: search })),
+    skills: skills.filter((skill) => matchesSkill({ skill, query: search })),
     sort,
   })
   const liveSelected = selected.filter((name) => visible.some((skill) => skill.name === name))

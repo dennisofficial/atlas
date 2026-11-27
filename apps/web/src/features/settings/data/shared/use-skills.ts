@@ -3,6 +3,8 @@
 import { useCallback } from 'react'
 import type { SkillFileMeta, SkillSummary } from '@dltech/atlas-wire/web'
 
+import { EMPTY_SKILL_MD, SKILL_ENTRY_PATH } from '@dltech/atlas-client/settings'
+
 import { useCloudQuery } from '@/lib/use-cloud-query'
 
 import {
@@ -20,8 +22,6 @@ import {
 } from './skills-api'
 
 export type { SkillScopeTarget }
-
-export const EMPTY_SKILL_MD = `---\nname: \ndescription: \n---\n\n`
 
 export const keyOfSkills = (target: SkillScopeTarget): string => {
   if (target.groupId !== undefined) return `skills:group:${target.groupId}`
@@ -54,7 +54,10 @@ export function useSkills(target: SkillScopeTarget) {
 
   const createSkill = useCallback(
     async (name: string) => {
-      await putBase64({ ...target, skill: name, path: 'SKILL.md' }, toBase64Utf8(EMPTY_SKILL_MD))
+      await putBase64(
+        { ...target, skill: name, path: SKILL_ENTRY_PATH },
+        toBase64Utf8(EMPTY_SKILL_MD),
+      )
       reload()
     },
     [reload, target.scope, target.projectId, target.groupId],
