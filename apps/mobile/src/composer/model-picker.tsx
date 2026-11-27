@@ -98,7 +98,9 @@ export const ModelListBody = ({
       keyboardDismissMode="interactive"
       keyboardShouldPersistTaps="handled"
       style={styles.list}
-      ListHeaderComponent={<ModelSearchField query={query} onQueryChange={onQueryChange} />}
+      ListHeaderComponent={
+        <ModelSearchField query={query} sideInsets={rowInsets} onQueryChange={onQueryChange} />
+      }
       ListFooterComponent={
         hasModelMatchesOf(sections) ? undefined : (
           <Text size={ETextRole.Sm} tone={ETextTone.Muted} style={[styles.empty, insetStyle]}>
