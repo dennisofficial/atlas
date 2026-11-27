@@ -40,7 +40,7 @@ export class HostShutdownSequence implements BeforeApplicationShutdown, OnApplic
     if (await this.handBackWithin(budget)) return
     this.args.log.warn({
       source: 'main',
-      message: `the lease hand-off outlived ${budget}ms; the leases expire on their TTL`,
+      message: `the lease hand-off outlived ${budget}ms; the next host claims these sessions once this host's presence lock is gone`,
     })
   }
 
@@ -67,7 +67,8 @@ export class HostShutdownSequence implements BeforeApplicationShutdown, OnApplic
       (error: unknown) => {
         this.args.log.warn({
           source: 'main',
-          message: 'the lease hand-off failed; the leases expire on their TTL',
+          message:
+            "the lease hand-off failed; the next host claims these sessions once this host's presence lock is gone",
           ...logFieldsOf({ error }),
         })
         return true
