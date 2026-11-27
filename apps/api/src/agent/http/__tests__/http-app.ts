@@ -7,14 +7,8 @@ import type { AddressInfo } from 'node:net'
 
 import { BrowserReturnController } from '../../browser-return/controller'
 import type { BrowserReturnService } from '../../browser-return/service'
-import {
-  BROWSER_RETURN,
-  MCP_OAUTH_CALLBACK,
-  MCP_OAUTH_START,
-  SESSION_STREAM,
-} from '../../host/tokens'
+import { BROWSER_RETURN, MCP_OAUTH_CALLBACK, SESSION_STREAM } from '../../host/tokens'
 import type { CallbackHandler } from '../../mcp-oauth/callback'
-import type { StartHandler } from '../../mcp-oauth/start'
 import { createSessionStream, type SessionStream } from '../../stream/session-stream'
 import { FakeTimers } from '../../stream/__tests__/fake-timers'
 import { createUserSlots } from '../../stream/user-slots'
@@ -30,10 +24,17 @@ export type RunningHttpApp = {
   close(): Promise<void>
 }
 
+export const CLEARED_RETURN_COOKIE =
+  'atlas_return=; Max-Age=0; Path=/mcp-oauth/callback; HttpOnly; Secure; SameSite=Lax'
+
 const callbackOf: CallbackHandler = async ({ query }) =>
   query.get('state') === null
     ? { kind: 'page', html: '<p>connected</p>' }
-    : { kind: 'redirect', location: `${TRUSTED_ORIGIN}/settings/integrations?mcpOauth=connected` }
+    : {
+        kind: 'redirect',
+        location: `${TRUSTED_ORIGIN}/settings/integrations?mcpOauth=connected`,
+        setCookie: CLEARED_RETURN_COOKIE,
+      }
 
 @Module({})
 class HttpTestModule {
@@ -44,21 +45,11 @@ class HttpTestModule {
       providers: [
         { provide: SESSION_STREAM, useValue: args.stream },
         { provide: MCP_OAUTH_CALLBACK, useValue: callbackOf },
-        { provide: MCP_OAUTH_START, useValue: startOf },
         { provide: BROWSER_RETURN, useValue: browserReturnOf },
       ],
     }
   }
 }
-
-const startOf: StartHandler = async ({ state, surface }) =>
-  state === 'gone'
-    ? { kind: 'gone', html: '<p>expired</p>' }
-    : {
-        kind: 'redirect',
-        location: `https://provider.example/authorize?state=${state}`,
-        cookie: `atlas_mcp_sign_in=${surface ?? 'none'}; Path=/mcp-oauth/callback; HttpOnly; Secure; SameSite=Lax`,
-      }
 
 const browserReturnOf: Pick<BrowserReturnService, 'start'> = {
   start: async ({ state, surface, port }) =>

@@ -86,7 +86,9 @@ const pageOf = (args: { deepLink: string; webUrl: string; reason: string | undef
   ].join('')
 }
 
-export type CallbackAnswer = { kind: 'redirect'; location: string } | { kind: 'page'; html: string }
+export type CallbackAnswer =
+  | { kind: 'redirect'; location: string; setCookie?: string | undefined }
+  | { kind: 'page'; html: string; setCookie?: string | undefined }
 
 export const DEFAULT_RETURN_TARGET: McpReturnTarget = {
   surface: 'web',

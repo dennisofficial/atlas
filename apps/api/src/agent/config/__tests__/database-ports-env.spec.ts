@@ -14,6 +14,7 @@ const hostEnv = {
   databaseUrl: insecureUrlOf('host-env.invalid'),
   secretsEncryptionKey: 'k'.repeat(64),
   publicUrl: 'https://api.byatlas.io',
+  trustedOrigins: [],
 }
 
 const processEnv: Record<string, string> = {

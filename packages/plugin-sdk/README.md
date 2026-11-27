@@ -118,7 +118,9 @@ comparing `ctx.control.settingsVersions()` with `UNVERSIONED_SETTINGS`. Read the
 - `composePod(pods)`, `composePodCommands({factories, ctx})`: the merged pod slot and pod commands.
 - `eventSchemaOf(plugins)`, `eventTypesOf(plugins)`: the decoder and the type list for a session.
 - `crossLatch({ctx, name, level, mayFire})`: fire a level-triggered latch once, and record it.
-- `MacOfflineError`, `PodMcpProxy*`, `McpToken` (`EMcpToken`): the Mac proxy and `mcp.token`.
+- `MacOfflineError`, `PodMcpProxy*`, `McpToken` (`EMcpToken`): the Mac proxy and `mcp.token`. A
+  token answer is `granted`, `sign-in`, `refused` (the provider's reason, kept until a new attempt)
+  or `unavailable`.
 - `EMPTY_*` (`EMPTY_POD`, `EMPTY_CLASSIFIER`, `EMPTY_ANALYTICS`, ...): the default a tier spreads.
 
 ## Usage

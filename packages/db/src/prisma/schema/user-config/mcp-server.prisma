@@ -19,6 +19,8 @@ model McpServer {
   oauthRefreshAttempt   String?
   oauthRefreshStartedAt TimestamptzJsDate(3)?
   oauthUpdatedAt        TimestamptzJsDate(3)?
+  oauthRefusal          String?
+  oauthRefusedAt        TimestamptzJsDate(3)?
   createdAt             TimestamptzJsDate(3)  @default(now())
   updatedAt             TimestamptzJsDate(3)  @onCreate(now()) @onUpdate(now())
   userId                String?

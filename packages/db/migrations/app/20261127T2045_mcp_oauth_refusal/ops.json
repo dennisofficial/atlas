@@ -1,0 +1,106 @@
+[
+  {
+    "id": "column.public.McpServer.oauthRefusal",
+    "label": "Add column \"oauthRefusal\" to \"McpServer\"",
+    "operationClass": "additive",
+    "target": {
+      "id": "postgres",
+      "details": {
+        "schema": "public",
+        "objectType": "column",
+        "name": "oauthRefusal",
+        "table": "McpServer"
+      }
+    },
+    "precheck": [
+      {
+        "description": "ensure column \"oauthRefusal\" is missing",
+        "sql": "SELECT NOT EXISTS (SELECT 1 AS \"one\" FROM \"information_schema\".\"columns\" WHERE (\"table_schema\" = $1 AND \"table_name\" = $2 AND \"column_name\" = $3)) AS \"result\"",
+        "params": [
+          "public",
+          "McpServer",
+          "oauthRefusal"
+        ]
+      }
+    ],
+    "execute": [
+      {
+        "description": "add column \"oauthRefusal\"",
+        "sql": "ALTER TABLE \"public\".\"McpServer\" ADD COLUMN \"oauthRefusal\" text"
+      }
+    ],
+    "postcheck": [
+      {
+        "description": "verify column \"oauthRefusal\" exists",
+        "sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"information_schema\".\"columns\" WHERE (\"table_schema\" = $1 AND \"table_name\" = $2 AND \"column_name\" = $3)) AS \"result\"",
+        "params": [
+          "public",
+          "McpServer",
+          "oauthRefusal"
+        ]
+      },
+      {
+        "description": "verify column \"oauthRefusal\" has type \"text\"",
+        "sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"pg_attribute\" AS \"a\" INNER JOIN \"pg_class\" AS \"c\" ON \"c\".\"oid\" = \"a\".\"attrelid\" INNER JOIN \"pg_namespace\" AS \"n\" ON \"n\".\"oid\" = \"c\".\"relnamespace\" WHERE (\"n\".\"nspname\" = $1 AND \"c\".\"relname\" = $2 AND \"a\".\"attname\" = $3 AND (format_type(\"a\".\"atttypid\", \"a\".\"atttypmod\")) = $4 AND NOT (\"a\".\"attisdropped\"))) AS \"result\"",
+        "params": [
+          "public",
+          "McpServer",
+          "oauthRefusal",
+          "text"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "column.public.McpServer.oauthRefusedAt",
+    "label": "Add column \"oauthRefusedAt\" to \"McpServer\"",
+    "operationClass": "additive",
+    "target": {
+      "id": "postgres",
+      "details": {
+        "schema": "public",
+        "objectType": "column",
+        "name": "oauthRefusedAt",
+        "table": "McpServer"
+      }
+    },
+    "precheck": [
+      {
+        "description": "ensure column \"oauthRefusedAt\" is missing",
+        "sql": "SELECT NOT EXISTS (SELECT 1 AS \"one\" FROM \"information_schema\".\"columns\" WHERE (\"table_schema\" = $1 AND \"table_name\" = $2 AND \"column_name\" = $3)) AS \"result\"",
+        "params": [
+          "public",
+          "McpServer",
+          "oauthRefusedAt"
+        ]
+      }
+    ],
+    "execute": [
+      {
+        "description": "add column \"oauthRefusedAt\"",
+        "sql": "ALTER TABLE \"public\".\"McpServer\" ADD COLUMN \"oauthRefusedAt\" timestamptz(3)"
+      }
+    ],
+    "postcheck": [
+      {
+        "description": "verify column \"oauthRefusedAt\" exists",
+        "sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"information_schema\".\"columns\" WHERE (\"table_schema\" = $1 AND \"table_name\" = $2 AND \"column_name\" = $3)) AS \"result\"",
+        "params": [
+          "public",
+          "McpServer",
+          "oauthRefusedAt"
+        ]
+      },
+      {
+        "description": "verify column \"oauthRefusedAt\" has type \"timestamp(3) with time zone\"",
+        "sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"pg_attribute\" AS \"a\" INNER JOIN \"pg_class\" AS \"c\" ON \"c\".\"oid\" = \"a\".\"attrelid\" INNER JOIN \"pg_namespace\" AS \"n\" ON \"n\".\"oid\" = \"c\".\"relnamespace\" WHERE (\"n\".\"nspname\" = $1 AND \"c\".\"relname\" = $2 AND \"a\".\"attname\" = $3 AND (format_type(\"a\".\"atttypid\", \"a\".\"atttypmod\")) = $4 AND NOT (\"a\".\"attisdropped\"))) AS \"result\"",
+        "params": [
+          "public",
+          "McpServer",
+          "oauthRefusedAt",
+          "timestamp(3) with time zone"
+        ]
+      }
+    ]
+  }
+]
