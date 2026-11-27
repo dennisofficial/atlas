@@ -40,6 +40,9 @@ export function SortableHead({
 }
 
 export function UsageCell({ skill, now }: { skill: SkillSummary; now: number }) {
+  if (skill.usagePending) {
+    return <span className="text-xs text-muted-foreground">—</span>
+  }
   if (skill.usage.usedCount30d === 0) {
     return <span className="text-xs text-muted-foreground">Never used</span>
   }

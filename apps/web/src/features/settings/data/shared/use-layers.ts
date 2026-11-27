@@ -1,6 +1,8 @@
 'use client'
 
 import { useCallback, useMemo } from 'react'
+import { skillUsageKeyOf, skillUsageTargetOf, withSkillUsage } from '@dltech/atlas-client/settings'
+import { useSkillUsage } from './use-skill-usage'
 
 import type {
   AccessGrantLayer,
@@ -11,7 +13,7 @@ import type {
 } from '@dltech/atlas-wire/web'
 
 import { api, cloudCall } from '@/lib/api-client'
-import { useCloudQuery, type CloudQuery } from '@/lib/use-cloud-query'
+import { EQueryState, useCloudQuery, type CloudQuery } from '@/lib/use-cloud-query'
 
 import { scopeKeyOf as accessScopeKeyOf } from '@/features/settings/parts/access/access-grant-helpers'
 import {
@@ -40,7 +42,26 @@ export function useSkillLayers(target: SkillScopeTarget): CloudQuery<SkillLayer[
     async () => (await cloudCall(api.skills.layered.query(target))).layers,
     [key],
   )
-  return useCloudQuery({ key: `skill-layers:${key}`, load })
+  const query = useCloudQuery({ key: `skill-layers:${key}`, load })
+  const targets = (query.data ?? []).flatMap((layer) => {
+    const target = skillUsageTargetOf(layer)
+    return target === undefined ? [] : [target]
+  })
+  const usage = useSkillUsage(targets)
+  if (query.state !== EQueryState.Ready) return query
+  return {
+    ...query,
+    data: query.data.map((layer) => {
+      const target = skillUsageTargetOf(layer)
+      return {
+        ...layer,
+        items: withSkillUsage({
+          skills: layer.items,
+          usage: target === undefined ? undefined : usage.get(skillUsageKeyOf(target))?.usage,
+        }),
+      }
+    }),
+  }
 }
 
 export function useMcpLayers(scope: McpResourceScope): CloudQuery<McpServerLayer[]> {

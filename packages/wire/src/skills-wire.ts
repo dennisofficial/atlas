@@ -40,6 +40,7 @@ export const skillSummarySchema = z.object({
   sizeBytes: z.number().int().min(0),
   updatedAt: z.string(),
   usage: skillUsageSchema,
+  usagePending: z.boolean().optional(),
   origin: skillOriginSchema,
   overridesBuiltIn: z.boolean(),
 })
@@ -106,6 +107,9 @@ const skillFieldSchema = z
 export const skillListRequestSchema = skillScopeInputSchema
 
 export const skillListReplySchema = z.object({ skills: z.array(skillSummarySchema) })
+
+export const skillUsageReplySchema = z.object({ usage: z.record(z.string(), skillUsageSchema) })
+export type SkillUsageReply = z.infer<typeof skillUsageReplySchema>
 
 export const skillListFilesRequestSchema = skillScopeInputSchema.extend({
   skill: skillFieldSchema,
