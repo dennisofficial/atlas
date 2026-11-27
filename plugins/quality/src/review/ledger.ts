@@ -99,11 +99,13 @@ function applyAssessment({
   if (assessment.transition === EQualityTransition.None) return { finding: existing, notify: false }
   if (assessment.transition === EQualityTransition.Resolve) return resolve({ existing, afterHash })
 
-  const introduce = assessment.transition === EQualityTransition.Introduce
+  const nudges =
+    assessment.transition === EQualityTransition.Introduce ||
+    assessment.transition === EQualityTransition.TrackDebt
   if (existing === undefined || existing.state === EQualityFindingState.Resolved) {
-    return openEpisode({ existing, assessment, afterHash, notify: introduce })
+    return openEpisode({ existing, assessment, afterHash, notify: nudges })
   }
-  return updateActive({ existing, assessment, afterHash, notify: introduce && !existing.notified })
+  return updateActive({ existing, assessment, afterHash, notify: nudges && !existing.notified })
 }
 
 export function applyAssessments({

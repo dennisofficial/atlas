@@ -50,7 +50,11 @@ version, and runs BOTH the baseline and the candidate again.
 ## SRP rubric (mirrors section 04 thresholds)
 
 - New finding: currentConcern >= 0.8 AND an introduced or worsened impact >= 0.8. An evidence-specific finding also
-  needs a supplied focus candidate >= 0.8. Without that candidate the finding is tracked debt, and no nudge is sent.
+  needs a supplied focus candidate >= 0.8. Without that candidate the finding is tracked debt, and it sends a debt
+  nudge that says the mix predates the edit.
+- Labels made before 2026-11-28 used the introduced-only rubric: they called a mix a `nudge` only when the edit
+  introduced or worsened it. Those items carry a lower nudge expectation than the current rubric, which also nudges
+  pre-existing debt the edit left in place.
 - Resolution: concern <= 0.2 AND a confident resolved, improved or unchanged verdict (>= 0.8). A band between the two
   never resolves or reopens a finding.
 - The policy thresholds live in `plugins/quality/src/policies/single-responsibility/interpret.ts`, which the quality

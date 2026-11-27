@@ -51,6 +51,22 @@ const cohesiveAnswers = (): DecisionOutcome => ({
   },
 })
 
+const debtAnswers = (): DecisionOutcome => ({
+  ok: true,
+  model: JEV_REAL_MODEL,
+  answers: {
+    'single-responsibility:currentConcern': { noul: 0.9 },
+    'single-responsibility:impact': {
+      choice: EQualityImpact.Unchanged,
+      probabilities: { [EQualityImpact.Unchanged]: 0.9 },
+    },
+    'single-responsibility:focus': {
+      choice: 'none',
+      probabilities: { none: 0.9 },
+    },
+  },
+})
+
 const decideWith =
   (outcome: () => DecisionOutcome): JevRealDecide =>
   async () =>
@@ -104,6 +120,25 @@ describe('runJevRealItem', () => {
     const summary = summarizeJevReal({ rows: [row] })
     expect(summary.precision).toBeNull()
     expect(summary.expectedNudges).toBe(0)
+  })
+
+  test('replays a debt item as a nudge through the production ledger', async () => {
+    const item = fixtureItems()[1]
+    if (item === undefined) throw new Error('fixture is empty')
+    const debtItem = {
+      ...item,
+      expected_output: { notify: true, impact: EQualityImpact.Unchanged },
+    }
+    const row = await runJevRealItem({
+      item: debtItem,
+      policies: [singleResponsibilityPolicy],
+      decide: decideWith(debtAnswers),
+    })
+    expect(row.error).toBeNull()
+    expect(row.actual?.transition).toBe('track_debt')
+    expect(row.actual?.notify).toBe(true)
+    expect(row.notifyMatch).toBe(true)
+    expect(row.impactMatch).toBe(true)
   })
 
   test('records a failed decision call as an errored row, not a grade of zero', async () => {

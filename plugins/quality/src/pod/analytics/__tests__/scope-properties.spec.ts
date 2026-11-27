@@ -78,6 +78,7 @@ describe('scopeAssessedProperties', () => {
       }),
     ).toEqual({
       review_id: 'review-1',
+      nudge_kind: 'new',
       scope_id: 'scope-1',
       policy_id: 'single-responsibility',
       policy_version: '1',
@@ -116,6 +117,26 @@ describe('scopeAssessedProperties', () => {
     })
 
     expect(properties).toMatchObject({ verdict: 'tracked_debt', near_miss: true })
+    expect(properties['nudge_kind']).toBeUndefined()
+  })
+
+  it('names a nudge about pre-existing debt a debt nudge', () => {
+    const properties = scopeAssessedProperties({
+      reviewId: 'review-1',
+      record: RECORD,
+      assessment: assessment({
+        transition: EQualityTransition.TrackDebt,
+        currentConcernProbability: 0.85,
+      }),
+      facts: FACTS,
+      notified: [{ policyId: 'single-responsibility', scopeId: 'scope-1' }],
+    })
+
+    expect(properties).toMatchObject({
+      verdict: 'debt_nudged',
+      nudge_kind: 'debt',
+      near_miss: false,
+    })
   })
 
   it('never calls a confident focus on none a focus', () => {

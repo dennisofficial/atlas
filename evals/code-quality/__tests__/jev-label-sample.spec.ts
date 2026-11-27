@@ -31,6 +31,7 @@ const rowOf = ({
 describe('stratumOf', () => {
   test('maps the verdicts to the three strata', () => {
     expect(stratumOf({ verdict: 'nudged' })).toBe(EJevLabelStratum.Nudged)
+    expect(stratumOf({ verdict: 'debt_nudged' })).toBe(EJevLabelStratum.Nudged)
     expect(stratumOf({ verdict: 'near_miss' })).toBe(EJevLabelStratum.NearMiss)
     expect(stratumOf({ verdict: 'tracked_debt' })).toBe(EJevLabelStratum.NearMiss)
     expect(stratumOf({ verdict: 'clean' })).toBe(EJevLabelStratum.Random)

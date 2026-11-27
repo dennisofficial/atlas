@@ -42,7 +42,7 @@ export class JevLabelSampleError extends Error {
 }
 
 export function stratumOf({ verdict }: { verdict: string }): EJevLabelStratum {
-  if (verdict === 'nudged') return EJevLabelStratum.Nudged
+  if (verdict === 'nudged' || verdict === 'debt_nudged') return EJevLabelStratum.Nudged
   if (verdict === 'near_miss' || verdict === 'tracked_debt') return EJevLabelStratum.NearMiss
   return EJevLabelStratum.Random
 }

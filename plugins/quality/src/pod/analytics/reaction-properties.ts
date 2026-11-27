@@ -1,5 +1,6 @@
 import {
   EQualityFindingState,
+  EQualityTransition,
   type CodeQualityReviewedBody,
   type QualityAssessment,
   type QualityFinding,
@@ -10,6 +11,7 @@ import {
 import { qualityRegistry } from '../../review/registry'
 import { reviewIdOf } from './review-links'
 import type { QualityReviewEventProperties } from './review-properties'
+import { nudgeKindOf } from './verdict'
 import {
   lastTurnStartOf,
   notifyIndexOf,
@@ -122,19 +124,21 @@ export const nudgeReactionProperties = (args: {
       const atNudge = records.find((entry) => entry.index === index)?.record
       if (atNudge === undefined) continue
       const later = laterScopeRecordsOf({ records, index, scopeId: finding.scopeId })
+      const assessment = assessmentOf({ record: atNudge, finding })
+      const kind = nudgeKindOf({ transition: assessment?.transition ?? EQualityTransition.None })
       properties.push({
         review_id: reviewIdOf({ callId: record.callId }),
         finding_id: finding.id,
         episode: finding.episode,
         policy_id: finding.policyId,
+        ...(kind === null ? {} : { nudge_kind: kind }),
         reaction: reactionOf({ later, finding }),
         mentioned_in_reply: mentionedInReply({
           events: thread,
           index,
           terms: mentionTermsOf({ atNudge, policyId: finding.policyId }),
         }),
-        concern_at_nudge:
-          assessmentOf({ record: atNudge, finding })?.currentConcernProbability ?? null,
+        concern_at_nudge: assessment?.currentConcernProbability ?? null,
         concern_at_end: concernAtEndOf({ atNudge, later, finding }),
         steps_after_nudge: stepsAfter({ events: thread, index }),
         turns_after_nudge: turnsAfter({ events: thread, index }),

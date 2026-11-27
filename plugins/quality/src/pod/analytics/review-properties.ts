@@ -13,7 +13,13 @@ import type { QualityReviewMetrics } from '../../review/engine'
 import { extensionOf } from './paths'
 import { wasNotified, type QualityNotified } from './review-links'
 import { notifyIndexOf, qualityRecordsOf, stepsAfter, threadEventsOf, turnsAfter } from './timeline'
-import { strongerVerdictOf, verdictOf, type EQualityVerdict } from './verdict'
+import {
+  nudgeKindOf,
+  strongerVerdictOf,
+  verdictOf,
+  type EQualityVerdict,
+  type ENudgeKind,
+} from './verdict'
 
 export const QUALITY_REVIEW_COMPLETED = 'quality review completed'
 export const QUALITY_FINDING_RESOLVED = 'quality finding resolved'
@@ -102,6 +108,25 @@ export const policiesOf = (args: {
     }))
 }
 
+const nudgeKindsOf = (args: {
+  records: readonly CodeQualityReviewedBody[]
+  notified: readonly QualityNotified[]
+}): readonly ENudgeKind[] => {
+  const kinds = new Set<ENudgeKind>()
+  for (const record of args.records) {
+    for (const assessment of record.assessments) {
+      const notified = wasNotified({
+        notified: args.notified,
+        policyId: assessment.policyId,
+        scopeId: assessment.scopeId,
+      })
+      const kind = notified ? nudgeKindOf({ transition: assessment.transition }) : null
+      if (kind !== null) kinds.add(kind)
+    }
+  }
+  return [...kinds].sort()
+}
+
 export const reviewCompletedProperties = (args: {
   reviewId: string
   records: readonly CodeQualityReviewedBody[]
@@ -115,6 +140,7 @@ export const reviewCompletedProperties = (args: {
 }): QualityReviewEventProperties => {
   const policies = policiesOf({ records: args.records, notified: args.nudged })
   const skipped = skipReasonsOf(args.records)
+  const kinds = nudgeKindsOf({ records: args.records, notified: args.nudged })
   return {
     review_id: args.reviewId,
     status: reviewStatusOf({ records: args.records }),
@@ -124,6 +150,7 @@ export const reviewCompletedProperties = (args: {
     policies,
     files: args.files,
     notified: args.notified,
+    ...(kinds.length === 0 ? {} : { nudge_kind: kinds }),
     tool: args.tool,
     scopes_total: scopeIdsOf({ records: args.records, selected: false }).length,
     scopes_selected: scopeIdsOf({ records: args.records, selected: true }).length,
