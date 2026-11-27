@@ -481,11 +481,12 @@ backoff is not an in-memory timer: it is a recorded deadline (0021).
   running turn, a resumable thread, an actionable inbox entry, or a workspace that is unprepared, preparing
   or failed with a retry pending. An idle, prepared session is released without a wake. The next message
   wakes it through `NOTIFY`, so a deploy no longer wakes every sandbox and restarts every idle clock. The
-  handoff never waits for a turn: it detaches the daemon calls that keep running, aborts the model stream
-  immediately and settles the lease, so only the in-flight provider request is lost.
+  handoff settles no call and writes nothing about one: a pod call keeps running in the daemon and the
+  next holder collects it. In-flight work gets until the drain cap (240 s of a 260 s budget), and only the
+  model stream is aborted at it, so only the in-flight provider request is lost.
 
 **Connection-bound leases (accepted in [0025](decisions/0025-v2-connection-bound-leases.md)).** Renewal
-and the reconcile task exist because liveness is something the control plane has to infer from a clock.
+and the reconcile task existed because liveness is something the control plane had to infer from a clock.
 Postgres already knows when a connection is gone, so 0025 makes that the liveness signal and
 removes every timer that proves or looks for it.
 - **One presence lock per host.** An agent host opens a dedicated direct connection (`DATABASE_DIRECT_URL`,
