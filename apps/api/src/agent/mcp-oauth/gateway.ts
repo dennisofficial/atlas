@@ -1,5 +1,7 @@
 import { randomBytes } from 'node:crypto'
 
+import { signInStartUrlOf } from '@dltech/atlas-plugin-mcp/core'
+
 import type { Db } from '@dltech/atlas-db'
 
 import type { SecretCipher } from '@dltech/atlas-pods/config/secret-cipher'
@@ -15,6 +17,16 @@ import { McpOauthStore } from './store'
 import { refreshAuthorization } from './token'
 import { buildAuthorizationUrl } from './token'
 import {
+  FRESH_MARGIN_MS,
+  needsSignIn,
+  PENDING_TTL_MS,
+  REFRESH_PASSES,
+  REFRESH_POLL_MS,
+  REJECTING_STATUSES,
+  sleep,
+  STALE_ATTEMPT_MS,
+} from './gateway-timing'
+import {
   sealedGrantSchema,
   type McpOauthBegin,
   type McpOauthBeginArgs,
@@ -28,13 +40,6 @@ import {
   type SealedPending,
 } from './types'
 
-const PENDING_TTL_MS = 10 * 60_000
-const FRESH_MARGIN_MS = 60_000
-const REFRESH_PASSES = 40
-const REFRESH_POLL_MS = 25
-const STALE_ATTEMPT_MS = 30_000
-const REJECTING_STATUSES = [400, 401]
-
 export type McpOauthGatewayArgs = {
   db: Db
   cipher: SecretCipher
@@ -44,14 +49,6 @@ export type McpOauthGatewayArgs = {
   allowLocalTargets?: boolean | undefined
   resolveHost?: HostResolver | undefined
 }
-
-const sleep = (ms: number): Promise<void> => new Promise((resolve) => setTimeout(resolve, ms))
-
-const needsSignIn = (): McpOauthGrant => ({
-  ok: false,
-  reason: 'the server has no usable grant; sign in again',
-  signIn: true,
-})
 
 export class McpOauthService implements McpOauthGateway {
   private readonly store: McpOauthStore
@@ -102,12 +99,21 @@ export class McpOauthService implements McpOauthGateway {
         return { ok: false, reason: 'the server offers no dynamic client registration' }
       }
       const pkce = generatePkce()
+      const authorizationUrl = buildAuthorizationUrl({
+        authorizationEndpoint: found.authorizationEndpoint,
+        clientId: clientInfo.clientId,
+        redirectUri: this.redirectUri,
+        pkce,
+        ...(found.scope === undefined ? {} : { scope: found.scope }),
+        ...(found.resource === undefined ? {} : { resource: found.resource }),
+      })
       const pending: SealedPending = {
         codeVerifier: pkce.verifier,
         clientInfo,
         tokenEndpoint: found.tokenEndpoint,
         redirectUri: this.redirectUri,
         returnTarget: args.returnTarget,
+        authorizationUrl,
         ...(found.authMethods === undefined ? {} : { authMethods: found.authMethods }),
         ...(found.resource === undefined ? {} : { resource: found.resource }),
       }
@@ -124,14 +130,8 @@ export class McpOauthService implements McpOauthGateway {
       })
       return {
         ok: true,
-        url: buildAuthorizationUrl({
-          authorizationEndpoint: found.authorizationEndpoint,
-          clientId: clientInfo.clientId,
-          redirectUri: this.redirectUri,
-          pkce,
-          ...(found.scope === undefined ? {} : { scope: found.scope }),
-          ...(found.resource === undefined ? {} : { resource: found.resource }),
-        }),
+        url: authorizationUrl,
+        startUrl: signInStartUrlOf({ publicUrl: this.args.publicUrl, state: pkce.state }),
         expiresAt: expiresAt.toISOString(),
       }
     } catch (error) {

@@ -14,7 +14,12 @@ const AUTHORIZE_URL = 'https://auth.example.com/authorize?state=1'
 const gatewayOf = (calls: McpOauthBeginArgs[]): McpOauthGateway => ({
   begin: async (args) => {
     calls.push(args)
-    return { ok: true, url: AUTHORIZE_URL, expiresAt: 'x' }
+    return {
+      ok: true,
+      url: AUTHORIZE_URL,
+      startUrl: 'https://api.byatlas.io/mcp-oauth/start/s',
+      expiresAt: 'x',
+    }
   },
   refresh: async () => ({ ok: false, reason: 'unused' }),
 })

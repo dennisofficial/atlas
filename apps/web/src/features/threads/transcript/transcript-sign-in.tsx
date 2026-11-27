@@ -1,5 +1,6 @@
 'use client'
 
+import { EMcpSignInSurface, signInUrlFor } from '@dltech/atlas-plugin-mcp/core'
 import { CircleCheckIcon, CircleXIcon, LogInIcon } from 'lucide-react'
 
 import { Button } from '@dltech/atlas-ui/components/button'
@@ -11,9 +12,16 @@ import {
   TraceTitle,
 } from '@dltech/atlas-ui/components/trace'
 
+import { isDesktopHost } from '@/features/desktop/desktop-attributes'
+
 import type { SignInItem } from '../data/transcript-items'
 
 const NEW_TAB = 'opens in a new tab'
+
+const surfaceOfHost = (): EMcpSignInSurface =>
+  typeof window !== 'undefined' && isDesktopHost(window)
+    ? EMcpSignInSurface.Desktop
+    : EMcpSignInSurface.Web
 
 export function TranscriptSignIn({ item }: { item: SignInItem }) {
   if (item.result === 'connected')
@@ -54,7 +62,13 @@ export function TranscriptSignIn({ item }: { item: SignInItem }) {
         <Button
           size="xs"
           variant="outline"
-          render={<a href={item.url} target="_blank" rel="noreferrer" />}
+          render={
+            <a
+              href={signInUrlFor({ url: item.url, surface: surfaceOfHost() })}
+              target="_blank"
+              rel="noreferrer"
+            />
+          }
         >
           Sign in
         </Button>

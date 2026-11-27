@@ -26,6 +26,29 @@ describe('the agent host http surface', () => {
     expect(await page.text()).toContain('<p>connected</p>')
   })
 
+  it('starts a sign-in with a surface cookie scoped to the callback, and clears it there', async () => {
+    const start = await fetch(`${app.url}/mcp-oauth/start/state-1?surface=ios`, {
+      redirect: 'manual',
+    })
+    const callback = await fetch(`${app.url}${CALLBACK_PATH}?state=state-1`, {
+      redirect: 'manual',
+      headers: { cookie: 'atlas_mcp_sign_in=ios' },
+    })
+
+    expect(start.status).toBe(302)
+    expect(start.headers.get('location')).toBe('https://provider.example/authorize?state=state-1')
+    expect(start.headers.get('set-cookie')).toContain('atlas_mcp_sign_in=ios')
+    expect(start.headers.get('cache-control')).toBe('no-store')
+    expect(callback.headers.get('set-cookie')).toContain('atlas_mcp_sign_in=; Max-Age=0')
+  })
+
+  it('answers an expired start link with 410', async () => {
+    const gone = await fetch(`${app.url}/mcp-oauth/start/gone`, { redirect: 'manual' })
+
+    expect(gone.status).toBe(410)
+    expect(await gone.text()).toContain('expired')
+  })
+
   it('answers the retired websocket stream path with 404', async () => {
     const plain = await fetch(`${app.url}/stream`)
     const upgrade = await fetch(`${app.url}/stream`, {
