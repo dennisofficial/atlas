@@ -1,6 +1,7 @@
 import type { SearchBarProps } from 'react-native-screens'
 
 export const MODEL_SEARCH_PLACEHOLDER = 'Search models'
+export const MODEL_SHEET_TITLE = 'Model'
 
 export const modelSearchBarPropsOf = (): Pick<
   SearchBarProps,
@@ -18,5 +19,5 @@ export const modelSearchBarPropsOf = (): Pick<
   hideWhenScrolling: false,
   obscureBackground: false,
   placeholder: MODEL_SEARCH_PLACEHOLDER,
-  placement: 'integrated',
+  placement: 'stacked',
 })

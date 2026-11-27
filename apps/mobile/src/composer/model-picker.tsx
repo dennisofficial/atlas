@@ -185,7 +185,7 @@ const styles = StyleSheet.create({
     paddingTop: space(2),
   },
   empty: {
-    paddingHorizontal: space(2),
-    paddingVertical: space(2),
+    paddingHorizontal: space(4),
+    paddingVertical: space(3),
   },
 })
