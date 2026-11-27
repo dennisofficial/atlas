@@ -4,7 +4,9 @@ import type { BlockingCommand } from '@dltech/atlas-client/stream'
 import {
   HIDDEN_STRIP,
   presenceOf,
+  STRIP_OVERLAP,
   settledPresenceOf,
+  stripExtentOf,
   stripLabelOf,
   stripRiseOf,
 } from '../blocking-strip-model'
@@ -70,6 +72,35 @@ describe('stripRiseOf', () => {
 
   it('does not move when Reduce Motion is on', () => {
     expect(stripRiseOf({ height: 64, reduced: true })).toBe(0)
+  })
+})
+
+describe('stripExtentOf', () => {
+  const height = STRIP_OVERLAP + 48
+
+  it('takes no room before it rises', () => {
+    expect(stripExtentOf({ height, shown: 0, reduced: false })).toBe(0)
+  })
+
+  it('grows with the rise so the rows above ride on the card', () => {
+    expect(stripExtentOf({ height, shown: 0.5, reduced: false })).toBe(24)
+  })
+
+  it('takes only the part above the composer once shown', () => {
+    expect(stripExtentOf({ height, shown: 1, reduced: false })).toBe(48)
+  })
+
+  it('does not bounce the rows above when the spring overshoots', () => {
+    expect(stripExtentOf({ height, shown: 1.08, reduced: false })).toBe(48)
+  })
+
+  it('takes its room at once when Reduce Motion is on', () => {
+    expect(stripExtentOf({ height, shown: 0.2, reduced: true })).toBe(48)
+    expect(stripExtentOf({ height, shown: 0, reduced: true })).toBe(0)
+  })
+
+  it('takes no room before the card is measured', () => {
+    expect(stripExtentOf({ height: 0, shown: 1, reduced: false })).toBe(0)
   })
 })
 

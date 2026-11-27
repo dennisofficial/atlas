@@ -26,15 +26,16 @@ import {
   presenceOf,
   STRIP_RISE_SPRING,
   STRIP_SINK_MS,
+  STRIP_OVERLAP,
   STRIP_TUCK,
   settledPresenceOf,
+  stripExtentOf,
   stripLabelOf,
   stripRiseOf,
 } from './blocking-strip-model'
 import { useReduceMotion } from './use-reduce-motion'
 
 const PULSE_MS = 1_200
-const COMPOSER_DOCK_TOP = space(2)
 
 const Pulse = ({ reduced, color }: { reduced: boolean; color: string }) => {
   const progress = useSharedValue(0)
@@ -100,6 +101,9 @@ const StripCard = ({
     shown.value = withSpring(1, STRIP_RISE_SPRING)
   }, [height, leaving, onLeft, shown])
 
+  const slotStyle = useAnimatedStyle(() => ({
+    height: stripExtentOf({ height, shown: shown.value, reduced }),
+  }))
   const cardStyle = useAnimatedStyle(() => ({
     opacity: glass ? 1 : Math.min(shown.value, 1),
     transform: [{ translateY: (1 - shown.value) * rise }],
@@ -108,9 +112,9 @@ const StripCard = ({
   const handleLayout = (event: LayoutChangeEvent) => setHeight(event.nativeEvent.layout.height)
 
   return (
-    <View style={styles.slot} onLayout={handleLayout} pointerEvents="none">
-      <Animated.View style={cardStyle}>
-        <GlassSurface materialized={!leaving && height > 0} style={styles.card}>
+    <Animated.View style={slotStyle} pointerEvents="none">
+      <Animated.View style={[styles.card, cardStyle]} onLayout={handleLayout}>
+        <GlassSurface materialized={!leaving && height > 0} style={styles.glass}>
           <Animated.View
             accessible
             accessibilityLabel={stripLabelOf({ command, now })}
@@ -136,7 +140,7 @@ const StripCard = ({
           </Animated.View>
         </GlassSurface>
       </Animated.View>
-    </View>
+    </Animated.View>
   )
 }
 
@@ -164,11 +168,13 @@ export const BlockingStrip = ({
 }
 
 const styles = StyleSheet.create({
-  slot: {
-    marginBottom: -(COMPOSER_DOCK_TOP + STRIP_TUCK),
-    paddingHorizontal: space(4),
-  },
   card: {
+    bottom: -STRIP_OVERLAP,
+    left: space(4),
+    position: 'absolute',
+    right: space(4),
+  },
+  glass: {
     borderCurve: 'continuous',
     borderRadius: COMPOSER_RADIUS,
     paddingBottom: STRIP_TUCK + space(2.5),
