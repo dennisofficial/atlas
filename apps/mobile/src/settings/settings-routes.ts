@@ -28,6 +28,7 @@ export const SETTINGS_STACK_SCREENS: readonly ISettingsStackScreen[] = [
   { name: 'settings/account/edit', title: 'Edit profile' },
   { name: 'settings/security', title: 'Devices & Sessions' },
   { name: 'settings/models-effort', title: 'Models & Effort' },
+  { name: 'settings/model-role', title: 'Model' },
   { name: 'settings/agent', title: 'Agent' },
   { name: 'settings/quality', title: 'Code Quality' },
   { name: 'settings/experimental', title: 'Experimental' },

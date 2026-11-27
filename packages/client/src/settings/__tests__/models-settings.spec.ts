@@ -1,9 +1,9 @@
 import { describe, expect, it } from 'bun:test'
 
-import { EEffort, EModelRole } from '@dltech/atlas-core'
+import { EEffort, EModelRole, roleKey, type ModelRole } from '@dltech/atlas-core'
 
 import { MAIN_MODEL, optionsFixture, SMALL_MODEL } from './model-catalog-fixture'
-import { choiceOf, resolveRoles } from '../model-roles'
+import { choiceOf, ownsModel, resolveRoles } from '../model-roles'
 import {
   effortDraft,
   fastDraft,
@@ -11,6 +11,9 @@ import {
   modelsChanges,
   modelsDraftFrom,
   pickedModelDraft,
+  flattenModelsDraft,
+  unfollowedDraft,
+  type IModelsDraft,
 } from '../models-settings'
 
 const saved = () => modelsDraftFrom(new Map())
@@ -62,6 +65,54 @@ describe('modelsChanges', () => {
     const base = { ...saved(), main: { model: MAIN_MODEL, effort: 'high', fast: false } }
     const changed = fastDraft({ draft: base, role: EModelRole.Main, fast: true })
     expect(modelsChanges({ saved: base, draft: changed })).toEqual({ 'model.fast': true })
+  })
+})
+
+describe('unfollowedDraft', () => {
+  const roles: ModelRole[] = [
+    EModelRole.Subagents,
+    { agentType: 'teammate' },
+    { agentType: 'builder' },
+  ]
+
+  for (const role of roles) {
+    it(`keeps the inherited choice after saving and reloading ${roleKey(role)}`, () => {
+      const models = optionsFixture()
+      const base: IModelsDraft = {
+        ...saved(),
+        main: { model: MAIN_MODEL, effort: 'high', fast: true },
+      }
+      const inherited = choiceOf({ choices: resolveRoles({ draft: base, models }), role })
+      const detached = unfollowedDraft({ draft: base, role, inherited })
+      expect(detached[roleKey(role)]).toEqual({ model: MAIN_MODEL, effort: 'high', fast: true })
+      const reloaded = modelsDraftFrom(new Map(Object.entries(flattenModelsDraft(detached))))
+      const own = choiceOf({ choices: resolveRoles({ draft: reloaded, models }), role })
+      expect(ownsModel(own)).toBe(true)
+      expect(own.ref).toEqual(inherited.ref)
+      expect(own.effort).toBe(inherited.effort)
+      expect(own.fast).toBe(inherited.fast)
+      const followed = followedDraft({ draft: reloaded, role })
+      const restored = choiceOf({ choices: resolveRoles({ draft: followed, models }), role })
+      expect(ownsModel(restored)).toBe(false)
+      expect(followed).toEqual(base)
+      expect(base[roleKey(role)]?.model).toBe('')
+    })
+  }
+
+  it('preserves the resolved value rather than a stale follower effort or fast value', () => {
+    const models = optionsFixture()
+    const base = {
+      ...saved(),
+      main: { model: MAIN_MODEL, effort: 'high', fast: true },
+      subagents: { model: '', effort: 'low', fast: false },
+    }
+    const inherited = choiceOf({
+      choices: resolveRoles({ draft: base, models }),
+      role: EModelRole.Subagents,
+    })
+    expect(
+      unfollowedDraft({ draft: base, role: EModelRole.Subagents, inherited }).subagents,
+    ).toEqual({ model: MAIN_MODEL, effort: 'high', fast: true })
   })
 })
 
