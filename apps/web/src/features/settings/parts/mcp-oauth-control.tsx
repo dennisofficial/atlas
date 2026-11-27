@@ -7,7 +7,7 @@ import { DropdownMenuItem } from '@dltech/atlas-ui/components/dropdown-menu'
 
 import type { McpOauthServer } from '@dltech/atlas-wire/web'
 
-import { EMcpAuthState } from '../data/shared/mcp-oauth'
+import { EMcpAuthState, mcpServerLabelOf } from '../data/shared/mcp-oauth'
 import type { McpOauth } from '../data/shared/use-mcp-oauth'
 
 export function McpOauthControl({
@@ -31,13 +31,14 @@ export function McpOauthControl({
   }
   const again = state === EMcpAuthState.SignInAgain
   const id = server?.id
+  const label = mcpServerLabelOf(server.url)
   return (
     <Button
       variant={again ? 'default' : 'outline'}
       size="sm"
       disabled={id === undefined || auth.isBusy(id)}
       aria-label={`${again ? 'Sign in again to' : 'Sign in to'} ${serverId}`}
-      onClick={() => id !== undefined && auth.signIn(id)}
+      onClick={() => id !== undefined && auth.signIn({ serverId: id, label })}
     >
       <LogInIcon data-icon="inline-start" />
       {again ? 'Sign in again' : 'Sign in'}

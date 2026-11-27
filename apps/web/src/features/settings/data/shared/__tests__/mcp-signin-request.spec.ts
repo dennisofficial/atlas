@@ -30,7 +30,6 @@ const dataAnswer = (data: unknown) => () => Response.json({ result: { data } })
 
 const args = {
   serverId: 'srv_1',
-  surface: 'web' as const,
   screen: { kind: 'settings' as const, scope: 'user' as const },
 }
 

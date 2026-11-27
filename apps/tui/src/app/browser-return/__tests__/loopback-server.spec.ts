@@ -51,6 +51,18 @@ const rawReplyOf = (args: { port: number; request: string }): Promise<string> =>
     })
   })
 
+const refusesConnections = async (port: number): Promise<boolean> => {
+  for (let attempt = 0; attempt < 100; attempt += 1) {
+    const refused = await fetch(`http://127.0.0.1:${port}/`).then(
+      () => false,
+      () => true,
+    )
+    if (refused) return true
+    await Bun.sleep(10)
+  }
+  return false
+}
+
 describe('the loopback listener', () => {
   it('opens the start link for the tui on the port it bound', () => {
     const browser = opener()
@@ -140,5 +152,30 @@ describe('the loopback listener', () => {
 
     expect(await handle.outcome).toBeUndefined()
     await expect(fetch(returnedUrl({ port: handle.port }))).rejects.toBeDefined()
+  })
+
+  it('closes the port when opening the browser throws', async () => {
+    const ports: number[] = []
+    const open = (url: string): void => {
+      ports.push(Number(new URL(url).searchParams.get('port')))
+      throw new Error('the browser refused to start')
+    }
+
+    expect(() => startLoopbackReturn({ url: START_URL, open, copy: COPY })).toThrow(
+      'the browser refused to start',
+    )
+
+    expect(await refusesConnections(ports[0] ?? 0)).toBe(true)
+  })
+
+  it('closes the port when the opener reports that no browser started', async () => {
+    const handle = startLoopbackReturn({
+      url: START_URL,
+      open: async () => false,
+      copy: COPY,
+    })
+
+    expect(await handle.outcome).toBeUndefined()
+    expect(await refusesConnections(handle.port)).toBe(true)
   })
 })

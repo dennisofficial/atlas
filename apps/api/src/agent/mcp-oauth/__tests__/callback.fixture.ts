@@ -78,7 +78,6 @@ export const callbackOver = (db: Db): CallbackHandler =>
   mcpOauthCallbackOf({
     db,
     cipher,
-    webOrigin: WEB_ORIGIN,
     returns: returnsOver(db),
     allowLocalTargets: true,
   })

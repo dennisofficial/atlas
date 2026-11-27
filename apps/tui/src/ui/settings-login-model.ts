@@ -2,10 +2,11 @@ export enum ESettingsLogin {
   Idle = 'idle',
   Asking = 'asking',
   Prompting = 'prompting',
+  Browser = 'browser',
   Finishing = 'finishing',
 }
 
-export type SettingsLoginPrompt = { url: string; userCode: string }
+export type SettingsLoginPrompt = { url: string; userCode: string | null }
 
 export type SettingsLoginState = {
   status: ESettingsLogin
@@ -35,6 +36,13 @@ export const promptingLogin = (prompt: SettingsLoginPrompt): SettingsLoginState 
   notice: null,
 })
 
+export const waitingLogin = (url: string): SettingsLoginState => ({
+  status: ESettingsLogin.Browser,
+  prompt: { url, userCode: null },
+  failure: null,
+  notice: null,
+})
+
 export const finishingLogin = (): SettingsLoginState => ({
   status: ESettingsLogin.Finishing,
   prompt: null,
@@ -52,4 +60,5 @@ export const signedInLogin = (notice: string): SettingsLoginState => ({ ...idleL
 export const isSettlingLogin = (status: ESettingsLogin): boolean =>
   status === ESettingsLogin.Asking ||
   status === ESettingsLogin.Prompting ||
+  status === ESettingsLogin.Browser ||
   status === ESettingsLogin.Finishing

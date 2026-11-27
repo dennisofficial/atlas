@@ -1,7 +1,13 @@
 import type { KeyEvent } from '@opentui/core'
 import { useCallback, useEffect, useRef, useState } from 'react'
 
-import type { Event, RecordEvent } from '@dltech/atlas-core'
+import {
+  EReturnResult,
+  stateOfStartLink,
+  type Event,
+  type RecordEvent,
+  type ReturnOutcome,
+} from '@dltech/atlas-core'
 import { mcpSignInEntries } from '@dltech/atlas-plugin-mcp/client'
 import {
   MCP_VIEW,
@@ -11,10 +17,19 @@ import {
 } from '@dltech/atlas-plugin-mcp/core'
 
 import type { ListPanelRow } from '../ui/components/list-panel'
+import type { LoopbackCopy } from './browser-return/loopback-page'
+import { openBrowserReturn, type OpenBrowserReturn } from './browser-return/open'
+import { useReturnOutcome } from './browser-return/use-return-outcome'
 import type { McpOauthServer, SessionApi } from './session-api'
 import { useOpenPanel, type OpenPanelControl } from './use-open-panel'
 
-export type McpPanelTarget = { kind: 'begin'; serverId: string } | { kind: 'url'; url: string }
+export type McpPanelApi = Pick<SessionApi, 'mcpServers' | 'mcpOauthBegin'>
+
+export type McpPanelTarget =
+  | { kind: 'begin'; serverId: string; serverName: string }
+  | { kind: 'url'; url: string }
+
+export type McpPanelSignIn = { state: string; server: string }
 
 export type McpPanel = OpenPanelControl & {
   rows: readonly ListPanelRow[]
@@ -52,6 +67,40 @@ export const mcpServerIdsOf = (servers: readonly McpOauthServer[]): ReadonlyMap<
   return ids
 }
 
+export const mcpSignInCopyOf = (server: string): LoopbackCopy => ({
+  connected: `Signed in to ${server}`,
+  failed: (reason: string | undefined) =>
+    reason === undefined
+      ? `Could not sign in to ${server}`
+      : `Could not sign in to ${server}: ${reason}`,
+})
+
+export const mcpSignInRowOf = (args: {
+  signIn: McpPanelSignIn
+  outcome: ReturnOutcome | undefined
+}): ListPanelRow => {
+  const server = args.signIn.server
+  if (args.outcome === undefined)
+    return {
+      key: 'sign-in:result',
+      label: `signing in to ${server}`,
+      detail: 'waiting for the browser',
+      mark: { text: '…', tone: 'warn' },
+    }
+  if (args.outcome.result === EReturnResult.Connected)
+    return {
+      key: 'sign-in:result',
+      label: `signed in to ${server}`,
+      mark: { text: '●', tone: 'ok' },
+    }
+  return {
+    key: 'sign-in:result',
+    label: `could not sign in to ${server}`,
+    ...(args.outcome.reason === undefined ? {} : { detail: args.outcome.reason }),
+    mark: { text: '○', tone: 'warn' },
+  }
+}
+
 const serverDetail = (row: McpServerRow): string => {
   const tools = `${row.toolCount} ${row.toolCount === 1 ? 'tool' : 'tools'}`
   return row.reason === undefined
@@ -63,6 +112,7 @@ export const mcpPanelOf = (args: {
   servers: readonly McpServerRow[]
   signIns: ReturnType<typeof mcpSignInEntries>
   ids: ReadonlyMap<string, string>
+  pending: { signIn: McpPanelSignIn; outcome: ReturnOutcome | undefined } | null
 }): McpPanelBody => {
   const rows: ListPanelRow[] = []
   const targets: (McpPanelTarget | null)[] = []
@@ -75,7 +125,7 @@ export const mcpPanelOf = (args: {
       detail: serverDetail(server),
       mark: server.status === 'connected' ? { text: '●', tone: 'ok' } : { text: '○', tone: 'meta' },
     })
-    targets.push(id === undefined ? null : { kind: 'begin', serverId: id })
+    targets.push(id === undefined ? null : { kind: 'begin', serverId: id, serverName: server.name })
   }
 
   for (const [key, entry] of args.signIns) {
@@ -89,62 +139,95 @@ export const mcpPanelOf = (args: {
     targets.push({ kind: 'url', url: entry.url })
   }
 
+  if (args.pending !== null) {
+    rows.push(mcpSignInRowOf(args.pending))
+    targets.push(null)
+  }
+
   return { rows, targets }
 }
 
 export function useMcpPanel(args: {
-  api: SessionApi | null
+  api: McpPanelApi | null
   views: Readonly<Record<string, unknown>>
   events: readonly (Event | RecordEvent)[]
   openUrl: (url: string) => void
   onProblem: (reason: string) => void
+  openSignIn?: ((args: OpenBrowserReturn) => void) | undefined
 }): McpPanel {
   const [ids, setIds] = useState<ReadonlyMap<string, string>>(new Map())
+  const [signIn, setSignIn] = useState<McpPanelSignIn | null>(null)
   const problem = useRef(args.onProblem)
   problem.current = args.onProblem
   const { api } = args
   const open = useOpenPanel()
 
+  const loadIds = useCallback(
+    (args: { alive: () => boolean }) => {
+      if (api === null) return
+      void api.mcpServers().then(
+        (servers) => {
+          if (args.alive()) setIds(mcpServerIdsOf(servers))
+        },
+        () => {
+          if (args.alive()) setIds(new Map())
+        },
+      )
+    },
+    [api],
+  )
+
   useEffect(() => {
-    if (api === null || !open.panel.open) return undefined
-
+    if (!open.panel.open) return undefined
     let held = true
-    void api.mcpServers().then(
-      (servers) => {
-        if (held) setIds(mcpServerIdsOf(servers))
-      },
-      () => {
-        if (held) setIds(new Map())
-      },
-    )
-
+    loadIds({ alive: () => held })
     return () => {
       held = false
     }
-  }, [api, open.panel.open])
-
-  const body = mcpPanelOf({
-    servers: mcpRosterOf(args),
-    signIns: mcpSignInEntries(args.events),
-    ids,
-  })
+  }, [loadIds, open.panel.open])
 
   const begin = useCallback(
-    (serverId: string) => {
+    (target: { serverId: string; serverName: string }) => {
       if (api === null) return
-      void api.mcpOauthBegin({ serverId }).then(
+      const openReturn = args.openSignIn ?? openBrowserReturn
+      void api.mcpOauthBegin({ serverId: target.serverId }).then(
         (answer) => {
-          if (answer.outcome === 'redirect') {
-            args.openUrl(answer.authorizationUrl)
+          if (answer.outcome !== 'redirect') {
+            problem.current(answer.reason)
             return
           }
-          problem.current(answer.reason)
+          openReturn({
+            url: answer.authorizationUrl,
+            open: args.openUrl,
+            copy: mcpSignInCopyOf(target.serverName),
+          })
+          const state = stateOfStartLink(answer.authorizationUrl)
+          if (state !== undefined) setSignIn({ state, server: target.serverName })
         },
         (failure: unknown) => problem.current(messageOf(failure)),
       )
     },
     [api, args],
   )
+
+  const outcome = useReturnOutcome({ state: signIn?.state, durable: undefined })
+  const shown = useRef<string | undefined>(undefined)
+  const outcomeKey = outcome === undefined ? undefined : `${outcome.result}:${outcome.reason ?? ''}`
+
+  useEffect(() => {
+    if (signIn === null || outcomeKey === undefined) return
+    const key = `${signIn.state}:${outcomeKey}`
+    if (shown.current === key) return
+    shown.current = key
+    loadIds({ alive: () => true })
+  }, [signIn, outcomeKey, loadIds])
+
+  const body = mcpPanelOf({
+    servers: mcpRosterOf(args),
+    signIns: mcpSignInEntries(args.events),
+    ids,
+    pending: signIn === null ? null : { signIn, outcome },
+  })
 
   const handlePick = useCallback(
     (index: number) => {
@@ -154,7 +237,7 @@ export function useMcpPanel(args: {
         args.openUrl(target.url)
         return
       }
-      begin(target.serverId)
+      begin({ serverId: target.serverId, serverName: target.serverName })
     },
     [args, begin, body.targets],
   )

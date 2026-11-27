@@ -22,13 +22,6 @@ const CancelButton = () => (
   />
 )
 
-const SETTINGS_FORM_SHEET = {
-  presentation: 'formSheet' as const,
-  sheetAllowedDetents: [0.55, 1],
-  sheetExpandsWhenScrolledToEdge: false,
-  sheetGrabberVisible: true,
-}
-
 const AppStack = () => {
   const theme = useTheme()
   const barWidth = useContentWidth()
@@ -107,8 +100,14 @@ const AppStack = () => {
           key={screen.name}
           name={screen.name}
           options={{
+            ...(screen.sheet === undefined
+              ? {}
+              : {
+                  presentation: 'formSheet' as const,
+                  sheetAllowedDetents: screen.sheet.detents,
+                  sheetGrabberVisible: true,
+                }),
             ...pushedHeaderOptions,
-            ...(screen.formSheet === true ? SETTINGS_FORM_SHEET : undefined),
             ...pushedHeaderOptionsOf({
               title: screen.title,
               barWidth,

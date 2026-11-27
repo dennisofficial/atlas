@@ -11,26 +11,34 @@ import type { Href } from 'expo-router'
 export type ISettingsStackScreen = {
   name: string
   title: string
-  formSheet?: boolean
+  sheet?: { detents: number[] }
   titleButtons?: number
 }
+
+const SKILL_FORM_SHEET = { detents: [0.55, 1] }
 
 export type TRouteOfId = (args: { id: string }) => Href
 
 export const SETTINGS_STACK_SCREENS: readonly ISettingsStackScreen[] = [
   { name: 'settings/index', title: 'Settings' },
+  { name: 'settings/instructions', title: 'Instructions' },
+  { name: 'settings/memory', title: 'Memory' },
+  { name: 'settings/memory-entry', title: 'Memory', sheet: { detents: [0.75, 1] } },
+  { name: 'settings/skills', title: 'Skills', titleButtons: 2 },
+  { name: 'settings/skills-new', title: 'New skill', sheet: SKILL_FORM_SHEET },
   { name: 'project-settings/[projectId]/index', title: 'Project settings' },
   { name: 'project-settings/[projectId]/overview', title: 'Overview' },
-  { name: 'group-settings/[groupId]/index', title: 'Group settings' },
-  { name: 'settings/skills', title: 'Skills', titleButtons: 2 },
-  { name: 'settings/skills-new', title: 'New skill', formSheet: true },
   { name: 'project-settings/[projectId]/skills', title: 'Skills', titleButtons: 2 },
-  { name: 'project-settings/[projectId]/skills-new', title: 'New skill', formSheet: true },
+  { name: 'project-settings/[projectId]/skills-new', title: 'New skill', sheet: SKILL_FORM_SHEET },
+  { name: 'group-settings/[groupId]/index', title: 'Group settings' },
+  { name: 'group-settings/[groupId]/instructions', title: 'Instructions' },
   { name: 'group-settings/[groupId]/skills', title: 'Skills', titleButtons: 2 },
-  { name: 'group-settings/[groupId]/skills-new', title: 'New skill', formSheet: true },
+  { name: 'group-settings/[groupId]/skills-new', title: 'New skill', sheet: SKILL_FORM_SHEET },
 ]
 
 export const IOS_SETTINGS_ROUTES: Partial<Record<ESettingsPage, Href>> = {
+  [ESettingsPage.Instructions]: '/settings/instructions',
+  [ESettingsPage.Memory]: '/settings/memory',
   [ESettingsPage.Skills]: '/settings/skills',
 }
 
@@ -42,14 +50,14 @@ export const IOS_PROJECT_SECTION_ROUTES: Partial<Record<EProjectSettingsSection,
 }
 
 export const IOS_GROUP_SECTION_ROUTES: Partial<Record<TGroupSection, TRouteOfId>> = {
+  [EGroupSettingsSection.Instructions]: ({ id }) =>
+    `/group-settings/${encodeURIComponent(id)}/instructions`,
   [EProjectSettingsSection.Skills]: ({ id }) => `/group-settings/${encodeURIComponent(id)}/skills`,
 }
 
 export const IOS_PENDING_PAGES: ReadonlySet<ESettingsPage> = new Set([
   ESettingsPage.Account,
   ESettingsPage.Integrations,
-  ESettingsPage.Instructions,
-  ESettingsPage.Memory,
   ESettingsPage.ModelsEffort,
   ESettingsPage.Providers,
   ESettingsPage.Classifier,
@@ -72,7 +80,6 @@ export const IOS_PENDING_PROJECT_SECTIONS: ReadonlySet<EProjectSettingsSection> 
 
 export const IOS_PENDING_GROUP_SECTIONS: ReadonlySet<TGroupSection> = new Set([
   EProjectSettingsSection.Overview,
-  EGroupSettingsSection.Instructions,
   EProjectSettingsSection.Sandbox,
   EProjectSettingsSection.Access,
   EProjectSettingsSection.Mcp,

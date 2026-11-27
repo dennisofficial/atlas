@@ -144,7 +144,22 @@ describe('the mcp sign-in return', () => {
     expect(answer.setCookie).toContain(`Path=${MCP_OAUTH_CALLBACK_PATH}`)
   })
 
-  it('keeps the legacy params for the project settings page', async () => {
+  it('answers the user settings page that started the flow', async () => {
+    const db = await seeded({
+      target: { surface: 'web', screen: { kind: 'settings', scope: 'user' } },
+    })
+    tokenFetch()
+
+    const answer = await answerOf({ db, query: 'state=state-1&code=code-1' })
+
+    expect(answer.status).toBe(302)
+    const location = new URL(answer.location)
+    expect(location.pathname).toBe('/settings/integrations')
+    expect(location.searchParams.get('atlasReturn')).toBe('connected')
+    expect(location.searchParams.get('atlasState')).toBe('state-1')
+  })
+
+  it('answers the project settings page with the framework params', async () => {
     const db = await seeded({
       target: { surface: 'web', screen: { kind: 'settings', scope: 'project', id: 'proj_9' } },
     })
@@ -154,10 +169,11 @@ describe('the mcp sign-in return', () => {
 
     const location = new URL(answer.location)
     expect(location.pathname).toBe('/projects/proj_9/settings/mcp')
-    expect(location.searchParams.get('mcpOauth')).toBe('connected')
+    expect(location.searchParams.get('atlasReturn')).toBe('connected')
+    expect(location.searchParams.has('mcpOauth')).toBe(false)
   })
 
-  it('keeps a group settings flow on its page', async () => {
+  it('answers a group settings flow on its page', async () => {
     const db = await seeded({
       target: { surface: 'web', screen: { kind: 'settings', scope: 'group', id: 'grp-1' } },
     })
@@ -170,18 +186,54 @@ describe('the mcp sign-in return', () => {
 
     const answer = await answerOf({ db, query: 'state=state-1&code=code-1' })
 
-    expect(new URL(answer.location).pathname).toBe('/groups/grp-1/settings/mcp')
+    const location = new URL(answer.location)
+    expect(location.pathname).toBe('/groups/grp-1/settings/mcp')
+    expect(location.searchParams.get('atlasReturn')).toBe('connected')
   })
 
-  it('keeps an ios settings flow on the web page, which the app has no route for', async () => {
+  it('hands a desktop settings flow back to the app', async () => {
     const db = await seeded({
-      target: { surface: 'ios', screen: { kind: 'settings', scope: 'user' } },
+      target: { surface: 'desktop', screen: { kind: 'settings', scope: 'project', id: 'proj_9' } },
     })
     tokenFetch()
 
-    const answer = await answerOf({ db, query: 'state=state-1&code=code-1' })
+    const answer = await answerOf({
+      db,
+      query: 'state=state-1&code=code-1',
+      cookie: cookieOf({ state: 'state-1', surface: EReturnSurface.Desktop }),
+    })
 
-    expect(answer.status).toBe(302)
-    expect(new URL(answer.location).pathname).toBe('/settings/integrations')
+    expect(answer.status).toBe(200)
+    expect(answer.body).toContain(
+      'atlas://open/projects/proj_9/settings/mcp?atlasReturn=connected&atlasState=state-1',
+    )
+  })
+
+  it('reports a failed settings sign-in on its own page', async () => {
+    const db = await seeded({
+      target: { surface: 'web', screen: { kind: 'settings', scope: 'project', id: 'proj_9' } },
+    })
+    await db.orm.public.McpOauthPending.where({ id: 'state-1' }).updateAndCount({
+      expiresAt: new Date(Date.now() - 1_000),
+    })
+
+    const answer = await answerOf({ db, query: 'state=state-1&code=c' })
+
+    const location = new URL(answer.location)
+    expect(location.pathname).toBe('/projects/proj_9/settings/mcp')
+    expect(location.searchParams.get('atlasReturn')).toBe('failed')
+    expect(location.searchParams.get('atlasReason')).toBe('expired')
+  })
+
+  it('reports an unknown state on the integrations page', async () => {
+    const { db } = testDb()
+    await seedOwner(db)
+
+    const answer = await answerOf({ db, query: 'state=nowhere&code=c' })
+
+    const location = new URL(answer.location)
+    expect(location.pathname).toBe('/settings/integrations')
+    expect(location.searchParams.get('atlasReturn')).toBe('failed')
+    expect(location.searchParams.get('atlasReason')).toBe('unknown_state')
   })
 })

@@ -15,6 +15,7 @@ const STATUS_LABEL: Readonly<Record<ESettingsLogin, string | null>> = {
   [ESettingsLogin.Idle]: null,
   [ESettingsLogin.Asking]: 'asking Atlas Cloud for a code…',
   [ESettingsLogin.Prompting]: 'code below — waiting for approval…',
+  [ESettingsLogin.Browser]: 'waiting for your browser…',
   [ESettingsLogin.Finishing]: 'signing in…',
 }
 
@@ -91,7 +92,9 @@ export function CloudSignInPrompt(props: {
 
   return (
     <>
-      <CodeLine cells={props.cells} userCode={prompt.userCode} />
+      {prompt.userCode === null ? null : (
+        <CodeLine cells={props.cells} userCode={prompt.userCode} />
+      )}
       <UrlLines cells={props.cells} url={prompt.url} onOpenUrl={props.onOpenUrl} />
     </>
   )

@@ -79,17 +79,39 @@ const handleSignIn = async () => {
 The card shows `outcome` while the screen is open, and the durable outcome after a reload. Do not
 keep a second copy of the outcome per flow: the shared store holds it under the state.
 
+## Login
+
+Signing in to Atlas itself is a different contract from a flow's yes/no return: a bearer token is
+only minted for a client that proves it holds the PKCE verifier. So every surface keeps its own
+PKCE pair and calls `desktopAuth.exchange` with the code and the verifier; the framework carries
+sign-in results for flows, not tokens.
+- Web signs in in the page, with better-auth and a session cookie.
+- Mac opens `https://byatlas.io/desktop/authorize?redirect_uri=http://127.0.0.1:<port>/desktop/auth/callback&state=&code_challenge=&code_challenge_method=S256`
+  and receives the code on its host's loopback listener (`apps/mac/src/host/auth/auth-service.ts`).
+- iOS opens `atlas://auth/callback` through `WebBrowser.openAuthSessionAsync` and the system hands
+  the code back to the app (`apps/mobile/src/auth/sign-in-flow.ts`).
+- The TUI runs the RFC 8252 loopback as well, on the `/desktop/auth/callback` path its listener
+  serves (`startLoopbackWait` in `apps/tui/src/app/browser-return/loopback-server.ts`). A terminal
+  that cannot open a browser on its own machine uses the RFC 8628 device code instead:
+  `loginFlowOf` chooses the device code over SSH (`SSH_CONNECTION`, `SSH_TTY`) or on Linux with no
+  `DISPLAY` and no `WAYLAND_DISPLAY`. The listener gives up, or fails to bind, and the flow falls
+  back to the device code on its own. While the browser is open the waiting screen keeps the
+  device code one keypress away, so a session that looks local still has a way through.
+
 ## Flows on the framework
 
-| Flow  | Start                             | Return path      | Durable result                        |
-| ----- | --------------------------------- | ---------------- | ------------------------------------- |
-| `mcp` | the MCP transcript card's sign-in | `/sessions/<id>` | the roster row, read by the next turn |
+| Flow  | Start                                                 | Return path                                                                                            | Durable result                        |
+| ----- | ----------------------------------------------------- | ------------------------------------------------------------------------------------------------------ | ------------------------------------- |
+| `mcp` | the MCP transcript card's sign-in, or a settings page | `/sessions/<id>`, `/settings/integrations`, `/projects/<id>/settings/mcp`, `/groups/<id>/settings/mcp` | the roster row, read by the next turn |
 
 The MCP transcript card signs in an `http` MCP server. The agent tool `operator_mcp_sign_in` begins
 the flow, and the callback answers a session screen through `BrowserReturnService.answer`, so the
-card on web, Mac, iOS or the TUI shows the outcome at once. The API also keeps a refused sign-in on
-the server row, so the roster reads `failed` with the provider's reason and the card resolves failed
-even after a reload. Settings screens keep the flow's own `mcpOauth` params until they move over.
+card on web, Mac, iOS or the TUI shows the outcome at once. Every screen answers through the
+framework, including the user, project and group MCP settings pages, and a state the framework does
+not know falls back to `/settings/integrations`. The API also keeps a refused sign-in on the server
+row, so the roster reads `failed` with the provider's reason and the card resolves failed even after
+a reload. The web settings page reads the outcome from the shared return store, and the flow no
+longer carries a `mcpOauth` result param of its own.
 
 ## API
 

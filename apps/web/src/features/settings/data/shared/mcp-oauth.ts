@@ -1,17 +1,7 @@
-import {
-  EMcpOauthCallbackResult,
-  EMcpOauthGrantStatus,
-  EMcpOauthReturnSurface,
-  EMcpServerSource,
-  MCP_OAUTH_REASON_PARAM,
-  MCP_OAUTH_RESULT_PARAM,
-  MCP_OAUTH_SERVER_PARAM,
-  type McpOauthServer,
-} from '@dltech/atlas-wire/web'
+import { EReturnResult, type ReturnOutcome } from '@dltech/atlas-core'
+import { EMcpOauthGrantStatus, EMcpServerSource, type McpOauthServer } from '@dltech/atlas-wire/web'
 
-import { isDesktopHost } from '@/features/desktop/desktop-attributes'
-
-import { ELinkReturnKind, type LinkReturn } from '../personal/link-return'
+import { ELinkReturnKind } from '../personal/link-return'
 import type { McpSignInScreen } from './mcp-signin-request'
 import { relativeTimeOf } from './relative-time'
 
@@ -64,29 +54,18 @@ export const authStateOf = (server: McpOauthServer | undefined): EMcpAuthState =
   return EMcpAuthState.SignIn
 }
 
-export const returnSurfaceOf = (host: object): EMcpOauthReturnSurface =>
-  isDesktopHost(host) ? EMcpOauthReturnSurface.Desktop : EMcpOauthReturnSurface.Web
+export const mcpServerLabelOf = (serverUrl: string): string =>
+  URL.canParse(serverUrl) ? new URL(serverUrl).host : 'the server'
 
-const hostOf = (serverUrl: string | null): string =>
-  serverUrl !== null && URL.canParse(serverUrl) ? new URL(serverUrl).host : 'the server'
+export type McpResultMessage = { kind: ELinkReturnKind; message: string }
 
-export const MCP_OAUTH_RETURN_PARAMS = [
-  MCP_OAUTH_RESULT_PARAM,
-  MCP_OAUTH_SERVER_PARAM,
-  MCP_OAUTH_REASON_PARAM,
-]
-
-export function mcpOauthReturnOf(params: URLSearchParams): LinkReturn | null {
-  const result = params.get(MCP_OAUTH_RESULT_PARAM)
-  const host = hostOf(params.get(MCP_OAUTH_SERVER_PARAM))
-  if (result === EMcpOauthCallbackResult.Connected) {
-    return { kind: ELinkReturnKind.Success, message: `Signed in to ${host}` }
-  }
-  if (result !== EMcpOauthCallbackResult.Failed) return null
-  const reason = params.get(MCP_OAUTH_REASON_PARAM)
-  const detail = reason === null || reason === '' ? '' : `: ${reason}`
-  return {
-    kind: ELinkReturnKind.Error,
-    message: `Couldn't sign in to ${host}${detail}`,
-  }
+export const mcpResultMessageOf = (args: {
+  label: string
+  outcome: ReturnOutcome
+}): McpResultMessage => {
+  if (args.outcome.result === EReturnResult.Connected)
+    return { kind: ELinkReturnKind.Success, message: `Signed in to ${args.label}` }
+  const reason = args.outcome.reason
+  const detail = reason === undefined || reason === '' ? '' : `: ${reason}`
+  return { kind: ELinkReturnKind.Error, message: `Couldn't sign in to ${args.label}${detail}` }
 }
