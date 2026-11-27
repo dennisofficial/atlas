@@ -11,25 +11,44 @@ import type { Href } from 'expo-router'
 export type ISettingsStackScreen = {
   name: string
   title: string
+  presentation?: 'modal'
 }
 
 export type TRouteOfId = (args: { id: string }) => Href
 
 export const SETTINGS_STACK_SCREENS: readonly ISettingsStackScreen[] = [
   { name: 'settings/index', title: 'Settings' },
+  { name: 'settings/groups', title: 'Groups' },
+  { name: 'settings/group-form', title: 'Group', presentation: 'modal' },
+  { name: 'settings/group-assign', title: 'Assign projects', presentation: 'modal' },
   { name: 'project-settings/[projectId]/index', title: 'Project settings' },
   { name: 'project-settings/[projectId]/overview', title: 'Overview' },
+  { name: 'project-settings/[projectId]/sandbox', title: 'Sandbox' },
+  { name: 'project-settings/[projectId]/pull-requests', title: 'Pull requests' },
   { name: 'group-settings/[groupId]/index', title: 'Group settings' },
+  { name: 'group-settings/[groupId]/overview', title: 'Overview' },
+  { name: 'group-settings/[groupId]/sandbox', title: 'Sandbox' },
 ]
 
-export const IOS_SETTINGS_ROUTES: Partial<Record<ESettingsPage, Href>> = {}
+export const IOS_SETTINGS_ROUTES: Partial<Record<ESettingsPage, Href>> = {
+  [ESettingsPage.Groups]: '/settings/groups',
+}
 
 export const IOS_PROJECT_SECTION_ROUTES: Partial<Record<EProjectSettingsSection, TRouteOfId>> = {
   [EProjectSettingsSection.Overview]: ({ id }) =>
     `/project-settings/${encodeURIComponent(id)}/overview`,
+  [EProjectSettingsSection.Sandbox]: ({ id }) =>
+    `/project-settings/${encodeURIComponent(id)}/sandbox`,
+  [EProjectSettingsSection.PullRequests]: ({ id }) =>
+    `/project-settings/${encodeURIComponent(id)}/pull-requests`,
 }
 
-export const IOS_GROUP_SECTION_ROUTES: Partial<Record<TGroupSection, TRouteOfId>> = {}
+export const IOS_GROUP_SECTION_ROUTES: Partial<Record<TGroupSection, TRouteOfId>> = {
+  [EProjectSettingsSection.Overview]: ({ id }) =>
+    `/group-settings/${encodeURIComponent(id)}/overview`,
+  [EProjectSettingsSection.Sandbox]: ({ id }) =>
+    `/group-settings/${encodeURIComponent(id)}/sandbox`,
+}
 
 export const IOS_PENDING_PAGES: ReadonlySet<ESettingsPage> = new Set([
   ESettingsPage.Account,
@@ -41,7 +60,6 @@ export const IOS_PENDING_PAGES: ReadonlySet<ESettingsPage> = new Set([
   ESettingsPage.Providers,
   ESettingsPage.Classifier,
   ESettingsPage.Access,
-  ESettingsPage.Groups,
   ESettingsPage.Appearance,
   ESettingsPage.Notifications,
   ESettingsPage.Security,
@@ -51,17 +69,13 @@ export const IOS_PENDING_PAGES: ReadonlySet<ESettingsPage> = new Set([
 ])
 
 export const IOS_PENDING_PROJECT_SECTIONS: ReadonlySet<EProjectSettingsSection> = new Set([
-  EProjectSettingsSection.Sandbox,
   EProjectSettingsSection.Access,
   EProjectSettingsSection.Skills,
   EProjectSettingsSection.Mcp,
-  EProjectSettingsSection.PullRequests,
 ])
 
 export const IOS_PENDING_GROUP_SECTIONS: ReadonlySet<TGroupSection> = new Set([
-  EProjectSettingsSection.Overview,
   EGroupSettingsSection.Instructions,
-  EProjectSettingsSection.Sandbox,
   EProjectSettingsSection.Access,
   EProjectSettingsSection.Skills,
   EProjectSettingsSection.Mcp,

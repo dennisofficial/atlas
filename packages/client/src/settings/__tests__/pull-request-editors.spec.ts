@@ -5,10 +5,10 @@ import { decodeSettingValue, encodeSettingValue } from '@dltech/atlas-wire/web'
 
 import {
   MUTED_EDITORS_KEY,
-  URGENT_EDITORS_KEY,
   prCommentEditorChanges,
   prCommentEditorsOf,
-} from '../pr-comment-editors'
+  URGENT_EDITORS_KEY,
+} from '../pull-request-editors'
 
 describe('prCommentEditorsOf', () => {
   it('shows the defaults when nothing is stored', () => {
@@ -23,10 +23,7 @@ describe('prCommentEditorsOf', () => {
       [MUTED_EDITORS_KEY, decodeSettingValue(encodeSettingValue('renovate'))],
       [URGENT_EDITORS_KEY, decodeSettingValue(encodeSettingValue('coderabbit'))],
     ])
-    expect(prCommentEditorsOf(values)).toEqual({
-      muted: 'renovate',
-      urgent: 'coderabbit',
-    })
+    expect(prCommentEditorsOf(values)).toEqual({ muted: 'renovate', urgent: 'coderabbit' })
   })
 
   it('ignores non-text stored values', () => {
