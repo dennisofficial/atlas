@@ -11,7 +11,7 @@ import { GestureHandlerRootView } from 'react-native-gesture-handler'
 import { KeyboardProvider } from 'react-native-keyboard-controller'
 
 import { AnalyticsIdentity } from '../analytics/analytics-identity'
-import { AnalyticsProvider } from '../analytics/analytics-provider'
+import { AnalyticsProvider, analyticsEnabled } from '../analytics/analytics-provider'
 import { PushRegistrationCapture } from '../analytics/push-registration-capture'
 import { AuthProvider, useAuth } from '../auth/auth-provider'
 import { EAuthState } from '../auth/auth-reducer'
@@ -28,6 +28,7 @@ import {
 import { installNotificationCategory, reportNotificationResponse } from '../push/notification-track'
 import { claimSessionTap, type TNotificationTap } from '../push/session-tap'
 import { SettingsProvider } from '../settings/settings-provider'
+import { ThemeModeSync } from '../settings/theme-mode-sync'
 import { SplashOverlay } from '../splash/splash-overlay'
 import { fontAssets } from '../theme/fonts'
 import { navigationThemeOf } from '../theme/navigation-theme'
@@ -121,9 +122,10 @@ const RootLayout = () => {
         <AnalyticsProvider>
           <ThemeProvider value={navigationThemeOf({ theme, dark })}>
             <AuthProvider>
-              <AnalyticsIdentity />
-              <PushRegistrationCapture />
+              {analyticsEnabled ? <AnalyticsIdentity /> : null}
+              {analyticsEnabled ? <PushRegistrationCapture /> : null}
               <SettingsProvider>
+                <ThemeModeSync />
                 <RootStack fontsReady={fontsLoaded || fontError !== null} />
                 <StatusBar style={dark ? 'light' : 'dark'} />
               </SettingsProvider>

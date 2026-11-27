@@ -1,20 +1,22 @@
 'use client'
 
+import {
+  deviceTimezone,
+  NOTIFY_TIMEZONE_KEY,
+  notificationChanges,
+  notificationsFrom,
+  withDeviceZone,
+} from '@dltech/atlas-client/settings'
 import { Switch } from '@dltech/atlas-ui/components/switch'
 import { useEffect, useRef } from 'react'
 
 import { RoutineTimezoneField } from '@/features/routines/routine-timezone-field'
 import type { SettingValues } from '@/lib/cloud-settings'
 
-import { notificationChanges, notificationsFrom } from '../data/personal/interface-settings'
 import { QueryPage } from '../data/personal/query-boundary'
 import { useCloudSettings } from '@/lib/cloud-settings'
 import { useSettingsDraft } from '../data/personal/use-settings-draft'
-import {
-  type NotificationSettings,
-  type NotifyEventToggles,
-  type NotifyMomentId,
-} from '../fixtures/settings-interface'
+import { type NotifyEventToggles, type NotifyMomentId } from '../fixtures/settings-interface'
 import { QuietHourSelect } from '../parts/interface-quiet-hours'
 import { NotifyDevicesCard } from '../parts/notify-devices-card'
 import { NotifyEventToggles as NotifyEventToggleRows } from '../parts/notify-event-toggles'
@@ -30,12 +32,6 @@ import {
 
 const TITLE = 'Notifications'
 const DESCRIPTION = 'Decide where Atlas gets your attention.'
-const TIMEZONE_KEY = 'web.notifications.timezone'
-
-const deviceTimezoneOf = (): string => Intl.DateTimeFormat().resolvedOptions().timeZone || 'UTC'
-
-const withDeviceZone = (settings: NotificationSettings): NotificationSettings =>
-  settings.timezone === '' ? { ...settings, timezone: deviceTimezoneOf() } : settings
 
 export function NotificationsPage() {
   const settings = useCloudSettings()
@@ -66,13 +62,13 @@ function NotificationsEditor({
   })
   const { value, setValue } = draft
   const defaulted = useRef(false)
-  const storedZone = values.get(TIMEZONE_KEY)
+  const storedZone = values.get(NOTIFY_TIMEZONE_KEY)
 
   useEffect(() => {
     if (defaulted.current) return
     defaulted.current = true
     if (storedZone === undefined || storedZone === '') {
-      void save({ [TIMEZONE_KEY]: deviceTimezoneOf() })
+      void save({ [NOTIFY_TIMEZONE_KEY]: deviceTimezone() })
     }
   }, [storedZone, save])
 

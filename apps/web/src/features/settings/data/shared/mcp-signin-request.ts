@@ -1,11 +1,12 @@
-import { EMcpOauthBeginOutcome } from '@dltech/atlas-wire/web'
+import {
+  mcpSignInResultOf,
+  unreachableSignInResult,
+  type McpSignInScreen,
+} from '@dltech/atlas-client/settings'
 
 import { api } from '@/lib/api-client'
 
-export type McpSignInScreen =
-  | { kind: 'settings'; scope: 'user' }
-  | { kind: 'settings'; scope: 'project'; id: string }
-  | { kind: 'settings'; scope: 'group'; id: string }
+export type { McpSignInScreen }
 
 export type McpSignInArgs = {
   serverId: string
@@ -14,18 +15,14 @@ export type McpSignInArgs = {
 
 export type McpSignInResult = { ok: true; url: string } | { ok: false; reason: string }
 
-const UNREACHABLE = 'the api could not begin the sign-in'
-
 export async function beginMcpSignIn(args: McpSignInArgs): Promise<McpSignInResult> {
   try {
     const result = await api.mcpOauth.begin.mutate({
       serverId: args.serverId,
       screen: args.screen,
     })
-    return result.outcome === EMcpOauthBeginOutcome.Redirect
-      ? { ok: true, url: result.authorizationUrl }
-      : { ok: false, reason: result.reason }
+    return mcpSignInResultOf(result)
   } catch {
-    return { ok: false, reason: UNREACHABLE }
+    return unreachableSignInResult()
   }
 }

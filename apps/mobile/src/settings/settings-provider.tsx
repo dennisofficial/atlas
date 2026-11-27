@@ -12,6 +12,7 @@ import { settingsStorage } from './settings-storage'
 export type Settings = {
   ready: boolean
   failed: boolean
+  values: ReadonlyMap<string, SettingScalar>
   read: <TValue extends SettingScalar>(args: { key: string; schema: z.ZodType<TValue> }) => TValue
   save: (changes: SettingsChanges) => Promise<void>
   reload: () => void
@@ -55,7 +56,14 @@ export const SettingsProvider = ({
   const reload = useCallback(() => void store.load(), [store])
 
   const value = useMemo<Settings>(
-    () => ({ ready: state.ready, failed: state.failed, read: store.read, save, reload }),
+    () => ({
+      ready: state.ready,
+      failed: state.failed,
+      values: state.values,
+      read: store.read,
+      save,
+      reload,
+    }),
     [state, store, save, reload],
   )
 

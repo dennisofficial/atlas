@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'bun:test'
 
-import { EImageModel } from '../../../fixtures/settings-images'
+import { EImageModel } from '../agent-settings'
 import { agentSettingsChanges, agentSettingsFrom } from '../agent-settings'
 
 describe('agent settings mapper', () => {
