@@ -118,22 +118,24 @@ const StatusLines = ({
         onLayout={handleLayout}
         style={[styles.lines, linesStyle]}
       >
-        <View style={styles.head}>
-          <Pulse reduced={reduced} color={theme.primary} />
-          <Text size={ETextRole.Xs} numberOfLines={1} style={styles.label}>
-            {command.copy.label}
-          </Text>
-          <Text
-            size={ETextRole.Xs}
-            family={EFontFamily.Mono}
-            tone={ETextTone.Muted}
-            style={styles.clock}
-          >
-            {elapsedClockOf({ startedAt: command.startedAt, now })}
+        <View style={styles.copy}>
+          <View style={styles.head}>
+            <Pulse reduced={reduced} color={theme.primary} />
+            <Text size={ETextRole.Xs} numberOfLines={1} style={styles.label}>
+              {command.copy.label}
+            </Text>
+          </View>
+          <Text size={ETextRole.Xs} tone={ETextTone.Muted} numberOfLines={1} style={styles.note}>
+            {BLOCKING_SEND_NOTE}
           </Text>
         </View>
-        <Text size={ETextRole.Xs} tone={ETextTone.Muted} numberOfLines={1} style={styles.note}>
-          {BLOCKING_SEND_NOTE}
+        <Text
+          size={ETextRole.Xs}
+          family={EFontFamily.Mono}
+          tone={ETextTone.Muted}
+          style={styles.clock}
+        >
+          {elapsedClockOf({ startedAt: command.startedAt, now })}
         </Text>
       </Animated.View>
     </Animated.View>
@@ -170,8 +172,14 @@ const styles = StyleSheet.create({
     overflow: 'hidden',
   },
   lines: {
-    paddingHorizontal: COMPOSER_INSET + COMPOSER_FIELD_BORDER,
+    alignItems: 'center',
+    flexDirection: 'row',
+    gap: space(3),
+    paddingHorizontal: COMPOSER_INSET + COMPOSER_FIELD_BORDER + space(1.5),
     paddingTop: space(3),
+  },
+  copy: {
+    flex: 1,
   },
   head: {
     alignItems: 'center',
@@ -200,7 +208,6 @@ const styles = StyleSheet.create({
   },
   clock: {
     fontVariant: ['tabular-nums'],
-    marginLeft: 'auto',
   },
   note: {
     paddingLeft: DOT + space(2),
