@@ -1,6 +1,13 @@
 import { describe, expect, test } from 'bun:test'
 
-import { CONTROLS_GAP, sendHitSlopOf } from '../send-press'
+import {
+  CONTROLS_GAP,
+  PRESSED_SCALE,
+  PRESS_IN_SPRING,
+  RELEASE_SPRING,
+  dampingRatioOf,
+  sendHitSlopOf,
+} from '../send-press'
 
 const DEFAULT_SLOP = 6
 
@@ -22,5 +29,21 @@ describe('sendHitSlopOf', () => {
     expect(slop.left).toBe(DEFAULT_SLOP)
     expect(slop.left).toBeLessThan(CONTROLS_GAP)
     expect(slop.top).toBeGreaterThan(DEFAULT_SLOP)
+  })
+})
+
+describe('the press bounce', () => {
+  test('squeezes a little, not like a ball', () => {
+    expect(PRESSED_SCALE).toBeGreaterThanOrEqual(0.92)
+  })
+
+  test('presses in without overshoot', () => {
+    expect(dampingRatioOf(PRESS_IN_SPRING)).toBeGreaterThanOrEqual(0.9)
+  })
+
+  test('springs back with one small overshoot and no ringing', () => {
+    const ratio = dampingRatioOf(RELEASE_SPRING)
+    expect(ratio).toBeGreaterThanOrEqual(0.55)
+    expect(ratio).toBeLessThan(1)
   })
 })

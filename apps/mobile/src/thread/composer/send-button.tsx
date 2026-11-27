@@ -1,11 +1,6 @@
 import { Button, EButtonSize, EButtonVariant } from '@dltech/atlas-ui-native'
 import { ArrowUp, type LucideIcon, Square } from 'lucide-react-native'
-import Animated, {
-  ZoomIn,
-  useAnimatedStyle,
-  useSharedValue,
-  withSpring,
-} from 'react-native-reanimated'
+import Animated, { useAnimatedStyle, useSharedValue, withSpring } from 'react-native-reanimated'
 
 import { playPressHaptic } from './send-haptic'
 import {
@@ -17,8 +12,6 @@ import {
   sendHitSlopOf,
   sendLabelOf,
 } from './send-press'
-
-const APPEAR = ZoomIn.springify().damping(12).stiffness(320)
 
 const LOOK: Record<ESendAction, { icon: LucideIcon; variant: EButtonVariant }> = {
   [ESendAction.Send]: { icon: ArrowUp, variant: EButtonVariant.Default },
@@ -45,7 +38,7 @@ export const SendButton = ({
   }
 
   return (
-    <Animated.View entering={APPEAR} style={bounce}>
+    <Animated.View style={bounce}>
       <Button
         label={sendLabelOf({ action, loading })}
         icon={LOOK[action].icon}

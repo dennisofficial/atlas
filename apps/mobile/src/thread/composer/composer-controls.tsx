@@ -1,6 +1,5 @@
 import type { ReactNode } from 'react'
 import { ScrollView, StyleSheet, View } from 'react-native'
-import { LayoutAnimationConfig } from 'react-native-reanimated'
 
 import { AttachButton } from './attach-button'
 import type { EAttachSource } from './attach-sources'
@@ -49,25 +48,23 @@ export const ComposerControls = ({
       </ScrollView>
     )}
     {trailing}
-    <LayoutAnimationConfig skipEntering>
-      {onStop !== undefined ? (
-        <SendButton
-          key="stop"
-          action={ESendAction.Stop}
-          besidePressable={trailingPressable}
-          onPress={onStop}
-        />
-      ) : (
-        <SendButton
-          key="send"
-          action={ESendAction.Send}
-          disabled={!canSend}
-          loading={sending}
-          besidePressable={trailingPressable}
-          onPress={onSend}
-        />
-      )}
-    </LayoutAnimationConfig>
+    {onStop !== undefined ? (
+      <SendButton
+        key="stop"
+        action={ESendAction.Stop}
+        besidePressable={trailingPressable}
+        onPress={onStop}
+      />
+    ) : (
+      <SendButton
+        key="send"
+        action={ESendAction.Send}
+        disabled={!canSend}
+        loading={sending}
+        besidePressable={trailingPressable}
+        onPress={onSend}
+      />
+    )}
   </View>
 )
 
