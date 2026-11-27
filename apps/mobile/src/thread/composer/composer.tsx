@@ -16,7 +16,7 @@ import { StyleSheet, View } from 'react-native'
 import { mergeIntoDraft } from '../session/staged-send'
 import { GlassSurface } from '../../navigation/glass-surface'
 import { AttachmentChips } from './attachment-chips'
-import { COMPOSER_INSET, COMPOSER_RADIUS } from './composer-shape'
+import { COMPOSER_FIELD_BORDER, COMPOSER_INSET, COMPOSER_RADIUS } from './composer-shape'
 import { AttachMenu } from './attach-menu'
 import type { EAttachSource } from './attach-sources'
 import { ComposerControls } from './composer-controls'
@@ -42,9 +42,9 @@ export const Composer = ({
   refusal,
   entries = [],
   clientActions,
-  joined = false,
   trailing,
   trailingPressable = true,
+  status,
   children,
 }: {
   working: boolean
@@ -59,9 +59,9 @@ export const Composer = ({
   refusal?: string | undefined
   entries?: readonly CommandEntry[]
   clientActions?: Record<EClientAction, () => void> | undefined
-  joined?: boolean
   trailing?: ReactNode
   trailingPressable?: boolean
+  status?: ReactNode
   children?: ReactNode
 }) => {
   const [draft, setDraft] = useState('')
@@ -171,12 +171,13 @@ export const Composer = ({
   )
 
   return (
-    <View style={[styles.dock, joined ? styles.joinedDock : null]}>
+    <View style={styles.dock}>
       {menuQueryOf(draft) === null || candidates.length === 0 ? null : (
         <SlashMenu entries={candidates} onPick={handleCommand} />
       )}
       {choosing && attachments !== undefined ? <AttachMenu onPick={handlePick} /> : null}
       <GlassSurface style={styles.surface}>
+        {status}
         {attachments === undefined ? null : (
           <AttachmentChips held={attachments.held} onRemove={attachments.remove} />
         )}
@@ -186,7 +187,7 @@ export const Composer = ({
           </Text>
         )}
         <ComposerDropZone
-          style={[styles.field, joined ? styles.joinedField : null]}
+          style={styles.field}
           borderColor="transparent"
           onFiles={attachments?.attachFiles}
           controls={controls}
@@ -219,21 +220,13 @@ const styles = StyleSheet.create({
   field: {
     borderCurve: 'continuous',
     borderRadius: COMPOSER_RADIUS,
-    borderWidth: 1,
+    borderWidth: COMPOSER_FIELD_BORDER,
     paddingHorizontal: COMPOSER_INSET,
     paddingTop: COMPOSER_INSET,
   },
   surface: {
     borderCurve: 'continuous',
     borderRadius: COMPOSER_RADIUS,
-  },
-  joinedDock: {
-    paddingTop: 0,
-  },
-  joinedField: {
-    borderTopLeftRadius: 0,
-    borderTopRightRadius: 0,
-    borderTopWidth: 0,
   },
   input: {
     fontFamily: 'Geist_400Regular',

@@ -10,7 +10,6 @@ import {
 import type { NativeStackHeaderItem, NativeStackNavigationOptions } from 'expo-router'
 import { Platform, StyleSheet, View } from 'react-native'
 
-import type { TPosture } from '../../layout/posture'
 import { leadingHeaderOptionsOf } from '../../navigation/header-options'
 import { photoDetailOf } from './photo-detail'
 import type { Photo } from './photo-store'
@@ -59,7 +58,6 @@ const PhotoTitle = ({ photo }: { photo: Photo }) => {
 export const photoHeaderOptionsOf = ({
   photo,
   visible,
-  posture,
   windowWidth,
   tint,
   onClose,
@@ -67,7 +65,6 @@ export const photoHeaderOptionsOf = ({
 }: {
   photo: Photo | undefined
   visible: boolean
-  posture: TPosture
   windowWidth: number
   tint: string
   onClose: () => void
@@ -121,7 +118,6 @@ export const photoHeaderOptionsOf = ({
       glassTitle: true,
       titleButtons: 3,
       windowWidth,
-      posture,
     }),
     unstable_headerRightItems: () => shareItems,
   }

@@ -33,7 +33,7 @@ export const Reasoning = ({ text, live = false }: { text: string; live?: boolean
   return (
     <Trace>
       <Step icon={<CircleCheck size={16} color={theme.mutedForeground} />} title="Thought">
-        <Text size={ETextRole.Sm} tone={ETextTone.Muted} leading={RELAXED_LEADING}>
+        <Text size={ETextRole.Sm} tone={ETextTone.Muted} leading={RELAXED_LEADING} selectable>
           {text}
         </Text>
       </Step>

@@ -74,7 +74,8 @@ where the compiler should enforce a dependency rule.
   stays on Vitest (`bun --bun vitest run`).
 - Tests are incremental (`packages/bun-test-incremental`). With `BUN_TEST_INCREMENTAL=1` (always
   on in CI) only a spec whose inputs changed runs. A failure is never cached. Never add path
-  filters or sharding to CI. The nightly runs everything.
+  filters to CI. The test job runs as eight `bun test --shard` jobs (`scripts/ci-test-shard.ts`),
+  each with its own cache; every file runs on exactly one shard. The nightly runs everything.
 - Live Docker specs run only with `ATLAS_LIVE_DOCKER=1`, which CI does not set (several need
   repair).
 - A v2 feature whose work outlives a turn or a prepare (a background setup script, a bash call)
@@ -87,6 +88,10 @@ where the compiler should enforce a dependency rule.
 
 - Branch `<you>/<slug>` from `origin/main`. Open a PR. Run `gh pr merge --squash` when CI is green.
   Keep each PR reviewable in one sitting. Never force-push. Never use `--no-verify`.
+- Never edit, disable or add a bypass to the `main` ruleset, not even for a few seconds, and never
+  use `gh pr merge --admin`. The required `ci` check is the only merge gate. When it is red or stuck,
+  fix it or ask the operator. Agents toggled the ruleset to force merges five times (2026-11-04,
+  -11, -26); the 2026-11-26 toggle also landed the red queued #3001, which broke main.
 - The PR body follows `.github/pull_request_template.md`. `gh pr create --body` skips the template,
   so copy it. Fill in every section. Keep every checklist line, and tick it or mark it N/A as the
   template says. Pass the body with `--body-file`.

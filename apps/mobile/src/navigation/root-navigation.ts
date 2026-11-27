@@ -1,30 +1,15 @@
-import { EControlsPlacement } from '../layout/posture'
-import { isSessionsPath, isTabRoot, pathnameOf, SESSIONS_HREF } from './tabs'
+import { isSessionsPath, SESSIONS_HREF } from './tabs'
 
 export const SETTINGS_HREF = '/settings'
 
 export enum ENavigationAction {
   None = 'none',
-  Push = 'push',
   Replace = 'replace',
   ResetStack = 'reset-stack',
 }
 
-export enum ESettingsPlacement {
-  Root = 'root',
-  Pushed = 'pushed',
-}
-
-export const settingsPlacementOf = ({
-  controls,
-}: {
-  controls: EControlsPlacement
-}): ESettingsPlacement =>
-  controls === EControlsPlacement.Rail ? ESettingsPlacement.Root : ESettingsPlacement.Pushed
-
 export type TNavigationAction =
   | { action: ENavigationAction.None }
-  | { action: ENavigationAction.Push; href: string }
   | { action: ENavigationAction.Replace; href: string }
   | { action: ENavigationAction.ResetStack; href: string }
 
@@ -43,38 +28,10 @@ export const sessionOpenOf = ({
   return { action: ENavigationAction.ResetStack, href }
 }
 
-export const tabNavigationOf = ({
-  href,
-  pathname,
-}: {
-  href: string
-  pathname: string
-}): TNavigationAction => {
-  const sameTab =
-    pathnameOf(pathname) === pathnameOf(href) || (isSessionsPath(href) && isSessionsPath(pathname))
-  return sameTab
-    ? { action: ENavigationAction.None }
-    : { action: ENavigationAction.ResetStack, href }
-}
-
-export const bottomBarVisibleOf = ({
+export const tabBarHiddenOf = ({
   pathname,
   drawerOpen,
 }: {
   pathname: string
   drawerOpen: boolean
-}): boolean => (isSessionsPath(pathname) ? drawerOpen : isTabRoot(pathname))
-
-export const accountNavigationOf = ({
-  controls,
-  pathname,
-}: {
-  controls: EControlsPlacement
-  pathname: string
-}): TNavigationAction => {
-  if (settingsPlacementOf({ controls }) === ESettingsPlacement.Pushed)
-    return { action: ENavigationAction.Push, href: SETTINGS_HREF }
-  return pathnameOf(pathname) === SETTINGS_HREF
-    ? { action: ENavigationAction.None }
-    : { action: ENavigationAction.ResetStack, href: SETTINGS_HREF }
-}
+}): boolean => isSessionsPath(pathname) && !drawerOpen

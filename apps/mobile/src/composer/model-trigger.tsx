@@ -1,8 +1,9 @@
 import { ETextRole, ETextTone, Text, useTheme } from '@dltech/atlas-ui-native'
-import { radius, space } from '@dltech/atlas-ui/tokens'
+import { radius } from '@dltech/atlas-ui/tokens'
 import { Pressable, StyleSheet } from 'react-native'
 
 import { type IModelOption, type IModelSelection, modelTriggerLabelOf } from './model-options'
+import { COMPOSER_TRIGGER_INSET } from '../thread/composer/composer-shape'
 
 export const ModelTrigger = ({
   models,
@@ -39,7 +40,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     height: 28,
     maxWidth: 200,
-    paddingHorizontal: space(2),
+    paddingHorizontal: COMPOSER_TRIGGER_INSET,
   },
   value: {
     flexShrink: 1,

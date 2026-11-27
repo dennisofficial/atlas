@@ -16,8 +16,10 @@ on `VERCEL !== '1'`) to keep working for a runtime that exists only because of t
 
 The objection was never the restart, it was the turn: a deploy that waits for a turn lasting minutes
 to hours is not shippable. #2314 removed that. On drain a holder pauses every loop it holds at once,
-detaches running daemon calls, aborts the in-flight model request and releases its leases; the next
-holder resumes from the record at the next epoch. The worst case is one repeated model request.
+writes nothing about an open pod call, aborts the in-flight model request at the drain cap and hands its
+leases back; the next holder resumes from the record at the next epoch. The worst case is one repeated
+model request. (Amended 2026-11-27: the drain used to detach the running daemon calls; #2999 made it
+settle and cancel nothing.)
 
 ## Decision
 

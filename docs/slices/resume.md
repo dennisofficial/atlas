@@ -111,9 +111,10 @@ abandoned step (`packages/agent/src/loop/step-drafts.ts:104-126`), `input-consum
 (`packages/host/src/holder/turn-boundary.ts:15-25,60-63`; closed by
 `packages/host/src/holder/held-actions.ts:138-147` when no turn ran). A tool that was dispatched when
 the signal aborted settles as `tool-result{interrupted: true}` from the dispatch itself
-(`packages/agent/src/tools/dispatch.ts:255-266`); a call whose process died settles on the next
-takeover through `settleCrashedCalls` (`packages/agent/src/loop/dispatch-recovery.ts:28-46`, called at
-`packages/host/src/holder/held-runner.ts:66-84`).
+(`packages/agent/src/tools/dispatch.ts:255-266`); a call whose process died is decided on the next
+takeover by `settleCrashedCalls` (`packages/agent/src/loop/dispatch-recovery.ts:35-52`, called at
+`packages/host/src/holder/held-runner.ts:75`), which holds a call that recorded a step and writes an
+interrupted result only for a host-side call that recorded none (`crash-settle.ts`).
 
 **The turn-entry plumbing exists end to end.** `TurnRunner.resume` appends the resume drafts and runs
 a traced turn with `entry: Resume` (`packages/agent/src/loop/run-turn.ts:133-156`), through
@@ -349,14 +350,14 @@ tool was cut, the reason one sentence is inserted at its seq.
 
 ### 6.4 What is repaired, and what is not
 
-| Thing                                                | What resume does                                                                                                                                                                                                                      |
-| ---------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| The cut step's text and its calls that never ran     | Discarded from the model's context by the marker (§5). Still in the transcript.                                                                                                                                                       |
-| A tool dispatched and left unsettled                 | Settled first as `tool-result{interrupted: true}` by `settleCrashedCalls`, which the takeover path already calls (`packages/host/src/holder/held-runner.ts:66-84`). It stays visible to the model, and is never re-run by the resume. |
-| A completed tool result of the same parallel batch   | Kept. The model sees it.                                                                                                                                                                                                              |
-| The context window                                   | Untouched. A resume is not a rotation; `/rotate` is the boundary and stays a separate command.                                                                                                                                        |
-| Tool output on disk, shells, services, sub-agents    | Untouched. Nothing was interrupted by the stop of one turn.                                                                                                                                                                           |
-| A sub-agent that was running when the parent stopped | Untouched. The stop ends the parent's turn; the child keeps running and reports into a thread whose turn ended.                                                                                                                       |
+| Thing                                                | What resume does                                                                                                                                                                                                                                                                                                                                   |
+| ---------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| The cut step's text and its calls that never ran     | Discarded from the model's context by the marker (§5). Still in the transcript.                                                                                                                                                                                                                                                                    |
+| A tool dispatched and left unsettled                 | Decided first by `settleCrashedCalls` on takeover (`packages/host/src/holder/held-runner.ts:75`). A call that recorded a step, a pod tool or a read is held and replays under its step keys; only a host-side call with no recorded step gets `tool-result{interrupted: true}`, which stays visible to the model. The resume never re-runs either. |
+| A completed tool result of the same parallel batch   | Kept. The model sees it.                                                                                                                                                                                                                                                                                                                           |
+| The context window                                   | Untouched. A resume is not a rotation; `/rotate` is the boundary and stays a separate command.                                                                                                                                                                                                                                                     |
+| Tool output on disk, shells, services, sub-agents    | Untouched. Nothing was interrupted by the stop of one turn.                                                                                                                                                                                                                                                                                        |
+| A sub-agent that was running when the parent stopped | Untouched. The stop ends the parent's turn; the child keeps running and reports into a thread whose turn ended.                                                                                                                                                                                                                                    |
 
 ## 7. The command
 

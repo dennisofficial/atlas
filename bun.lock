@@ -157,6 +157,7 @@
       "name": "@dltech/atlas-mobile",
       "version": "1.0.0",
       "dependencies": {
+        "@bsky.app/react-native-uitextview": "2.7.3",
         "@dltech/atlas-api-router": "workspace:*",
         "@dltech/atlas-client": "workspace:*",
         "@dltech/atlas-commands": "workspace:*",
@@ -179,12 +180,13 @@
         "@expo-google-fonts/geist": "^0.4.2",
         "@expo-google-fonts/jetbrains-mono": "^0.4.1",
         "@expo-google-fonts/space-grotesk": "^0.4.1",
-        "@expo/ui": "~58.0.27",
+        "@expo/ui": "~58.0.30",
         "@posthog/react-native-plugin": "^2.13.0",
         "eventsource-parser": "^3.1.1",
         "expo": "~58.0.23",
         "expo-apple-authentication": "~58.0.2",
         "expo-application": "~58.1.2",
+        "expo-audio": "~58.0.12",
         "expo-clipboard": "~58.0.4",
         "expo-constants": "~58.0.15",
         "expo-crypto": "~58.0.7",
@@ -871,6 +873,7 @@
         "@dltech/atlas-ui": "workspace:*",
       },
       "devDependencies": {
+        "@bsky.app/react-native-uitextview": "2.7.3",
         "@types/bun": "latest",
         "@types/react": "~19.3.0",
         "lucide-react-native": "^1.67.0",
@@ -880,6 +883,7 @@
         "typescript": "6.0.3",
       },
       "peerDependencies": {
+        "@bsky.app/react-native-uitextview": "*",
         "lucide-react-native": "*",
         "react": "*",
         "react-native": "*",
@@ -1398,6 +1402,8 @@
 
     "@braintree/sanitize-url": ["@braintree/sanitize-url@7.1.2", "", {}, "sha512-jigsZK+sMF/cuiB7sERuo9V7N9jx+dhmHHnQyDSVdpZwVutaBu7WvNYqMDLSgFgfB30n452TP3vjDAvFC973mA=="],
 
+    "@bsky.app/react-native-uitextview": ["@bsky.app/react-native-uitextview@2.7.3", "", { "peerDependencies": { "react": "*", "react-native": ">=0.81.5" } }, "sha512-tY46Dif6W6uPDh5ZB6P4PkxHIjoIJLJVxDHtVCnaShzVeE7f3L6zKRcClJ2te7wI1kdp7VbiFHoNj0cSAeL2LQ=="],
+
     "@bugsnag/cuid": ["@bugsnag/cuid@3.2.2", "", {}, "sha512-7onuYLTMqMmHE9BBPG0YER4nFsU1rB+me1/YIeMusqcLbVbKKuG9u9+BDVDpje5e0llkkrVNOKYwmzM9DRIo7A=="],
 
     "@chevrotain/cst-dts-gen": ["@chevrotain/cst-dts-gen@10.5.0", "", { "dependencies": { "@chevrotain/gast": "10.5.0", "@chevrotain/types": "10.5.0", "lodash": "4.17.21" } }, "sha512-lhmC/FyqQ2o7pGK4Om+hzuDrm9rhFYIJ/AXoQBeongmn870Xeb0L6oGEiuR8nohFNL5sMaQEJWCxr1oIVIVXrw=="],
@@ -1840,7 +1846,7 @@
 
     "@expo/sudo-prompt": ["@expo/sudo-prompt@9.3.2", "", {}, "sha512-HHQigo3rQWKMDzYDLkubN5WQOYXJJE2eNqIQC2axC2iO3mHdwnIR7FgZVvHWtBwAdzBgAP0ECp8KqS8TiMKvgw=="],
 
-    "@expo/ui": ["@expo/ui@58.0.27", "", { "dependencies": { "sf-symbols-typescript": "^2.1.0" }, "peerDependencies": { "@babel/core": "*", "expo": "*", "react": "*", "react-dom": "*", "react-native": "*", "react-native-worklets": "*" }, "optionalPeers": ["@babel/core", "react-dom", "react-native-worklets"] }, "sha512-g2BDAofZBgmDVxQ9PtbrWk6z9aPf5OUH+06Jdw7XPPTIFCNZ7qZQ94umEisAm8Vt4xViiECyWNTkHMKo7Pi2+w=="],
+    "@expo/ui": ["@expo/ui@58.0.30", "", { "dependencies": { "sf-symbols-typescript": "^2.1.0" }, "peerDependencies": { "@babel/core": "*", "expo": "*", "react": "*", "react-dom": "*", "react-native": "*", "react-native-worklets": "*" }, "optionalPeers": ["@babel/core", "react-dom", "react-native-worklets"] }, "sha512-b31dbJSKyMTylptXbb3Dx+XG57ehvYa+JVIkkoBwY6zLIAePNGlgQKzlFUyWF5jsgzqNZUXKJTjw0roY4MicZA=="],
 
     "@expo/ws-tunnel": ["@expo/ws-tunnel@2.0.1", "", { "peerDependencies": { "ws": "^8.0.0" } }, "sha512-mljsRffbOHzmSimYQbQu9h9NR3alwCCwEEouRGFL4QRTt8dNvsNtKEPa/5jHmtDLDtsh4xXsWKwzjN9BTpeXHQ=="],
 
@@ -3713,6 +3719,8 @@
     "expo-application": ["expo-application@58.1.2", "", { "peerDependencies": { "expo": "*" } }, "sha512-WYFdNHGaxe/j69oYREhK0cKsKYszuIuz399WXYCP+M1grfO+FCWB/RbuMgaXJsLWlzqhNjA/zLgfJ+33FwrQvw=="],
 
     "expo-asset": ["expo-asset@58.0.20", "", { "dependencies": { "@expo/image-utils": "^0.12.6", "expo-constants": "~58.0.15" }, "peerDependencies": { "expo": "*", "react": "*", "react-native": "*" } }, "sha512-atirOtDsH0l+4zxnByf4WKc7Iw2k5e2bSNAkuu79d4SLOAjAROoDizeP0qNQSMyZNoHPArw7EwTpoc8LuWvg4Q=="],
+
+    "expo-audio": ["expo-audio@58.0.12", "", { "peerDependencies": { "expo": "*", "expo-asset": "*", "react": "*", "react-native": "*" } }, "sha512-PNVqGyxZET+hSQ/JfX29VPzdj+W5qo7zRSQabN4T/0+EmnnMvyPf5u6FbaGWQuerXKMvKIy7RwSc13ldaye1RA=="],
 
     "expo-clipboard": ["expo-clipboard@58.0.4", "", { "peerDependencies": { "expo": "*", "react": "*", "react-native": "*" } }, "sha512-b2eEJMwdWXLTrmrkg/otsmL2OV6s9D90tytSNBsY87UswrWf6JwxcB2OaWegyUWD9XnvtBVNeVK7lej0zZh+5A=="],
 

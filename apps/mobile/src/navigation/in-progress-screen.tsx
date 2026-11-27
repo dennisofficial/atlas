@@ -1,16 +1,27 @@
 import { ETextRole, ETextTone, Icon, Text, useTheme } from '@dltech/atlas-ui-native'
 import { space } from '@dltech/atlas-ui/tokens'
+import {
+  AppWindow,
+  CalendarClock,
+  FolderKanban,
+  type LucideIcon,
+  MessagesSquare,
+} from 'lucide-react-native'
 import { StyleSheet, View } from 'react-native'
 
-import { usePosture } from '../layout/use-posture'
-import { TAB_ICONS } from './tab-icons'
-import type { EAppTab } from './tabs'
+import { EAppTab } from './tabs'
+
+const TAB_ICONS: Record<EAppTab, LucideIcon> = {
+  [EAppTab.Sessions]: MessagesSquare,
+  [EAppTab.Routines]: CalendarClock,
+  [EAppTab.Projects]: FolderKanban,
+  [EAppTab.Artifacts]: AppWindow,
+}
 
 export const InProgressScreen = ({ tab }: { tab: EAppTab }) => {
   const theme = useTheme()
-  const posture = usePosture()
   return (
-    <View style={[styles.root, { paddingBottom: posture.clearance.bottom }]}>
+    <View style={styles.root}>
       <Icon icon={TAB_ICONS[tab]} color={theme.mutedForeground} size={32} />
       <Text size={ETextRole.Sm} tone={ETextTone.Muted}>
         In progress
