@@ -4,6 +4,7 @@ import {
   type GithubThreadReplay,
 } from './github-pr-event-mailbox.service'
 import { GithubPrOutboxDispatcher } from './github-pr-outbox'
+import { GithubPrHeldGreen, restHeadSuitesRead, type HeadSuitesRead } from './github-pr-held-green'
 import { GithubPrMergeabilityRefresh } from './github-pr-mergeability-refresh'
 import { GithubPrReconcile } from './github-pr-reconcile'
 import { GithubPrStore } from './github-pr-store'
@@ -21,6 +22,7 @@ export function buildPrApplyWiring(args: {
   replayThread?: GithubThreadReplay
   reads: Pick<GithubUserReads, 'readHeadChecksOf' | 'readPullRequestObservation'>
   budget: GithubHttpBudget
+  readSuites?: HeadSuitesRead
   fillTokenOf: (args: {
     repoFullName: string
     installationId: bigint | undefined
@@ -43,12 +45,24 @@ export function buildPrApplyWiring(args: {
     reads: args.reads,
     budget: args.budget,
   })
+  let mailbox: GithubPrEventMailboxService | null = null
+  const heldGreen = new GithubPrHeldGreen({
+    mailbox: () => {
+      if (mailbox === null) throw new Error('the pr outbox ran before the wiring built its mailbox')
+      return mailbox
+    },
+    dispatch: (outboxIds) => storeOf().dispatch(outboxIds),
+    fillTokenOf: args.fillTokenOf,
+    readSuites: args.readSuites ?? restHeadSuitesRead,
+    budget: args.budget,
+  })
   const dispatcher = new GithubPrOutboxDispatcher({
     fanout: args.fanout,
     reconcile: (run) => reconcile.run(run),
     mergeability: (run) => mergeability.run(run),
+    confirmGreen: (run) => heldGreen.run(run),
   })
-  const mailbox = new GithubPrEventMailboxService(args.fanout, dispatcher, args.replayThread)
+  mailbox = new GithubPrEventMailboxService(args.fanout, dispatcher, args.replayThread)
   bound = new GithubPrStore({ mailbox, dispatcher })
 
   return { mailbox, dispatcher, store: bound }

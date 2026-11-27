@@ -79,7 +79,8 @@ const checksFactOf = (input: PullRequestSnapshotInput): string | undefined => {
 }
 
 const nextOf = (input: PullRequestSnapshotInput): string => {
-  const settled = 'The next notices are a new push, a comment or review, or a merge or close.'
+  const settled =
+    'The next notices are a new push, CI starting again, a comment or review, or a merge or close.'
   const { checks } = input
   if (checks === undefined) return `CI state is not known now. ${settled}`
   if (checksRunning(input)) return 'A CI notice follows when it settles.'

@@ -57,6 +57,9 @@ track a repository or a pull request. `apps/api` drives it through thin Nest ada
 - `GithubPrStore` writes a folded pull-request row and appends its event.
 - `GithubPrReconcile`, `GithubPrMergeabilityRefresh` and `applyObservedPull` decide what the row
   says next, and `foldStateOfRow` folds a stored row into the fold state.
+- The per-head verdict ledger announces a verdict once per settlement. `GithubPrHeldGreen` holds
+  a green verdict until a read of the head's check suites shows no queued workflow, and a running
+  read after an announced verdict sends one `ci-restarted` event.
 - `readCommitChecks` and `commitChecksTally` read and tally check runs and statuses,
   `failedChecksOfRows` gives the failed ones, and `pruneCommitChecks({ now })` deletes the rows
   older than the retention window.

@@ -8,7 +8,8 @@ import {
   seedSubscription as seedSubscriptionRow,
 } from './testing/github-seed'
 import type { GithubSecretCipher } from './github-ports'
-import { inertReconcile } from './github-pr-store.fixture'
+import { heldGreenFixture, inertReconcile } from './github-pr-store.fixture'
+import type { CheckSuiteShape } from './github-check-suites'
 import { GithubPrMergeabilityRefresh } from './github-pr-mergeability-refresh'
 import { GithubPrStore } from './github-pr-store'
 import { GithubFillTokens } from './github-fill-token'
@@ -180,6 +181,7 @@ export function serviceWith(args: {
   appTokens?: GithubInstallationTokens
   readPullRequest?: GithubUserReads['readPullRequest']
   readCheckAnnotations?: GithubUserReads['readCheckAnnotations']
+  suites?: () => readonly CheckSuiteShape[]
 }): {
   service: GithubDeliveryService
   fanout: GithubPrFanoutService
@@ -207,10 +209,15 @@ export function serviceWith(args: {
     reads,
     budget,
   })
-  const dispatcher = new GithubPrOutboxDispatcher({
+  const dispatcher: GithubPrOutboxDispatcher = new GithubPrOutboxDispatcher({
     fanout,
     reconcile: inertReconcile(),
     mergeability: (run) => mergeability.run(run),
+    confirmGreen: heldGreenFixture({
+      mailbox: () => mailbox,
+      dispatcher: () => dispatcher,
+      ...(args.suites === undefined ? {} : { suites: args.suites }),
+    }),
   })
   const mailbox = new GithubPrEventMailboxService(fanout, dispatcher)
   store = new GithubPrStore({ mailbox, dispatcher })

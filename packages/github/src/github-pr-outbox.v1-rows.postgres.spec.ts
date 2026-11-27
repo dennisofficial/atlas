@@ -1,3 +1,4 @@
+import { inertHeldGreen } from './github-pr-store.fixture'
 import { randomUUID } from 'node:crypto'
 import { db } from '@dltech/atlas-db'
 import { useTestDatabase } from '@dltech/atlas-db/testing'
@@ -41,6 +42,7 @@ const rowById = async (id: string) => db.orm.public.GithubPrOutbox.where({ id })
 function rig() {
   const reconcile = vi.fn(async () => undefined)
   const dispatcher = new GithubPrOutboxDispatcher({
+    confirmGreen: inertHeldGreen(),
     fanout: { push: vi.fn(), pushEvent: vi.fn() },
     reconcile,
     mergeability: async () => undefined,

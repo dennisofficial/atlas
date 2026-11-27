@@ -7,7 +7,7 @@ import { GithubPrDiscussionDeliveryService } from './github-pr-discussion-delive
 import { GithubPrEventMailboxService } from './github-pr-event-mailbox.service'
 import { GithubPrFanoutService } from './github-pr-fanout.service'
 import { GithubPrOutboxDispatcher } from './github-pr-outbox'
-import { inertMergeabilityRefresh, inertReconcile } from './github-pr-store.fixture'
+import { inertHeldGreen, inertMergeabilityRefresh, inertReconcile } from './github-pr-store.fixture'
 
 function discussionWith(): { discussion: GithubPrDiscussionDeliveryService } {
   const fanout = new GithubPrFanoutService(new RecordingDrain())
@@ -17,6 +17,7 @@ function discussionWith(): { discussion: GithubPrDiscussionDeliveryService } {
       fanout,
       reconcile: inertReconcile(),
       mergeability: inertMergeabilityRefresh(),
+      confirmGreen: inertHeldGreen(),
     }),
   )
   return { discussion: new GithubPrDiscussionDeliveryService(mailbox) }

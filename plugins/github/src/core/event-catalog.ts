@@ -5,7 +5,7 @@ import { GITHUB_PROVIDER } from './target'
 
 export const PULL_REQUEST_EVENTS: SubscriptionEventCatalog = [
   { name: 'comments', summary: 'comments, reviews and review comments' },
-  { name: 'ci', summary: 'CI verdicts' },
+  { name: 'ci', summary: 'CI verdicts and CI starting again' },
   { name: 'mergeability', summary: 'merge conflicts and merge queue' },
   { name: 'state', summary: 'merged, closed or reopened', alwaysDelivered: true },
 ]
@@ -20,6 +20,7 @@ const PR_EVENT_GROUPS: Readonly<Record<EPrEventKind, string>> = {
   [EPrEventKind.Mergeability]: 'mergeability',
   [EPrEventKind.MergeQueue]: 'mergeability',
   [EPrEventKind.AutoMergeOff]: 'mergeability',
+  [EPrEventKind.CiRestarted]: 'ci',
   [EPrEventKind.State]: 'state',
 }
 

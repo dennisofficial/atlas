@@ -11,7 +11,7 @@ import {
 import { applyArgs, pull, rig } from './github-pr-apply.fixture'
 import type { GithubPrEventMailboxService } from './github-pr-event-mailbox.service'
 import { GithubPrOutboxDispatcher } from './github-pr-outbox'
-import { inertMergeabilityRefresh, inertReconcile } from './github-pr-store.fixture'
+import { inertHeldGreen, inertMergeabilityRefresh, inertReconcile } from './github-pr-store.fixture'
 
 const seedSettledCheck = (args: { outcome: string } = { outcome: 'passed' }) =>
   recordCommitChecksLocked({
@@ -68,7 +68,7 @@ describe('GithubPrStore.apply', () => {
   })
 
   it('writes no row, outbox or event when the transition delivery throws', async () => {
-    await seedSettledCheck()
+    await seedSettledCheck({ outcome: 'failure' })
     const push = vi.fn()
     const mailbox = {
       record: async () => {
@@ -102,6 +102,7 @@ describe('GithubPrStore.apply', () => {
       fanout: { push: (args) => void received.push(args), pushEvent: vi.fn() },
       reconcile: inertReconcile(),
       mergeability: inertMergeabilityRefresh(),
+      confirmGreen: inertHeldGreen(),
       now: () => new Date(Date.now() + 60_000),
     })
     expect(await healthy.drain()).toBe(1)

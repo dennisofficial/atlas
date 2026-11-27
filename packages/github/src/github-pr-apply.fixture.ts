@@ -4,7 +4,11 @@ import { GithubPrEventMailboxService } from './github-pr-event-mailbox.service'
 import { GithubPrFanoutService } from './github-pr-fanout.service'
 import { GithubPrOutboxDispatcher } from './github-pr-outbox'
 import { GithubPrStore } from './github-pr-store'
-import { inertMergeabilityRefresh, inertReconcile } from './github-pr-store.fixture'
+import {
+  heldGreenFixture,
+  inertMergeabilityRefresh,
+  inertReconcile,
+} from './github-pr-store.fixture'
 
 export const SAMPLE: PullSample = {
   repoFullName: 'compai/app',
@@ -41,10 +45,11 @@ export function rig(
   } = {},
 ) {
   const fanout = new GithubPrFanoutService(new RecordingDrain())
-  const dispatcher = new GithubPrOutboxDispatcher({
+  const dispatcher: GithubPrOutboxDispatcher = new GithubPrOutboxDispatcher({
     fanout: overrides.fanout ?? fanout,
     reconcile: inertReconcile(),
     mergeability: inertMergeabilityRefresh(),
+    confirmGreen: heldGreenFixture({ mailbox: () => mailbox, dispatcher: () => dispatcher }),
   })
   const mailbox = overrides.mailbox ?? new GithubPrEventMailboxService(fanout, dispatcher)
 

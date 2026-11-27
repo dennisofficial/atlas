@@ -1,4 +1,4 @@
-import type { Row, Tx } from '@dltech/atlas-db'
+import type { Row } from '@dltech/atlas-db'
 
 import type { GithubPrEventMailboxService } from './github-pr-event-mailbox.service'
 import { verdictTimingByUser } from './github-pr-event-policy'
@@ -10,7 +10,7 @@ import {
   type PrTransitionEvent,
   type PrTransitionSnapshot,
 } from './github-pr-event-transitions'
-import type { PrOutboxWithin } from './github-pr-outbox'
+import { heldGreenEffectOf, type PrOutboxWithin } from './github-pr-outbox'
 import { EPrEventKind, type GithubPrEventPayload } from './github-realtime.types'
 
 export type PrTransitionWrites = {
@@ -18,7 +18,7 @@ export type PrTransitionWrites = {
   repoFullName: string
   prNumber: number
   url: string
-  within?: PrOutboxWithin | undefined
+  within: PrOutboxWithin
 }
 
 /**
@@ -38,11 +38,11 @@ export async function deliverPrTransitions(args: {
   prior: PrTransitionSnapshot | null
   next: PrTransitionSnapshot | null
   userIds: readonly string[]
-  tx: Tx | undefined
 }): Promise<void> {
   if (args.next === null) return
   const { writes, prior, next } = args
   if (args.userIds.length === 0) return
+  const tx = writes.within.tx
   const record = (event: PrTransitionEvent, userIds: readonly string[]) =>
     writes.mailbox.record({
       userIds,
@@ -55,32 +55,33 @@ export async function deliverPrTransitions(args: {
     })
 
   await dischargeHeadVerdict({
-    tx: args.tx,
+    tx,
     repoFullName: writes.repoFullName,
     prNumber: writes.prNumber,
     next,
     now: new Date(),
-    emitVerdict: async (verdict, eventKey) => {
-      const failedChecks =
-        verdict === EHeadVerdict.Failed ? await failedChecksFor({ writes, next, tx: args.tx }) : []
-      const payload: GithubPrEventPayload = {
-        url: writes.url,
-        verdict,
-        headSha: next.headSha,
-        settled: true,
-        ...(verdict === EHeadVerdict.Green ? verdictMergeability(next) : {}),
-        ...(failedChecks.length === 0 ? {} : { failedChecks }),
-      }
-      await writes.mailbox.record({
-        userIds: args.userIds,
-        repoFullName: writes.repoFullName,
-        prNumber: writes.prNumber,
-        kind: EPrEventKind.Verdict,
-        payload,
-        dedupeKey: eventKey,
-        within: writes.within,
-      })
+    emitVerdict: (verdict, eventKey) =>
+      recordHeadVerdict({ writes, next, verdict, eventKey, userIds: args.userIds }),
+    holdGreen: async (eventKey) => {
+      writes.within.effects.add(
+        heldGreenEffectOf({
+          repoFullName: writes.repoFullName,
+          prNumber: writes.prNumber,
+          headSha: next.headSha,
+          eventKey,
+          userIds: args.userIds,
+        }),
+      )
     },
+    announceRestart: (eventKey) =>
+      record(
+        {
+          kind: EPrEventKind.CiRestarted,
+          dedupeKey: eventKey,
+          payload: { url: writes.url, headSha: next.headSha, settled: false },
+        },
+        args.userIds,
+      ),
   })
 
   if (prior === null) return
@@ -91,7 +92,7 @@ export async function deliverPrTransitions(args: {
       (userId) => (timings.get(userId) ?? 'fail-fast') === 'fail-fast',
     )
     if (users.length > 0) {
-      const failedChecks = await failedChecksFor({ writes, next, tx: args.tx })
+      const failedChecks = await failedChecksFor({ writes, next })
       await record(
         {
           kind: EPrEventKind.Verdict,
@@ -123,13 +124,38 @@ export async function deliverPrTransitions(args: {
   for (const event of rest) await record(event, args.userIds)
 }
 
-function failedChecksFor(args: {
+export async function recordHeadVerdict(args: {
   writes: PrTransitionWrites
   next: PrTransitionSnapshot
-  tx: Tx | undefined
-}) {
+  verdict: EHeadVerdict
+  eventKey: string
+  userIds: readonly string[]
+}): Promise<void> {
+  const { writes, next, verdict } = args
+  const failedChecks =
+    verdict === EHeadVerdict.Failed ? await failedChecksFor({ writes, next }) : []
+  const payload: GithubPrEventPayload = {
+    url: writes.url,
+    verdict,
+    headSha: next.headSha,
+    settled: true,
+    ...(verdict === EHeadVerdict.Green ? verdictMergeability(next) : {}),
+    ...(failedChecks.length === 0 ? {} : { failedChecks }),
+  }
+  await writes.mailbox.record({
+    userIds: args.userIds,
+    repoFullName: writes.repoFullName,
+    prNumber: writes.prNumber,
+    kind: EPrEventKind.Verdict,
+    payload,
+    dedupeKey: args.eventKey,
+    within: writes.within,
+  })
+}
+
+function failedChecksFor(args: { writes: PrTransitionWrites; next: PrTransitionSnapshot }) {
   return failedChecksOf({
-    tx: args.tx,
+    tx: args.writes.within.tx,
     repoFullName: args.writes.repoFullName,
     headSha: args.next.headSha,
   })

@@ -33,6 +33,7 @@ const CORE_KIND: Record<EApiPrEventKind, ECorePrEventKind> = {
   [EApiPrEventKind.Verdict]: ECorePrEventKind.Verdict,
   [EApiPrEventKind.Mergeability]: ECorePrEventKind.Mergeability,
   [EApiPrEventKind.State]: ECorePrEventKind.State,
+  [EApiPrEventKind.CiRestarted]: ECorePrEventKind.CiRestarted,
 }
 
 const reviewStateOf = (value: string | undefined): EPrReviewState | undefined => {

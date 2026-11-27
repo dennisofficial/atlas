@@ -162,7 +162,7 @@ describe('GithubSubscriptionTargetStates', () => {
           'mergeable',
           'review approved',
         ],
-        next: 'No CI notice comes for this head. The next notices are a new push, a comment or review, or a merge or close.',
+        next: 'No CI notice comes for this head. The next notices are a new push, CI starting again, a comment or review, or a merge or close.',
       },
     })
     expect(urls).toEqual([
@@ -248,7 +248,7 @@ describe('GithubSubscriptionTargetStates', () => {
       'mergeable',
     ])
     expect(state.snapshot?.next).toBe(
-      'No CI notice comes for this head. The next notices are a new push, a comment or review, or a merge or close.',
+      'No CI notice comes for this head. The next notices are a new push, CI starting again, a comment or review, or a merge or close.',
     )
   })
 
@@ -272,7 +272,7 @@ describe('GithubSubscriptionTargetStates', () => {
       'mergeable',
     ])
     expect(state.snapshot?.next).toBe(
-      'CI state is not known now. The next notices are a new push, a comment or review, or a merge or close.',
+      'CI state is not known now. The next notices are a new push, CI starting again, a comment or review, or a merge or close.',
     )
   })
 
@@ -303,7 +303,7 @@ describe('GithubSubscriptionTargetStates', () => {
       summary: 'Pull request dltech/atlas#7 is a draft.',
       snapshot: {
         facts: ['draft, head a1b2c3d', 'mergeability not known yet'],
-        next: 'CI state is not known now. The next notices are a new push, a comment or review, or a merge or close.',
+        next: 'CI state is not known now. The next notices are a new push, CI starting again, a comment or review, or a merge or close.',
       },
     })
   })

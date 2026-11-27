@@ -280,7 +280,6 @@ export class GithubPrStore {
       prior: stored === null ? null : snapshotOfLocked(stored),
       next: settlementSnapshotOf({ row, missingRequiredChecks: head.missingRequiredContexts }),
       userIds: this.recipientsOf({ ...args, subscribers }),
-      tx,
     })
     const outboxIds = await GithubPrOutboxWriter.write({
       tx,

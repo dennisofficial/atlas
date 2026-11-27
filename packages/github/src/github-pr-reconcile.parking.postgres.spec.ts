@@ -1,3 +1,4 @@
+import { inertHeldGreen } from './github-pr-store.fixture'
 import { db, type Row } from '@dltech/atlas-db'
 import { useTestDatabase } from '@dltech/atlas-db/testing'
 import { afterEach, describe, expect, it } from 'bun:test'
@@ -76,6 +77,7 @@ function rig(
     budget: args.budget ?? ({} as GithubHttpBudget),
   })
   dispatcher = new GithubPrOutboxDispatcher({
+    confirmGreen: inertHeldGreen(),
     fanout: { push: () => undefined, pushEvent: () => undefined } as never,
     reconcile: (request) => reconcile.run(request),
     mergeability: async () => undefined,

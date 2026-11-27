@@ -41,12 +41,29 @@ export type PrOutboxEffect =
       payload: { repoFullName: string; prNumber: number }
       dedupeKey: string
     }
+  | { kind: 'confirm-green'; payload: HeldGreen; dedupeKey: string }
+
+export type HeldGreen = {
+  repoFullName: string
+  prNumber: number
+  headSha: string
+  eventKey: string
+  userIds: readonly string[]
+}
+
+export const heldGreenEffectOf = (held: HeldGreen): PrOutboxEffect => ({
+  kind: 'confirm-green',
+  payload: held,
+  dedupeKey: `confirm-green:${held.eventKey}`,
+})
 
 const V1_SCOPE: PrOutboxKindScope = { excludeKinds: V1_OUTBOX_KINDS }
 
 export type PrReconcileRun = (args: { repoFullName: string; headSha: string }) => Promise<void>
 
 export type PrMergeabilityRun = (args: { repoFullName: string; prNumber: number }) => Promise<void>
+
+export type PrHeldGreenRun = (args: { held: HeldGreen; attempts: number }) => Promise<void>
 
 export class PrEffectCollector {
   private readonly effects: PrOutboxEffect[] = []
@@ -97,6 +114,7 @@ export class GithubPrOutboxDispatcher {
       fanout: Pick<GithubPrFanoutService, 'push' | 'pushEvent'>
       reconcile: PrReconcileRun
       mergeability: PrMergeabilityRun
+      confirmGreen: PrHeldGreenRun
       logger?: PrOutboxLogger
       now?: () => Date
     },
@@ -212,6 +230,13 @@ export class GithubPrOutboxDispatcher {
     }
     if (row.kind === 'mergeability-refresh') {
       await this.deps.mergeability(row.payload as { repoFullName: string; prNumber: number })
+      return
+    }
+    if (row.kind === 'confirm-green') {
+      await this.deps.confirmGreen({
+        held: row.payload as unknown as HeldGreen,
+        attempts: row.attempts,
+      })
       return
     }
     if (row.kind === 'fanout') {
