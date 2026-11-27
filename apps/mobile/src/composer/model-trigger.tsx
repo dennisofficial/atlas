@@ -1,19 +1,16 @@
 import { ETextRole, ETextTone, Text, useTheme } from '@dltech/atlas-ui-native'
 import { radius, space } from '@dltech/atlas-ui/tokens'
-import type { Ref } from 'react'
-import { Pressable, StyleSheet, type ViewInstance } from 'react-native'
+import { Pressable, StyleSheet } from 'react-native'
 
 import { type IModelOption, type IModelSelection, modelTriggerLabelOf } from './model-options'
 
 export const ModelTrigger = ({
-  ref,
   models,
   selection,
   pinnedRef,
   expanded = false,
   onPress,
 }: {
-  ref?: Ref<ViewInstance> | undefined
   models: readonly IModelOption[]
   selection: IModelSelection | null
   pinnedRef?: string | null | undefined
@@ -28,7 +25,6 @@ export const ModelTrigger = ({
       accessibilityRole="button"
       accessibilityLabel={`Model: ${label}`}
       accessibilityState={{ expanded }}
-      ref={ref}
       onPress={onPress}
       style={({ pressed }) => [
         styles.trigger,

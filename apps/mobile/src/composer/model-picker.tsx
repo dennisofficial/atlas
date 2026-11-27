@@ -1,4 +1,8 @@
 import {
+  Button,
+  EButtonSize,
+  EButtonVariant,
+  EFontWeight,
   ETextRole,
   ETextTone,
   Icon,
@@ -9,10 +13,9 @@ import {
 } from '@dltech/atlas-ui-native'
 import { radius, space } from '@dltech/atlas-ui/tokens'
 import { Search } from 'lucide-react-native'
-import { useRef, useState } from 'react'
-import { ScrollView, StyleSheet, View, type ViewInstance } from 'react-native'
-
-import { AnchoredDropdown } from '../layout/anchored-dropdown'
+import { type ReactNode, useState } from 'react'
+import { Modal, ScrollView, StyleSheet, View } from 'react-native'
+import { SafeAreaProvider, useSafeAreaInsets } from 'react-native-safe-area-context'
 
 import {
   type IModelOption,
@@ -38,7 +41,7 @@ type Props = {
   onSelect: (selection: IModelSelection | null) => void
 }
 
-const DropdownBody = ({
+const ModelListBody = ({
   models,
   selection,
   pinned,
@@ -105,7 +108,12 @@ const DropdownBody = ({
           style={styles.searchInput}
         />
       </View>
-      <ScrollView keyboardShouldPersistTaps="handled">
+      <ScrollView
+        automaticallyAdjustKeyboardInsets
+        keyboardDismissMode="interactive"
+        keyboardShouldPersistTaps="handled"
+        style={styles.list}
+      >
         {defaultRow && query.trim() === '' ? (
           <DefaultRow label={personalLabel} selected={selection === null} onPress={handleDefault} />
         ) : null}
@@ -140,6 +148,52 @@ const DropdownBody = ({
   )
 }
 
+const ModelSheet = ({ open, onClose, ...body }: Props & { open: boolean; onClose: () => void }) => (
+  <Modal
+    visible={open}
+    animationType="slide"
+    presentationStyle="pageSheet"
+    onRequestClose={onClose}
+  >
+    <SafeAreaProvider>
+      <ModelSheetFrame onClose={onClose}>
+        <ModelListBody {...body} onClose={onClose} />
+      </ModelSheetFrame>
+    </SafeAreaProvider>
+  </Modal>
+)
+
+const ModelSheetFrame = ({ onClose, children }: { onClose: () => void; children: ReactNode }) => {
+  const theme = useTheme()
+  const insets = useSafeAreaInsets()
+  return (
+    <View
+      style={[
+        styles.frame,
+        {
+          backgroundColor: theme.background,
+          paddingBottom: insets.bottom,
+          paddingLeft: insets.left,
+          paddingRight: insets.right,
+        },
+      ]}
+    >
+      <View style={styles.bar}>
+        <Text size={ETextRole.Base} weight={EFontWeight.Semibold} style={styles.title}>
+          Model
+        </Text>
+        <Button
+          label="Done"
+          variant={EButtonVariant.Ghost}
+          size={EButtonSize.Sm}
+          onPress={onClose}
+        />
+      </View>
+      {children}
+    </View>
+  )
+}
+
 export const ModelSelect = ({
   pinnedRef,
   open: controlledOpen,
@@ -151,7 +205,6 @@ export const ModelSelect = ({
   onOpenChange?: ((open: boolean) => void) | undefined
 }) => {
   const [ownOpen, setOwnOpen] = useState(false)
-  const anchorRef = useRef<ViewInstance>(null)
   const open = controlledOpen ?? ownOpen
 
   const handleOpenChange = (next: boolean) => {
@@ -166,28 +219,42 @@ export const ModelSelect = ({
   return (
     <>
       <ModelTrigger
-        ref={anchorRef}
         models={body.models}
         selection={body.selection}
         pinnedRef={pinnedRef}
         expanded={open}
         onPress={handleOpen}
       />
-      <AnchoredDropdown open={open} anchorRef={anchorRef} label="model menu" onClose={handleClose}>
-        <DropdownBody {...body} onClose={handleClose} />
-      </AnchoredDropdown>
+      <ModelSheet {...body} open={open} onClose={handleClose} />
     </>
   )
 }
 
 const styles = StyleSheet.create({
+  frame: {
+    flex: 1,
+  },
+  bar: {
+    alignItems: 'center',
+    flexDirection: 'row',
+    paddingLeft: space(4),
+    paddingRight: space(2),
+    paddingTop: space(3),
+  },
+  title: {
+    flex: 1,
+  },
+  list: {
+    flex: 1,
+  },
   search: {
     alignItems: 'center',
     borderRadius: radius(0.8),
     borderWidth: 1,
     flexDirection: 'row',
     gap: space(1.5),
-    margin: space(1),
+    marginHorizontal: space(3),
+    marginVertical: space(2),
     paddingHorizontal: space(2),
     paddingVertical: space(1.5),
   },
