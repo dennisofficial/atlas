@@ -173,12 +173,13 @@ final class ModelPickerPanel: NSObject {
 
   private func installKeyMonitor() {
     keyMonitor = NSEvent.addLocalMonitorForEvents(matching: .keyDown) { [weak self] event in
-      MainActor.assumeIsolated {
-        guard let self, self.panel != nil else { return event }
-        guard event.keyCode == 53 else { return event }
+      let handled = MainActor.assumeIsolated { () -> Bool in
+        guard let self, self.panel != nil else { return false }
+        guard event.keyCode == 53 else { return false }
         self.dismissFromPanel()
-        return nil
+        return true
       }
+      return handled ? nil : event
     }
   }
 
