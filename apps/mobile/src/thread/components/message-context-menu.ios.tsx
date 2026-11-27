@@ -1,6 +1,6 @@
 import { useIsDark } from '@dltech/atlas-ui-native'
 import { Button, ContextMenu, Host, RNHostView } from '@expo/ui/swift-ui'
-import { StyleSheet } from 'react-native'
+import { StyleSheet, View } from 'react-native'
 
 import { EMessageAction, messageActionLabelOf } from '../message-actions'
 import type { MessageContextMenuProps } from './message-context-menu-props'
@@ -24,9 +24,9 @@ export const MessageContextMenu = ({
   if (actions.length === 0) return children
   return (
     <Host
+      matchContents={{ vertical: true }}
       colorScheme={dark ? 'dark' : 'light'}
-      alignment={align === 'end' ? 'topTrailing' : 'topLeading'}
-      style={align === 'end' ? styles.end : styles.start}
+      style={styles.row}
     >
       <ContextMenu>
         <ContextMenu.Items>
@@ -40,8 +40,8 @@ export const MessageContextMenu = ({
           ))}
         </ContextMenu.Items>
         <ContextMenu.Trigger>
-          <RNHostView matchContents boundedByHost>
-            {children}
+          <RNHostView matchContents={{ vertical: true }}>
+            <View style={align === 'end' ? styles.end : styles.start}>{children}</View>
           </RNHostView>
         </ContextMenu.Trigger>
       </ContextMenu>
@@ -50,10 +50,13 @@ export const MessageContextMenu = ({
 }
 
 const styles = StyleSheet.create({
-  start: {
+  row: {
     alignSelf: 'stretch',
   },
+  start: {
+    alignItems: 'stretch',
+  },
   end: {
-    alignSelf: 'flex-end',
+    alignItems: 'flex-end',
   },
 })
