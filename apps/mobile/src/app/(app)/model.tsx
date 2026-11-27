@@ -22,7 +22,12 @@ const ModelSheetBody = () => {
 
   if (request === null) return null
   return (
-    <View style={[styles.sheet, { paddingBottom: insets.bottom }]}>
+    <View
+      style={[
+        styles.sheet,
+        { paddingBottom: insets.bottom, paddingLeft: insets.left, paddingRight: insets.right },
+      ]}
+    >
       <ModelSheetShell query={query} onQueryChange={setQuery}>
         <ModelListBody
           models={request.models}
