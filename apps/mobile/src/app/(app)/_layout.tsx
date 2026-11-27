@@ -91,7 +91,7 @@ const AppStack = () => {
       />
       <Stack.Screen
         name="photo"
-        options={{ presentation: 'fullScreenModal', headerTransparent: true }}
+        options={{ presentation: 'fullScreenModal', headerShown: false }}
       />
       <Stack.Screen
         name="settings"
