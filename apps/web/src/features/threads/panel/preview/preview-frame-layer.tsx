@@ -12,6 +12,7 @@ import { changeRegistry, slotKeyOf, useFrameRegistry, withLoading } from './fram
 import { framesOf, type FrameSpec } from './frames-of'
 import { NativeFrameLayer } from './native-frame-layer'
 import { useSlotTracking } from './placement'
+import { PreviewWakeOverlay } from './preview-wake-overlay'
 import { useAllowedFrames } from './use-allowed-frames'
 import { useFrameReports } from './use-frame-reports'
 import { usePreviewCallback } from './use-preview-callback'
@@ -89,20 +90,26 @@ function IframeFrameLayer() {
   useSlotTracking({ slot: registry.visible?.element, frameOf })
   usePreviewCallback(registry.visible)
 
-  return frames.filter(isAllowed).map((frame) => (
-    <div
-      key={frame.key}
-      ref={(element) => {
-        if (element !== null) wrappers.current.set(frame.key, element)
-        return () => void wrappers.current.delete(frame.key)
-      }}
-      inert={frame.key !== visibleKey}
-      className={cn(
-        'fixed top-0 left-0 overflow-hidden',
-        frame.key !== visibleKey && 'invisible pointer-events-none',
-      )}
-    >
-      <PreviewFrame key={frame.load.seq} frame={frame} reportsFrom={reportsFrom} />
-    </div>
-  ))
+  return frames.filter(isAllowed).map((frame) => {
+    const wait = registry.waits[frame.threadId]
+    return (
+      <div
+        key={frame.key}
+        ref={(element) => {
+          if (element !== null) wrappers.current.set(frame.key, element)
+          return () => void wrappers.current.delete(frame.key)
+        }}
+        inert={frame.key !== visibleKey}
+        className={cn(
+          'fixed top-0 left-0 overflow-hidden',
+          frame.key !== visibleKey && 'invisible pointer-events-none',
+        )}
+      >
+        <PreviewFrame key={frame.load.seq} frame={frame} reportsFrom={reportsFrom} />
+        {wait !== undefined && frame.key === visibleKey ? (
+          <PreviewWakeOverlay wait={wait} loading={registry.loading.has(frame.key)} />
+        ) : null}
+      </div>
+    )
+  })
 }

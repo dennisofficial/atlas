@@ -6,13 +6,15 @@ import type { EPodPowerPhase } from '@dltech/atlas-core'
 import type { PreviewPort } from '@dltech/atlas-ui/ai/preview-browser'
 
 import {
+  EPreviewShift,
   EPreviewWait,
   previewNeedsWake,
-  previewReloadsOnWake,
+  previewShiftOf,
   previewWaitOf,
-  reloadedPreviews,
+  previewsShifted,
 } from '@/features/threads/data/preview-browser/preview-wake'
 import { updatePreviewBrowser } from '@/features/threads/data/preview-browser/use-preview-browser'
+import { changeRegistry, withWait } from '@/features/threads/panel/preview/frame-registry'
 import { api, cloudCall } from '@/lib/api-client'
 
 import { usePodWake } from './use-pod-wake'
@@ -30,15 +32,21 @@ export function usePreviewWake(args: {
   const wait = previewWaitOf(power)
   const wake = useCallback(() => requestWake(sessionId), [sessionId])
   const { wakePod } = usePodWake({ sessionId, live: wait === EPreviewWait.Awake, wake })
-  const before = useRef(wait)
+  const before = useRef<EPreviewWait | undefined>(undefined)
 
   useEffect(() => {
-    const reload = previewReloadsOnWake({ before: before.current, now: wait })
+    changeRegistry((registry) => withWait({ registry, threadId: sessionId, wait }))
+    return () =>
+      changeRegistry((registry) => withWait({ registry, threadId: sessionId, wait: undefined }))
+  }, [sessionId, wait])
+
+  useEffect(() => {
+    const shift = previewShiftOf({ before: before.current, now: wait })
     before.current = wait
-    if (!reload) return
+    if (shift === EPreviewShift.None) return
     updatePreviewBrowser({
       threadId: sessionId,
-      change: ({ state }) => reloadedPreviews({ state, ports: [...ports] }),
+      change: ({ state }) => previewsShifted({ state, ports: [...ports], shift }),
     })
   }, [wait, sessionId, ports])
 

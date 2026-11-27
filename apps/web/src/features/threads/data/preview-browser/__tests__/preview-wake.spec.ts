@@ -3,15 +3,16 @@ import { describe, expect, it } from 'bun:test'
 import { EPodPowerPhase } from '@dltech/atlas-core'
 import { EPreviewStatus, type PreviewPort } from '@dltech/atlas-ui/ai/preview-browser'
 
-import { freshBrowser, openTab } from '../browser-model'
+import { type BrowserState, freshBrowser, openTab } from '../browser-model'
 import { openUrlIn } from '../open-in-browser'
 import {
+  EPreviewShift,
   EPreviewWait,
   previewNeedsWake,
-  previewReloadsOnWake,
+  previewShiftOf,
   previewWaitOf,
+  previewsShifted,
   revealedPreview,
-  reloadedPreviews,
 } from '../preview-wake'
 
 const WEB: PreviewPort = {
@@ -23,6 +24,22 @@ const WEB: PreviewPort = {
 }
 
 const stateWith = (url: string) => openTab({ state: freshBrowser(), url })
+
+const seqsOf = (state: BrowserState) => state.tabs.map((tab) => tab.load.seq)
+
+const drive = (args: {
+  state: BrowserState
+  phases: (EPodPowerPhase | undefined)[]
+}): BrowserState => {
+  let state = args.state
+  let before: EPreviewWait | undefined
+  for (const phase of args.phases) {
+    const now = previewWaitOf(phase)
+    state = previewsShifted({ state, ports: [WEB], shift: previewShiftOf({ before, now }) })
+    before = now
+  }
+  return state
+}
 
 describe('previewWaitOf', () => {
   it('waits while the pod sleeps or stops', () => {
@@ -48,49 +65,109 @@ describe('previewNeedsWake', () => {
   })
 })
 
-describe('previewReloadsOnWake', () => {
-  it('reloads on the step out of waiting', () => {
-    expect(previewReloadsOnWake({ before: EPreviewWait.Asleep, now: EPreviewWait.Awake })).toBe(
-      true,
+describe('previewShiftOf', () => {
+  it('marks the sleep when the pod leaves awake for a sleeping state', () => {
+    expect(previewShiftOf({ before: EPreviewWait.Awake, now: EPreviewWait.Asleep })).toBe(
+      EPreviewShift.Slept,
     )
-    expect(previewReloadsOnWake({ before: EPreviewWait.Waking, now: EPreviewWait.Awake })).toBe(
-      true,
+    expect(previewShiftOf({ before: EPreviewWait.Waking, now: EPreviewWait.Asleep })).toBe(
+      EPreviewShift.Slept,
     )
   })
 
-  it('does not reload an awake pod or one that stays away', () => {
-    expect(previewReloadsOnWake({ before: EPreviewWait.Awake, now: EPreviewWait.Awake })).toBe(
-      false,
+  it('reports the wake from any waiting state', () => {
+    expect(previewShiftOf({ before: EPreviewWait.Asleep, now: EPreviewWait.Awake })).toBe(
+      EPreviewShift.Woke,
     )
-    expect(previewReloadsOnWake({ before: EPreviewWait.Asleep, now: EPreviewWait.Waking })).toBe(
-      false,
+    expect(previewShiftOf({ before: EPreviewWait.Waking, now: EPreviewWait.Awake })).toBe(
+      EPreviewShift.Woke,
     )
-    expect(previewReloadsOnWake({ before: EPreviewWait.Asleep, now: EPreviewWait.Asleep })).toBe(
-      false,
+  })
+
+  it('reports nothing for an awake pod, a pod that stays away, or a first look', () => {
+    expect(previewShiftOf({ before: EPreviewWait.Awake, now: EPreviewWait.Awake })).toBe(
+      EPreviewShift.None,
     )
+    expect(previewShiftOf({ before: EPreviewWait.Asleep, now: EPreviewWait.Waking })).toBe(
+      EPreviewShift.None,
+    )
+    expect(previewShiftOf({ before: EPreviewWait.Asleep, now: EPreviewWait.Asleep })).toBe(
+      EPreviewShift.None,
+    )
+    expect(previewShiftOf({ before: undefined, now: EPreviewWait.Asleep })).toBe(EPreviewShift.None)
   })
 })
 
-describe('reloadedPreviews', () => {
-  it('reloads a tab that shows a preview of the session', () => {
-    const state = stateWith('https://4321-abc.byatlas.dev/')
-    const next = reloadedPreviews({ state, ports: [WEB] })
-    expect(next.tabs.map((tab) => tab.load.seq)).toEqual([0, 1])
+describe('previewsShifted', () => {
+  it('reloads a tab whose load predates the sleep once the pod wakes', () => {
+    const state = stateWith(WEB.url)
+    const slept = drive({ state, phases: [EPodPowerPhase.Steady, EPodPowerPhase.Asleep] })
+    expect(seqsOf(slept)).toEqual([0, 0])
+    const woke = drive({ state: slept, phases: [EPodPowerPhase.Starting, EPodPowerPhase.Steady] })
+    expect(seqsOf(woke)).toEqual([0, 1])
+  })
+
+  it('reloads such a tab exactly once', () => {
+    const state = stateWith(WEB.url)
+    const awake = drive({
+      state,
+      phases: [
+        EPodPowerPhase.Steady,
+        EPodPowerPhase.Asleep,
+        EPodPowerPhase.Starting,
+        EPodPowerPhase.Steady,
+        EPodPowerPhase.Steady,
+      ],
+    })
+    expect(seqsOf(awake)).toEqual([0, 1])
+  })
+
+  it('reloads once while the phase bounces on the way up', () => {
+    const state = stateWith(WEB.url)
+    const bounced = drive({
+      state,
+      phases: [
+        EPodPowerPhase.Steady,
+        EPodPowerPhase.Asleep,
+        EPodPowerPhase.Starting,
+        EPodPowerPhase.Steady,
+        EPodPowerPhase.Starting,
+        EPodPowerPhase.Steady,
+        EPodPowerPhase.Starting,
+        EPodPowerPhase.Steady,
+      ],
+    })
+    expect(seqsOf(bounced)).toEqual([0, 1])
+  })
+
+  it('leaves a tab alone when its load started while the pod was away', () => {
+    const slept = drive({
+      state: stateWith(WEB.url),
+      phases: [EPodPowerPhase.Steady, EPodPowerPhase.Asleep],
+    })
+    const opened = revealedPreview({ state: slept, url: WEB.url, ports: [WEB] }) ?? slept
+    expect(seqsOf(opened)).toEqual([0, 1])
+    const woke = drive({ state: opened, phases: [EPodPowerPhase.Starting, EPodPowerPhase.Steady] })
+    expect(seqsOf(woke)).toEqual([0, 1])
+  })
+
+  it('leaves a tab that never saw the pod awake alone', () => {
+    const state = stateWith(WEB.url)
+    expect(
+      seqsOf(drive({ state, phases: [EPodPowerPhase.Asleep, EPodPowerPhase.Steady] })),
+    ).toEqual([0, 0])
   })
 
   it('leaves a tab of another site alone', () => {
     const state = stateWith('https://example.com/')
-    expect(reloadedPreviews({ state, ports: [WEB] })).toBe(state)
+    const slept = drive({ state, phases: [EPodPowerPhase.Steady, EPodPowerPhase.Asleep] })
+    expect(slept).toBe(state)
+    expect(previewsShifted({ state: slept, ports: [WEB], shift: EPreviewShift.Woke })).toBe(state)
   })
 
-  it('leaves the tab of the pending open to the open that follows', () => {
-    const state = stateWith('https://4321-abc.byatlas.dev/')
-    const next = reloadedPreviews({
-      state,
-      ports: [WEB],
-      except: 'https://4321-abc.byatlas.dev/',
-    })
-    expect(next).toBe(state)
+  it('leaves the state alone when nothing shifts', () => {
+    const state = stateWith(WEB.url)
+    expect(previewsShifted({ state, ports: [WEB], shift: EPreviewShift.None })).toBe(state)
   })
 })
 

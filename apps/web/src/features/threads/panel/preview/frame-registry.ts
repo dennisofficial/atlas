@@ -3,6 +3,7 @@ import { useSyncExternalStore } from 'react'
 import { EPreviewGate } from '@/features/desktop/use-preview-origins'
 
 import { liveKeyOf } from '../../data/preview-browser/live-tabs'
+import type { EPreviewWait } from '../../data/preview-browser/preview-wake'
 
 export type VisibleSlot = { threadId: string; tabId: string; element: HTMLElement }
 
@@ -11,6 +12,7 @@ export type FrameRegistry = {
   opened: ReadonlySet<string>
   loading: ReadonlySet<string>
   gate: EPreviewGate
+  waits: Readonly<Record<string, EPreviewWait>>
 }
 
 export const EMPTY_REGISTRY: FrameRegistry = {
@@ -18,6 +20,7 @@ export const EMPTY_REGISTRY: FrameRegistry = {
   opened: new Set(),
   loading: new Set(),
   gate: EPreviewGate.Ready,
+  waits: {},
 }
 
 export const slotKeyOf = (slot: VisibleSlot): string =>
@@ -58,6 +61,19 @@ export function withLoading(args: {
 
 export function withGate(args: { registry: FrameRegistry; gate: EPreviewGate }): FrameRegistry {
   return args.registry.gate === args.gate ? args.registry : { ...args.registry, gate: args.gate }
+}
+
+export function withWait(args: {
+  registry: FrameRegistry
+  threadId: string
+  wait: EPreviewWait | undefined
+}): FrameRegistry {
+  const { registry, threadId, wait } = args
+  if (registry.waits[threadId] === wait) return registry
+  const waits = { ...registry.waits }
+  if (wait === undefined) delete waits[threadId]
+  else waits[threadId] = wait
+  return { ...registry, waits }
 }
 
 let current = EMPTY_REGISTRY
