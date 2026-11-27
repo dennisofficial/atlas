@@ -140,6 +140,7 @@ export * from './workspace/worktree-files'
 export * from './workspace/identity'
 export * from './workspace/atlas-home'
 export * from './workspace/setup-notice'
+export * from './workspace/boot-steps'
 
 export * from './agents/kind'
 export * from './agents/ending-hold'
