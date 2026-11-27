@@ -15,7 +15,7 @@ const SPAWN_TURN_TEXT = `AGENT-SPAWN-PARENT-${RUN}`
 const CALL_ID = 's1'
 const NEVER = '/nonexistent/never-opens'
 
-const KNOBS: HostKnobs = { plugins: true }
+const KNOBS: HostKnobs = { plugins: true, drainCapMs: 3_000 }
 
 const parentEvents = async (ctx: HandoffContext): Promise<RecordEvent[]> =>
   (await ctx.record()).map((row) => row.event as RecordEvent)
