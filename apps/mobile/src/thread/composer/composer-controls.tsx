@@ -1,4 +1,3 @@
-import { space } from '@dltech/atlas-ui/tokens'
 import { useTheme } from '@dltech/atlas-ui-native'
 import type { ReactNode } from 'react'
 import { ScrollView, StyleSheet, View } from 'react-native'
@@ -173,7 +172,6 @@ const styles = StyleSheet.create({
   },
   slotContent: {
     alignItems: 'center',
-    gap: space(1),
   },
   stage: {
     flex: 1,
