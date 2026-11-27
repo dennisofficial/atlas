@@ -5,10 +5,13 @@ import type { ReactNode } from 'react'
 import { Platform, StyleSheet, View } from 'react-native'
 
 import { AccountButton } from './account-button'
+import { GlassSurface } from './glass-surface'
 import { leadingTitleWidthOf } from './header-leading'
 import { NewSessionButton } from './new-session-button'
 
 export const LEAD_GAP = 10
+
+const BAR_PILL_HEIGHT = 44
 
 export const TabHeaderTitle = ({ title }: { title: string }) => (
   <Text size={ETextRole.Base} weight={EFontWeight.Semibold} numberOfLines={1}>
@@ -29,6 +32,7 @@ export const leadingHeaderOptionsOf = ({
   lead,
   title,
   glassTitle = false,
+  fillsBar = false,
   titleButtons,
   windowWidth,
 }: {
@@ -36,23 +40,44 @@ export const leadingHeaderOptionsOf = ({
   lead?: ReactNode
   title: ReactNode
   glassTitle?: boolean
+  fillsBar?: boolean
   titleButtons: number
   windowWidth: number
 }): NativeStackNavigationOptions => {
   const iosLead = Platform.OS === 'ios' ? lead : undefined
+  const titleWidth = leadingTitleWidthOf({ windowWidth, buttons: titleButtons })
   const titleElement = (
     <View
       style={[
         styles.title,
         glassTitle ? styles.glassTitle : null,
         glassTitle && iosLead !== undefined ? styles.glassTitleWithLead : null,
-        { maxWidth: leadingTitleWidthOf({ windowWidth, buttons: titleButtons }) },
+        { maxWidth: titleWidth },
       ]}
     >
       {iosLead}
       <View style={styles.titleText}>{title}</View>
     </View>
   )
+  if (fillsBar && Platform.OS === 'ios') {
+    return {
+      headerTitle: () => (
+        <GlassSurface
+          style={[
+            styles.title,
+            styles.glassTitle,
+            styles.barPill,
+            iosLead === undefined ? null : styles.glassTitleWithLead,
+            { width: titleWidth },
+          ]}
+        >
+          {iosLead}
+          <View style={styles.fillText}>{title}</View>
+        </GlassSurface>
+      ),
+      unstable_headerLeftItems: () => [...leading],
+    }
+  }
   return {
     headerTitle: Platform.OS === 'ios' ? '' : () => titleElement,
     unstable_headerLeftItems: () => [
@@ -102,5 +127,13 @@ const styles = StyleSheet.create({
   },
   glassTitleWithLead: {
     paddingLeft: 4,
+  },
+  barPill: {
+    borderRadius: BAR_PILL_HEIGHT / 2,
+    minHeight: BAR_PILL_HEIGHT,
+    paddingVertical: 4,
+  },
+  fillText: {
+    flex: 1,
   },
 })
