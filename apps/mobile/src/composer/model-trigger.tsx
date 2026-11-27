@@ -8,13 +8,11 @@ export const ModelTrigger = ({
   models,
   selection,
   pinnedRef,
-  expanded = false,
   onPress,
 }: {
   models: readonly IModelOption[]
   selection: IModelSelection | null
   pinnedRef?: string | null | undefined
-  expanded?: boolean | undefined
   onPress: () => void
 }) => {
   const theme = useTheme()
@@ -24,12 +22,8 @@ export const ModelTrigger = ({
     <Pressable
       accessibilityRole="button"
       accessibilityLabel={`Model: ${label}`}
-      accessibilityState={{ expanded }}
       onPress={onPress}
-      style={({ pressed }) => [
-        styles.trigger,
-        pressed || expanded ? { backgroundColor: theme.muted } : null,
-      ]}
+      style={({ pressed }) => [styles.trigger, pressed ? { backgroundColor: theme.muted } : null]}
     >
       <Text size={ETextRole.Sm} tone={ETextTone.Muted} numberOfLines={1} style={styles.value}>
         {label}

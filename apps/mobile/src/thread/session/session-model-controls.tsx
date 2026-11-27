@@ -1,28 +1,14 @@
 import { EffortSelect } from '../../composer/effort-select'
 import { FastToggle } from '../../composer/model-controls'
 import { ModelSelect } from '../../composer/model-picker'
-import type { SessionModelSheet } from './use-session-model-choice'
+import type { SessionModelChoice } from './use-session-model-choice'
 
-export const SessionModelControls = ({
-  model,
-  onOpenModel,
-}: {
-  model: SessionModelSheet
-  onOpenModel: () => void
-}) => {
+export const SessionModelControls = ({ model }: { model: SessionModelChoice }) => {
   const { selection } = model
 
   const handleEffort = (effort: string) => {
     if (selection === null) return
     model.onSelect({ ...selection, effort })
-  }
-
-  const handleOpenChange = (open: boolean) => {
-    if (open) {
-      onOpenModel()
-      return
-    }
-    model.onClose()
   }
 
   const handleFast = (fast: boolean) => {
@@ -35,12 +21,8 @@ export const SessionModelControls = ({
       <ModelSelect
         models={model.models}
         selection={selection}
-        pinned={model.pinned}
         pinnedRef={model.pinnedRef}
         personalId={model.personalId}
-        open={model.open}
-        onOpenChange={handleOpenChange}
-        onPinnedChange={model.onPinnedChange}
         onSelect={model.onSelect}
       />
       {selection === null || selection.model.efforts.length === 0 ? null : (

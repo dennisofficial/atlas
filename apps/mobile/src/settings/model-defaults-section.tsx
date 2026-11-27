@@ -7,14 +7,12 @@ import { EffortSelect } from '../composer/effort-select'
 import { type IModelSelection, selectionOf } from '../composer/model-options'
 import { ModelSelect } from '../composer/model-picker'
 import { useModels } from '../composer/use-models'
-import { usePinnedModels } from '../composer/use-pinned-models'
 import { useSettings } from './settings-provider'
 import { Section } from './settings-parts'
 
 export const ModelDefaultsSection = () => {
   const settings = useSettings()
   const { models } = useModels()
-  const { pinned, setPinned } = usePinnedModels()
   const personalId = settings.read({ key: 'model.id', schema: z.string() })
   const effort = settings.read({ key: 'model.effort', schema: z.string() })
   const fast = settings.read({ key: 'model.fast', schema: z.boolean() })
@@ -48,14 +46,7 @@ export const ModelDefaultsSection = () => {
             Sessions that do not pick their own
           </Text>
         </View>
-        <ModelSelect
-          models={models}
-          selection={selection}
-          pinned={pinned}
-          personalId=""
-          onPinnedChange={setPinned}
-          onSelect={handleSelect}
-        />
+        <ModelSelect models={models} selection={selection} personalId="" onSelect={handleSelect} />
       </CardRow>
       {selection === null ? null : (
         <CardRow>

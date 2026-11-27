@@ -65,6 +65,16 @@ const AppStack = () => {
         }}
       />
       <Stack.Screen
+        name="model"
+        options={{
+          presentation: 'formSheet',
+          headerShown: false,
+          sheetAllowedDetents: [0.55, 1],
+          sheetGrabberVisible: true,
+          contentStyle: { backgroundColor: usesGlassHeader() ? 'transparent' : theme.background },
+        }}
+      />
+      <Stack.Screen
         name="sessions"
         options={{ headerShown: false, animation: 'none', gestureEnabled: false }}
       />

@@ -1,4 +1,3 @@
-import { EClientAction } from '@dltech/atlas-commands'
 import {
   Button,
   EButtonSize,
@@ -102,8 +101,6 @@ export default function SessionScreen() {
     },
     [id],
   )
-
-  const handleOpenModel = session.commands.clientActions[EClientAction.ModelPicker]
 
   const showsSessions = sessionHeaderLeadingOf({ posture, drawerOpen }).includes(
     EHeaderLeadingItem.Sessions,
@@ -232,7 +229,7 @@ export default function SessionScreen() {
                   </View>
                 }
               >
-                <SessionModelControls model={model} onOpenModel={handleOpenModel} />
+                <SessionModelControls model={model} />
               </Composer>
             </View>
             <CommandListSheet
