@@ -17,6 +17,7 @@ import {
 
 import {
   actionableEntries,
+  isCommandEntry,
   isNoticeEntry,
   isStop,
   logPendingInputIdsOf,
@@ -68,6 +69,7 @@ export const drainNeedsHolder = async (args: {
       ],
     })
     const children = spawnedChildrenOf(cache?.visibleLoopEvents() ?? [])
+    const actionable = actionableEntries({ entries, failure: workspace.failure })
     const state = cache?.loopState() ?? initialLoopState()
     const repairHeld =
       cache !== undefined && repairHoldsResume({ mainThreadId: cache.threadId(), events })
@@ -84,13 +86,14 @@ export const drainNeedsHolder = async (args: {
       shellsOpen: lostShellsOf(events as readonly Event[]).length > 0,
       resumable: isResumableOf(state) && !stopSettledPromptOf(events) && !repairHeld,
       messagePending:
-        actionableEntries({ entries, failure: workspace.failure }).some(
-          (entry) => !(repairHeld && isNoticeEntry(entry)),
+        actionable.some(
+          (entry) => !isCommandEntry(entry) && !(repairHeld && isNoticeEntry(entry)),
         ) ||
         waitingInputIdsOf({
           ids: logIds.filter((id) => !noticeIds.has(id)),
           failure: workspace.failure,
         }).length > 0,
+      commandPending: actionable.some(isCommandEntry),
       workspace: workspace.state,
       retryPending: workspace.retryPending,
     })

@@ -14,6 +14,7 @@ export type HeldSnapshot = {
   turn: 'idle' | 'running'
   stopPending: boolean
   messagePending: boolean
+  commandPending: boolean
   parked: boolean
   resumable: boolean
   idleDue: boolean
@@ -29,6 +30,7 @@ const afterFailure = (snapshot: HeldSnapshot): EHeldAction => {
 
 const prepared = (snapshot: HeldSnapshot): EHeldAction => {
   if (snapshot.messagePending || snapshot.resumable) return EHeldAction.StartTurn
+  if (snapshot.commandPending) return EHeldAction.Wait
   return snapshot.idleDue ? EHeldAction.Release : EHeldAction.Wait
 }
 
@@ -43,7 +45,8 @@ export const decideHeldAction = (snapshot: HeldSnapshot): EHeldAction => {
     return snapshot.turn === 'running' ? EHeldAction.AbortTurn : EHeldAction.ConsumeStop
   }
   if (snapshot.turn === 'running') return EHeldAction.Wait
-  if (snapshot.parked && !snapshot.messagePending) return EHeldAction.Release
+  if (snapshot.parked && !snapshot.messagePending && !snapshot.commandPending)
+    return EHeldAction.Release
   switch (snapshot.workspace) {
     case EWorkspaceState.Unprepared:
       return EHeldAction.Prepare
@@ -63,12 +66,13 @@ export type DrainSnapshot = {
   shellsOpen: boolean
   resumable: boolean
   messagePending: boolean
+  commandPending: boolean
   workspace: EWorkspaceState
   retryPending: boolean
 }
 
 export const drainWantsHolder = (snapshot: DrainSnapshot): boolean => {
-  if (snapshot.turn === 'running' || snapshot.messagePending) return true
+  if (snapshot.turn === 'running' || snapshot.messagePending || snapshot.commandPending) return true
   if (snapshot.parked) return false
   if (snapshot.childrenRunning || snapshot.shellsOpen || snapshot.resumable) return true
   switch (snapshot.workspace) {

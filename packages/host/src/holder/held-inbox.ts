@@ -170,5 +170,7 @@ export const stopSettledPromptOf = (events: readonly RecordEvent[]): boolean => 
   return lastPrompt >= 0 && lastStop > lastPrompt
 }
 
+export const isCommandEntry = (entry: InboxEntry): boolean => isCommandKind(entry.kind)
+
 export const understandsCommand = (deps: HeldSessionDeps, entry: InboxEntry): boolean =>
   !isCommandKind(entry.kind) || deps.commands?.byInboxKind.has(entry.kind) === true

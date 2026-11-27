@@ -122,6 +122,48 @@ const inboxNoticeOf = (inboxId: number): InboxEntry => ({
   senderSessionId: null,
 })
 
+const COMMAND_KIND = 'command:service'
+
+const inboxCommandOf = (inboxId: number): InboxEntry => ({
+  sessionId: 'session-1',
+  inboxId,
+  kind: COMMAND_KIND,
+  payload: JSON.stringify({ action: 'restart', serviceId: 'svc-1' }),
+  postedAt: '2026-11-12T03:00:00.000Z',
+  consumedSeq: null,
+  threadId: null,
+  senderSessionId: null,
+})
+
+describe('readHeldAction over a command the holder has not run yet', () => {
+  it('waits for a pending command instead of starting a turn', async () => {
+    const snapshot = await snapshotOf({
+      events: eventsOf([]),
+      inbox: [inboxCommandOf(5)],
+      commandKind: COMMAND_KIND,
+    })
+    expect(snapshot.action).toBe(EHeldAction.Wait)
+  })
+
+  it('holds the pod past the idle deadline for a pending command', async () => {
+    const snapshot = await snapshotOf({
+      events: eventsOf([]),
+      inbox: [inboxCommandOf(5)],
+      commandKind: COMMAND_KIND,
+    })
+    expect(snapshot.action).not.toBe(EHeldAction.Release)
+  })
+
+  it('starts a turn once a message joins the pending command', async () => {
+    const snapshot = await snapshotOf({
+      events: eventsOf([]),
+      inbox: [inboxCommandOf(5), inboxMessageOf({ inboxId: 6, text: 'go' })],
+      commandKind: COMMAND_KIND,
+    })
+    expect(snapshot.action).toBe(EHeldAction.StartTurn)
+  })
+})
+
 describe('the prompt a take-over says was waiting', () => {
   it('counts no prompt for a notice the inbox still holds', async () => {
     const snapshot = await snapshotOf({ events: eventsOf([]), inbox: [inboxNoticeOf(7)] })

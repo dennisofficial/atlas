@@ -10,6 +10,7 @@ const idle: DrainSnapshot = {
   shellsOpen: false,
   resumable: false,
   messagePending: false,
+  commandPending: false,
   workspace: EWorkspaceState.Prepared,
   retryPending: false,
 }
@@ -39,6 +40,11 @@ const cases: { name: string; snapshot: DrainSnapshot; wantsHolder: boolean }[] =
   {
     name: 'an actionable inbox entry asks for a holder',
     snapshot: { ...idle, messagePending: true },
+    wantsHolder: true,
+  },
+  {
+    name: 'a pending command entry asks for a holder',
+    snapshot: { ...idle, commandPending: true },
     wantsHolder: true,
   },
   {
