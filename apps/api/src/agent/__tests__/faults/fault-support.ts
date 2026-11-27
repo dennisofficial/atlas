@@ -1,6 +1,6 @@
 import { spawnSync } from 'node:child_process'
 import { existsSync, readFileSync } from 'node:fs'
-import { join } from 'node:path'
+import { dirname, join } from 'node:path'
 
 import { expect } from 'bun:test'
 
@@ -73,6 +73,7 @@ export const waitForFile = async (args: { path: string; timeoutMs?: number }): P
 export const releaseFifo = async (args: { path: string; timeoutMs?: number }): Promise<void> => {
   const child = Bun.spawn({
     cmd: ['sh', '-c', `printf 'go\\n' > '${args.path}'`],
+    cwd: dirname(args.path),
     stdin: 'ignore',
     stdout: 'ignore',
     stderr: 'ignore',

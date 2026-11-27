@@ -38,11 +38,13 @@ export const ENV_NAMES_MARKER = '\u0000names'
 /**
  * Terminal-session and per-invocation identifiers that differ on every shell or
  * CI run but carry no test semantics; code that spreads process.env reads them
- * all. Everything else that is read (including PATH, HOME, GITHUB_SHA and
- * GITHUB_REF) becomes part of the fingerprint.
+ * all. GitHub's hosted runners set ImageOS/ImageVersion, and a rollout
+ * alternates consecutive runs between two image versions for days.
+ * `bun test --parallel` numbers its workers in BUN_TEST_WORKER_ID/JEST_WORKER_ID.
+ * Everything else that is read, PATH and HOME included, is part of the fingerprint.
  */
 export const SESSION_ONLY_ENV =
-  /^(_|PWD|OLDPWD|SHLVL|TERM|TERM_PROGRAM(_VERSION)?|TERM_SESSION_ID|COLORTERM|TMUX|TMUX_PANE|STY|WINDOWID|COLUMNS|LINES|LS_COLORS|SSH_\w+|INVOCATION_ID|JOURNAL_STREAM|SYSTEMD_EXEC_PID|SUDO_COMMAND|BUN_TEST_INCREMENTAL\w*|GITHUB_\w+|ACTIONS_\w+|RUNNER_\w+)$/
+  /^(_|PWD|OLDPWD|SHLVL|TERM|TERM_PROGRAM(_VERSION)?|TERM_SESSION_ID|COLORTERM|TMUX|TMUX_PANE|STY|WINDOWID|COLUMNS|LINES|LS_COLORS|SSH_\w+|INVOCATION_ID|JOURNAL_STREAM|SYSTEMD_EXEC_PID|SUDO_COMMAND|BUN_TEST_INCREMENTAL\w*|GITHUB_\w+|ACTIONS_\w+|RUNNER_\w+|ImageOS|ImageVersion|BUN_TEST_WORKER_ID|JEST_WORKER_ID)$/
 
 const SKIPPED_IN_TREES = new Set(['node_modules', '.git'])
 

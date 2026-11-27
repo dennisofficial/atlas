@@ -220,8 +220,11 @@ jobs:
       # is set, and each package writes one summary JSON to the summary dir.
       # bun-test-incremental's own suite drives child `bun test` runs, so it must never run
       # incrementally against itself; it is excluded here and run in its own step below.
+      # --parallel starts every package at once; plain --filter waits for a package's workspace
+      # dependencies to finish their tests first, which held apps/api back five minutes.
+      # --no-exit-on-error keeps one failing package from killing the others mid-run.
       - name: test
-        run: bun run --filter './packages/*' --filter './plugins/*' --filter './commands' --filter './apps/*' --filter './evals' --filter '!@dltech/bun-test-incremental' test
+        run: bun run --parallel --no-exit-on-error --filter './packages/*' --filter './plugins/*' --filter './commands' --filter './apps/*' --filter './evals' --filter '!@dltech/bun-test-incremental' test
         env:
           BUN_TEST_INCREMENTAL_SUMMARY_DIR: ${{ runner.temp }}/summaries
 

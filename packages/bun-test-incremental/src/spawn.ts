@@ -5,6 +5,7 @@
  *    name no repo path (ssh-keygen -f /tmp/k, git in a temp dir), cannot read repo inputs;
  *    binaries and files under node_modules are covered by the lockfile in the global key;
  *  - `bun|node <repo script>` reads that script's static import graph, which is recorded;
+ *  - `setsid` and `nohup` are classified by the command they wrap;
  *  - anything else, including any unknown program run with a repo cwd, makes the test file
  *    uncacheable.
  * Runtime reads inside a child script stay invisible; the nightly full run guards that gap.
@@ -25,7 +26,11 @@ const NO_FILESYSTEM = new Set([
   'id',
   'uname',
   'which',
+  'mkfifo',
+  'pgrep',
+  'pkill',
 ])
+const PROCESS_WRAPPERS = new Set(['setsid', 'nohup'])
 const SCRIPT_RUNNERS = new Set(['bun', 'node'])
 const SCRIPT = /\.[cm]?[jt]sx?$/
 
@@ -54,8 +59,11 @@ function spawnShape(args: unknown[]) {
     .map(String)
     .flatMap((part) => part.split(/\s+/))
     .filter(Boolean)
+  const wrapped = argv.findIndex(
+    (part) => !PROCESS_WRAPPERS.has(basename(part)) && !part.startsWith('-'),
+  )
   const cwd = typeof options?.cwd === 'string' ? options.cwd : process.cwd()
-  return { argv, cwd }
+  return { argv: wrapped > 0 ? argv.slice(wrapped) : argv, cwd }
 }
 
 export function createSpawnClassifier(params: {
