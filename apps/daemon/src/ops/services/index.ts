@@ -91,13 +91,14 @@ export const servicesGroup =
       if (port !== undefined) {
         const timeoutMs = op.readyTimeoutMs ?? READY_TIMEOUT_DEFAULT_MS
         const deadline = Date.now() + timeoutMs
+        const stillRunning = () => records.get(op.serviceId) === record
         const ready = await waitForPort({
           port,
           timeoutMs,
-          cancelled: () => !isRunning(record),
+          cancelled: () => !stillRunning(),
         })
         if (!ready) {
-          if (!isRunning(record)) {
+          if (!stillRunning()) {
             throw new CallFailureError({
               code: ECallFailure.Internal,
               message: `service ${op.serviceId} exited before port ${port} became ready`,
@@ -119,7 +120,7 @@ export const servicesGroup =
             port,
             path: op.healthPath,
             timeoutMs: Math.max(1, deadline - Date.now()),
-            cancelled: () => !isRunning(record),
+            cancelled: () => !stillRunning(),
           })
           if (!healthy) {
             record.child.kill()

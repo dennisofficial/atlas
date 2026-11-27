@@ -128,7 +128,11 @@ export const describeHandoff = (scenario: HandoffScenario): void => {
         ...(scenario.knobs === undefined ? {} : { knobs: scenario.knobs }),
       })
       await scenario.beforeClaim?.(ctx, hostB)
-      await ctx.rig.claim({ sessionId: ctx.sessionId, label: 'host-b', timeoutMs: 30_000 })
+      await ctx.rig.claim({
+        sessionId: ctx.sessionId,
+        label: 'host-b',
+        timeoutMs: POD_EFFECT_WAIT_MS,
+      })
       return hostB
     }
 
