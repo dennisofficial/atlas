@@ -15,6 +15,9 @@ import { createPodMetricsBus, type PodMetricsBus } from '../bus/pod-metrics-bus'
 import { PodMetricsRelay } from '../bus/pod-metrics-relay'
 import type { PgWakeListener } from '../bus/pg-wake-listener'
 import { composeAgentHost } from '../compose'
+import { db } from '@dltech/atlas-db'
+import { SecretCipher } from '@dltech/atlas-pods/config/secret-cipher'
+import { sessionNamerOf } from '../naming/session-namer'
 import { MacLinkModule } from '../mac-link/mac-link.module'
 import { MAC_LINK } from '../mac-link/port'
 import type { MacLink } from '../mac-link/port'
@@ -99,6 +102,11 @@ const holderProvider: Provider = {
       sandbox,
       config,
       tokens,
+      namer: sessionNamerOf({
+        db,
+        cipher: new SecretCipher(env.secretsEncryptionKey),
+        tokens,
+      }),
       github,
       signingKey,
       presence,

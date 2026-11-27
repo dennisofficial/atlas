@@ -1,9 +1,11 @@
 import { describe, expect, it } from 'bun:test'
 import { composeCommands, EClientAction, ECommandRunsIn } from '@dltech/atlas-commands'
 
-import { help, model, nativeCommandHandlers, nativeCommands, nativeControlHandlers } from '..'
+import { help, model, nativeCommandHandlers, nativeCommands, nativeControlHandlersOf } from '..'
 
 const CONTROL_HANDLERS_IN_API = new Set(['resize', 'cancel-resize'])
+
+const nativeControlHandlers = nativeControlHandlersOf({ suggestName: async () => null })
 
 describe('native commands', () => {
   it('compose into a registry without a duplicate', () => {

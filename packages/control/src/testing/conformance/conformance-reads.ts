@@ -2,7 +2,15 @@ import { beforeEach, describe, expect, it } from 'bun:test'
 import { ECompactionAnchor, visibleEvents, type RecordEventBody } from '@dltech/atlas-core'
 
 import type { ConformanceParams } from './conformance'
-import { appendBodies, makeHarness, readAll, said, seedGranted, type Harness } from './support'
+import {
+  appendBodies,
+  makeHarness,
+  readAll,
+  said,
+  seedGranted,
+  THREAD,
+  type Harness,
+} from './support'
 
 export function describeControlPlaneReads(
   params: Pick<ConformanceParams, 'name' | 'makeStore' | 'reset'>,
@@ -62,6 +70,23 @@ export function describeControlPlaneReads(
       const hiddenTypes = ['fact-recorded'] as const
       expect(await readAll({ harness, visible: true, hiddenTypes })).toEqual(expected)
       expect(await readAll({ harness, visible: true, hiddenTypes, limit: 2 })).toEqual(expected)
+    })
+
+    it('reads only the asked event types', async () => {
+      const fact: RecordEventBody = { type: 'fact-recorded', key: 'k', kind: 'note' }
+      const { events } = await appendBodies({
+        harness,
+        epoch,
+        bodies: [said('first'), fact, said('second')],
+      })
+      const page = await harness.plane.readEvents({
+        threadId: THREAD,
+        afterSeq: 0,
+        limit: 100,
+        visible: true,
+        onlyTypes: ['user-said'],
+      })
+      expect(page.events).toEqual(events.filter((event) => event.type === 'user-said'))
     })
   })
 }

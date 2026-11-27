@@ -9,7 +9,8 @@ every session.
 - The twelve command specs, their zod arguments, their argument hints and the text form of `rewind`,
   `summarise`, `rename`, `resize`, `rotate` and `resume`.
 - The holder handlers for `rewind`, `summarise`, `rotate` and `resume`, which run in the agent host.
-- The control handler for `rename`, which sets the session title.
+- The control handler for `rename`, which sets the session title. A bare `/rename` asks the caller's
+  suggester for a name from the transcript.
 - The disk limit of a resize.
 
 ## Does not own
@@ -32,9 +33,11 @@ every session.
 - `nativeCommands`: the specs, in declaration order — `rewind`, `rename`, `summarise`, `rotate`,
   `resume`, `resize`, `cancel-resize`, `model`, `help`, `skills`, `mcp`, `shells`.
 - `nativeCommandHandlers`: one holder handler for each `host` command, keyed by `inboxKind`.
-- `nativeControlHandlers`: the `rename` handler, keyed by the command name.
+- `nativeControlHandlersOf({suggestName})`: the `rename` handler, keyed by the command name.
+  `suggestName({sessionId})` answers a name for a bare `/rename`, or `null` to refuse.
+- `RenamePlane`, `SessionNameSuggester`: the ports the `rename` handler needs.
 - `rename`, `resize`, `resizeArgs`, `RESIZE_MAX_DISK_GB`: the rename and resize specs, and the
-  resize disk limit of 100 GB. The API supplies the resize handler, so `nativeControlHandlers` has
+  resize disk limit of 100 GB. The API supplies the resize handler, so `nativeControlHandlersOf` has
   none for it.
 - `cancelResize`, `cancelResizeArgs`: the cancel spec, which takes an empty argument object and
   cancels a resize that waits for the pod to go idle. The API supplies the handler.
@@ -76,7 +79,7 @@ every session.
 
 ### Refusals
 
-- `REFUSAL_RENAME_NEEDS_NAME`: what `/rename` answers with no name.
+- `REFUSAL_RENAME_NO_SUGGESTION`: what a bare `/rename` answers when no name comes back.
 - `REFUSAL_RESIZE_USAGE`: what `/resize` answers with arguments it cannot read.
 - `REFUSAL_NO_MODEL`, `REFUSAL_EMPTY_SUMMARY`, `REFUSAL_SUMMARY_FAILED`: the summarise sentences.
 - `REFUSAL_SUMMARISE_ARGS`: what `/summarise` answers with an argument that names no message.

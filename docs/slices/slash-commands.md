@@ -296,9 +296,9 @@ typed as text is refused with "/name opens in the app. Pick it from the / menu."
 
 **Control commands in the host** (correction, slice 2). A `control` command such as `rename` has no
 pod handler, so the host also takes `controlHandlers` (by name) and runs them with its own
-`ControlPlane`: `nativeControlHandlers` is passed in `apps/api/src/agent/compose.ts`. `resize` runs in
+`ControlPlane`: `nativeControlHandlersOf` is passed in `apps/api/src/agent/compose.ts`. `resize` runs in
 the host too: the host is given the same handler the API runs, `podResizeHandlerOf` in
-`apps/api/src/_lib/pod-resize/pod-resize-handler.ts`, wired beside `nativeControlHandlers`, so a
+`apps/api/src/_lib/pod-resize/pod-resize-handler.ts`, wired beside `nativeControlHandlersOf`, so a
 typed `/resize 2 4` works on every surface. Only `model-set` stays API-only, and a typed `/model-set`
 is refused with the sentence above. While a
 typed command waits behind a turn, the status rows show it as a queued message with the typed text,
@@ -371,7 +371,7 @@ Native (`commands/src`), all declared once and served to every surface:
 | `summarise` | host     | `/summarise [seq]`; no argument = up to your last message; no picker                               | `commands/src/summarise/spec.ts`, `pod.ts`     |
 | `rotate`    | host     | `/rotate [instructions]`; writes a handoff brief and starts the next request from it; no picker    | `commands/src/rotate/spec.ts`, `pod.ts`        |
 | `resume`    | host     | `/resume` or `/resume --agent <id>`; no free text                                                  | `commands/src/resume/spec.ts`, `pod.ts`        |
-| `rename`    | control  | `/rename <name>`                                                                                   | `commands/src/rename/spec.ts`, `control.ts`    |
+| `rename`    | control  | `/rename [name]`                                                                                   | `commands/src/rename/spec.ts`, `control.ts`    |
 | `resize`    | control  | `/resize <vcpus> <memoryGb> [diskGb] [--idle]`                                                     | `commands/src/resize/spec.ts` (API-only today) |
 | `model`     | client   | `/model` — opens the model picker, no argument                                                     | new, `commands/src/model/spec.ts`              |
 | `help`      | client   | `/help` — opens the command list                                                                   | new, `commands/src/help/spec.ts`               |

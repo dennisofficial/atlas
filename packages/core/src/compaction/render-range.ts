@@ -144,6 +144,13 @@ const isProse = (event: Event): boolean =>
   event.type === 'user-said' ||
   event.type === 'assistant-said'
 
+export function proseLinesOf(events: readonly Event[]): string[] {
+  return events.filter(isProse).flatMap((event) => {
+    const line = lineOf(event, PAYLOAD_CHARACTER_LIMIT)
+    return line === undefined ? [] : [line]
+  })
+}
+
 export function transcriptOfRange({
   events,
   fromSeq = 0,

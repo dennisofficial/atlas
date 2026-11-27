@@ -68,6 +68,7 @@ import {
   digestTimingProperties,
   sandboxComputeFor,
   sandboxLiveCpuMs,
+  sessionNameSuggesterOf,
   type PodOps,
 } from '../../../agent'
 import { PreviewTeardownService } from '../previews/preview-teardown.service'
@@ -615,11 +616,16 @@ export class SessionsService {
   async command(args: { userId: string } & SessionCommandInput): Promise<SessionCommandOutput> {
     const session = await this.requireOwnedSession(args)
     refuseArchivedCommand({ session, name: args.name })
+    const suggestName = sessionNameSuggesterOf({
+      plane: this.plane,
+      namer: (ask) => this.titler.nameOf(ask),
+      onFault: (fault) => this.logger.warn(`naming ${args.sessionId} failed: ${String(fault)}`),
+    })
     const output = await postCommand({
       plane: this.plane,
       registry: this.commands,
       controlHandlers: new Map([
-        ...modelSetHandlers({ plane: this.plane, session }),
+        ...modelSetHandlers({ plane: this.plane, session, suggestName }),
         [resize.spec.name, this.podSizing.resizeHandler()],
         [cancelResize.spec.name, this.podSizing.cancelHandler()],
       ]),
