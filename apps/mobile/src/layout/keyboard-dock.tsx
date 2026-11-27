@@ -11,16 +11,20 @@ export const KeyboardDock = ({
   children,
   style,
   overlay = false,
+  reserve = 0,
 }: {
   children: ReactNode
   style?: StyleProp<ViewStyle>
   overlay?: boolean
+  reserve?: number
 }) => {
   const { bottom } = useSafeAreaInsets()
   const { height } = useReanimatedKeyboardAnimation()
   const animatedStyle = useAnimatedStyle(
-    () => ({ paddingBottom: dockPaddingOf({ keyboardHeight: height.value, safeBottom: bottom }) }),
-    [bottom],
+    () => ({
+      paddingBottom: dockPaddingOf({ keyboardHeight: height.value, safeBottom: bottom, reserve }),
+    }),
+    [bottom, reserve],
   )
   return (
     <Animated.View

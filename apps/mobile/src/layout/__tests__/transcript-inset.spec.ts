@@ -18,6 +18,15 @@ describe('transcriptInsetOf', () => {
   it('counts only the safe area before the dock has been measured', () => {
     expect(transcriptInsetOf({ dockHeight: 0, keyboardInset: 0, safeBottom: 34 })).toBe(34)
   })
+
+  it('clears the reserve under the dock the same way the dock does', () => {
+    expect(
+      transcriptInsetOf({ dockHeight: 120, keyboardInset: 0, safeBottom: 34, reserve: 12 }),
+    ).toBe(154)
+    expect(
+      transcriptInsetOf({ dockHeight: 120, keyboardInset: 336, safeBottom: 34, reserve: 12 }),
+    ).toBe(468)
+  })
 })
 
 describe('listBottomPaddingOf', () => {

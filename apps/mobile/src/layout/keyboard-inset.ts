@@ -5,12 +5,14 @@ const DOCKED_SLACK = 4
 export const dockPaddingOf = ({
   keyboardHeight,
   safeBottom,
+  reserve = 0,
 }: {
   keyboardHeight: number
   safeBottom: number
+  reserve?: number
 }): number => {
   'worklet'
-  return Math.max(Math.abs(keyboardHeight), safeBottom)
+  return Math.max(Math.abs(keyboardHeight) + reserve, safeBottom)
 }
 
 export const keyboardInsetOf = ({
