@@ -14,12 +14,14 @@
     "@dltech/atlas-ui": "workspace:*"
   },
   "peerDependencies": {
+    "@bsky.app/react-native-uitextview": "*",
     "lucide-react-native": "*",
     "react": "*",
     "react-native": "*",
     "react-native-svg": "*"
   },
   "devDependencies": {
+    "@bsky.app/react-native-uitextview": "2.7.3",
     "@types/bun": "latest",
     "@types/react": "~19.3.0",
     "lucide-react-native": "^1.67.0",

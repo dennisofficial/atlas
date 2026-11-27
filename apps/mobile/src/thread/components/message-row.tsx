@@ -26,7 +26,6 @@ import {
 } from '../rows'
 import { InboundBubble } from './inbound-bubble'
 import { MessageAttachments } from './message-attachments'
-import { MessageContextMenu } from './message-context-menu'
 import { MessageRowFooter } from './message-footer'
 import { useMessageActions } from './use-message-actions'
 
@@ -100,15 +99,13 @@ export const MessageRowView = ({
     const caption = senderLabelOf({ row, sessionNameOf })
     return (
       <View style={styles.message}>
-        <MessageContextMenu actions={actions} onAction={handleAction}>
-          {caption === undefined ? (
+        {caption === undefined ? (
+          <Markdown value={row.text} selectable renderDiagram={renderDiagram} />
+        ) : (
+          <InboundBubble caption={caption}>
             <Markdown value={row.text} selectable renderDiagram={renderDiagram} />
-          ) : (
-            <InboundBubble caption={caption}>
-              <Markdown value={row.text} selectable renderDiagram={renderDiagram} />
-            </InboundBubble>
-          )}
-        </MessageContextMenu>
+          </InboundBubble>
+        )}
         <MessageRowFooter
           at={row.at}
           align="start"
@@ -145,11 +142,9 @@ export const MessageRowView = ({
     <View style={styles.you}>
       <MessageAttachments threadId={threadId} sessionId={sessionId} attachments={row.attachments} />
       {row.text.trim().length > 0 ? (
-        <MessageContextMenu actions={actions} onAction={handleAction} align="end">
-          <Bubble style={bubbleStyle}>
-            <Markdown value={row.text} breaks selectable renderDiagram={renderDiagram} />
-          </Bubble>
-        </MessageContextMenu>
+        <Bubble style={bubbleStyle}>
+          <Markdown value={row.text} breaks selectable renderDiagram={renderDiagram} />
+        </Bubble>
       ) : null}
       <MessageRowFooter
         at={row.at}
