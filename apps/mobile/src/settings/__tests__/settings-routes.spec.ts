@@ -80,6 +80,13 @@ describe('settings stack screens', () => {
     for (const screen of SETTINGS_STACK_SCREENS) expect(screen.title.length).toBeGreaterThan(0)
   })
 
+  it('pushes the model role editor with a default title', () => {
+    expect(SETTINGS_STACK_SCREENS.find((screen) => screen.name === 'settings/model-role')).toEqual({
+      name: 'settings/model-role',
+      title: 'Model',
+    })
+  })
+
   it('names a route file that exists', () => {
     for (const screen of SETTINGS_STACK_SCREENS) {
       const file = resolve(import.meta.dir, '..', '..', 'app', '(app)', `${screen.name}.tsx`)
