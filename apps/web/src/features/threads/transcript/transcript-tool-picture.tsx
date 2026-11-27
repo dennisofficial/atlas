@@ -40,13 +40,14 @@ export function TranscriptToolPicture({ id, picture, alt, width, height }: ToolP
     height: height ?? picture.media.height,
   })
   const style = boxStyleOf(box)
+  const hash = picture.media.hash
 
   useEffect(() => {
     setResolved({ kind: 'pending' })
     if (sessionId === null) return
     let cancelled = false
     mediaUrls
-      .urlOf({ sessionId, hash: picture.media.hash })
+      .urlOf({ sessionId, hash })
       .then((src) => {
         if (!cancelled) setResolved({ kind: 'src', src })
       })
@@ -56,7 +57,7 @@ export function TranscriptToolPicture({ id, picture, alt, width, height }: ToolP
     return () => {
       cancelled = true
     }
-  }, [picture, sessionId])
+  }, [hash, sessionId])
 
   if (resolved.kind === 'src')
     return (
