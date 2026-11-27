@@ -33,6 +33,11 @@ const AppStack = () => {
       foreground: theme.foreground,
     }),
   }
+  const formSheetOptions = {
+    presentation: 'formSheet' as const,
+    sheetAllowedDetents: [0.9, 1],
+    sheetGrabberVisible: true,
+  }
   return (
     <Stack
       screenOptions={{ contentStyle: { backgroundColor: theme.background } }}
@@ -100,6 +105,7 @@ const AppStack = () => {
           key={screen.name}
           name={screen.name}
           options={{
+            ...(screen.formSheet === true ? formSheetOptions : {}),
             ...pushedHeaderOptions,
             ...pushedHeaderOptionsOf({ title: screen.title, barWidth }),
           }}

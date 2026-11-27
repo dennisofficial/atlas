@@ -2,8 +2,8 @@
 
 import { useCallback, useMemo } from 'react'
 
+import { mcpServersInputOf } from '@dltech/atlas-client/settings'
 import {
-  EMcpServerScope,
   type McpServerScope,
   type McpServerWire,
   type McpUpsertWire,
@@ -23,9 +23,11 @@ export type McpResource = {
 }
 
 export const mcpScopeInputOf = (scope: McpResourceScope): McpServerScope =>
-  scope.kind === 'project'
-    ? { scope: EMcpServerScope.Project, projectId: scope.projectId }
-    : { scope: EMcpServerScope.Group, groupId: scope.groupId }
+  mcpServersInputOf(
+    scope.kind === 'project'
+      ? { kind: 'project', id: scope.projectId }
+      : { kind: 'group', id: scope.groupId },
+  )
 
 const scopeIdOf = (scope: McpResourceScope): string =>
   scope.kind === 'project' ? scope.projectId : scope.groupId

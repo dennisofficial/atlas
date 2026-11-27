@@ -6,6 +6,8 @@ import {
   PROJECT_SECTIONS,
 } from '@dltech/atlas-client/settings'
 import { describe, expect, it } from 'bun:test'
+import { existsSync } from 'node:fs'
+import { resolve } from 'node:path'
 
 import {
   IOS_GROUP_SECTION_ROUTES,
@@ -42,9 +44,10 @@ describe('ios project sections', () => {
     }
   })
 
-  it('routes overview first', () => {
+  it('routes overview and mcp in web order', () => {
     expect(routedProjectSections().map((item) => item.section)).toEqual([
       EProjectSettingsSection.Overview,
+      EProjectSettingsSection.Mcp,
     ])
   })
 })
@@ -59,7 +62,7 @@ describe('ios group sections', () => {
 
   it('pends instructions until a group route exists', () => {
     expect(IOS_PENDING_GROUP_SECTIONS.has(EGroupSettingsSection.Instructions)).toBe(true)
-    expect(routedGroupSections()).toEqual([])
+    expect(routedGroupSections().map((item) => item.section)).toEqual([EProjectSettingsSection.Mcp])
   })
 })
 
@@ -68,5 +71,12 @@ describe('settings stack screens', () => {
     const names = SETTINGS_STACK_SCREENS.map((screen) => screen.name)
     expect(new Set(names).size).toBe(names.length)
     for (const screen of SETTINGS_STACK_SCREENS) expect(screen.title.length).toBeGreaterThan(0)
+  })
+
+  it('names a route file that exists', () => {
+    for (const screen of SETTINGS_STACK_SCREENS) {
+      const file = resolve(import.meta.dir, '..', '..', 'app', '(app)', `${screen.name}.tsx`)
+      expect(existsSync(file)).toBe(true)
+    }
   })
 })
