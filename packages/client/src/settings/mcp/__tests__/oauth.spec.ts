@@ -3,7 +3,6 @@ import { describe, expect, it } from 'bun:test'
 import { EReturnResult } from '@dltech/atlas-core'
 import { EMcpOauthGrantStatus, EMcpServerSource, type McpOauthServer } from '@dltech/atlas-wire/web'
 
-import { ELinkReturnKind } from '../../personal/link-return'
 import {
   EMcpAuthState,
   authStateOf,
@@ -14,7 +13,7 @@ import {
   mcpResultMessageOf,
   mcpServerLabelOf,
   repoServersOf,
-} from '../mcp-oauth'
+} from '../oauth'
 
 const URL_A = 'https://mcp.example.com/mcp'
 
@@ -114,7 +113,7 @@ describe('mcpResultMessageOf', () => {
         label: 'mcp.example.com',
         outcome: { result: EReturnResult.Connected },
       }),
-    ).toEqual({ kind: ELinkReturnKind.Success, message: 'Signed in to mcp.example.com' })
+    ).toEqual({ ok: true, message: 'Signed in to mcp.example.com' })
   })
 
   it('names the reason a sign-in failed', () => {
@@ -123,16 +122,13 @@ describe('mcpResultMessageOf', () => {
         label: 'mcp.example.com',
         outcome: { result: EReturnResult.Failed, reason: 'expired' },
       }),
-    ).toEqual({
-      kind: ELinkReturnKind.Error,
-      message: "Couldn't sign in to mcp.example.com: expired",
-    })
+    ).toEqual({ ok: false, message: "Couldn't sign in to mcp.example.com: expired" })
   })
 
   it('leaves out a blank reason', () => {
     expect(
       mcpResultMessageOf({ label: 'the server', outcome: { result: EReturnResult.Failed } }),
-    ).toEqual({ kind: ELinkReturnKind.Error, message: "Couldn't sign in to the server" })
+    ).toEqual({ ok: false, message: "Couldn't sign in to the server" })
   })
 })
 

@@ -26,6 +26,8 @@ import {
 import { Switch } from '@dltech/atlas-ui/components/switch'
 import { Textarea } from '@dltech/atlas-ui/components/textarea'
 
+import { mcpDraftIsValid, serverIdOf, transportKindOf } from '@dltech/atlas-client/settings'
+
 import { EMcpTransport } from '../fixtures/settings-mcp'
 import type { McpDraft } from './mcp-store'
 
@@ -50,19 +52,17 @@ const EMPTY_DRAFT: Draft = {
   proxy: false,
 }
 
-function toServerId(name: string) {
-  return name
-    .trim()
-    .toLowerCase()
-    .replace(/[^a-z0-9]+/g, '-')
-    .replace(/^-|-$/g, '')
-}
-
 export function McpAddDialog({ onAdd }: { onAdd: (draft: McpDraft) => void }) {
   const [open, setOpen] = useState(false)
   const [draft, setDraft] = useState(EMPTY_DRAFT)
   const isStdio = draft.transport === EMcpTransport.Stdio
-  const valid = toServerId(draft.name).length > 0 && draft.target.trim().length > 0
+  const valid = mcpDraftIsValid({
+    id: serverIdOf(draft.name),
+    kind: transportKindOf(draft.transport),
+    target: draft.target,
+    extra: draft.extra,
+    proxy: draft.proxy,
+  })
 
   const handleOpenChange = (next: boolean) => {
     if (next) setDraft(EMPTY_DRAFT)
@@ -75,7 +75,7 @@ export function McpAddDialog({ onAdd }: { onAdd: (draft: McpDraft) => void }) {
 
   const handleAdd = () => {
     onAdd({
-      id: toServerId(draft.name),
+      id: serverIdOf(draft.name),
       transport: draft.transport,
       target: draft.target.trim(),
       enabled: true,

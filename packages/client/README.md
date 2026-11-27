@@ -101,6 +101,22 @@ The headless client library that web, the TUI and the mobile app share.
 - `linkReturnOf(params)`, `ELinkReturnKind`: the outcome a Google link came back with.
 - `unlinkRefusalOf(args)`, `SESSION_NOT_FRESH`, `UNREACHABLE`: the refusals a settings page names.
 
+### Read MCP and GitHub settings
+
+- `McpScope`, `mcpServersInputOf({ scope })`, `mcpServerPutInputOf({ scope, draft })`,
+  `mcpOauthScreenOfScope(scope)` and `mcpOauthServersInputOf(scope)`: the layer an MCP page reads and
+  writes, and the screen its sign-in returns to, at user, project or group scope.
+- `rowOfServer`, `targetOf`, `transportOfDraft`, `upsertOfDraft`, `upsertOfServerDraft`,
+  `upsertOfToggle`, `serverIdOf`, `mcpDraftIsValid`: the server row and the payload a settings form
+  writes. `splitCommandLine`, `joinCommandLine` and `parseKeyValueLines` are the command and
+  key-value text a form reads.
+- `EMcpAuthState`, `authStateOf`, `cloudServerOf`, `repoServersOf`, `lastUsedOf`,
+  `mcpServerLabelOf`, `mcpResultMessageOf`, `mcpSignInResultOf`, `unreachableSignInResult`: what a
+  server row says about its grant, and the message a browser return shows. `relativeTimeOf({ iso,
+  now })` is the relative time a row prints.
+- `pollUntilSettled`, `githubFailureOf`, `githubCapabilitiesOf`, `githubLoginOf`, `GITHUB_REPO_SCOPE`
+  and `GITHUB_ORG_SCOPE`: the GitHub device-code flow and what a connection grants.
+
 ### Edit a project or a group
 
 - `overviewDraftOf(project)`, `overviewSaveBodyOf({ project, draft })`, `overviewDraftsEqual`,

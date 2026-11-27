@@ -1,13 +1,10 @@
 'use client'
 
+import { githubCapabilitiesOf } from '@dltech/atlas-client/settings'
+
 import { useCloudQuery } from '@/lib/use-cloud-query'
 
-import {
-  fetchGithub,
-  GITHUB_ORG_SCOPE,
-  GITHUB_REPO_SCOPE,
-  type GithubConnection,
-} from '../data/personal/github-api'
+import { fetchGithub, type GithubConnection } from '../data/personal/github-api'
 import { fetchMcpServers } from '../data/personal/mcp-api'
 import { QuerySection } from '../data/personal/query-boundary'
 import { GithubIntegrationSkeleton, McpListSkeleton } from '../skeletons/library-skeletons'
@@ -24,8 +21,6 @@ const GITHUB_ID = 'github'
 
 export function githubIntegration(connection: GithubConnection): Integration {
   const base = INTEGRATIONS.find((integration) => integration.id === GITHUB_ID)
-  const scopes = connection.connected ? connection.scopes : []
-  const granted = (scope: string) => connection.connected && scopes.includes(scope)
   return {
     id: GITHUB_ID,
     name: 'GitHub',
@@ -37,11 +32,7 @@ export function githubIntegration(connection: GithubConnection): Integration {
           missingScopes: connection.missingScopes,
         }
       : {}),
-    capabilities: [
-      { label: 'Clone private repos', granted: granted(GITHUB_REPO_SCOPE) },
-      { label: 'Open pull requests', granted: granted(GITHUB_REPO_SCOPE) },
-      { label: 'Org-wide access', granted: granted(GITHUB_ORG_SCOPE) },
-    ],
+    capabilities: githubCapabilitiesOf(connection),
   }
 }
 
