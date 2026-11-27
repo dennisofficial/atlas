@@ -27,12 +27,18 @@ type PlaceArgs = {
   signal?: AbortSignal | undefined
 }
 
-type PlaceableFile = { fileId: string; pathname: string; name: string; owned: boolean }
+type PlaceableFile = {
+  fileId: string
+  pathname: string
+  name: string
+  size: number
+  owned: boolean
+}
 
 export type SandboxSaidUploadsDeps = {
   userId: string
   home: string
-  files: Pick<DaemonFileSystemPort, 'stat' | 'fetchToFile'>
+  files: Pick<DaemonFileSystemPort, 'fetchToFile'>
   blobs: UploadBlobs | null
 }
 
@@ -70,6 +76,7 @@ export class SandboxSaidUploads extends SaidUploadsPort {
           fileId: upload.uploadId,
           pathname: upload.pathname,
           name: upload.name,
+          size: upload.size,
           owned: isOwnedUpload({ upload, userId }),
         }),
       ),
@@ -78,6 +85,7 @@ export class SandboxSaidUploads extends SaidUploadsPort {
           fileId: file.hash,
           pathname: mediaPathname({ userId, hash: file.hash }),
           name: isSafeFileName(file.name) ? file.name : file.hash,
+          size: file.size,
           owned: MEDIA_HASH.test(file.hash),
         }),
       ),
@@ -93,22 +101,20 @@ export class SandboxSaidUploads extends SaidUploadsPort {
 
     const target = this.targetOf(file)
     try {
-      return (await this.isPresent(target))
-        ? { state: EUploadState.Ready as const, path: target }
-        : await this.fetchTo({ file, target, blobs, signal: args.signal })
+      await this.fetchTo({ file, target, blobs, signal: args.signal })
+      return { state: EUploadState.Ready, path: target }
     } catch (error) {
+      if (args.signal?.aborted === true) throw error
+      if (await this.isGone({ file, blobs })) return MISSING
       const current = args.currentFileIds?.has(file.fileId) ?? true
-      if (current || args.signal?.aborted === true) throw error
+      if (current) throw error
       return undefined
     }
   }
 
-  private async isPresent(target: string): Promise<boolean> {
-    const found = await this.deps.files.stat({ path: target }).catch((error: unknown) => {
-      if (error instanceof Error && 'code' in error && error.code === 'ENOENT') return undefined
-      throw error
-    })
-    return found?.isFile() === true
+  private async isGone(args: { file: PlaceableFile; blobs: UploadBlobs }): Promise<boolean> {
+    const size = await args.blobs.sizeOf(args.file.pathname).catch(() => undefined)
+    return size === null
   }
 
   private async fetchTo(args: {
@@ -116,18 +122,15 @@ export class SandboxSaidUploads extends SaidUploadsPort {
     target: string
     blobs: UploadBlobs
     signal: AbortSignal | undefined
-  }): Promise<UploadPlacement> {
+  }): Promise<void> {
     const { file, target, blobs, signal } = args
-    const size = await blobs.sizeOf(file.pathname)
-    if (size === null) return MISSING
     await blobs.ready()
     const url = await blobs.urlOf(file.pathname)
     await this.deps.files.fetchToFile({
       url,
       path: target,
-      size,
+      size: file.size,
       ...(signal === undefined ? {} : { signal }),
     })
-    return { state: EUploadState.Ready, path: target }
   }
 }

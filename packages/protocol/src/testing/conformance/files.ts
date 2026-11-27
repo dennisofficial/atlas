@@ -251,6 +251,34 @@ export const describeFilesConformance = (target: DaemonConformanceTarget): void 
         }),
       ))
 
+    it('keeps a file already at the path without fetching the url', () =>
+      withBlobServer((base) =>
+        withDaemon({
+          target,
+          body: async (handle) => {
+            const session = await connectAt({ handle })
+            const dir = workdir()
+            const path = `${dir}/kept.txt`
+            okValue({ result: await run({ session, op: { op: 'mkdir', path: dir } }), op: 'mkdir' })
+            const written = await run({
+              session,
+              op: { op: 'writeFile', path, content: 'edited' },
+            })
+            okValue({ result: written, op: 'writeFile' })
+            const fetched = await run({
+              session,
+              op: { op: 'fetchToFile', url: `${base}/gone`, path, size: FIXTURE.length },
+            })
+            okValue({ result: fetched, op: 'fetchToFile' })
+            const read = await run({ session, op: { op: 'readBytes', path } })
+            expect(
+              Buffer.from(okValue({ result: read, op: 'readBytes' }), 'base64').toString(),
+            ).toBe('edited')
+            await run({ session, op: { op: 'remove', path: dir } })
+          },
+        }),
+      ))
+
     it('rejects a size mismatch and leaves neither the file nor its part', () =>
       withBlobServer((base) =>
         withDaemon({

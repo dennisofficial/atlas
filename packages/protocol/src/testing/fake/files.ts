@@ -26,6 +26,7 @@ const fetchIntoMemory = async (args: {
   signal: AbortSignal
 }): Promise<void> => {
   const { op, fs, signal } = args
+  if (fs.exists({ path: op.path }) && fs.stat({ path: op.path }).isFile) return
   const response = await fetch(op.url, { signal })
   if (!response.ok || response.body === null) {
     throw new Error(`fetching ${op.path} failed with status ${response.status}`)
