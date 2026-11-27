@@ -56,20 +56,4 @@ describe('drawerBarItemsOf', () => {
     item.onPress()
     expect(pressed).toBe(1)
   })
-
-  it('adds a hide button after the plus button when the panel can hide', () => {
-    let hidden = 0
-    const { right } = drawerBarItemsOf({
-      onNewSession: noop,
-      onHide: () => {
-        hidden += 1
-      },
-    })
-    const item = right[1]
-    if (item?.type !== 'button') throw new Error('hide item is not a button')
-    expect(item.accessibilityLabel).toBe('Hide sessions')
-    expect(item.icon).toEqual({ type: 'sfSymbol', name: 'sidebar.left' })
-    item.onPress()
-    expect(hidden).toBe(1)
-  })
 })

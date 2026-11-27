@@ -12,9 +12,9 @@ import {
 } from 'react-native-screens'
 
 import { usePosture } from '../layout/use-posture'
-import { AccountButton } from '../navigation/account-button'
 import { usesGlassHeader } from '../navigation/glass-header'
 import { LEAD_GAP, TabHeaderTitle } from '../navigation/header-options'
+import { SessionsButton } from '../navigation/sessions-button'
 import { drawerBarItemsOf, drawerSearchBarPropsOf, usesNativeSearchOf } from './drawer-header-items'
 import { showsHideSessionsButtonOf } from './drawer-layout'
 import {
@@ -67,12 +67,13 @@ const DrawerScreen = ({ activeId, onOpen }: TDrawerScreenProps) => {
 
   const handleHide = () => setOpen(false)
 
-  const items = drawerBarItemsOf({
-    onNewSession: handleNewSession,
-    onHide: showsHideSessionsButtonOf({ listLayout: posture.sessionsList, selected: activeId })
-      ? handleHide
-      : undefined,
-  })
+  const items = drawerBarItemsOf({ onNewSession: handleNewSession })
+  const hideButton = showsHideSessionsButtonOf({
+    listLayout: posture.sessionsList,
+    selected: activeId,
+  }) ? (
+    <SessionsButton label="Hide sessions" onPress={handleHide} />
+  ) : null
 
   return (
     <ScreenStackItem
@@ -84,15 +85,18 @@ const DrawerScreen = ({ activeId, onOpen }: TDrawerScreenProps) => {
           <>
             {glass ? (
               <ScreenStackHeaderLeftView hidesSharedBackground={false} visibilityPriority="high">
-                <View style={[styles.glassTitle, styles.glassTitleWithLead]}>
-                  <AccountButton />
+                <View
+                  style={[
+                    styles.glassTitle,
+                    hideButton === null ? null : styles.glassTitleWithLead,
+                  ]}
+                >
+                  {hideButton}
                   <TabHeaderTitle title={SESSIONS_TITLE} />
                 </View>
               </ScreenStackHeaderLeftView>
-            ) : (
-              <ScreenStackHeaderLeftView>
-                <AccountButton />
-              </ScreenStackHeaderLeftView>
+            ) : hideButton === null ? null : (
+              <ScreenStackHeaderLeftView>{hideButton}</ScreenStackHeaderLeftView>
             )}
             {nativeSearch ? (
               <ScreenStackHeaderSearchBarView>

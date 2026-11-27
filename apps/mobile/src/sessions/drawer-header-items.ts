@@ -22,22 +22,10 @@ const newSessionBarItemOf = ({ onPress }: { onPress: () => void }): HeaderBarBut
   type: 'button',
 })
 
-const hideSessionsBarItemOf = ({ onPress }: { onPress: () => void }): HeaderBarButtonItem => ({
-  accessibilityLabel: 'Hide sessions',
-  icon: { type: 'sfSymbol', name: 'sidebar.left' },
-  onPress,
-  type: 'button',
-})
-
 export const drawerBarItemsOf = ({
   onNewSession,
-  onHide,
 }: {
   onNewSession: () => void
-  onHide?: () => void
 }): { right: HeaderBarButtonItem[] } => ({
-  right: [
-    newSessionBarItemOf({ onPress: onNewSession }),
-    ...(onHide === undefined ? [] : [hideSessionsBarItemOf({ onPress: onHide })]),
-  ],
+  right: [newSessionBarItemOf({ onPress: onNewSession })],
 })

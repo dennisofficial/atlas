@@ -5,7 +5,13 @@ import { useWindowDimensions } from 'react-native'
 import { SideInsetFrame } from '../layout/side-inset-frame'
 import { tabHeaderOptionsOf } from './header-options'
 
-export const TabRootStack = ({ title }: { title: string }) => {
+export const TabRootStack = ({
+  title,
+  offersNewSession = true,
+}: {
+  title: string
+  offersNewSession?: boolean
+}) => {
   const theme = useTheme()
   const { width: windowWidth } = useWindowDimensions()
   return (
@@ -15,7 +21,10 @@ export const TabRootStack = ({ title }: { title: string }) => {
     >
       <Stack.Screen
         name="index"
-        options={{ ...tabHeaderOptionsOf({ title, windowWidth }), animation: 'none' }}
+        options={{
+          ...tabHeaderOptionsOf({ title, windowWidth, offersNewSession }),
+          animation: 'none',
+        }}
       />
     </Stack>
   )

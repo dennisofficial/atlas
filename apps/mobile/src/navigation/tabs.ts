@@ -3,6 +3,7 @@ export enum EAppTab {
   Routines = 'routines',
   Projects = 'projects',
   Artifacts = 'artifacts',
+  Settings = 'settings',
 }
 
 export type TAppTabItem = { tab: EAppTab; label: string; href: string }
@@ -14,6 +15,7 @@ export const APP_TAB_ITEMS: Record<EAppTab, TAppTabItem> = {
   [EAppTab.Routines]: { tab: EAppTab.Routines, label: 'Routines', href: '/routines' },
   [EAppTab.Projects]: { tab: EAppTab.Projects, label: 'Projects', href: '/projects' },
   [EAppTab.Artifacts]: { tab: EAppTab.Artifacts, label: 'Artifacts', href: '/artifacts' },
+  [EAppTab.Settings]: { tab: EAppTab.Settings, label: 'Settings', href: '/settings' },
 }
 
 const pathnameOf = (pathname: string): string => {

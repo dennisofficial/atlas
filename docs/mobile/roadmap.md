@@ -8,10 +8,9 @@ in the same PR.
 
 - **Native, not a web port.** Use iOS patterns: native-stack headers with large titles, sheets,
   context menus, swipe actions, SF Symbols where Expo exposes them.
-- **Navigation.** A native tab bar (`expo-router/native-tabs`) with the four tabs: Sessions,
-  Routines, Projects, Artifacts. Routines, Projects and Artifacts show an in-progress placeholder
-  until their feature ships. Settings and sign-out open from the avatar button in every tab's
-  header.
+- **Navigation.** A native tab bar (`expo-router/native-tabs`) with five tabs: Sessions,
+  Routines, Projects, Artifacts and Settings. Routines, Projects and Artifacts show an in-progress
+  placeholder until their feature ships. Sign-out is in the Settings tab.
 - **v2 only.** Use `@dltech/atlas-client` (stream, session follower, sessions feed) and the API
   through `@dltech/atlas-api-router`. Never import v1 (`@dltech/atlas-client/channel`, v1 tRPC
   namespaces such as `threads.*`).

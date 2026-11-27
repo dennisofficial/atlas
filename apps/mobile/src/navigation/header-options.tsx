@@ -4,7 +4,6 @@ import { router } from 'expo-router'
 import type { ReactNode } from 'react'
 import { Platform, StyleSheet, View } from 'react-native'
 
-import { AccountButton } from './account-button'
 import { GlassSurface } from './glass-surface'
 import { leadingTitleWidthOf } from './header-leading'
 import { NewSessionButton } from './new-session-button'
@@ -95,21 +94,22 @@ export const leadingHeaderOptionsOf = ({
 export const tabHeaderOptionsOf = ({
   title,
   windowWidth,
+  offersNewSession = true,
 }: {
   title: string
   windowWidth: number
+  offersNewSession?: boolean
 }): NativeStackNavigationOptions => ({
   title,
   ...leadingHeaderOptionsOf({
-    lead: <AccountButton />,
     title: <TabHeaderTitle title={title} />,
     glassTitle: true,
-    titleButtons: 2,
+    titleButtons: offersNewSession ? 1 : 0,
     windowWidth,
   }),
-  headerLeft: Platform.OS === 'ios' ? undefined : () => <AccountButton />,
-  headerRight: Platform.OS === 'ios' ? undefined : () => <NewSessionButton />,
-  unstable_headerRightItems: Platform.OS === 'ios' ? () => [newSessionHeaderItemOf()] : undefined,
+  headerRight: Platform.OS !== 'ios' && offersNewSession ? () => <NewSessionButton /> : undefined,
+  unstable_headerRightItems:
+    Platform.OS === 'ios' && offersNewSession ? () => [newSessionHeaderItemOf()] : undefined,
 })
 
 const styles = StyleSheet.create({

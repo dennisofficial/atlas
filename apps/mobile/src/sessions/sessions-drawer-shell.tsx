@@ -13,7 +13,6 @@ import { StyleSheet, View } from 'react-native'
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
 
 import { usePosture } from '../layout/use-posture'
-import { AccountButton } from '../navigation/account-button'
 import { NewSessionButton } from '../navigation/new-session-button'
 import { showsHideSessionsButtonOf } from './drawer-layout'
 import { SearchField } from './search-field'
@@ -36,6 +35,15 @@ export const SessionsDrawerShell = ({
   return (
     <View style={[styles.content, { paddingTop: insets.top + space(2) }]}>
       <View style={styles.header}>
+        {showsHideSessionsButtonOf({ listLayout: posture.sessionsList, selected: activeId }) ? (
+          <Button
+            label="Hide sessions"
+            icon={PanelLeft}
+            variant={EButtonVariant.Ghost}
+            size={EButtonSize.IconLg}
+            onPress={handleHide}
+          />
+        ) : null}
         <Text
           size={ETextRole.Lg}
           weight={EFontWeight.Semibold}
@@ -45,17 +53,7 @@ export const SessionsDrawerShell = ({
           Sessions
         </Text>
         <View style={styles.actions}>
-          <AccountButton />
           <NewSessionButton />
-          {showsHideSessionsButtonOf({ listLayout: posture.sessionsList, selected: activeId }) ? (
-            <Button
-              label="Hide sessions"
-              icon={PanelLeft}
-              variant={EButtonVariant.Ghost}
-              size={EButtonSize.IconLg}
-              onPress={handleHide}
-            />
-          ) : null}
         </View>
       </View>
       <View style={styles.search}>

@@ -89,7 +89,6 @@ const AppStack = () => {
         name="dictation-lab"
         options={{ title: 'Dictation lab', ...pushedHeaderOptions }}
       />
-      <Stack.Screen name="settings" options={{ title: 'Settings', ...pushedHeaderOptions }} />
     </Stack>
   )
 }
