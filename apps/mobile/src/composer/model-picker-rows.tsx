@@ -94,42 +94,6 @@ export const ModelRow = ({
   )
 }
 
-export const DefaultRow = ({
-  label,
-  selected,
-  onPress,
-}: {
-  label: string | null
-  selected: boolean
-  onPress: () => void
-}) => {
-  const theme = useTheme()
-  return (
-    <Pressable
-      accessibilityRole="button"
-      accessibilityLabel={label === null ? 'Default model' : `Default model, ${label}`}
-      accessibilityState={{ selected }}
-      onPress={onPress}
-      style={({ pressed }) => [styles.row, pressed ? { backgroundColor: theme.accent } : null]}
-    >
-      <Text size={ETextRole.Sm} style={styles.rowLabel}>
-        Default
-      </Text>
-      {label === null ? null : (
-        <Text
-          size={ETextRole.Xs}
-          tone={ETextTone.Muted}
-          numberOfLines={1}
-          style={styles.defaultNote}
-        >
-          {label}
-        </Text>
-      )}
-      {selected ? <Icon icon={Check} color={theme.foreground} size={16} /> : null}
-    </Pressable>
-  )
-}
-
 export const EffortChip = ({
   name,
   active,
@@ -211,11 +175,6 @@ const styles = StyleSheet.create({
   },
   pin: {
     padding: space(0.5),
-  },
-  defaultNote: {
-    flexShrink: 1,
-    maxWidth: 160,
-    textAlign: 'right',
   },
   context: {
     fontVariant: ['tabular-nums'],

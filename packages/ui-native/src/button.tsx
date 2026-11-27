@@ -1,7 +1,7 @@
 import { EFontWeight, ETextRole } from '@dltech/atlas-ui/tokens'
 import type { LucideIcon } from 'lucide-react-native'
 import type { ReactNode } from 'react'
-import { Pressable, StyleSheet } from 'react-native'
+import { type Insets, Pressable, StyleSheet } from 'react-native'
 
 import {
   EButtonSize,
@@ -27,6 +27,9 @@ export interface IButtonProps {
   loading?: boolean
   stretch?: boolean
   round?: boolean
+  hitSlop?: Insets
+  onPressIn?: () => void
+  onPressOut?: () => void
 }
 
 export const Button = ({
@@ -40,6 +43,9 @@ export const Button = ({
   loading = false,
   stretch = false,
   round = false,
+  hitSlop,
+  onPressIn,
+  onPressOut,
 }: IButtonProps) => {
   const theme = useTheme()
   const dark = useIsDark()
@@ -50,8 +56,10 @@ export const Button = ({
       accessibilityLabel={label}
       accessibilityState={{ disabled, busy: loading }}
       disabled={disabled || loading}
-      hitSlop={touchSlopOf(size)}
+      hitSlop={hitSlop ?? touchSlopOf(size)}
       onPress={onPress}
+      onPressIn={onPressIn}
+      onPressOut={onPressOut}
       style={({ pressed }) => {
         const colors = buttonColorsOf({ variant, theme, dark, pressed, disabled })
         return [

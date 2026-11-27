@@ -1,9 +1,8 @@
 import { space } from '@dltech/atlas-ui/tokens'
-import { Button, EButtonSize, EButtonVariant, useTheme } from '@dltech/atlas-ui-native'
-import { ArrowUp, Square } from 'lucide-react-native'
+import { useTheme } from '@dltech/atlas-ui-native'
 import type { ReactNode } from 'react'
 import { ScrollView, StyleSheet, View } from 'react-native'
-import Animated from 'react-native-reanimated'
+import Animated, { LayoutAnimationConfig } from 'react-native-reanimated'
 
 import { AttachButton } from './attach-button'
 import type { EAttachSource } from './attach-sources'
@@ -11,6 +10,13 @@ import type { IComposerDictation } from './dictation/composer-dictation'
 import { DictationButton } from './dictation/dictation-button'
 import { composerDictationMotionOf } from './dictation/dictation-motion'
 import { DictationWaveform } from './dictation/dictation-waveform'
+import { SendButton } from './send-button'
+import {
+  CONTROLS_GAP,
+  CONTROLS_PADDING_BOTTOM,
+  CONTROLS_PADDING_TOP,
+  ESendAction,
+} from './send-press'
 
 export const ComposerControls = ({
   attach,
@@ -19,6 +25,7 @@ export const ComposerControls = ({
   onStop,
   onSend,
   trailing,
+  trailingPressable,
   children,
   dictation,
 }: {
@@ -30,6 +37,7 @@ export const ComposerControls = ({
   onStop: (() => void) | undefined
   onSend: () => void
   trailing?: ReactNode
+  trailingPressable: boolean
   children?: ReactNode
   dictation?: IComposerDictation | undefined
 }) => {
@@ -50,27 +58,27 @@ export const ComposerControls = ({
         {children}
       </ScrollView>
     )
-  const sendButton =
-    onStop !== undefined ? (
-      <Button
-        label="Stop"
-        icon={Square}
-        size={EButtonSize.IconSm}
-        variant={EButtonVariant.Secondary}
-        round
-        onPress={onStop}
-      />
-    ) : (
-      <Button
-        label={sending ? 'Sending…' : 'Send'}
-        icon={ArrowUp}
-        size={EButtonSize.IconSm}
-        round
-        disabled={!canSend}
-        loading={sending}
-        onPress={onSend}
-      />
-    )
+  const sendButton = (
+    <LayoutAnimationConfig skipEntering>
+      {onStop !== undefined ? (
+        <SendButton
+          key="stop"
+          action={ESendAction.Stop}
+          besidePressable={trailingPressable}
+          onPress={onStop}
+        />
+      ) : (
+        <SendButton
+          key="send"
+          action={ESendAction.Send}
+          disabled={!canSend}
+          loading={sending}
+          besidePressable={trailingPressable}
+          onPress={onSend}
+        />
+      )}
+    </LayoutAnimationConfig>
+  )
 
   if (dictation === undefined) {
     return (
@@ -134,16 +142,16 @@ const styles = StyleSheet.create({
   bar: {
     alignItems: 'center',
     flexDirection: 'row',
-    gap: space(2),
+    gap: CONTROLS_GAP,
     justifyContent: 'space-between',
-    paddingBottom: space(2),
-    paddingTop: space(1.5),
+    paddingBottom: CONTROLS_PADDING_BOTTOM,
+    paddingTop: CONTROLS_PADDING_TOP,
   },
   idleOverlay: {
     alignItems: 'center',
     bottom: 0,
     flexDirection: 'row',
-    gap: space(2),
+    gap: CONTROLS_GAP,
     left: 0,
     position: 'absolute',
     right: 0,
@@ -153,7 +161,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     alignSelf: 'stretch',
     flexDirection: 'row',
-    gap: space(2),
+    gap: CONTROLS_GAP,
   },
   slot: {
     flex: 1,

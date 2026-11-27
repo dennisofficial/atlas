@@ -42,6 +42,7 @@ import { StartFailedCard } from '../../../thread/components/start-failed-card'
 import { SessionSkeleton } from '../../../thread/components/session-skeleton'
 import { Transcript } from '../../../thread/components/transcript'
 import { selectedSessionStore } from '../../../sessions/selected-session'
+import { paneWidthOf } from '../../../sessions/drawer-layout'
 import { useSessionsDrawer } from '../../../sessions/sessions-drawer-state'
 import { SessionModelControls } from '../../../thread/session/session-model-controls'
 import { useSessionScreen } from '../../../thread/session/use-session-screen'
@@ -124,8 +125,13 @@ export default function SessionScreen() {
             lead: showsSessions ? <SessionsButton onPress={handleOpenSessions} /> : undefined,
             title: <SessionTitle header={session.header} />,
             glassTitle: true,
+            fillsBar: true,
             titleButtons: 0,
-            windowWidth,
+            windowWidth: paneWidthOf({
+              listLayout: posture.sessionsList,
+              windowWidth,
+              drawerOpen,
+            }),
             posture,
           }),
           headerBackVisible: false,
@@ -160,6 +166,7 @@ export default function SessionScreen() {
           bottomInset={bottomInset}
           queued={session.loaded ? queuedTurns : undefined}
           background={session.loaded ? session.background : undefined}
+          messageActions={session.messageActions}
         />
         {session.loaded ? (
           <KeyboardDock overlay>
@@ -222,6 +229,7 @@ export default function SessionScreen() {
                 refusal={session.notice}
                 entries={session.commands.entries}
                 clientActions={session.commands.clientActions}
+                trailingPressable={false}
                 trailing={
                   <View style={styles.trailing}>
                     <PlanUsage report={usage} />

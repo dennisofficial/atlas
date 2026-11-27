@@ -6,14 +6,13 @@ import { ZapIcon } from 'lucide-react'
 import { AgentMessage } from '@dltech/atlas-ui/ai/message'
 import { Reasoning } from '@dltech/atlas-ui/ai/reasoning'
 import { WorkSummary } from '@dltech/atlas-ui/ai/work-summary'
-import { formatElapsed, messageTimeOf } from '@dltech/atlas-client/transcript'
+import { eventIdOfEntryKey, formatElapsed, messageTimeOf } from '@dltech/atlas-client/transcript'
 
 import { RotationDivider } from '@/features/sessions/rotation-divider'
 
 import { spanMsOf } from '../data/clock-time'
 import { isSameItem } from '../data/same-item'
 import { isSameTurn } from '../data/same-turn'
-import { eventIdOf } from '../data/transcript-items'
 import type { TranscriptSummarise } from '../data/use-summarise'
 import { ETranscriptKind } from '../data/transcript'
 import {
@@ -152,7 +151,8 @@ function SegmentView({
   onOpenChanges: ((path: string) => void) | null
   resume: TranscriptResume | null
 }) {
-  const messageId = segment.kind === ESegmentKind.Message ? eventIdOf(segment.item.id) : null
+  const messageId =
+    segment.kind === ESegmentKind.Message ? eventIdOfEntryKey(segment.item.id) : null
   if (segment.kind === ESegmentKind.Message) {
     const { item } = segment
     return (

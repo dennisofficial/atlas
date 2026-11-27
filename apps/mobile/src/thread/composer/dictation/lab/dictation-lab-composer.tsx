@@ -60,6 +60,7 @@ export const DictationLabComposer = ({
             canSend={draft !== ''}
             onStop={undefined}
             onSend={handleSend}
+            trailingPressable={false}
             dictation={{
               active: dictation.active,
               transition,

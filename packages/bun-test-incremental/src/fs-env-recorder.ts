@@ -8,7 +8,6 @@ import { createSpawnClassifier } from './spawn'
 import { EPathSink } from './types'
 
 const SPAWN_NAMES = ['spawn', 'spawnSync', 'exec', 'execSync', 'execFile', 'execFileSync', 'fork']
-const MAX_SPAWN_LOG = 20
 
 type Marking = Fn & { [promisify.custom]?: Fn }
 
@@ -51,8 +50,9 @@ function installSpawn(context: RecorderContext) {
       const record = context.current()
       if (record) {
         const verdict = spawns.classify(args)
-        if (record.spawned.length < MAX_SPAWN_LOG) record.spawned.push(verdict.command)
-        if (verdict.uncacheable) record.markUncacheable('started a child process')
+        if (verdict.uncacheable) {
+          record.markUncacheable(`started a child process (${verdict.command})`)
+        }
       }
       return fn.apply(this, args)
     }
@@ -117,7 +117,6 @@ function installEnv(context: RecorderContext) {
       return Reflect.ownKeys(target)
     },
   })
-  return realEnv
 }
 
 // Bun ignores syncBuiltinESMExports, so named imports of builtins only see the
@@ -136,7 +135,6 @@ function remockBuiltins() {
 export function installRecorder(context: RecorderContext) {
   installFs(context)
   installSpawn(context)
-  const realEnv = installEnv(context)
+  installEnv(context)
   remockBuiltins()
-  return realEnv
 }

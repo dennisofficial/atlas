@@ -1,6 +1,7 @@
 import type { Attachment } from '@dltech/atlas-core'
 import {
   EEntryKind,
+  eventIdOfEntryKey,
   formatElapsed,
   type ToolRun,
   type TranscriptEntry,
@@ -164,7 +165,8 @@ export function rowsOf(args: {
   now: number
   atOf?: (id: string) => string | undefined
 }): ThreadRow[] {
-  const atOf = args.atOf ?? (() => undefined)
+  const atOfEvent = args.atOf ?? (() => undefined)
+  const atOf = (key: string) => atOfEvent(eventIdOfEntryKey(key))
   const rows: ThreadRow[] = []
   let building: Building | null = null
 

@@ -21,7 +21,7 @@
     "generate:trpc": "bun scripts/generate-trpc.ts",
     "start": "bun src/main.ts",
     "start:prod": "dotenvx run --strict -f .env.$APP_TIER.enc -- bun src/main.ts",
-    "test": "bun test",
+    "test": "bun test --parallel --no-isolate",
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {

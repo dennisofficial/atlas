@@ -4,7 +4,7 @@ import { StyleSheet, Switch, View } from 'react-native'
 import { z } from 'zod'
 
 import { EffortSelect } from '../composer/effort-select'
-import { type IModelSelection, selectionOf } from '../composer/model-options'
+import { defaultModelIdOf, type IModelSelection, selectionOf } from '../composer/model-options'
 import { ModelSelect } from '../composer/model-picker'
 import { useModels } from '../composer/use-models'
 import { useSettings } from './settings-provider'
@@ -16,14 +16,15 @@ export const ModelDefaultsSection = () => {
   const personalId = settings.read({ key: 'model.id', schema: z.string() })
   const effort = settings.read({ key: 'model.effort', schema: z.string() })
   const fast = settings.read({ key: 'model.fast', schema: z.boolean() })
-  const selection = selectionOf({ models, modelId: personalId, effort, fast })
+  const selection = selectionOf({
+    models,
+    modelId: defaultModelIdOf({ models, personalId }),
+    effort,
+    fast,
+  })
   const canGoFast = selection?.model.fast === true
 
-  const handleSelect = (next: IModelSelection | null) => {
-    if (next === null) {
-      void settings.save({ 'model.id': '', 'model.fast': false }).catch(() => undefined)
-      return
-    }
+  const handleSelect = (next: IModelSelection) => {
     void settings
       .save({ 'model.id': next.model.id, 'model.effort': next.effort, 'model.fast': next.fast })
       .catch(() => undefined)
@@ -43,10 +44,10 @@ export const ModelDefaultsSection = () => {
         <View style={styles.control}>
           <Text size={ETextRole.Sm}>Default model</Text>
           <Text size={ETextRole.Xs} tone={ETextTone.Muted}>
-            Sessions that do not pick their own
+            The model a new session starts with
           </Text>
         </View>
-        <ModelSelect models={models} selection={selection} personalId="" onSelect={handleSelect} />
+        <ModelSelect models={models} selection={selection} onSelect={handleSelect} />
       </CardRow>
       {selection === null ? null : (
         <CardRow>

@@ -34,7 +34,7 @@ export function report(params: {
 }) {
   const { stats, mode, project, globalKey, workDir, summaryFile, startedAt } = params
   mkdirSync(workDir, { recursive: true })
-  const log = join(workDir, 'decisions.log')
+  const log = join(workDir, `decisions-${process.pid}.log`)
   writeFileSync(log, `${stats.decisions.join('\n')}\n`)
   const verb = mode === EMode.Plan ? 'would run' : 'run'
   console.log(

@@ -7,6 +7,7 @@ import {
   type EventOfType,
 } from '@dltech/atlas-core'
 
+import { entryKeyOf } from './entry-key'
 import { modelEntries } from './model-entries'
 import type { TranscriptEntry } from './transcript-model'
 
@@ -32,7 +33,7 @@ export function entriesOfAssistantEvent(event: EventOfType<'assistant-said'>): T
   const muted = event.placeholder === EAssistantPlaceholder.NoContent
   return modelEntries({
     runs: runsOfParts(event.parts).map((run, index) => ({
-      key: `${event.id}#${index}`,
+      key: entryKeyOf({ eventId: event.id, part: index }),
       text: run.text,
       isReasoning: run.type === 'reasoning',
       muted,

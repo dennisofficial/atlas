@@ -10,7 +10,6 @@ import {
   modelGroupsOf,
   modelOptionsOf,
   modelTriggerLabelOf,
-  personalModelLabelOf,
   pinnedModelsOf,
   searchModelsOf,
   selectionOf,
@@ -256,18 +255,5 @@ describe('knownEffortOf', () => {
   it('keeps a ladder effort and drops anything else', () => {
     expect(knownEffortOf('high')).toBe('high')
     expect(knownEffortOf('')).toBeNull()
-  })
-})
-
-describe('personalModelLabelOf', () => {
-  const models = modelOptionsOf(response)
-
-  it('names the default model from the settings', () => {
-    expect(personalModelLabelOf({ models, personalId: 'claude-opus-4' })).toBe('Opus 4')
-  })
-
-  it('has no label when the default is unset or unknown', () => {
-    expect(personalModelLabelOf({ models, personalId: '' })).toBeNull()
-    expect(personalModelLabelOf({ models, personalId: 'gone/model' })).toBeNull()
   })
 })

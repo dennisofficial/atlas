@@ -52,7 +52,8 @@ palette and one type scale. `apps/mobile` is the only consumer.
 ### Draw an action or an entry
 
 - `Button` with `IButtonProps`, `EButtonVariant`, `EButtonSize`: a pressable button, which can show
-  an icon, a leading node and a loading state.
+  an icon, a leading node and a loading state. `hitSlop` widens the touch area past the
+  44 pt minimum, and `onPressIn` / `onPressOut` drive press feedback such as a bounce.
 - `Input` with `IInputProps`, `InputRef`: a text field.
 - `Avatar` with `EAvatarSize`, `Icon`: an avatar, and a lucide icon.
 - `Spinner`: the Atlas loading spinner, the same turning `LoaderCircle` as the web `Spinner`.

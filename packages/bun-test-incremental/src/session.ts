@@ -63,8 +63,7 @@ export function startSession(config: IncrementalConfig) {
   const records = new Map<string, FileRecord>()
   const realMain = new Map<string, string>()
   const lookupHasher = new Hasher(repoRoot)
-  let baselineEnv: NodeJS.ProcessEnv | undefined
-  const baseline = () => (baselineEnv ??= { ...realEnv })
+  const baselineEnv: NodeJS.ProcessEnv = { ...process.env }
 
   const mainPath = () => {
     const main = Bun.main
@@ -76,7 +75,7 @@ export function startSession(config: IncrementalConfig) {
     return real
   }
   const current = () => (isTracking() ? records.get(mainPath()) : undefined)
-  const realEnv = installRecorder({ repoRoot, current })
+  installRecorder({ repoRoot, current })
   installBunTestWrap({ current })
   installTimerGuards({ current })
 
@@ -97,12 +96,11 @@ export function startSession(config: IncrementalConfig) {
       file: record,
       repoRoot,
       hasher: new Hasher(repoRoot),
-      env: baseline(),
+      env: baselineEnv,
     })
     if (typeof entry === 'string') {
       stats.notRecorded++
-      const spawned = record.spawned.slice(0, 3).join(' | ')
-      console.log(`[incremental] not caching ${test}: ${entry}${spawned ? ` (${spawned})` : ''}`)
+      console.log(`[incremental] not caching ${test}: ${entry}`)
       return
     }
     if (store.write(test, entry)) stats.recorded++
@@ -114,7 +112,7 @@ export function startSession(config: IncrementalConfig) {
 
   const decide = (test: string) => {
     if (mode === EMode.Force) return { status: 'miss' as const, reason: 'forced' }
-    return store.lookup(test, lookupHasher, baseline())
+    return store.lookup(test, lookupHasher, baselineEnv)
   }
 
   const load = (path: string) => {
