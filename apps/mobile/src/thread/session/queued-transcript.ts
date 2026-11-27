@@ -8,6 +8,7 @@ import {
 } from '@dltech/atlas-client/stream'
 
 import { queuedRowsOf, type QueuedRow } from './queued-rows'
+import { eventTypes } from './registered-plugins'
 import type { StagedSend } from './staged-send'
 
 export type QueuedTranscript = {
@@ -38,7 +39,7 @@ export const queuedTranscriptOf = (args: {
   return {
     rows: queuedRowsOf({
       pending: args.snapshot.pending,
-      events: transcriptEventsOf(args.snapshot.events),
+      events: transcriptEventsOf(args.snapshot.events, eventTypes),
       staged: placement.queue,
       now: args.now,
       hiddenInboxIds: args.hiddenInboxIds ?? NO_IDS,

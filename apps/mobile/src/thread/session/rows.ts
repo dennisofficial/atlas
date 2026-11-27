@@ -15,7 +15,7 @@ import type { Attachment } from '@dltech/atlas-core'
 
 import { EMessageAuthor, ERowKind, rowsOf, type ThreadRow } from '../rows'
 import { backgroundWaitOf, type BackgroundWait } from './background-wait'
-import { entryFolds } from './registered-plugins'
+import { entryFolds, eventTypes } from './registered-plugins'
 
 export type ThreadModel = {
   entries: readonly TranscriptEntry[]
@@ -67,7 +67,7 @@ export const stagedRowsOf = (args: {
 
 export const modelOf = (args: { snapshot: SessionSnapshot }): ThreadModel => {
   const model = deriveTranscript({
-    events: transcriptEventsOf(args.snapshot.events),
+    events: transcriptEventsOf(args.snapshot.events, eventTypes),
     signals: [],
     steps: overlayStepOf(args.snapshot.overlay),
     pluginEntries: entryFolds,
