@@ -4,6 +4,8 @@ import { router, Stack, useLocalSearchParams } from 'expo-router'
 import { useCallback } from 'react'
 import { StyleSheet, View } from 'react-native'
 
+import { useContentWidth } from '../../../layout/use-content-width'
+import { pushedHeaderOptionsOf } from '../../../navigation/header-options'
 import { SessionSkeleton } from '../../../thread/components/session-skeleton'
 import { Transcript } from '../../../thread/components/transcript'
 import type { ThreadRow } from '../../../thread/rows'
@@ -20,6 +22,7 @@ export default function AgentScreen() {
     parentThreadId?: string
   }>()
   const agent = useAgentScreen({ sessionId, agentId, parentThreadId })
+  const barWidth = useContentWidth()
 
   const handleOpenAgent = useCallback(
     (id: string) => {
@@ -40,7 +43,12 @@ export default function AgentScreen() {
 
   return (
     <View style={[styles.screen, { backgroundColor: theme.background }]}>
-      <Stack.Screen options={{ title: agent.failedToLoad ? '' : (title ?? agent.title) }} />
+      <Stack.Screen
+        options={pushedHeaderOptionsOf({
+          title: agent.failedToLoad ? '' : (title ?? agent.title),
+          barWidth,
+        })}
+      />
       <Transcript
         rows={agent.loaded ? agent.rows : NO_ROWS}
         working={agent.loaded && agent.turnRunning}

@@ -117,6 +117,24 @@ export const tabHeaderOptionsOf = ({
   unstable_headerRightItems: Platform.OS === 'ios' ? () => [newSessionHeaderItemOf()] : undefined,
 })
 
+export const pushedHeaderOptionsOf = ({
+  title,
+  barWidth,
+}: {
+  title: string
+  barWidth: number
+}): NativeStackNavigationOptions => ({
+  title,
+  headerBackVisible: true,
+  headerBackButtonDisplayMode: 'minimal',
+  ...leadingHeaderOptionsOf({
+    title: <TabHeaderTitle title={title} />,
+    glassTitle: true,
+    titleButtons: 1,
+    barWidth,
+  }),
+})
+
 const styles = StyleSheet.create({
   title: {
     alignItems: 'center',

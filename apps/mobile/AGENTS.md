@@ -41,6 +41,8 @@ web spinner), never `ActivityIndicator`.
   `ScrollToTopGuard` (`react-native-screens/experimental`) so a tap on them does not scroll. Wrap
   any other custom header view the same way.
 - **Back:** the native back button and the swipe-back gesture. Do not add a JS back button on iOS.
+  A pushed screen (Settings, Sub-agent, Project settings) uses `pushedHeaderOptionsOf`: the native
+  back button followed by the same glass leading title as the tab screens.
 - **Search:** use `headerSearchBarOptions` with `placement: 'integratedButton'` on a screen that
   has a native bar, so search is a round bar button that expands into the field. Keep the JS
   `SearchField` only where there is no native bar, for example the sessions panel inside a session.
