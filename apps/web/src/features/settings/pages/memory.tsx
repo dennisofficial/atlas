@@ -11,18 +11,20 @@ import {
 import { ToggleGroup, ToggleGroupItem } from '@dltech/atlas-ui/components/toggle-group'
 
 import {
-  EMemoryScope,
-  EMemoryType,
   MEMORY_ALL_TYPES,
   MEMORY_DELETE_TAIL,
   MEMORY_PAGE_DESCRIPTION,
   MEMORY_PAGE_TITLE,
-  MEMORY_TYPE_LABELS,
   isMemoryTypeFilter,
   memoryClearDescriptionOf,
-  memoryGroupLabel,
   memoryMatchesFilter,
   memoryScopeHintOf,
+} from '@dltech/atlas-client/settings'
+import {
+  EMemoryScope,
+  EMemoryType,
+  MEMORY_TYPE_LABELS,
+  memoryGroupLabel,
   type MemoryEntry,
   type MemoryScopeGroup,
 } from '../fixtures/settings-memory'
@@ -36,6 +38,8 @@ import { MemorySelectionBar } from '../parts/memory-selection-bar'
 import { EMemorySheetMode, MemorySheet } from '../parts/memory-sheet'
 import { DangerZone, SettingsPage, SettingsSection } from '../settings-layout'
 import { useMemoryGroups, type MemoryGroups } from '../use-memory-groups'
+
+type PendingDelete = { names: string[]; title: string; description: string }
 
 export function MemoryPage() {
   const memory = useMemoryGroups()
