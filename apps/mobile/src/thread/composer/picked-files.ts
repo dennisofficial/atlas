@@ -4,21 +4,31 @@ import type { ImagePickerAsset } from 'expo-image-picker'
 
 import type { PickedFile } from './attachment-plan'
 
+const EXTENSION_OF_SUBTYPE: Readonly<Record<string, string>> = {
+  '': 'jpg',
+  jpeg: 'jpg',
+  quicktime: 'mov',
+}
+
 const extensionOf = (mediaType: string): string => {
   const subtype = mediaType.split('/')[1] ?? 'jpeg'
   const clean = subtype.replace(/[^a-z0-9]/gi, '').toLowerCase()
-  if (clean === '' || clean === 'jpeg') return 'jpg'
-  return clean
+  return EXTENSION_OF_SUBTYPE[clean] ?? clean
 }
 
-export const pickedPhotoOf = (args: {
+const isVideoAsset = (asset: ImagePickerAsset): boolean =>
+  asset.type === 'video' || (asset.mimeType?.startsWith('video/') ?? false)
+
+export const pickedMediaOf = (args: {
   asset: ImagePickerAsset
   index: number
   at: number
 }): PickedFile => {
-  const mediaType = args.asset.mimeType ?? 'image/jpeg'
+  const video = isVideoAsset(args.asset)
+  const mediaType = args.asset.mimeType ?? (video ? 'video/quicktime' : 'image/jpeg')
+  const stem = video ? 'video' : 'photo'
   return {
-    name: args.asset.fileName ?? `photo-${args.at}-${args.index}.${extensionOf(mediaType)}`,
+    name: args.asset.fileName ?? `${stem}-${args.at}-${args.index}.${extensionOf(mediaType)}`,
     size: args.asset.fileSize ?? args.asset.file?.size ?? 0,
     mediaType,
     uri: args.asset.uri,

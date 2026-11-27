@@ -9,6 +9,7 @@ import {
   attachmentsOf,
   describeBytes,
   EAttachRoute,
+  isVideoMediaType,
   restoredHeldOf,
   sendableOf,
   startedAttachment,
@@ -205,5 +206,13 @@ describe('withPreview', () => {
     ])
     const next = withPreview({ held, id: 'media:a', uri: 'https://media/a' })
     expect(next.map((entry) => entry.uri)).toEqual(['https://media/a', ''])
+  })
+})
+
+describe('isVideoMediaType', () => {
+  it('knows a QuickTime clip from a photo and a document', () => {
+    expect(isVideoMediaType('video/quicktime')).toBe(true)
+    expect(isVideoMediaType('image/heic')).toBe(false)
+    expect(isVideoMediaType('application/pdf')).toBe(false)
   })
 })

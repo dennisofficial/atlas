@@ -74,6 +74,7 @@
     "expo-system-ui": "~58.0.7",
     "expo-task-manager": "~58.0.13",
     "expo-updates": "~58.0.21",
+    "expo-video-thumbnails": "~58.0.3",
     "expo-web-browser": "~58.0.7",
     "lucide-react-native": "^1.67.0",
     "mermaid": "^11.17.2",
