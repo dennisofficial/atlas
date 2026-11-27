@@ -6,6 +6,7 @@ import { Modal, Pressable, ScrollView, StyleSheet, View } from 'react-native'
 
 import { EffortGauge } from './effort-gauge'
 import { effortChoicesOf, effortLabelOf, type IModelSelection } from './model-options'
+import { COMPOSER_TRIGGER_INSET } from '../thread/composer/composer-shape'
 
 export const EffortSelect = ({
   selection,
@@ -92,7 +93,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     height: 28,
     justifyContent: 'center',
-    paddingHorizontal: space(2),
+    paddingHorizontal: COMPOSER_TRIGGER_INSET,
   },
   overlay: {
     alignItems: 'center',

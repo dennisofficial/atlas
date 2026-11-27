@@ -63,14 +63,71 @@ jobs:
 
       - run: bun install
 
-      - name: restore incremental test cache
-        id: restore
+      # ci.yml shards the suite eight ways, each with its own cache; restoring all eight into one
+      # directory gives the union of passes an incremental ci run would reuse.
+      - name: restore shard 1's incremental test cache
         uses: actions/cache/restore@v6
         with:
           path: .cache/incremental-tests
-          key: incremental-tests-${{ github.ref }}-${{ github.run_id }}-${{ github.run_attempt }}
+          key: incremental-tests-s1-${{ github.ref }}-${{ github.run_id }}
           restore-keys: |
-            incremental-tests-${{ github.ref }}-
+            incremental-tests-s1-${{ github.ref }}-
+
+      - name: restore shard 2's incremental test cache
+        uses: actions/cache/restore@v6
+        with:
+          path: .cache/incremental-tests
+          key: incremental-tests-s2-${{ github.ref }}-${{ github.run_id }}
+          restore-keys: |
+            incremental-tests-s2-${{ github.ref }}-
+
+      - name: restore shard 3's incremental test cache
+        uses: actions/cache/restore@v6
+        with:
+          path: .cache/incremental-tests
+          key: incremental-tests-s3-${{ github.ref }}-${{ github.run_id }}
+          restore-keys: |
+            incremental-tests-s3-${{ github.ref }}-
+
+      - name: restore shard 4's incremental test cache
+        uses: actions/cache/restore@v6
+        with:
+          path: .cache/incremental-tests
+          key: incremental-tests-s4-${{ github.ref }}-${{ github.run_id }}
+          restore-keys: |
+            incremental-tests-s4-${{ github.ref }}-
+
+      - name: restore shard 5's incremental test cache
+        uses: actions/cache/restore@v6
+        with:
+          path: .cache/incremental-tests
+          key: incremental-tests-s5-${{ github.ref }}-${{ github.run_id }}
+          restore-keys: |
+            incremental-tests-s5-${{ github.ref }}-
+
+      - name: restore shard 6's incremental test cache
+        uses: actions/cache/restore@v6
+        with:
+          path: .cache/incremental-tests
+          key: incremental-tests-s6-${{ github.ref }}-${{ github.run_id }}
+          restore-keys: |
+            incremental-tests-s6-${{ github.ref }}-
+
+      - name: restore shard 7's incremental test cache
+        uses: actions/cache/restore@v6
+        with:
+          path: .cache/incremental-tests
+          key: incremental-tests-s7-${{ github.ref }}-${{ github.run_id }}
+          restore-keys: |
+            incremental-tests-s7-${{ github.ref }}-
+
+      - name: restore shard 8's incremental test cache
+        uses: actions/cache/restore@v6
+        with:
+          path: .cache/incremental-tests
+          key: incremental-tests-s8-${{ github.ref }}-${{ github.run_id }}
+          restore-keys: |
+            incremental-tests-s8-${{ github.ref }}-
 
       - name: plan what the cache would skip
         env:
@@ -109,10 +166,3 @@ jobs:
       - name: report
         if: always()
         run: .github/scripts/incremental-report.sh .cache/incremental-tests "$RUNNER_TEMP"/full/*.json
-
-      - name: save incremental test cache
-        if: always() && steps.restore.outcome == 'success'
-        uses: actions/cache/save@v6
-        with:
-          path: .cache/incremental-tests
-          key: incremental-tests-${{ github.ref }}-${{ github.run_id }}-${{ github.run_attempt }}

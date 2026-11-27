@@ -5,11 +5,14 @@ import {
   EButtonVariant,
   ETextRole,
   ETextTone,
+  Icon,
   Text,
   useTheme,
 } from '@dltech/atlas-ui-native'
 import { space } from '@dltech/atlas-ui/tokens'
-import { Alert, Platform, ScrollView, StyleSheet } from 'react-native'
+import { router } from 'expo-router'
+import { ChevronRight } from 'lucide-react-native'
+import { Alert, Platform, Pressable, ScrollView, StyleSheet } from 'react-native'
 
 import { useAuth } from '../../auth/auth-provider'
 import { pushRegistrationLabelOf } from '../../push/push-registration'
@@ -40,6 +43,8 @@ export default function SettingsScreen() {
   const testNotification = useTestNotification()
   const update = useUpdateInfo()
   const testFailed = testNotification.state.result === ETestResult.Failed
+
+  const handleOpenDictationLab = () => router.push('/dictation-lab')
 
   return (
     <ScrollView
@@ -91,6 +96,18 @@ export default function SettingsScreen() {
             onPress={() => void update.check()}
           />
         </CardRow>
+      </Section>
+      <Section title="Labs">
+        <Pressable
+          accessibilityRole="button"
+          accessibilityLabel="Open the dictation lab"
+          onPress={handleOpenDictationLab}
+        >
+          <CardRow>
+            <Text size={ETextRole.Sm}>Dictation lab</Text>
+            <Icon icon={ChevronRight} color={theme.mutedForeground} size={16} />
+          </CardRow>
+        </Pressable>
       </Section>
       <Button
         label="Sign out"

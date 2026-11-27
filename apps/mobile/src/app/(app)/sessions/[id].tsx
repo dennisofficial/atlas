@@ -30,6 +30,7 @@ import { leadingHeaderOptionsOf } from '../../../navigation/header-options'
 import { SessionsButton } from '../../../navigation/sessions-button'
 import { CommandListSheet } from '../../../thread/composer/command-list-sheet'
 import { Composer } from '../../../thread/composer/composer'
+import { COMPOSER_ITEM_GAP } from '../../../thread/composer/composer-shape'
 import { ContextReading } from '../../../thread/composer/context-reading'
 import { PlanUsage } from '../../../thread/composer/plan-usage'
 import { StaleCard } from '../../../thread/composer/stale-card'
@@ -291,6 +292,6 @@ const styles = StyleSheet.create({
   trailing: {
     alignItems: 'center',
     flexDirection: 'row',
-    gap: space(1.5),
+    gap: COMPOSER_ITEM_GAP,
   },
 })
