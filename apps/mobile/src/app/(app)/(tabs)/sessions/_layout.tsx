@@ -1,6 +1,7 @@
 import { useTheme } from '@dltech/atlas-ui-native'
 import { Stack } from 'expo-router'
 
+import { SideInsetFrame } from '../../../../layout/side-inset-frame'
 import { barHeaderOptionsOf, usesGlassHeader } from '../../../../navigation/glass-header'
 import { SessionsDrawer } from '../../../../sessions/sessions-drawer'
 
@@ -14,6 +15,7 @@ const SessionsStack = () => {
         gestureEnabled: false,
         contentStyle: { backgroundColor: theme.background },
       }}
+      screenLayout={SideInsetFrame}
     >
       <Stack.Screen
         name="index"

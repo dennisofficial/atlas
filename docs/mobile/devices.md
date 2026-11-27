@@ -148,10 +148,13 @@ What the web bundle cannot prove:
   `expo-router/native-tabs`): Sessions, Routines, Projects and Artifacts, each with a label and an
   SF Symbol. iOS places that bar itself, so the Duo status strip holds it and the app draws nothing
   there. The bar hides on the sessions tab while the sessions drawer is closed
-  (`src/navigation/root-navigation.ts:31`).
-- `apps/mobile/src/app/(app)/_layout.tsx:21` keeps every screen on a native stack header; the
+  (`src/navigation/root-navigation.ts:31`). Screen content stops at that column: `SideInsetFrame`
+  (`src/layout/side-inset-frame.tsx:19`) pads it by `sideColumnInsetOf` (`posture.ts:12`), reached
+  through the stack `screenLayout` prop of `(app)/_layout.tsx:35`, `tab-root-stack.tsx:14` and
+  `(tabs)/sessions/_layout.tsx:18`.
+- `apps/mobile/src/app/(app)/_layout.tsx:33` keeps every screen on a native stack header; the
   screens pushed above the tabs (`agents/[agentId]`, `settings`, `diagram`) share
-  `pushedHeaderOptions` (`:23`) so the system clock and our title sit in one row.
+  `pushedHeaderOptions` (`:24`) so the system clock and our title sit in one row.
 
 ## Gaps
 

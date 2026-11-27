@@ -55,12 +55,15 @@ web spinner), never `ActivityIndicator`.
 ## Layout
 
 - Safe areas come from `react-native-safe-area-context`. Never hard-code a status bar or notch size.
-- On iPhone Duo the native tab bar sits in the system column on the right. iOS places it and gives
-  every screen the matching inset. Do not add right padding on a single screen, and do not draw a
-  bar of your own there.
+- On iPhone Duo the native tab bar sits in the system column on the right. iOS places the bar but
+  does not keep screen content out of the column: `SideInsetFrame`
+  (`src/layout/side-inset-frame.tsx`) pads every screen's content by `sideColumnInsetOf`
+  (`src/layout/posture.ts:12`) and gives its children the reduced inset. It arrives through the
+  stack `screenLayout` prop, so it never wraps `NativeTabs` or a native header. Do not add right
+  padding on a single screen, and do not draw a bar of your own there.
 - A `fullScreenModal` draws over the tab bar and its column. It wraps itself in its own
-  `SafeAreaProvider` so its insets follow the window while it is open. See
-  `src/app/(app)/photo/index.tsx`.
+  `SafeAreaProvider` so its insets follow the window while it is open, and pads itself by
+  `sideColumnInsetOf` of those insets. See `src/app/(app)/photo/index.tsx`.
 - The check viewports, the Duo included, are in `docs/mobile/devices.md`.
 
 ## Shipping

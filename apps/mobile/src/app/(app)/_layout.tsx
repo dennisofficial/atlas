@@ -2,6 +2,7 @@ import { Button, EButtonSize, EButtonVariant, useTheme } from '@dltech/atlas-ui-
 import { router, Stack, usePathname } from 'expo-router'
 
 import { useAuth } from '../../auth/auth-provider'
+import { SideInsetLayout, WindowInsetsProvider } from '../../layout/side-inset-frame'
 import { PostureProvider } from '../../layout/use-posture'
 import { barHeaderOptionsOf, usesGlassHeader } from '../../navigation/glass-header'
 import { InAppNoticesProvider } from '../../notifications/in-app-notices-provider'
@@ -29,7 +30,10 @@ const AppStack = () => {
     }),
   }
   return (
-    <Stack screenOptions={{ contentStyle: { backgroundColor: theme.background } }}>
+    <Stack
+      screenOptions={{ contentStyle: { backgroundColor: theme.background } }}
+      screenLayout={SideInsetLayout}
+    >
       <Stack.Screen name="index" options={{ headerShown: false, animation: 'none' }} />
       <Stack.Screen name="(tabs)" options={{ headerShown: false, animation: 'none' }} />
       <Stack.Screen
@@ -94,7 +98,9 @@ export default function AppLayout() {
     <PostureProvider>
       <SessionsDrawerProvider>
         <InAppNoticesProvider>
-          <AppStack />
+          <WindowInsetsProvider>
+            <AppStack />
+          </WindowInsetsProvider>
         </InAppNoticesProvider>
       </SessionsDrawerProvider>
     </PostureProvider>

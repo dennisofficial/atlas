@@ -8,6 +8,11 @@ export enum ESessionsListLayout {
 
 export type TInsets = { top: number; right: number; bottom: number; left: number }
 
+export const SIDE_COLUMN_MIN_INSET = 44
+
+export const sideColumnInsetOf = (insets: TInsets): number =>
+  insets.right >= SIDE_COLUMN_MIN_INSET && insets.right > insets.left ? insets.right : 0
+
 export type TPosture = {
   sessionsList: ESessionsListLayout
 }
