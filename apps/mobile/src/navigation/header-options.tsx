@@ -6,10 +6,13 @@ import { Platform, StyleSheet, View } from 'react-native'
 
 import type { TPosture } from '../layout/posture'
 import { AccountButton } from './account-button'
+import { GlassSurface } from './glass-surface'
 import { EHeaderLeadingItem, leadingTitleWidthOf, tabHeaderLeadingOf } from './header-leading'
 import { NewSessionButton } from './new-session-button'
 
 export const LEAD_GAP = 10
+
+const BAR_PILL_HEIGHT = 44
 
 export const TabHeaderTitle = ({ title }: { title: string }) => (
   <Text size={ETextRole.Base} weight={EFontWeight.Semibold} numberOfLines={1}>
@@ -52,13 +55,32 @@ export const leadingHeaderOptionsOf = ({
         styles.title,
         glassTitle ? styles.glassTitle : null,
         glassTitle && iosLead !== undefined ? styles.glassTitleWithLead : null,
-        fillsBar ? { width: titleWidth } : { maxWidth: titleWidth },
+        { maxWidth: titleWidth },
       ]}
     >
       {iosLead}
       <View style={styles.titleText}>{title}</View>
     </View>
   )
+  if (fillsBar && Platform.OS === 'ios') {
+    return {
+      headerTitle: () => (
+        <GlassSurface
+          style={[
+            styles.title,
+            styles.glassTitle,
+            styles.barPill,
+            iosLead === undefined ? null : styles.glassTitleWithLead,
+            { width: titleWidth },
+          ]}
+        >
+          {iosLead}
+          <View style={styles.fillText}>{title}</View>
+        </GlassSurface>
+      ),
+      unstable_headerLeftItems: () => [...leading],
+    }
+  }
   return {
     headerTitle: Platform.OS === 'ios' ? '' : () => titleElement,
     unstable_headerLeftItems: () => [
@@ -115,5 +137,13 @@ const styles = StyleSheet.create({
   },
   glassTitleWithLead: {
     paddingLeft: 4,
+  },
+  barPill: {
+    borderRadius: BAR_PILL_HEIGHT / 2,
+    minHeight: BAR_PILL_HEIGHT,
+    paddingVertical: 4,
+  },
+  fillText: {
+    flex: 1,
   },
 })
