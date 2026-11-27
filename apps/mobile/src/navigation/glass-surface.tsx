@@ -1,25 +1,19 @@
 import { useTheme } from '@dltech/atlas-ui-native'
-import { type GlassViewProps, GlassView, isLiquidGlassAvailable } from 'expo-glass-effect'
+import { GlassView, isLiquidGlassAvailable } from 'expo-glass-effect'
 import type { ReactNode } from 'react'
 import { type StyleProp, StyleSheet, View, type ViewStyle } from 'react-native'
 
 export const GlassSurface = ({
   children,
   style,
-  materialized,
 }: {
   children: ReactNode
   style?: StyleProp<ViewStyle>
-  materialized?: boolean
 }) => {
   const theme = useTheme()
   if (isLiquidGlassAvailable()) {
-    const glassEffectStyle: GlassViewProps['glassEffectStyle'] =
-      materialized === undefined
-        ? 'regular'
-        : { style: materialized ? 'regular' : 'none', animate: true }
     return (
-      <GlassView glassEffectStyle={glassEffectStyle} style={style}>
+      <GlassView glassEffectStyle="regular" style={style}>
         {children}
       </GlassView>
     )

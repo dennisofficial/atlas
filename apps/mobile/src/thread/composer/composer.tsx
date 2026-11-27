@@ -16,7 +16,7 @@ import { StyleSheet, View } from 'react-native'
 import { mergeIntoDraft } from '../session/staged-send'
 import { GlassSurface } from '../../navigation/glass-surface'
 import { AttachmentChips } from './attachment-chips'
-import { COMPOSER_INSET, COMPOSER_RADIUS } from './composer-shape'
+import { COMPOSER_FIELD_BORDER, COMPOSER_INSET, COMPOSER_RADIUS } from './composer-shape'
 import { AttachMenu } from './attach-menu'
 import type { EAttachSource } from './attach-sources'
 import { ComposerControls } from './composer-controls'
@@ -44,6 +44,7 @@ export const Composer = ({
   clientActions,
   trailing,
   trailingPressable = true,
+  status,
   children,
 }: {
   working: boolean
@@ -60,6 +61,7 @@ export const Composer = ({
   clientActions?: Record<EClientAction, () => void> | undefined
   trailing?: ReactNode
   trailingPressable?: boolean
+  status?: ReactNode
   children?: ReactNode
 }) => {
   const [draft, setDraft] = useState('')
@@ -175,6 +177,7 @@ export const Composer = ({
       )}
       {choosing && attachments !== undefined ? <AttachMenu onPick={handlePick} /> : null}
       <GlassSurface style={styles.surface}>
+        {status}
         {attachments === undefined ? null : (
           <AttachmentChips held={attachments.held} onRemove={attachments.remove} />
         )}
@@ -217,7 +220,7 @@ const styles = StyleSheet.create({
   field: {
     borderCurve: 'continuous',
     borderRadius: COMPOSER_RADIUS,
-    borderWidth: 1,
+    borderWidth: COMPOSER_FIELD_BORDER,
     paddingHorizontal: COMPOSER_INSET,
     paddingTop: COMPOSER_INSET,
   },
