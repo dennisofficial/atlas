@@ -21,7 +21,6 @@ import {
   View,
 } from 'react-native'
 import { useAuth } from '../../../auth/auth-provider'
-import { ModelSheet } from '../../../composer/model-picker'
 import { KeyboardDock } from '../../../layout/keyboard-dock'
 import { transcriptInsetOf } from '../../../layout/transcript-inset'
 import { useKeyboard } from '../../../layout/use-keyboard'
@@ -241,7 +240,6 @@ export default function SessionScreen() {
               onClose={session.commands.commandList.onClose}
               entries={session.commands.entries}
             />
-            <ModelSheet {...session.commands.model} />
           </KeyboardDock>
         ) : null}
       </View>

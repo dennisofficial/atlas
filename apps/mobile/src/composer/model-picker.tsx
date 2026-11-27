@@ -1,4 +1,8 @@
 import {
+  Button,
+  EButtonSize,
+  EButtonVariant,
+  EFontWeight,
   ETextRole,
   ETextTone,
   Icon,
@@ -9,8 +13,9 @@ import {
 } from '@dltech/atlas-ui-native'
 import { radius, space } from '@dltech/atlas-ui/tokens'
 import { Search } from 'lucide-react-native'
-import { useState } from 'react'
-import { Modal, Pressable, ScrollView, StyleSheet, View } from 'react-native'
+import { type ReactNode, useState } from 'react'
+import { Modal, ScrollView, StyleSheet, View } from 'react-native'
+import { SafeAreaProvider, useSafeAreaInsets } from 'react-native-safe-area-context'
 
 import {
   type IModelOption,
@@ -23,8 +28,8 @@ import {
   togglePinnedModel,
   withoutPinned,
 } from './model-options'
-import { ModelMenu } from './model-menu'
 import { DefaultRow, ModelRow } from './model-picker-rows'
+import { ModelTrigger } from './model-trigger'
 
 type Props = {
   models: readonly IModelOption[]
@@ -36,7 +41,7 @@ type Props = {
   onSelect: (selection: IModelSelection | null) => void
 }
 
-const SheetBody = ({
+const ModelListBody = ({
   models,
   selection,
   pinned,
@@ -96,14 +101,21 @@ const SheetBody = ({
         <Input
           bare
           accessibilityLabel="Search models"
+          autoCapitalize="none"
           autoCorrect={false}
+          spellCheck={false}
           placeholder="Search models"
           value={query}
           onChangeText={setQuery}
           style={styles.searchInput}
         />
       </View>
-      <ScrollView keyboardShouldPersistTaps="handled">
+      <ScrollView
+        automaticallyAdjustKeyboardInsets
+        keyboardDismissMode="interactive"
+        keyboardShouldPersistTaps="handled"
+        style={styles.list}
+      >
         {defaultRow && query.trim() === '' ? (
           <DefaultRow label={personalLabel} selected={selection === null} onPress={handleDefault} />
         ) : null}
@@ -138,109 +150,104 @@ const SheetBody = ({
   )
 }
 
-export const ModelSheet = ({
-  open,
-  onClose,
-  models,
-  selection,
-  pinned,
-  personalId,
-  defaultRow,
-  onPinnedChange,
-  onSelect,
-}: Props & { open: boolean; onClose: () => void }) => {
+const ModelSheet = ({ open, onClose, ...body }: Props & { open: boolean; onClose: () => void }) => (
+  <Modal
+    visible={open}
+    animationType="slide"
+    presentationStyle="pageSheet"
+    onRequestClose={onClose}
+  >
+    <SafeAreaProvider>
+      <ModelSheetFrame onClose={onClose}>
+        <ModelListBody {...body} onClose={onClose} />
+      </ModelSheetFrame>
+    </SafeAreaProvider>
+  </Modal>
+)
+
+const ModelSheetFrame = ({ onClose, children }: { onClose: () => void; children: ReactNode }) => {
   const theme = useTheme()
+  const insets = useSafeAreaInsets()
   return (
-    <Modal transparent animationType="fade" visible={open} onRequestClose={onClose}>
-      <View
-        style={[styles.overlay, { backgroundColor: withAlpha({ color: '#000000', alpha: 0.35 }) }]}
-      >
-        <Pressable
-          accessibilityRole="button"
-          accessibilityLabel="Close the model menu"
+    <View
+      style={[
+        styles.frame,
+        {
+          backgroundColor: theme.background,
+          paddingBottom: insets.bottom,
+          paddingLeft: insets.left,
+          paddingRight: insets.right,
+        },
+      ]}
+    >
+      <View style={styles.bar}>
+        <Text size={ETextRole.Base} weight={EFontWeight.Semibold} style={styles.title}>
+          Model
+        </Text>
+        <Button
+          label="Done"
+          variant={EButtonVariant.Ghost}
+          size={EButtonSize.Sm}
           onPress={onClose}
-          style={StyleSheet.absoluteFill}
         />
-        <View
-          style={[
-            styles.sheet,
-            {
-              backgroundColor: theme.popover,
-              borderColor: withAlpha({ color: theme.foreground, alpha: 0.1 }),
-            },
-          ]}
-        >
-          <SheetBody
-            models={models}
-            selection={selection}
-            pinned={pinned}
-            personalId={personalId}
-            defaultRow={defaultRow}
-            onPinnedChange={onPinnedChange}
-            onSelect={onSelect}
-            onClose={onClose}
-          />
-        </View>
       </View>
-    </Modal>
+      {children}
+    </View>
   )
 }
 
 export const ModelSelect = ({
-  models,
-  selection,
-  pinned,
-  personalId,
-  defaultRow,
-  onPinnedChange,
-  onSelect,
-}: Props) => {
-  const [open, setOpen] = useState(false)
+  pinnedRef,
+  open: controlledOpen,
+  onOpenChange,
+  ...body
+}: Props & {
+  pinnedRef?: string | null | undefined
+  open?: boolean | undefined
+  onOpenChange?: ((open: boolean) => void) | undefined
+}) => {
+  const [ownOpen, setOwnOpen] = useState(false)
+  const open = controlledOpen ?? ownOpen
+
+  const handleOpenChange = (next: boolean) => {
+    setOwnOpen(next)
+    onOpenChange?.(next)
+  }
+
+  const handleOpen = () => handleOpenChange(true)
+
+  const handleClose = () => handleOpenChange(false)
 
   return (
     <>
-      <ModelMenu
-        models={models}
-        selection={selection}
-        pinned={pinned}
-        defaultRow={defaultRow}
-        onSelect={onSelect}
-        onOpenAll={() => setOpen(true)}
+      <ModelTrigger
+        models={body.models}
+        selection={body.selection}
+        pinnedRef={pinnedRef}
+        expanded={open}
+        onPress={handleOpen}
       />
-      <ModelSheet
-        open={open}
-        onClose={() => setOpen(false)}
-        models={models}
-        selection={selection}
-        pinned={pinned}
-        personalId={personalId}
-        defaultRow={defaultRow}
-        onPinnedChange={onPinnedChange}
-        onSelect={onSelect}
-      />
+      <ModelSheet {...body} open={open} onClose={handleClose} />
     </>
   )
 }
 
 const styles = StyleSheet.create({
-  overlay: {
-    alignItems: 'center',
+  frame: {
     flex: 1,
-    justifyContent: 'flex-end',
-    padding: space(3),
   },
-  sheet: {
-    borderRadius: radius(1.2),
-    borderWidth: 1,
-    elevation: 8,
-    maxHeight: 460,
-    maxWidth: 480,
-    padding: space(1),
-    shadowColor: '#000000',
-    shadowOffset: { width: 0, height: 8 },
-    shadowOpacity: 0.18,
-    shadowRadius: 24,
-    width: '100%',
+  bar: {
+    alignItems: 'center',
+    flexDirection: 'row',
+    paddingLeft: space(4),
+    paddingRight: space(2),
+    paddingTop: space(3),
+  },
+  title: {
+    flex: 1,
+  },
+  list: {
+    flex: 1,
   },
   search: {
     alignItems: 'center',
@@ -248,7 +255,8 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     flexDirection: 'row',
     gap: space(1.5),
-    margin: space(1),
+    marginHorizontal: space(3),
+    marginVertical: space(2),
     paddingHorizontal: space(2),
     paddingVertical: space(1.5),
   },
