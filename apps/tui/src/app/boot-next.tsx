@@ -7,7 +7,7 @@ import { CrashBoundary } from '../boot/crash-boundary'
 import { trackTerminalFocus } from '../boot/terminal-focus'
 import { readTerminalSize, settleTerminalSize } from '../boot/terminal-size'
 import { kittyImageTransportOf } from '../boot/terminal-image-transport'
-import { accountPathOf, apiUrlOf, readAccount } from './account/account-file'
+import { accountPathOf, apiUrlOf, readAccount, webOriginOf } from './account/account-file'
 import { AppNext } from './app-next'
 import { launchFlagsOf } from './launch-flags'
 import { createUrlOpener } from './open-url'
@@ -65,6 +65,9 @@ export async function bootNextAtlas(args: {
         initialAccount={account}
         apiUrl={account?.apiUrl ?? apiUrlOf({ env: args.env })}
         clientVersion={clientVersionHeader()}
+        webOrigin={webOriginOf({ env: args.env })}
+        env={args.env}
+        platform={process.platform}
         openUrl={openUrl}
         launch={launch}
         cwd={args.cwd}

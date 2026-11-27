@@ -79,6 +79,25 @@ const handleSignIn = async () => {
 The card shows `outcome` while the screen is open, and the durable outcome after a reload. Do not
 keep a second copy of the outcome per flow: the shared store holds it under the state.
 
+## Login
+
+Signing in to Atlas itself is a different contract from a flow's yes/no return: a bearer token is
+only minted for a client that proves it holds the PKCE verifier. So every surface keeps its own
+PKCE pair and calls `desktopAuth.exchange` with the code and the verifier; the framework carries
+sign-in results for flows, not tokens.
+- Web signs in in the page, with better-auth and a session cookie.
+- Mac opens `https://byatlas.io/desktop/authorize?redirect_uri=http://127.0.0.1:<port>/desktop/auth/callback&state=&code_challenge=&code_challenge_method=S256`
+  and receives the code on its host's loopback listener (`apps/mac/src/host/auth/auth-service.ts`).
+- iOS opens `atlas://auth/callback` through `WebBrowser.openAuthSessionAsync` and the system hands
+  the code back to the app (`apps/mobile/src/auth/sign-in-flow.ts`).
+- The TUI runs the RFC 8252 loopback as well, on the `/desktop/auth/callback` path its listener
+  serves (`startLoopbackWait` in `apps/tui/src/app/browser-return/loopback-server.ts`). A terminal
+  that cannot open a browser on its own machine uses the RFC 8628 device code instead:
+  `loginFlowOf` chooses the device code over SSH (`SSH_CONNECTION`, `SSH_TTY`) or on Linux with no
+  `DISPLAY` and no `WAYLAND_DISPLAY`. The listener gives up, or fails to bind, and the flow falls
+  back to the device code on its own. While the browser is open the waiting screen keeps the
+  device code one keypress away, so a session that looks local still has a way through.
+
 ## Flows on the framework
 
 | Flow  | Start                                                 | Return path                                                                                            | Durable result                        |
