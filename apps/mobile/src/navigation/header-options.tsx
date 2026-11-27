@@ -30,6 +30,7 @@ export const leadingHeaderOptionsOf = ({
   lead,
   title,
   glassTitle = false,
+  fillsBar = false,
   titleButtons,
   windowWidth,
   posture,
@@ -38,18 +39,20 @@ export const leadingHeaderOptionsOf = ({
   lead?: ReactNode
   title: ReactNode
   glassTitle?: boolean
+  fillsBar?: boolean
   titleButtons: number
   windowWidth: number
   posture: TPosture
 }): NativeStackNavigationOptions => {
   const iosLead = Platform.OS === 'ios' ? lead : undefined
+  const titleWidth = leadingTitleWidthOf({ windowWidth, posture, buttons: titleButtons })
   const titleElement = (
     <View
       style={[
         styles.title,
         glassTitle ? styles.glassTitle : null,
         glassTitle && iosLead !== undefined ? styles.glassTitleWithLead : null,
-        { maxWidth: leadingTitleWidthOf({ windowWidth, posture, buttons: titleButtons }) },
+        fillsBar ? { width: titleWidth } : { maxWidth: titleWidth },
       ]}
     >
       {iosLead}
