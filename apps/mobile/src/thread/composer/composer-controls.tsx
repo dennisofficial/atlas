@@ -7,6 +7,7 @@ import { AttachButton } from './attach-button'
 import type { EAttachSource } from './attach-sources'
 import type { IComposerDictation } from './dictation/composer-dictation'
 import { DictationButton } from './dictation/dictation-button'
+import { MODEL_CONTROLS_GAP } from './composer-shape'
 import { COMPOSER_DICTATION_MOTION } from './dictation/dictation-motion'
 import { DictationWaveform } from './dictation/dictation-waveform'
 import { SendButton } from './send-button'
@@ -160,6 +161,7 @@ const styles = StyleSheet.create({
   },
   slotContent: {
     alignItems: 'center',
+    gap: MODEL_CONTROLS_GAP,
   },
   stage: {
     flex: 1,

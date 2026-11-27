@@ -48,6 +48,7 @@ export const Composer = ({
   trailing,
   trailingPressable = true,
   status,
+  footer,
   children,
 }: {
   working: boolean
@@ -65,6 +66,7 @@ export const Composer = ({
   trailing?: ReactNode
   trailingPressable?: boolean
   status?: ReactNode
+  footer?: ReactNode
   children?: ReactNode
 }) => {
   const [draft, setDraft] = useState('')
@@ -237,12 +239,15 @@ export const Composer = ({
                 onSelectionChange={(event) =>
                   dictation.handleSelection(event.nativeEvent.selection)
                 }
+                onFocus={dictation.handleFocus}
+                onBlur={dictation.handleBlur}
                 style={styles.input}
               />
             )}
           </TextInputWrapper>
         </ComposerDropZone>
       </GlassSurface>
+      {footer === undefined ? null : <View style={styles.footer}>{footer}</View>}
     </View>
   )
 }
@@ -278,6 +283,11 @@ const styles = StyleSheet.create({
     fontFamily: 'Geist_400Regular',
     fontSize: readingType.body.fontSize,
     lineHeight: readingType.body.lineHeight,
+  },
+  footer: {
+    alignSelf: 'flex-end',
+    paddingHorizontal: COMPOSER_INSET,
+    paddingTop: space(1.5),
   },
   notice: {
     paddingBottom: space(1),

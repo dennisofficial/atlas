@@ -24,7 +24,12 @@ export const DictationButton = ({ recording, onPress }: DictationButtonProps) =>
   const dark = useIsDark()
   return (
     <View style={styles.box}>
-      <Host colorScheme={dark ? 'dark' : 'light'} alignment="center" style={styles.fill}>
+      <Host
+        colorScheme={dark ? 'dark' : 'light'}
+        alignment="center"
+        ignoreSafeArea="keyboard"
+        style={styles.fill}
+      >
         <Button
           onPress={onPress}
           modifiers={[

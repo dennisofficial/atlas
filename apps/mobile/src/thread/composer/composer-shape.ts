@@ -27,3 +27,5 @@ export const CHIP_THUMB_RADIUS = concentricRadiusOf({ outer: CHIP_RADIUS, inset:
 export const COMPOSER_ITEM_GAP = space(1.5)
 
 export const COMPOSER_TRIGGER_INSET = COMPOSER_ITEM_GAP / 2
+
+export const MODEL_CONTROLS_GAP = space(1)

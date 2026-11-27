@@ -220,9 +220,8 @@ export default function SessionScreen() {
                 refusal={session.notice}
                 entries={session.commands.entries}
                 clientActions={session.commands.clientActions}
-                trailingPressable={false}
                 status={<BlockingStatus command={session.blocking} now={session.now} />}
-                trailing={
+                footer={
                   <View style={styles.trailing}>
                     <PlanUsage report={usage} />
                     <ContextReading context={session.context} />
