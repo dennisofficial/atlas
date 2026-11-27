@@ -6,7 +6,7 @@ import {
   McpOauthFetcher,
   McpOauthStore,
 } from './mcp-oauth.types'
-import type { AttemptFence, PendingRow, ServerGrantRow } from './mcp-oauth.types'
+import type { AttemptFence, ServerGrantRow } from './mcp-oauth.types'
 
 const REPO_SEEN_BUMP_MS = 3_600_000
 
@@ -14,21 +14,10 @@ const grantKey = (row: Pick<ServerGrantRow, 'userId' | 'groupId' | 'projectId'>)
   row.userId ?? row.groupId ?? row.projectId ?? ''
 
 export class FakeMcpStore implements McpOauthStore {
-  readonly pendings = new Map<string, PendingRow>()
   readonly servers = new Map<string, ServerGrantRow>()
   readonly projectOwners = new Map<string, string>()
   readonly groupOwners = new Map<string, string>()
   private nextId = 1
-
-  async insertPending(row: PendingRow) {
-    this.pendings.set(row.id, row)
-  }
-
-  async takePending(args: { id: string }) {
-    const row = this.pendings.get(args.id) ?? null
-    this.pendings.delete(args.id)
-    return row
-  }
 
   async findServer(args: { id: string }) {
     const row = this.servers.get(args.id)
@@ -207,9 +196,9 @@ export class FakeMcpClock implements McpOauthClock {
   }
 }
 
+export const TEST_REDIRECT_URI = 'https://api.test/mcp-oauth/callback'
+
 export const TEST_CONFIG: McpOauthConfig = {
-  redirectUri: 'https://api.test/v1/mcp/oauth/callback',
-  webOrigin: 'https://web.test',
   allowLocalTargets: false,
   resolveHost: async () => ['93.184.216.34'],
 }

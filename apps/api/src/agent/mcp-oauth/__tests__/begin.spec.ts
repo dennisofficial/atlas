@@ -1,9 +1,12 @@
 import { createHash } from 'node:crypto'
 
+import type { Db } from '@dltech/atlas-db'
 import { useTestDatabase } from '@dltech/atlas-db/testing'
 import { afterEach, describe, expect, it } from 'bun:test'
 
 import { seedGroup, seedOwner } from '../../config/__tests__/config-reader.fixture'
+import { BrowserReturnService } from '../../browser-return/service'
+import { MCP_OAUTH_CALLBACK_PATH } from '../callback'
 import { mcpOauthGatewayOf } from '../gateway'
 import type { McpOauthBegin } from '../types'
 import {
@@ -28,8 +31,21 @@ const beginUrlOf = (result: McpOauthBegin): URL => {
   return new URL(result.url)
 }
 
-const gatewayOver = (db = testDb().db) =>
-  mcpOauthGatewayOf({ db, cipher, publicUrl: 'https://api.byatlas.io', allowLocalTargets: true })
+const PUBLIC_URL = 'https://api.byatlas.io'
+
+const gatewayOver = (db: Db = testDb().db) =>
+  mcpOauthGatewayOf({
+    db,
+    cipher,
+    publicUrl: PUBLIC_URL,
+    allowLocalTargets: true,
+    returns: new BrowserReturnService({
+      db,
+      cipher,
+      publicUrl: PUBLIC_URL,
+      webOrigin: 'https://app.byatlas.io',
+    }),
+  })
 
 const RETURN_TARGET = {
   surface: 'web' as const,
@@ -69,9 +85,16 @@ describe('begin', () => {
     expect(url.searchParams.get('state')).toBe(row.id)
     expect(url.searchParams.get('resource')).toBe(SERVER_URL)
     expect(url.searchParams.get('scope')).toBe('read write')
-    expect(result).toMatchObject({
-      startUrl: `https://api.byatlas.io/mcp-oauth/start/${row.id}`,
-    })
+    expect(result).toMatchObject({ startUrl: `${PUBLIC_URL}/return/start/${row.id}` })
+    expect(await db.orm.public.BrowserReturnPending.all()).toMatchObject([
+      {
+        state: row.id,
+        flow: 'mcp',
+        webPath: '/sessions/ses_1',
+        callbackPath: MCP_OAUTH_CALLBACK_PATH,
+        userId: 'user-1',
+      },
+    ])
     expect(
       (JSON.parse(cipher.decrypt(row.sealed)) as { authorizationUrl?: string }).authorizationUrl,
     ).toBe(url.toString())
@@ -219,6 +242,23 @@ describe('begin', () => {
     expect(beginUrlOf(result).origin).toBe(AUTH_ORIGIN)
     const pending = await db.orm.public.McpOauthPending.all()
     expect(pending[0]?.mcpServerId).toBe('srv-posthog')
+  })
+
+  it('clears the last refusal, because the row is pending again', async () => {
+    const { db } = testDb()
+    await seedOwner(db)
+    await seedCloudServer({ db, name: 'posthog' })
+    await db.orm.public.McpServer.where({ id: 'srv-posthog' }).updateAndCount({
+      oauthRefusal: 'mcp.example.com answered: access_denied',
+      oauthRefusedAt: new Date('2026-11-20T12:00:00.000Z'),
+    })
+    stubFetch(discoveryFetch())
+
+    expect((await gatewayOver(db).begin(cloudArgs)).ok).toBe(true)
+
+    const row = await db.orm.public.McpServer.first({ id: 'srv-posthog' })
+    expect(row?.oauthRefusal).toBeNull()
+    expect(row?.oauthRefusedAt).toBeNull()
   })
 })
 

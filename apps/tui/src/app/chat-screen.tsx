@@ -81,6 +81,7 @@ export function ChatScreen(props: {
   services: ServicesDrawer
   context: ContextTreeControl
   openUrl: (url: string) => void
+  onRetrySignIn: (server: string) => void
   onSelectSubagent: (agentId: string) => void
   onOpenTeammate: (sessionId: string) => void
   onShellKill: (shellId: string) => void
@@ -156,6 +157,7 @@ export function ChatScreen(props: {
                 ? {}
                 : { onDismissFailure: attention.handleDismiss })}
               {...(attention.handleResume === null ? {} : { onResume: attention.handleResume })}
+              onRetrySignIn={props.onRetrySignIn}
             />
             {operator.state === null ? null : (
               <OperatorInputOverlay

@@ -19,6 +19,7 @@ import {
   FakeMcpStore,
   SERVER,
   TEST_CONFIG,
+  TEST_REDIRECT_URI,
   installIssuer,
 } from './mcp-oauth.fakes'
 import { McpOauthAccessService } from './mcp-oauth-access.service'
@@ -55,7 +56,7 @@ const grantedServer = (cipher: SecretCipherService): ServerGrantRow => ({
         expiresAt: new Date(Date.now() + 3_600_000).toISOString(),
       },
       tokenEndpoint: 'https://auth.example.com/token',
-      redirectUri: TEST_CONFIG.redirectUri,
+      redirectUri: TEST_REDIRECT_URI,
     },
   }),
   oauthStatus: EGrantRowStatus.Active,

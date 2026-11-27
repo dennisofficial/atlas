@@ -5,7 +5,7 @@ import { toast } from 'sonner'
 import { useMcpOauth } from '../data/shared/use-mcp-oauth'
 import { SettingsSection } from '../settings-layout'
 import { McpAddDialog } from './mcp-add-dialog'
-import { McpOauthReturn } from './mcp-oauth-return'
+import { McpOauthResult } from './mcp-oauth-result'
 import { McpRepoServers } from './mcp-repo-servers'
 import { McpServerList } from './mcp-server-list'
 import type { McpStore } from './mcp-store'
@@ -34,7 +34,7 @@ export function McpServersSection({
       description={description}
       actions={<McpAddDialog onAdd={(draft) => void run(() => store.add(draft))} />}
     >
-      <McpOauthReturn reload={auth.reload} />
+      <McpOauthResult owner={auth.owner} reload={auth.reload} />
       <McpServerList
         auth={auth}
         servers={store.servers}

@@ -1,3 +1,4 @@
+import { EReturnResult, stateOfStartLink } from '@dltech/atlas-core'
 import { space } from '@dltech/atlas-ui/tokens'
 import {
   Button,
@@ -16,8 +17,11 @@ import { CircleCheck, CircleX, LogIn } from 'lucide-react-native'
 import { useState } from 'react'
 import { StyleSheet, View } from 'react-native'
 
+import { openBrowserReturn, useReturnOutcome } from '../../browser-return'
 import type { SignInRow } from '../rows'
-import { openSignIn } from '../sign-in/open-sign-in'
+import { signInDurableOutcomeOf } from '../sign-in/outcome'
+
+export type SignInAgainHandler = (server: string) => Promise<void>
 
 const PendingSignIn = ({ row }: { row: SignInRow }) => {
   const theme = useTheme()
@@ -25,7 +29,7 @@ const PendingSignIn = ({ row }: { row: SignInRow }) => {
 
   const handleSignIn = () => {
     setOpening(true)
-    void openSignIn(row.url).finally(() => setOpening(false))
+    void openBrowserReturn({ url: row.url }).finally(() => setOpening(false))
   }
 
   return (
@@ -47,9 +51,65 @@ const PendingSignIn = ({ row }: { row: SignInRow }) => {
   )
 }
 
-export const SignInRowView = ({ row }: { row: SignInRow }) => {
+const FailedSignIn = ({
+  row,
+  reason,
+  onSignInAgain,
+}: {
+  row: SignInRow
+  reason: string | undefined
+  onSignInAgain: SignInAgainHandler | undefined
+}) => {
   const theme = useTheme()
-  if (row.result === 'connected')
+  const [retrying, setRetrying] = useState(false)
+
+  const handleRetry = () => {
+    if (onSignInAgain === undefined) return
+    setRetrying(true)
+    void onSignInAgain(row.subject).finally(() => setRetrying(false))
+  }
+
+  return (
+    <Trace>
+      <TraceLine
+        icon={<Icon icon={CircleX} size={16} color={theme.destructive} />}
+        title={`Could not sign in to ${row.subject}`}
+        status={ETraceStatus.Error}
+      />
+      {reason === undefined ? null : (
+        <Text size={ETextRole.Xs} tone={ETextTone.Muted} selectable style={styles.reason}>
+          {reason}
+        </Text>
+      )}
+      {onSignInAgain === undefined ? null : (
+        <View style={styles.retry}>
+          <Button
+            label="Try again"
+            size={EButtonSize.Sm}
+            variant={EButtonVariant.Outline}
+            loading={retrying}
+            onPress={handleRetry}
+          />
+        </View>
+      )}
+    </Trace>
+  )
+}
+
+export const SignInRowView = ({
+  row,
+  onSignInAgain,
+}: {
+  row: SignInRow
+  onSignInAgain?: SignInAgainHandler | undefined
+}) => {
+  const theme = useTheme()
+  const outcome = useReturnOutcome({
+    state: stateOfStartLink(row.url) ?? '',
+    durable: signInDurableOutcomeOf(row),
+  })
+
+  if (outcome?.result === EReturnResult.Connected)
     return (
       <Trace>
         <TraceLine
@@ -59,21 +119,8 @@ export const SignInRowView = ({ row }: { row: SignInRow }) => {
       </Trace>
     )
 
-  if (row.result === 'failed')
-    return (
-      <Trace>
-        <TraceLine
-          icon={<Icon icon={CircleX} size={16} color={theme.destructive} />}
-          title={`Could not sign in to ${row.subject}`}
-          status={ETraceStatus.Error}
-        />
-        {row.reason === undefined ? null : (
-          <Text size={ETextRole.Xs} tone={ETextTone.Muted} selectable style={styles.reason}>
-            {row.reason}
-          </Text>
-        )}
-      </Trace>
-    )
+  if (outcome?.result === EReturnResult.Failed)
+    return <FailedSignIn row={row} reason={outcome.reason} onSignInAgain={onSignInAgain} />
 
   return (
     <Trace>
@@ -92,6 +139,11 @@ const styles = StyleSheet.create({
     flexShrink: 1,
   },
   reason: {
+    paddingLeft: space(6),
+  },
+  retry: {
+    flexDirection: 'row',
+    marginTop: space(1.5),
     paddingLeft: space(6),
   },
 })

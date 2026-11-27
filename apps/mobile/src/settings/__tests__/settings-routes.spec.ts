@@ -59,10 +59,11 @@ describe('ios group sections', () => {
     }
   })
 
-  it('routes overview and sandbox, and pends group instructions', () => {
-    expect(IOS_PENDING_GROUP_SECTIONS.has(EGroupSettingsSection.Instructions)).toBe(true)
+  it('routes group overview, instructions and sandbox', () => {
+    expect(IOS_PENDING_GROUP_SECTIONS.has(EGroupSettingsSection.Instructions)).toBe(false)
     expect(routedGroupSections().map((item) => item.section)).toEqual([
       EProjectSettingsSection.Overview,
+      EGroupSettingsSection.Instructions,
       EProjectSettingsSection.Sandbox,
     ])
   })

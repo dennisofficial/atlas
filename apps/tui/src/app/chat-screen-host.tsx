@@ -29,6 +29,7 @@ import { useToolPictureSession } from '../ui/use-tool-picture-session'
 import { MIN_TRANSCRIPT_WIDTH } from '../ui/theme'
 import { sidebarWidth } from '../ui/sidebar-width-store'
 import { problemOf } from './app-next-support'
+import { useSignInRetry } from './mcp-sign-in/use-sign-in-retry'
 import { useCommandRunner } from './use-command-runner'
 
 export function ChatScreenHost(props: ChatScreenHostProps): React.ReactNode {
@@ -110,6 +111,7 @@ export function ChatScreenHost(props: ChatScreenHostProps): React.ReactNode {
     onProblem: problemOf,
   })
 
+  const handleSignInRetry = useSignInRetry(send.handleSend)
   const takeBack = usePendingTakeBack({
     api: props.client.api,
     sessionId: props.sessionId,
@@ -283,6 +285,7 @@ export function ChatScreenHost(props: ChatScreenHostProps): React.ReactNode {
         services={panes.services}
         context={panes.context}
         openUrl={props.openUrl}
+        onRetrySignIn={handleSignInRetry}
         onSelectSubagent={panes.crew.handleSelect}
         onOpenTeammate={props.onOpenSession}
         onShellKill={actions.killShell}

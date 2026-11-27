@@ -1,30 +1,28 @@
 import { randomBytes } from 'node:crypto'
 
-import { signInStartUrlOf } from '@dltech/atlas-plugin-mcp/core'
-
 import type { Db } from '@dltech/atlas-db'
 
 import type { SecretCipher } from '@dltech/atlas-pods/config/secret-cipher'
+import type { BrowserReturnService } from '../browser-return/service'
+import { MCP_OAUTH_CALLBACK_PATH } from './callback-path'
 import { oauthClientFor } from './client'
 import { discoverOauthEndpoints } from './discovery'
 import { OAuthError } from './errors'
+import { attemptLiveOf, freshTokensOf, grantedOf } from './grant-state'
 import { generatePkce } from './pkce'
 import { returnPathOf } from './redirect'
 import { normalizeServerUrl, sameServerUrl, sealJson, unsealJson } from './seal'
 import { serverUrlOf } from './server-url'
 import { guardedFetch, SsrfRejectedError, type HostResolver } from './ssrf'
 import { McpOauthStore } from './store'
-import { refreshAuthorization } from './token'
-import { buildAuthorizationUrl } from './token'
+import { buildAuthorizationUrl, refreshAuthorization } from './token'
 import {
-  FRESH_MARGIN_MS,
   needsSignIn,
   PENDING_TTL_MS,
   REFRESH_PASSES,
   REFRESH_POLL_MS,
   REJECTING_STATUSES,
   sleep,
-  STALE_ATTEMPT_MS,
 } from './gateway-timing'
 import {
   sealedGrantSchema,
@@ -35,7 +33,6 @@ import {
   type McpOauthServerRef,
   type McpServerGrantRow,
   type OAuthFetch,
-  type OAuthTokens,
   type SealedGrant,
   type SealedPending,
 } from './types'
@@ -48,21 +45,20 @@ export type McpOauthGatewayArgs = {
   now?: (() => number) | undefined
   allowLocalTargets?: boolean | undefined
   resolveHost?: HostResolver | undefined
+  returns: Pick<BrowserReturnService, 'begin'>
 }
 
 export class McpOauthService implements McpOauthGateway {
   private readonly store: McpOauthStore
   private readonly now: () => number
   private readonly fetcher: OAuthFetch
+  private readonly redirectUri: string
 
   constructor(private readonly args: McpOauthGatewayArgs) {
     this.store = new McpOauthStore(args.db)
     this.now = args.now ?? Date.now
     this.fetcher = args.fetch ?? ((input, init) => globalThis.fetch(input, init))
-  }
-
-  get redirectUri(): string {
-    return `${new URL(this.args.publicUrl).origin}/mcp-oauth/callback`
+    this.redirectUri = `${new URL(args.publicUrl).origin}/mcp-oauth/callback`
   }
 
   async begin(args: McpOauthBeginArgs): Promise<McpOauthBegin> {
@@ -117,7 +113,15 @@ export class McpOauthService implements McpOauthGateway {
         ...(found.authMethods === undefined ? {} : { authMethods: found.authMethods }),
         ...(found.resource === undefined ? {} : { resource: found.resource }),
       }
-      const expiresAt = new Date(this.now() + PENDING_TTL_MS)
+      const returned = await this.args.returns.begin({
+        flow: 'mcp',
+        state: pkce.state,
+        userId: args.userId,
+        providerUrl: authorizationUrl,
+        callbackPath: MCP_OAUTH_CALLBACK_PATH,
+        webPath: returnPathOf(args.returnTarget.screen),
+        ttlMs: PENDING_TTL_MS,
+      })
       await this.store.insertPending({
         id: pkce.state,
         userId: args.userId,
@@ -125,20 +129,21 @@ export class McpOauthService implements McpOauthGateway {
         sealed: sealJson({ cipher: this.args.cipher, value: pending }),
         returnTo: returnPathOf(args.returnTarget.screen),
         surface: args.returnTarget.surface,
-        expiresAt,
+        expiresAt: returned.expiresAt,
         mcpServerId: resolved.row.id,
       })
       return {
         ok: true,
         url: authorizationUrl,
-        startUrl: signInStartUrlOf({ publicUrl: this.args.publicUrl, state: pkce.state }),
-        expiresAt: expiresAt.toISOString(),
+        startUrl: returned.startUrl,
+        expiresAt: returned.expiresAt.toISOString(),
       }
     } catch (error) {
-      if (error instanceof SsrfRejectedError || error instanceof OAuthError) {
-        return { ok: false, reason: error.message }
-      }
-      return { ok: false, reason: `could not reach the server: ${String(error)}`.slice(0, 200) }
+      const reason =
+        error instanceof SsrfRejectedError || error instanceof OAuthError
+          ? error.message
+          : `could not reach the server: ${String(error)}`.slice(0, 200)
+      return { ok: false, reason }
     }
   }
 
@@ -150,8 +155,8 @@ export class McpOauthService implements McpOauthGateway {
       if (row === null) return needsSignIn()
       const grant = this.activeGrant({ row, serverUrl: this.urlOf(row) })
       if (grant === null) return needsSignIn()
-      if (this.isFresh(grant.tokens)) return this.granted(grant.tokens)
-      if (this.attemptLive(row)) {
+      if (freshTokensOf({ tokens: grant.tokens, now: this.now() })) return grantedOf(grant.tokens)
+      if (attemptLiveOf({ row, now: this.now() })) {
         await sleep(REFRESH_POLL_MS)
         continue
       }
@@ -228,25 +233,6 @@ export class McpOauthService implements McpOauthGateway {
     }
   }
 
-  private attemptLive(row: McpServerGrantRow): boolean {
-    if (row.oauthRefreshAttempt === null) return false
-    const startedMs = row.oauthRefreshStartedAt?.getTime() ?? 0
-    return this.now() - startedMs < STALE_ATTEMPT_MS
-  }
-
-  private isFresh(tokens: OAuthTokens): boolean {
-    if (tokens.expiresAt === undefined) return true
-    return Date.parse(tokens.expiresAt) > this.now() + FRESH_MARGIN_MS
-  }
-
-  private granted(tokens: OAuthTokens): McpOauthGrant {
-    return {
-      ok: true,
-      accessToken: tokens.accessToken,
-      expiresAt: tokens.expiresAt === undefined ? null : tokens.expiresAt,
-    }
-  }
-
   private async refreshOnce(args: {
     row: McpServerGrantRow
     grant: SealedGrant
@@ -277,7 +263,7 @@ export class McpOauthService implements McpOauthGateway {
         ...fence,
         sealed: sealJson({ cipher: this.args.cipher, value: { ...args.grant, tokens } }),
       })
-      return stored ? this.granted(tokens) : undefined
+      return stored ? grantedOf(tokens) : undefined
     } catch (error) {
       if (
         error instanceof OAuthError &&
