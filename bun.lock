@@ -882,6 +882,7 @@
         "typescript": "6.0.3",
       },
       "peerDependencies": {
+        "@bsky.app/react-native-uitextview": "*",
         "lucide-react-native": "*",
         "react": "*",
         "react-native": "*",
