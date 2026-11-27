@@ -21,8 +21,8 @@ spans. The core tiers depend on the ports. Only the node tier imports a vendor S
 - The hooks that emit a span, and the code that calls the ports. `@dltech/atlas-agent`,
   `@dltech/atlas-control` and the apps own it.
 - The record of a thread. The thread record is the event log, not telemetry.
-- The registry type. `@dltech/atlas-core` defines `PortRegistryEntries`; `src/ports.ts` adds this
-  package's three entries to it.
+- The registry type. `@dltech/atlas-core` defines `PortRegistryEntries`; importing this package
+  adds its three ports to it.
 
 ## Entry points
 
@@ -37,11 +37,13 @@ spans. The core tiers depend on the ports. Only the node tier imports a vendor S
 ### Record a product event
 
 - `TelemetryPort`: `turnCompleted`, `featureUsed`, `toolDenied`, `agentSpawned`, `agentEnded`,
-  `exception` and `flush`.
+  `exception` and `flush`. `TelemetryTurn` and `TelemetryAgentRun` are the two event shapes.
 - `NullTelemetry`: a `TelemetryPort` that does nothing.
+- `NullProductAnalytics`: a `ProductAnalytics` that does nothing.
 - `telemetryEnabled(env)`: says if telemetry runs. It reads `ATLAS_TELEMETRY` and the test-runner
   signal.
-- `featureForTool(name)`, `reasonClassOf(reason)`: give the class that a telemetry event carries.
+- `featureForTool(name)`, `reasonClassOf(reason)`: give the `feature` of a counted tool, or the
+  `reasonClass` of a denial. `featureForTool` returns `undefined` for every other tool.
 
 ### Time a unit of work
 

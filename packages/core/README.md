@@ -86,7 +86,8 @@ assembly, settings, ports, and the record folds. It imports `zod` and nothing el
 
 ### Describe a model, its spend, a secret, and an account
 
-- `EModelRole`, `ModelCard`, `EEffort`: the model a role resolves to.
+- `EModelRole`, `ModelCard`, `EEffort`: the model a role resolves to. `contextWindowLabel(tokens)`:
+  the label of a context window in a picker, such as `200k` or `1.5M`.
 - `Account`, `accountOf`, `chooseAccount`, `refreshDecision`, `EAccountStatus`: the account a turn uses.
 - `formatUtilization(value)`: a usage figure for the operator.
 - `formatCountdown({ resetsAt, now })`: how long a usage window has left. `shownWindowsOf(usage)`: the plan windows to show; a weekly-only plan hides the 5-hour window.
@@ -117,6 +118,12 @@ assembly, settings, ports, and the record folds. It imports `zod` and nothing el
 - `foldPlan`, `planView`, `PLAN_TOOL_NAME`, `planReminder`: the plan a thread keeps.
 - `COMMAND_CATALOGUE`, `commandLineOf`, `ECommandKind`: a slash command and its arguments.
 - `shellName(shell)`, `quotedShellName(shell)`, `shellLabel(shell)`: the name that a shell or a service shows, from its description or else its command. `fallbackShellName(command)`: the first 80 characters of the command. `withFallbackShellName(schema)`: a schema that fills a missing description from the command.
+
+### Name a sandbox boot step
+
+- `EBootStep`, `EBootStepState`, `EBootStepOutcome`: the step of a sandbox boot, the state of a step
+  and how the step ended.
+- `BOOT_STEP_ORDER`: the seven steps in order. Settings comes before setup.
 
 ### Name a file a spawn attaches
 

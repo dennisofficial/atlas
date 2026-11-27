@@ -45,10 +45,10 @@ palette and one type scale. `apps/mobile` is the only consumer.
   (`@bsky.app/react-native-uitextview`): a long press selects a word, handles extend the range and
   the native edit menu acts on it. Nested Text spans keep their style and `onPress`.
 - `ETextRole`, `ETextTone`, `EFontFamily`, `EFontWeight`: the values of those props.
-- `Markdown`: a markdown string as native blocks, including code and tables. The props are
-  `value`, `selectable`, `breaks`, `tone` and `renderDiagram`. `renderDiagram` takes
-  `{ source, closed }` for a fenced block whose language is `mermaid`, so the app can draw a real
-  diagram in place of the code. Without it, a mermaid fence draws as code.
+- `Markdown` with `IMarkdownProps`: a markdown string as native blocks, including code and tables.
+  `breaks` keeps a newline inside a paragraph as a line break. `renderDiagram` takes
+  `IRenderDiagramArgs`, `{ source, closed }`, for a fenced block whose language is `mermaid`, so the
+  app can draw a real diagram in place of the code. Without it, a mermaid fence draws as code.
 - `CodeBlock`: a fenced code block with its language header and a horizontal scroll body.
 
 ### Draw an action or an entry
