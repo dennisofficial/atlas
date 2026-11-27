@@ -19,9 +19,17 @@ export default function GroupSettingsScreen() {
     load: () =>
       api === undefined
         ? Promise.resolve(null)
-        : api.projectGroups.list
-            .query()
-            .then(({ groups }) => groups.find((item) => item.id === groupId) ?? null),
+        : Promise.all([api.projectGroups.list.query(), api.projects.list.query()]).then(
+            ([{ groups }, projects]) => {
+              const found = groups.find((item) => item.id === groupId)
+              if (found === undefined) return null
+              const nameOf = new Map(projects.map((project) => [project.id, project.name]))
+              return {
+                name: found.name,
+                projects: found.projectIds.map((id) => ({ id, name: nameOf.get(id) ?? id })),
+              }
+            },
+          ),
     deps: [api, groupId],
   })
   const sections = routedGroupSections()
@@ -38,15 +46,14 @@ export default function GroupSettingsScreen() {
         <>
           <Section title="Group">
             <Row label="Name" value={group.name} />
-            <Row label="Projects" value={`${group.projectIds.length}`} />
           </Section>
-          {group.projectIds.length === 0 ? null : (
+          {group.projects.length === 0 ? null : (
             <Section title="Projects">
-              {group.projectIds.map((projectId) => (
+              {group.projects.map((project) => (
                 <NavRow
-                  key={projectId}
-                  label={projectId}
-                  onPress={() => router.push(`/project-settings/${projectId}`)}
+                  key={project.id}
+                  label={project.name}
+                  onPress={() => router.push(`/project-settings/${encodeURIComponent(project.id)}`)}
                 />
               ))}
             </Section>
