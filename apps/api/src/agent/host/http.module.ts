@@ -3,12 +3,13 @@ import type { Db } from '@dltech/atlas-db'
 
 import type { AgentHostEnv } from '../config/env'
 import { mcpOauthCallbackOf } from '../mcp-oauth/callback'
+import { mcpOauthStartOf } from '../mcp-oauth/start'
 import type { SecretCipher } from '@dltech/atlas-pods/config/secret-cipher'
 import { DaemonBundleController } from '../http/daemon-bundle.controller'
 import { HealthController } from '../http/health.controller'
 import { McpOauthCallbackController } from '../http/mcp-oauth.controller'
 import { CoreModule } from './core.module'
-import { AGENT_HOST_ENV, CIPHER, DB, MCP_OAUTH_CALLBACK } from './tokens'
+import { AGENT_HOST_ENV, CIPHER, DB, MCP_OAUTH_CALLBACK, MCP_OAUTH_START } from './tokens'
 
 const WEB_ORIGIN_FALLBACK = 'https://byatlas.io'
 
@@ -23,9 +24,15 @@ const mcpOauthCallbackProvider: Provider = {
   inject: [DB, CIPHER, AGENT_HOST_ENV],
 }
 
+const mcpOauthStartProvider: Provider = {
+  provide: MCP_OAUTH_START,
+  useFactory: (db: Db, cipher: SecretCipher) => mcpOauthStartOf({ db, cipher }),
+  inject: [DB, CIPHER],
+}
+
 @Module({
   imports: [CoreModule],
   controllers: [HealthController, DaemonBundleController, McpOauthCallbackController],
-  providers: [mcpOauthCallbackProvider],
+  providers: [mcpOauthCallbackProvider, mcpOauthStartProvider],
 })
 export class HttpModule {}

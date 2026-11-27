@@ -18,7 +18,7 @@ const fenceWhere = (fence: AttemptFence) => ({
   oauthRefreshAttempt: fence.attemptId,
 })
 
-const PENDING_COLUMNS = [
+export const PENDING_COLUMNS = [
   'id',
   'userId',
   'serverUrl',
@@ -40,7 +40,7 @@ type PendingSelect = {
   mcpServerId: string | null
 }
 
-const pendingOf = (row: PendingSelect): PendingRow => ({
+export const pendingOf = (row: PendingSelect): PendingRow => ({
   id: row.id,
   userId: row.userId,
   serverUrl: row.serverUrl,

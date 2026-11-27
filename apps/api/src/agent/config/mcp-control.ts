@@ -14,12 +14,7 @@ import {
   type MacChannel,
   type MacLink,
 } from '../mac-link/port'
-import {
-  mcpOauthGatewayOf,
-  surfaceOf,
-  type McpOauthGateway,
-  type McpReturnSurface,
-} from '../mcp-oauth'
+import { mcpOauthGatewayOf, type McpOauthGateway } from '../mcp-oauth'
 import { sameServerUrl } from '../mcp-oauth/seal'
 import { databaseUrlWithTls } from './database-url'
 import type { AgentHostEnv } from './env'
@@ -37,7 +32,6 @@ type Owner = {
   userId: string
   projectId: string | null
   groupId: string | null
-  surface: McpReturnSurface
 }
 
 type ServerRow = {
@@ -94,7 +88,6 @@ export const mcpControlOf = (args: {
             userId: session.userId,
             projectId: session.projectId,
             groupId: await groupIdOf(session.projectId),
-            surface: surfaceOf(session.lastSurface),
           },
     )
     owners.set(sessionId, read)
@@ -180,10 +173,10 @@ export const mcpControlOf = (args: {
         source: request.source,
         name: request.name,
         url: request.url,
-        returnTarget: { surface: owner.surface, screen: { kind: 'session', id: sessionId } },
+        returnTarget: { surface: 'web', screen: { kind: 'session', id: sessionId } },
       })
       if (!begun.ok) return begun
-      return { ok: true, url: begun.url, expiresAt: begun.expiresAt }
+      return { ok: true, url: begun.startUrl, expiresAt: begun.expiresAt }
     },
     proxy: async (request) => {
       const owner = await ownerFor(sessionId)

@@ -85,6 +85,7 @@ export const sealedPendingSchema = z.object({
   resource: z.string().optional(),
   redirectUri: z.string(),
   returnTarget: mcpReturnTargetSchema,
+  authorizationUrl: z.string().optional(),
 })
 export type SealedPending = z.infer<typeof sealedPendingSchema>
 
@@ -133,7 +134,7 @@ export type PendingClaim =
 export type AttemptFence = { id: string; attemptId: string; generation: number }
 
 export type McpOauthBegin =
-  | { ok: true; url: string; expiresAt: string }
+  | { ok: true; url: string; startUrl: string; expiresAt: string }
   | { ok: false; reason: string }
 
 export type McpOauthGrant =

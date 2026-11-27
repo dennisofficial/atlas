@@ -8,7 +8,17 @@ import { guardedFetch, type HostResolver } from './ssrf'
 import { McpOauthStore } from './store'
 import { exchangeAuthorizationCode } from './token'
 import {
+  EMcpSignInSurface,
+  returnSurfaceOf,
+  signInSurfaceOf,
+  type SignInSurfaceCookie,
+} from '@dltech/atlas-plugin-mcp/core'
+
+import { providerErrorOf } from './provider-error'
+import { surfaceCookieIn } from './sign-in-cookie'
+import {
   sealedPendingSchema,
+  type McpReturnScreen,
   type McpReturnTarget,
   type McpServerGrantRow,
   type OAuthFetch,
@@ -16,11 +26,13 @@ import {
   type SealedGrant,
 } from './types'
 
-export const MCP_OAUTH_CALLBACK_PATH = '/mcp-oauth/callback'
+export { MCP_OAUTH_CALLBACK_PATH } from './callback-path'
 
 export type QueryParams = { get(name: string): string | null | undefined }
 
-export type CallbackHandler = (query: QueryParams) => Promise<CallbackAnswer>
+export type CallbackRequest = { query: QueryParams; cookie?: string | undefined }
+
+export type CallbackHandler = (request: CallbackRequest) => Promise<CallbackAnswer>
 
 export type McpOauthCallbackArgs = {
   db: Db
@@ -48,25 +60,36 @@ export const mcpOauthCallbackOf = (args: McpOauthCallbackArgs) => {
     resolveHost: args.resolveHost,
   })
 
-  const targetOf = (pending: PendingRow | null): McpReturnTarget => {
-    if (pending === null) return DEFAULT_RETURN_TARGET
+  const screenOf = (pending: PendingRow): McpReturnScreen => {
     try {
       return unsealJson({
         cipher: args.cipher,
         sealed: pending.sealed,
         schema: sealedPendingSchema,
-      }).returnTarget
+      }).returnTarget.screen
     } catch {
-      return { surface: pending.surface, screen: DEFAULT_RETURN_TARGET.screen }
+      return DEFAULT_RETURN_TARGET.screen
+    }
+  }
+
+  const targetOf = (
+    pending: PendingRow | null,
+    cookie: SignInSurfaceCookie | undefined,
+  ): McpReturnTarget => {
+    if (pending === null) return DEFAULT_RETURN_TARGET
+    const recorded = signInSurfaceOf(pending.surface) ?? EMcpSignInSurface.Web
+    return {
+      surface: returnSurfaceOf({ state: pending.id, cookie, recorded }),
+      screen: screenOf(pending),
     }
   }
 
   const failedOf =
-    (pending: PendingRow | null) =>
+    (pending: PendingRow | null, cookie: SignInSurfaceCookie | undefined) =>
     (reason: string, serverUrl?: string): CallbackAnswer =>
       callbackAnswerOf({
         webOrigin: args.webOrigin,
-        target: targetOf(pending),
+        target: targetOf(pending, cookie),
         serverUrl: serverUrl ?? pending?.serverUrl,
         reason,
       })
@@ -74,6 +97,7 @@ export const mcpOauthCallbackOf = (args: McpOauthCallbackArgs) => {
   const exchange = async (
     pending: PendingRow,
     code: string,
+    target: McpReturnTarget,
     refuse: (reason: string) => Promise<CallbackAnswer>,
   ): Promise<CallbackAnswer> => {
     const sealed = unsealJson({
@@ -111,22 +135,24 @@ export const mcpOauthCallbackOf = (args: McpOauthCallbackArgs) => {
     return written
       ? callbackAnswerOf({
           webOrigin: args.webOrigin,
-          target: sealed.returnTarget,
+          target,
           serverUrl: pending.serverUrl,
         })
       : await refuse('server_changed')
   }
 
-  return async (query: QueryParams): Promise<CallbackAnswer> => {
-    const param = (name: string): string | undefined => query.get(name) ?? undefined
+  return async (request: CallbackRequest): Promise<CallbackAnswer> => {
+    const param = (name: string): string | undefined => request.query.get(name) ?? undefined
+    const cookie = surfaceCookieIn({ cipher: args.cipher, header: request.cookie })
     const state = param('state')
     const claim =
       state === undefined || state === '' ? null : await store.claimPending({ id: state })
-    if (claim === null || claim.kind === 'missing') return failedOf(null)('unknown_state')
+    if (claim === null || claim.kind === 'missing') return failedOf(null, cookie)('unknown_state')
     const pending = claim.pending
+    const target = targetOf(pending, cookie)
     const refused = async (reason: string, serverUrl?: string): Promise<CallbackAnswer> => {
       await store.deletePending({ id: pending.id })
-      return failedOf(pending)(reason, serverUrl)
+      return failedOf(pending, cookie)(reason, serverUrl)
     }
     if (pending.mcpServerId === null) return await refused('unknown_state')
     const row = await store.find({ id: pending.mcpServerId })
@@ -140,13 +166,20 @@ export const mcpOauthCallbackOf = (args: McpOauthCallbackArgs) => {
       return active
         ? callbackAnswerOf({
             webOrigin: args.webOrigin,
-            target: targetOf(pending),
+            target,
             serverUrl: pending.serverUrl,
           })
         : await refused('server_changed')
     }
     const error = param('error')
-    if (error !== undefined) return await refused(param('error_description') ?? error)
+    if (error !== undefined)
+      return await refused(
+        providerErrorOf({
+          error,
+          description: param('error_description'),
+          issuer: param('iss') ?? pending.serverUrl,
+        }),
+      )
     const code = param('code')
     if (code === undefined || code === '') return await refused('missing_code')
     let serverUrl: string | undefined
@@ -157,7 +190,7 @@ export const mcpOauthCallbackOf = (args: McpOauthCallbackArgs) => {
     }
     if (!sameServerUrl(serverUrl, pending.serverUrl)) return await refused('server_changed')
     try {
-      return await exchange(pending, code, refused)
+      return await exchange(pending, code, target, refused)
     } catch {
       return await refused('exchange_failed')
     }

@@ -69,6 +69,12 @@ describe('begin', () => {
     expect(url.searchParams.get('state')).toBe(row.id)
     expect(url.searchParams.get('resource')).toBe(SERVER_URL)
     expect(url.searchParams.get('scope')).toBe('read write')
+    expect(result).toMatchObject({
+      startUrl: `https://api.byatlas.io/mcp-oauth/start/${row.id}`,
+    })
+    expect(
+      (JSON.parse(cipher.decrypt(row.sealed)) as { authorizationUrl?: string }).authorizationUrl,
+    ).toBe(url.toString())
 
     const sealed = JSON.parse(cipher.decrypt(row.sealed)) as {
       codeVerifier: string

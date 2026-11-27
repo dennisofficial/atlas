@@ -80,7 +80,7 @@ const handlerOver = (db: Db) => {
     allowLocalTargets: true,
   })
   return async (request: Request): Promise<Response> =>
-    respondOf(await callback(new URL(request.url).searchParams))
+    respondOf(await callback({ query: new URL(request.url).searchParams }))
 }
 
 const callOf = async (args: {
@@ -179,7 +179,7 @@ describe('the mcp oauth callback', () => {
     await seedPending({ db, id: 'state-denied', mcpServerId: 'srv-posthog' })
 
     expect(await failingReason({ db, query: 'state=state-denied&error=access_denied' })).toBe(
-      'access_denied',
+      'mcp.example.com answered: access_denied',
     )
   })
 

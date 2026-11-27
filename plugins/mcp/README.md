@@ -23,12 +23,12 @@ Connects a session to the MCP servers that the operator and the repository confi
 
 ## Entry points
 
-| Import                             | Use it for                                                                                 |
-| ---------------------------------- | ------------------------------------------------------------------------------------------ |
-| `@dltech/atlas-plugin-mcp/core`    | The entry schemas, the source merge, the row schema, the view fold and the sign-in events. |
-| `@dltech/atlas-plugin-mcp/pod`     | `mcpPod(args)`, the two resources, the transports, `loadMcpConfig` and the bridge tool.    |
-| `@dltech/atlas-plugin-mcp/control` | `mcpControl`: an empty control slot.                                                       |
-| `@dltech/atlas-plugin-mcp/client`  | `mcpClient` and `mcpSignInEntries`: the client hook and the sign-in transcript fold.       |
+| Import                             | Use it for                                                                                                         |
+| ---------------------------------- | ------------------------------------------------------------------------------------------------------------------ |
+| `@dltech/atlas-plugin-mcp/core`    | The entry schemas, the source merge, the row schema, the view fold, the sign-in events and the sign-in start link. |
+| `@dltech/atlas-plugin-mcp/pod`     | `mcpPod(args)`, the two resources, the transports, `loadMcpConfig` and the bridge tool.                            |
+| `@dltech/atlas-plugin-mcp/control` | `mcpControl`: an empty control slot.                                                                               |
+| `@dltech/atlas-plugin-mcp/client`  | `mcpClient` and `mcpSignInEntries`: the client hook and the sign-in transcript fold.                               |
 
 ## Capabilities
 
@@ -54,6 +54,19 @@ Connects a session to the MCP servers that the operator and the repository confi
 
 - `mcpRosterOfEvents(events)` and `mcpRosterRows(snapshot)`: the `mcp` rows from the events and from a tools snapshot.
 - `mcpSignInEntries`: the transcript episode that pairs `mcp-sign-in-started` with `mcp-sign-in-resolved`.
+
+### Open a sign-in
+
+A sign-in card links to the API start path `MCP_SIGN_IN_START_PATH` (`/mcp-oauth/start/<state>`),
+not to the provider. The client that opens it names itself, and the API returns the callback to that
+client.
+- `signInUrlFor({ url, surface })`: adds `?surface=` with an `EMcpSignInSurface` to a start link. A
+  provider link from an older card stays as it is.
+- `signInStartUrlOf({ publicUrl, state })`: the start link the API writes into the card.
+- `returnSurfaceOf({ state, cookie, recorded })`: the surface the callback returns to. The signed
+  cookie that the start link set in the browser decides. The surface recorded on the pending
+  sign-in is the fallback, for a browser that lost the cookie.
+- `signInSurfaceOf(value)`: reads a surface name, or `undefined`.
 
 ## Plugin contributions
 

@@ -5,8 +5,9 @@ import { NestFactory } from '@nestjs/core'
 import type { NestExpressApplication } from '@nestjs/platform-express'
 import type { AddressInfo } from 'node:net'
 
-import { MCP_OAUTH_CALLBACK, SESSION_STREAM } from '../../host/tokens'
+import { MCP_OAUTH_CALLBACK, MCP_OAUTH_START, SESSION_STREAM } from '../../host/tokens'
 import type { CallbackHandler } from '../../mcp-oauth/callback'
+import type { StartHandler } from '../../mcp-oauth/start'
 import { createSessionStream, type SessionStream } from '../../stream/session-stream'
 import { FakeTimers } from '../../stream/__tests__/fake-timers'
 import { createUserSlots } from '../../stream/user-slots'
@@ -22,7 +23,7 @@ export type RunningHttpApp = {
   close(): Promise<void>
 }
 
-const callbackOf: CallbackHandler = async (query) =>
+const callbackOf: CallbackHandler = async ({ query }) =>
   query.get('state') === null
     ? { kind: 'page', html: '<p>connected</p>' }
     : { kind: 'redirect', location: `${TRUSTED_ORIGIN}/settings/integrations?mcpOauth=connected` }
@@ -36,10 +37,20 @@ class HttpTestModule {
       providers: [
         { provide: SESSION_STREAM, useValue: args.stream },
         { provide: MCP_OAUTH_CALLBACK, useValue: callbackOf },
+        { provide: MCP_OAUTH_START, useValue: startOf },
       ],
     }
   }
 }
+
+const startOf: StartHandler = async ({ state, surface }) =>
+  state === 'gone'
+    ? { kind: 'gone', html: '<p>expired</p>' }
+    : {
+        kind: 'redirect',
+        location: `https://provider.example/authorize?state=${state}`,
+        cookie: `atlas_mcp_sign_in=${surface ?? 'none'}; Path=/mcp-oauth/callback; HttpOnly; Secure; SameSite=Lax`,
+      }
 
 const portOf = (app: NestExpressApplication): number => {
   const server: { address(): AddressInfo | string | null } = app.getHttpServer()
