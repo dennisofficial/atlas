@@ -9,7 +9,7 @@ import {
 } from '@dltech/atlas-commands'
 import { mintEvents } from '@dltech/atlas-client/stream-fixture'
 
-import { frameShowing, frameWhen } from '../../ui/__tests__/waiting'
+import { frameSettled, frameShowing, frameWhen } from '../../ui/__tests__/waiting'
 import { teardown } from '../../ui/markdown/__tests__/harness'
 import { openSession, SESSION_ID, WITHIN } from './app-next-harness'
 import type { McpOauthServer } from '../session-api'
@@ -133,6 +133,13 @@ describe('the mcp panel', () => {
       await run(mounted, 'mcp')
       const frame = await frameShowing({ setup: mounted.setup, text: 'linear', within: WITHIN })
       expect(frame).toContain('needs-auth')
+      await frameWhen({
+        setup: mounted.setup,
+        holds: () => (mounted.client()?.calls.mcpServers ?? 0) > 0,
+        within: WITHIN,
+        describe: 'the server ids to load',
+      })
+      await frameSettled({ setup: mounted.setup })
 
       mounted.setup.mockInput.pressEnter()
       await frameWhen({
