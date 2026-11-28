@@ -10,6 +10,7 @@ import { updatePreviewBrowser } from '@/features/threads/data/preview-browser/us
 
 import { SessionPane } from '../session-pane'
 import { ESessionPaneTab, PANE_TAB_LABEL } from '../pane-tab'
+import { SessionCheckoutScope } from '../checkout-scope'
 import { SessionPaneProvider } from '../pane-value'
 import { paneValueFixture, populatedPaneValue } from './fixture'
 
@@ -30,11 +31,13 @@ afterEach(async () => {
   window.localStorage.clear()
 })
 
-const render = (tab: ESessionPaneTab, value = populatedPaneValue()): string =>
+const render = (tab: ESessionPaneTab | undefined, value = populatedPaneValue()): string =>
   renderToStaticMarkup(
     <TestQueryProvider client={createTestQueryClient()}>
       <SessionPaneProvider value={value}>
-        <SessionPane tab={tab} onTabChange={() => undefined} />
+        <SessionCheckoutScope>
+          <SessionPane tab={tab} onTabChange={() => undefined} />
+        </SessionCheckoutScope>
       </SessionPaneProvider>
     </TestQueryProvider>,
   )
@@ -63,6 +66,12 @@ async function mountWithOpenPages(sessionId: string, pages: string[]) {
 }
 
 describe('SessionPane', () => {
+  it('offers the tools in a launcher until one is picked', () => {
+    const html = render(undefined)
+    expect(html).toContain('data-tool-launcher')
+    for (const label of ['Changes', 'Files', 'Terminal', 'Browser']) expect(html).toContain(label)
+  })
+
   it('lists the five tabs in order', () => {
     const html = render(ESessionPaneTab.Details)
     const positions = Object.values(PANE_TAB_LABEL).map((label) => html.indexOf(`>${label}`))
