@@ -6,7 +6,8 @@ import { CheckIcon, CircleDashedIcon, CircleIcon } from 'lucide-react'
 import type { ReactNode } from 'react'
 import { useState } from 'react'
 
-import { EmptyLine, Row, SectionHead } from './rows'
+import { Row, RowsToggle, SectionHead } from './rows'
+import { Reveal, RevealRows } from './reveal'
 
 const GLYPH: Record<EPlanStatus, ReactNode> = {
   [EPlanStatus.Completed]: (
@@ -40,42 +41,38 @@ const foldLabelOf = (args: { hidden: number; expanded: boolean }): string =>
 
 export function SessionTodoSection(props: { tasks: readonly PlanTask[] }) {
   const [expanded, setExpanded] = useState(false)
-  if (props.tasks.length === 0)
-    return (
-      <section data-session-todo aria-label="Todo" className="flex flex-col">
-        <SectionHead title="Todo" />
-        <EmptyLine>No plan yet</EmptyLine>
-      </section>
-    )
 
   const done = props.tasks.filter((task) => task.status === EPlanStatus.Completed).length
   const fold = foldPlan({ tasks: props.tasks, expanded })
   const handleToggle = () => setExpanded((held) => !held)
 
   return (
-    <section data-session-todo aria-label="Todo" className="flex flex-col">
-      <SectionHead title={`${done} / ${props.tasks.length} tasks`} />
-      {fold.hidden > 0 ? (
-        <button
-          type="button"
-          aria-expanded={expanded}
-          onClick={handleToggle}
-          className="mb-0.5 ml-[1.625rem] w-fit rounded-sm text-[11px] leading-4 text-muted-foreground outline-none hover:text-foreground focus-visible:ring-2 focus-visible:ring-ring/50"
-        >
-          {foldLabelOf({ hidden: fold.hidden, expanded })}
-        </button>
-      ) : null}
-      {fold.shown.map((task) => (
-        <Row
-          key={task.ordinal}
-          leading={GLYPH[task.status]}
-          title={
-            <span className={cn(task.status === EPlanStatus.Pending && 'text-muted-foreground')}>
-              {planTaskLabel(task)}
-            </span>
-          }
+    <Reveal open={props.tasks.length > 0} section>
+      <section data-session-todo aria-label="Todo" className="flex flex-col">
+        <SectionHead title={`${done} / ${props.tasks.length} tasks`} />
+        {fold.hidden > 0 ? (
+          <RowsToggle expanded={expanded} onToggle={handleToggle} beforeRows>
+            {foldLabelOf({ hidden: fold.hidden, expanded })}
+          </RowsToggle>
+        ) : null}
+        <RevealRows
+          rows={fold.shown}
+          rowKey={(task) => task.ordinal}
+          render={(task) => (
+            <Row
+              key={task.ordinal}
+              leading={GLYPH[task.status]}
+              title={
+                <span
+                  className={cn(task.status === EPlanStatus.Pending && 'text-muted-foreground')}
+                >
+                  {planTaskLabel(task)}
+                </span>
+              }
+            />
+          )}
         />
-      ))}
-    </section>
+      </section>
+    </Reveal>
   )
 }

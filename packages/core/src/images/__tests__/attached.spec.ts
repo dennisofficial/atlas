@@ -64,8 +64,9 @@ describe('the tag standing in for a picture in the draft', () => {
 describe('naming a picture the model cannot be shown', () => {
   it('gives the path and the size when both are known', () => {
     expect(imagePathLine({ path: '/tmp/a.png', width: 10, height: 20 })).toBe(
-      '[image /tmp/a.png · 10×20]',
+      '[image /tmp/a.png, 10×20]',
     )
+    expect(imagePathLine({ path: '/tmp/a.png', width: 10, height: 20 })).not.toContain('\u00b7')
   })
 
   it('gives the path alone when the size could not be read', () => {

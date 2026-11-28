@@ -1,0 +1,276 @@
+{
+  "at": 2152,
+  "status": {
+    "state": "running-tool",
+    "reason": "bash",
+    "since": "2026-11-28T03:44:17.182Z",
+    "lease": {
+      "epoch": 122,
+      "holderHostId": 1495,
+      "live": true
+    },
+    "sandbox": {
+      "status": "running",
+      "at": "2026-11-28T03:38:35.634Z"
+    },
+    "sandboxProvider": "agent37",
+    "credentialSource": "platform",
+    "pod": {
+      "shape": {
+        "vcpus": 4,
+        "memoryGb": 16
+      },
+      "desiredShape": {
+        "vcpus": 4,
+        "memoryGb": 16
+      },
+      "desiredVcpus": 4,
+      "actualVcpus": 4,
+      "diskGb": 20,
+      "phase": "steady",
+      "power": {
+        "phase": "steady"
+      },
+      "sizing": {
+        "cap": 8,
+        "offered": [
+          {
+            "vcpus": 2,
+            "memoryGb": 4
+          },
+          {
+            "vcpus": 4,
+            "memoryGb": 8
+          },
+          {
+            "vcpus": 4,
+            "memoryGb": 16
+          },
+          {
+            "vcpus": 4,
+            "memoryGb": 32
+          },
+          {
+            "vcpus": 8,
+            "memoryGb": 64
+          }
+        ],
+        "unavailable": []
+      }
+    }
+  },
+  "context": {
+    "used": 430323,
+    "window": 1000000,
+    "measuredThroughSeq": 2149,
+    "breakdown": [
+      {
+        "label": "System prompt",
+        "tokens": 26556
+      },
+      {
+        "label": "Memory",
+        "tokens": 1460
+      },
+      {
+        "label": "Instructions",
+        "tokens": 7274
+      },
+      {
+        "label": "Tools",
+        "tokens": 13059
+      },
+      {
+        "label": "Tool results",
+        "tokens": 160941
+      },
+      {
+        "label": "Conversation",
+        "tokens": 221033
+      }
+    ]
+  },
+  "spend": {
+    "rows": [
+      {
+        "providerId": "anthropic",
+        "modelId": "claude-opus-5-5",
+        "inputTokens": 95266078,
+        "outputTokens": 206309,
+        "cacheReadTokens": 88642651,
+        "cacheWriteTokens": 6622502,
+        "costUsd": 54.970920199999995,
+        "unpricedTokens": {
+          "inputTokens": 0,
+          "outputTokens": 0,
+          "cacheReadTokens": 0,
+          "cacheWriteTokens": 0
+        }
+      }
+    ],
+    "tally": {
+      "inputTokens": 95266078,
+      "outputTokens": 206309,
+      "cacheReadTokens": 88642651,
+      "cacheWriteTokens": 6622502,
+      "uncachedInputTokens": 6623427,
+      "costUsd": 54.970920199999995
+    }
+  },
+  "compute": {
+    "costUsd": 0.270122434,
+    "running": true,
+    "tick": {
+      "at": 1795837654991,
+      "rateUsdPerHour": 0.017534246575342468
+    }
+  },
+  "checkouts": {
+    "repos": [],
+    "primary": null
+  },
+  "pullRequests": [
+    {
+      "repo": "dennisofficial/atlas",
+      "number": 3160,
+      "url": "https://github.com/dennisofficial/atlas/pull/3160",
+      "branch": "dennis/atlas-2-0-0",
+      "state": {
+        "title": "fix!: atlas 2.0.0 with the graphite palette on every surface",
+        "state": "open",
+        "headSha": "854edbe3277dd2c4c57507c52fea075887cf8dee",
+        "checks": {
+          "running": 0,
+          "passed": 14,
+          "failed": 0,
+          "expected": 0
+        },
+        "mergeable": false,
+        "mergeQueued": false,
+        "autoMerge": false,
+        "updatedAt": "2026-11-28T03:44:34.500Z"
+      }
+    },
+    {
+      "repo": "dennisofficial/atlas",
+      "number": 3155,
+      "url": "https://github.com/dennisofficial/atlas/pull/3155",
+      "branch": "dennis/native-splash-graphite",
+      "state": {
+        "title": "fix(brand): monochrome app icons, favicons and splash",
+        "state": "merged",
+        "headSha": "757cd659a3901c60867654bfc49ea4d5670c2fd0",
+        "checks": {
+          "running": 0,
+          "passed": 14,
+          "failed": 0,
+          "expected": 0
+        },
+        "mergeable": true,
+        "mergeQueued": false,
+        "autoMerge": false,
+        "updatedAt": "2026-11-28T03:44:08.537Z"
+      }
+    },
+    {
+      "repo": "dennisofficial/atlas",
+      "number": 3164,
+      "url": "https://github.com/dennisofficial/atlas/pull/3164",
+      "branch": "dennis/sidebar-white-accent",
+      "state": {
+        "title": "fix(ui): monochrome primary, outlined inline code and softer dark text",
+        "state": "merged",
+        "headSha": "c51e9fce1303ccf053e780861dcc80b19ae9d160",
+        "checks": {
+          "running": 0,
+          "passed": 14,
+          "failed": 0,
+          "expected": 0
+        },
+        "mergeable": true,
+        "mergeQueued": false,
+        "autoMerge": false,
+        "updatedAt": "2026-11-28T03:44:00.550Z"
+      }
+    },
+    {
+      "repo": "dennisofficial/atlas",
+      "number": 3130,
+      "url": "https://github.com/dennisofficial/atlas/pull/3130",
+      "branch": "dennis/mac-native-model-picker",
+      "state": {
+        "title": "feat(mac): native model picker panel",
+        "state": "merged",
+        "headSha": "907ed13bc3c486ddc87bdad2e8b447afa2cef84f",
+        "checks": {
+          "running": 0,
+          "passed": 14,
+          "failed": 0,
+          "expected": 0
+        },
+        "mergeable": true,
+        "mergeQueued": false,
+        "autoMerge": false,
+        "updatedAt": "2026-11-28T00:53:41.981Z"
+      }
+    },
+    {
+      "repo": "dennisofficial/atlas",
+      "number": 3148,
+      "url": "https://github.com/dennisofficial/atlas/pull/3148",
+      "branch": "dennis/test-dom-react-preload",
+      "state": {
+        "title": "fix(web): load react-dom with a DOM in the test preload and keep the transcript spec offline",
+        "state": "merged",
+        "headSha": "414e30a5a1f73d3f09b63397344c3f18a3ac032c",
+        "checks": {
+          "running": 0,
+          "passed": 14,
+          "failed": 0,
+          "expected": 0
+        },
+        "mergeable": true,
+        "mergeQueued": false,
+        "autoMerge": false,
+        "updatedAt": "2026-11-28T00:48:05.892Z"
+      }
+    },
+    {
+      "repo": "dennisofficial/atlas",
+      "number": 3145,
+      "url": "https://github.com/dennisofficial/atlas/pull/3145",
+      "branch": "dennis/monochrome-theme",
+      "state": {
+        "title": "fix(web): soft graphite theme, floating session details and an on-demand tools panel",
+        "state": "merged",
+        "headSha": "3809dcbad6b5fc69bca0e2c59d7a24e113a32cb2",
+        "checks": {
+          "running": 0,
+          "passed": 14,
+          "failed": 0,
+          "expected": 0
+        },
+        "mergeable": true,
+        "mergeQueued": false,
+        "autoMerge": false,
+        "updatedAt": "2026-11-28T00:22:32.332Z"
+      }
+    }
+  ],
+  "subscriptions": [
+    {
+      "id": "k2jjpr4jj00gs12lsludx8f0",
+      "threadId": "ff67ec3e-d75d-49be-a713-1aa7dd591f2b",
+      "provider": "github.pull-request",
+      "target": {
+        "repo": "github.com/dennisofficial/atlas",
+        "number": 3160
+      },
+      "label": "dennisofficial/atlas#3160",
+      "events": [],
+      "createdBy": "agent",
+      "createdAt": "2026-11-28T03:19:36.914Z"
+    }
+  ],
+  "pluginViews": {}
+}

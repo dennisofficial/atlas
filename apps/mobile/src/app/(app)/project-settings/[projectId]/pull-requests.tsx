@@ -30,9 +30,7 @@ const TrackingSection = ({ project }: { project: Project }) => {
       {repos.map((binding) => (
         <Row
           key={binding.repo}
-          label={
-            binding.branch === undefined ? binding.repo : `${binding.repo} · ${binding.branch}`
-          }
+          label={binding.branch === undefined ? binding.repo : `${binding.repo}, ${binding.branch}`}
           value={TRACKING_LABELS[binding.tracking]}
           mono
         />

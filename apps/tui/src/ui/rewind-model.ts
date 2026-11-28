@@ -225,7 +225,7 @@ export function verbConsequence(args: { state: RewindState; verb: ERewindVerb })
   const count = messagesAffected(args)
 
   if (args.verb === ERewindVerb.SummariseUpTo)
-    return `${plural({ count, noun: 'earlier message' })} and their replies become one summary · deletes rows`
+    return `${plural({ count, noun: 'earlier message' })} and their replies become one summary, deletes rows`
 
   return rewindConsequence({ state: args.state, count })
 }

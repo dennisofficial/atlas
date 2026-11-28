@@ -102,7 +102,7 @@ export function ContextBreakdown({
           <li key={row.label} className="flex items-center justify-between gap-3">
             <span className="truncate">{row.label}</span>
             <span className="shrink-0 tabular-nums">
-              {`${formatTokens(row.tokens)} · ${breakdownPercentOf({ tokens: row.tokens, limit })}%`}
+              {`${formatTokens(row.tokens)}, ${breakdownPercentOf({ tokens: row.tokens, limit })}%`}
             </span>
           </li>
         ))}

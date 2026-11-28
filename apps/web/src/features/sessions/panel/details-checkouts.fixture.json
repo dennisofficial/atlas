@@ -1,0 +1,45 @@
+{
+  "repos": [
+    {
+      "repo": "/atlas/workspaces/atlas",
+      "base": "main",
+      "head": "main",
+      "branches": [
+        {
+          "name": "dennis/atlas-2-0-0",
+          "sha": "854edbe3277dd2c4c57507c52fea075887cf8dee",
+          "worktreePath": "/atlas/workspaces/atlas/.atlas/worktrees/dennis/atlas-2-0-0"
+        },
+        {
+          "name": "dennis/mac-native-model-picker",
+          "sha": "907ed13bc3c486ddc87bdad2e8b447afa2cef84f",
+          "worktreePath": "/atlas/workspaces/atlas/.atlas/worktrees/dennis/mac-native-model-picker"
+        },
+        {
+          "name": "dennis/monochrome-theme",
+          "sha": "3809dcbad6b5fc69bca0e2c59d7a24e113a32cb2",
+          "worktreePath": null
+        },
+        {
+          "name": "dennis/native-splash-graphite",
+          "sha": "757cd659a3901c60867654bfc49ea4d5670c2fd0",
+          "worktreePath": "/atlas/workspaces/atlas/.atlas/worktrees/dennis/native-splash-graphite"
+        },
+        {
+          "name": "dennis/sidebar-white-accent",
+          "sha": "c51e9fce1303ccf053e780861dcc80b19ae9d160",
+          "worktreePath": "/atlas/workspaces/atlas/.atlas/worktrees/dennis/monochrome-theme"
+        },
+        {
+          "name": "dennis/test-dom-react-preload",
+          "sha": "414e30a5a1f73d3f09b63397344c3f18a3ac032c",
+          "worktreePath": null
+        }
+      ]
+    }
+  ],
+  "primary": {
+    "repo": "/atlas/workspaces/atlas",
+    "branch": "dennis/sidebar-white-accent"
+  }
+}

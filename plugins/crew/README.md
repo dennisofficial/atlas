@@ -19,12 +19,12 @@ Gives a thread its sub-agents and its git worktrees. The main thread starts a su
 
 ## Entry points
 
-| Import                              | Use it for                                                                                      |
-| ----------------------------------- | ----------------------------------------------------------------------------------------------- |
-| `@dltech/atlas-plugin-crew/core`    | The `crew` view fold, the row schema, the built-in agent types and the repository agent parser. |
-| `@dltech/atlas-plugin-crew/pod`     | `crewPod`: the tools, the repository agent type resource, the hooks and the prompt fragment.    |
-| `@dltech/atlas-plugin-crew/control` | `crewControl`: an empty control slot.                                                           |
-| `@dltech/atlas-plugin-crew/client`  | `crewClient`, `crewOfView`, `crewRosterOf` and the `CrewRow` and `CrewRoster` types.            |
+| Import                              | Use it for                                                                                                                    |
+| ----------------------------------- | ----------------------------------------------------------------------------------------------------------------------------- |
+| `@dltech/atlas-plugin-crew/core`    | The `crew` view fold, the row schema, the built-in agent types and the repository agent parser.                               |
+| `@dltech/atlas-plugin-crew/pod`     | `crewPod`: the tools, the repository agent type resource, the hooks and the prompt fragment.                                  |
+| `@dltech/atlas-plugin-crew/control` | `crewControl`: an empty control slot.                                                                                         |
+| `@dltech/atlas-plugin-crew/client`  | `crewClient`, `crewOfView`, `crewRosterOf`, `orderedCrewRows`, `isActiveCrewStatus` and the `CrewRow` and `CrewRoster` types. |
 
 ## Capabilities
 
@@ -107,6 +107,8 @@ appends one `command-applied` row naming its inbox id, so a new holder knows it 
 `/agent say` posts the same text under the inbox id as its `clientId`, so the child gets it once.
 
 ### Client tier (`crewClient`)
+
+`orderedCrewRows(rows)` returns a new array with Running, WaitingForModel, Blocked and Paused first, in that order and newest start first within each status. Ended rows follow by newest end, falling back to start and breaking ties by newest start. Exact ties keep their input order. `isActiveCrewStatus(status)` identifies the four active statuses so clients can keep every active row visible when folding a list.
 
 | Kind | Name          | What it adds                                      |
 | ---- | ------------- | ------------------------------------------------- |

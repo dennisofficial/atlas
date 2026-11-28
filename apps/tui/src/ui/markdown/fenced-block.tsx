@@ -13,7 +13,7 @@ const CHROME = PANEL_INSET + PANEL_PAD
 
 const RIGHT_MARGIN = 2
 
-const SEPARATOR = ' · '
+const SEPARATOR = '   '
 
 export function fenceColumns(source: string): number {
   return Math.max(0, ...source.split('\n').map((line) => line.length))

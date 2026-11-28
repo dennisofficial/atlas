@@ -1,3 +1,4 @@
+import { EAgentStatus } from '@dltech/atlas-core'
 import {
   Circle,
   CircleAlert,
@@ -65,6 +66,29 @@ const PRESENTATION: Record<EThreadStatus, StatusPresentation> = {
     className: 'text-muted-foreground',
     Icon: GitPullRequestClosed,
   },
+}
+
+const mutedCircle: StatusPresentation = {
+  ...PRESENTATION[EThreadStatus.Idle],
+  className: PRESENTATION[EThreadStatus.PrClosed].className,
+}
+
+const AGENT_PRESENTATION: Record<EAgentStatus, StatusPresentation> = {
+  [EAgentStatus.Running]: { ...PRESENTATION[EThreadStatus.Running], label: 'Running' },
+  [EAgentStatus.WaitingForModel]: {
+    ...PRESENTATION[EThreadStatus.Awaiting],
+    label: 'Waiting for model',
+  },
+  [EAgentStatus.Blocked]: { ...PRESENTATION[EThreadStatus.Awaiting], label: 'Blocked' },
+  [EAgentStatus.Failed]: PRESENTATION[EThreadStatus.Failed],
+  [EAgentStatus.Finished]: { ...mutedCircle, label: 'Finished' },
+  [EAgentStatus.Stopped]: { ...mutedCircle, label: 'Stopped' },
+  [EAgentStatus.Paused]: { ...mutedCircle, label: 'Paused' },
+}
+
+export function AgentStatusIcon({ status }: { status: EAgentStatus }) {
+  const { label, className, Icon } = AGENT_PRESENTATION[status]
+  return <Icon role="img" aria-label={label} className={cn('size-3.5 shrink-0', className)} />
 }
 
 export function ThreadStatusIcon({

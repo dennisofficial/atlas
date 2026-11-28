@@ -83,7 +83,7 @@ export const NOTIFY_DEVICE_KIND_LABELS: Record<ENotifyDeviceKind, string> = {
 }
 
 export const notifyDeviceDetailOf = (args: { kind: ENotifyDeviceKind; enabled: boolean }): string =>
-  `${NOTIFY_DEVICE_KIND_LABELS[args.kind] ?? args.kind} · ${args.enabled ? 'On' : 'Off'}`
+  `${NOTIFY_DEVICE_KIND_LABELS[args.kind] ?? args.kind}, ${args.enabled ? 'On' : 'Off'}`
 
 export const withDeviceEnabled = (args: {
   overrides: Readonly<Record<string, boolean>>

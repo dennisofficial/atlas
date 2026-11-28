@@ -57,7 +57,7 @@ export function humanBytes(byteLength: number): string {
 const dimensionsOf = (image: ReadImage): string | null =>
   image.width === null || image.height === null ? null : `${image.width}×${image.height}`
 
-const SEPARATOR = ' · '
+const SEPARATOR = ', '
 
 export function imageSummary(args: { call: ToolCall; cwd: string }): string | null {
   const image = imageOf(args.call)

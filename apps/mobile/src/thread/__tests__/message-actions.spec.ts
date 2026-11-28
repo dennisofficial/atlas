@@ -168,7 +168,7 @@ describe('rewindConfirmOf', () => {
       rewindConfirmOf([kill('agent', 'Fix the bug', true), kill('shell', 'bun test', false)]),
     ).toEqual({
       title: REWIND_CONFIRM_TITLE,
-      message: `${REWIND_CONFIRM_DESCRIPTION}\n\nAgent · Fix the bug (running)\nShell · bun test`,
+      message: `${REWIND_CONFIRM_DESCRIPTION}\n\nAgent: Fix the bug (running)\nShell: bun test`,
     })
   })
 })

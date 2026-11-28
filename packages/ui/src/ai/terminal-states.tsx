@@ -24,7 +24,7 @@ interface HeaderInput {
 }
 
 function suffixOf(detail?: string): string {
-  return detail ? ` · ${detail}` : ''
+  return detail ? `, ${detail}` : ''
 }
 
 export function connectionLabel({ connection, noun, detail }: HeaderInput): string {

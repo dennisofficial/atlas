@@ -73,7 +73,7 @@ function KeyForm({
     <>
       <DialogHeader>
         <DialogTitle>
-          {TITLES[mode]} · {providerName}
+          {TITLES[mode]} for {providerName}
         </DialogTitle>
         {asksKey ? (
           <DialogDescription>

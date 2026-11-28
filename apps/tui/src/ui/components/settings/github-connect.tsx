@@ -22,7 +22,7 @@ const STATUS_LABEL: Readonly<Record<ESettingsLogin, string | null>> = {
   [ESettingsLogin.Idle]: null,
   [ESettingsLogin.Asking]: 'starting GitHub sign-in…',
   [ESettingsLogin.Prompting]: 'code below — waiting for approval…',
-  [ESettingsLogin.Browser]: 'waiting for browser · ⏎ to use a code',
+  [ESettingsLogin.Browser]: 'waiting for browser   ⏎ to use a code',
   [ESettingsLogin.Finishing]: 'connecting…',
 }
 
@@ -38,11 +38,11 @@ const valueOf = (args: { signedIn: boolean; view: GithubAccountView }): Span[] =
   if (view.connection !== null) {
     return [
       { text: `@${view.connection.login}`, fg: theme.hover },
-      { text: ' · connected · ⏎ to disconnect', fg: theme.hint },
+      { text: '   connected   ⏎ to disconnect', fg: theme.hint },
     ]
   }
 
-  return [{ text: 'not connected · ⏎ to connect', fg: theme.hint }]
+  return [{ text: 'not connected   ⏎ to connect', fg: theme.hint }]
 }
 
 export function GithubRow(props: {

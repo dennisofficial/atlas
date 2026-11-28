@@ -87,8 +87,14 @@ export function oomSignalLabel({
   return oomKills === 0 ? kills : `${kills} (${processCount(oomKills)})`
 }
 
-export const commandMemorySuffix = (commandRamLimitGb: number | undefined): string =>
-  commandRamLimitGb === undefined ? '' : ` · commands ≤ ${gigabytes(commandRamLimitGb)} GB`
+export const oomKillsLabelOf = (args: {
+  oomEvents?: number | undefined
+  oomKills: number
+}): string | null => {
+  const count = args.oomEvents ?? args.oomKills
+  if (count === 0) return null
+  return count === 1 ? '1 out-of-memory kill' : `${count} out-of-memory kills`
+}
 
 export function podMetricViewOf({
   series,

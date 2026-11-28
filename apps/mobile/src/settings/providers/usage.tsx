@@ -22,10 +22,17 @@ export function ProviderUsage({ accountId }: { accountId: string }) {
     <View accessibilityLabel="Plan usage" style={{ padding: 16, gap: 8 }}>
       {providerUsageWindowsOf({ report: data, now }).map((window) => (
         <View key={window.key} style={{ gap: 4 }}>
-          <Text
-            size={ETextRole.Xs}
-            tone={ETextTone.Muted}
-          >{`${window.label} · ${window.text}${window.countdown ? ` · resets in ${window.countdown}` : ''}`}</Text>
+          <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 8 }}>
+            <Text size={ETextRole.Xs} tone={ETextTone.Muted}>
+              {window.label}
+            </Text>
+            <Text size={ETextRole.Xs}>{window.text}</Text>
+            {window.countdown ? (
+              <Text size={ETextRole.Xs} tone={ETextTone.Muted}>
+                {`resets in ${window.countdown}`}
+              </Text>
+            ) : null}
+          </View>
           {window.utilization === null ? null : (
             <View style={{ height: 4, backgroundColor: theme.muted, borderRadius: 2 }}>
               <View

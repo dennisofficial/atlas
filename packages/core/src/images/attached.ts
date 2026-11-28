@@ -13,7 +13,7 @@ export const base64Bytes = (data: string): number => Math.floor((data.length * 3
 export const imagePathLine = (image: ImageOnDisk): string =>
   image.width === undefined || image.height === undefined
     ? `[image ${image.path}]`
-    : `[image ${image.path} · ${image.width}×${image.height}]`
+    : `[image ${image.path}, ${image.width}×${image.height}]`
 
 /**
  * A picture the model can neither be shown nor be given a path to. Spelled differently from

@@ -41,7 +41,7 @@ const subscriptionRows = (): readonly SubscriptionRow[] => [
       icon: 'git-pull-request',
       tone: ESubscriptionTone.Open,
       title: '#2443 Pluggable sandbox providers',
-      meta: ['Pull request', 'comments · CI'],
+      meta: ['Pull request', 'comments, CI'],
     },
   }),
   subscriptionRowFixture({

@@ -27,44 +27,45 @@ describe('counting down to the next attempt', () => {
   })
 
   it('names what went wrong, the seconds left and which attempt is coming', () => {
+    expect(retryLabel({ retry: waiting(), now: 1_000 })).not.toContain('\u00b7')
     expect(retryLabel({ retry: waiting(), now: 1_000 })).toBe(
-      'API error · Retrying in 4s · attempt 1/10',
+      'API error   Retrying in 4s   attempt 1/10',
     )
   })
 
   it('rounds a part second up, so the count never shows zero while it still waits', () => {
     expect(retryLabel({ retry: waiting(), now: 4_900 })).toBe(
-      'API error · Retrying in 1s · attempt 1/10',
+      'API error   Retrying in 1s   attempt 1/10',
     )
   })
 
   it('says it is going again once the wait is spent', () => {
     expect(retryLabel({ retry: waiting(), now: 5_000 })).toBe(
-      'API error · Retrying now · attempt 1/10',
+      'API error   Retrying now   attempt 1/10',
     )
   })
 
   it('carries the attempt it is on', () => {
     expect(retryLabel({ retry: waiting({ attempt: 7 }), now: 1_000 })).toBe(
-      'API error · Retrying in 4s · attempt 7/10',
+      'API error   Retrying in 4s   attempt 7/10',
     )
   })
 
   it('tells a rate limit apart from a server error', () => {
     expect(retryLabel({ retry: waiting({ reason: ERetryReason.RateLimited }), now: 1_000 })).toBe(
-      'Rate limited · Retrying in 4s · attempt 1/10',
+      'Rate limited   Retrying in 4s   attempt 1/10',
     )
   })
 
   it('says the capacity ran out rather than blaming the request', () => {
     expect(retryLabel({ retry: waiting({ reason: ERetryReason.Overloaded }), now: 1_000 })).toBe(
-      'API overloaded · Retrying in 4s · attempt 1/10',
+      'API overloaded   Retrying in 4s   attempt 1/10',
     )
   })
 
   it('names a stalled request rather than an API fault', () => {
     expect(retryLabel({ retry: waiting({ reason: ERetryReason.Network }), now: 1_000 })).toBe(
-      'No response from provider · Retrying in 4s · attempt 1/10',
+      'No response from provider   Retrying in 4s   attempt 1/10',
     )
   })
 })

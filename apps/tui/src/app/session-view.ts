@@ -1,6 +1,6 @@
 import type { PlanTask, SpendTally } from '@dltech/atlas-core'
 import { EServiceStatus, EShellStatus } from '@dltech/atlas-core'
-import { crewOfView, type CrewRow } from '@dltech/atlas-plugin-crew/client'
+import { crewOfView, orderedCrewRows, type CrewRow } from '@dltech/atlas-plugin-crew/client'
 import { planOfView } from '@dltech/atlas-plugin-sessions/client'
 import {
   previewsOfView,
@@ -86,7 +86,7 @@ export const panesOfView = (view: SessionViewOutput | undefined): SessionPanes =
   if (view === undefined) return EMPTY_PANES
 
   return {
-    crew: crewOfView(view.pluginViews),
+    crew: orderedCrewRows(crewOfView(view.pluginViews)),
     shells: orderedShellRows(shellsOfView(view.pluginViews)),
     services: orderedServiceRows(servicesOfView(view.pluginViews)),
     previews: previewsOfView(view.pluginViews),

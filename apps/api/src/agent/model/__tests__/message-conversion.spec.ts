@@ -462,7 +462,7 @@ describe('toModelMessage with a media part', () => {
 
     expect(toModelMessage(message)).toEqual({
       role: 'user',
-      content: [{ type: 'text', text: '[image /tmp/shot.png · 640×480]' }],
+      content: [{ type: 'text', text: '[image /tmp/shot.png, 640×480]' }],
     })
   })
 

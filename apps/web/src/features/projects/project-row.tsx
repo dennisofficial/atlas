@@ -30,7 +30,6 @@ export function ProjectRow({ project }: { project: Project }) {
           <span className="truncate text-sm font-medium">{project.name}</span>
           <span className="flex items-center gap-1.5 text-xs text-muted-foreground">
             <span className="truncate font-mono">{project.repo ?? NO_REPOSITORY_LABEL}</span>
-            <span aria-hidden>·</span>
             <span className="shrink-0">Updated {relativeTime({ from: project.updatedAt })}</span>
           </span>
         </span>

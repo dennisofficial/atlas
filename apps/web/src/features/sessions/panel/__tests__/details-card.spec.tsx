@@ -28,7 +28,8 @@ describe('SessionDetailsCard', () => {
     const html = render(true)
     expect(html).toContain('data-session-details-card')
     expect(html).toContain('data-session-details')
-    expect(html).toContain('Rebase ui on shadcn base-nova')
+    expect(html).not.toContain('Rebase ui on shadcn base-nova')
+    expect(html).not.toContain('data-session-state')
     expect(html).toContain('data-details-changes')
   })
 

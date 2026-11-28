@@ -102,7 +102,7 @@ export function shellElapsedMs(args: { shell: ShellSnapshot; now: number }): num
   return Math.max(0, (settledAt(args.shell) ?? args.now) - started)
 }
 
-const READOUT_SEPARATOR = ' · '
+const READOUT_SEPARATOR = '   '
 
 export function shellReadout(args: { shell: ShellSnapshot; now: number }): string {
   const state = shellStateLabel(args.shell)

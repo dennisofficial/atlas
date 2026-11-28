@@ -117,7 +117,7 @@ describe('ChangesPanel', () => {
   })
 
   it('shows the active scope with its detail in the footer', () => {
-    expect(render()).toContain('All changes · 4 commits ahead of origin/main')
+    expect(render()).toContain('All changes, 4 commits ahead of origin/main')
   })
 
   it('says so when the scope has no changes', () => {

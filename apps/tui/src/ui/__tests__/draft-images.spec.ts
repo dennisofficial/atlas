@@ -65,7 +65,7 @@ describe('what the draft becomes on send', () => {
     })
 
     expect(sending.images).toEqual([])
-    expect(sending.text).toBe('look at [image /tmp/atlas/shot.png · 560×280] closely')
+    expect(sending.text).toBe('look at [image /tmp/atlas/shot.png, 560×280] closely')
   })
 
   it('falls back to the path when the bytes have gone missing since the paste', () => {

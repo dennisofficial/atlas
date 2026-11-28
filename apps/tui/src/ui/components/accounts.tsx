@@ -72,7 +72,7 @@ function LoginLine(props: {
                 fg: props.active ? theme.accent : expired ? theme.dim : theme.hint,
               },
               { text: props.account.label, fg: expired ? theme.dim : theme.hover },
-              ...(detail.length === 0 ? [] : [{ text: ` · ${detail}`, fg: theme.hint }]),
+              ...(detail.length === 0 ? [] : [{ text: `   ${detail}`, fg: theme.hint }]),
             ],
             cells: props.cells,
           })}

@@ -316,9 +316,10 @@ describe('PodPaneSection', () => {
     expect(html).toContain('2 out-of-memory kills (3 processes)')
   })
 
-  it('shows the command memory limit beside the pod RAM', () => {
+  it('shows only used and total pod RAM', () => {
     const html = renderToStaticMarkup(sectionOf({ series: [sample({ commandRamLimitGb: 2.3 })] }))
-    expect(html).toContain('3 / 16 GB · commands ≤ 2.3 GB')
+    expect(html).toContain('3 / 16 GB')
+    expect(html).not.toContain('commands ≤')
   })
 
   it('offers to start a parked pod instead of stopping it', () => {
@@ -331,20 +332,20 @@ describe('PodPaneSection', () => {
     const html = renderToStaticMarkup(sectionOf({ agent37: true, series: [diskSample()] }))
     expect(html).toContain('Disk')
     expect(html).toContain('14.2 / 20 GB')
-    expect(html).toContain('aria-label="Increase disk"')
+    expect(html).toContain('aria-label="Disk size"')
   })
 
   it('keeps the grow control off a pod whose provider has no disk to grow', () => {
     const html = renderToStaticMarkup(sectionOf({ agent37: false, series: [diskSample()] }))
     expect(html).toContain('Disk')
-    expect(html).not.toContain('aria-label="Increase disk"')
+    expect(html).not.toContain('aria-label="Disk size"')
   })
 
   it('does not echo the pending size below the chart', () => {
     const html = renderToStaticMarkup(sectionOf({ pendingShape: { vcpus: 8, memoryGb: 64 } }))
     expect(html).toContain('Resizing…')
     expect(html.indexOf('Resizing…')).toBeLessThan(html.indexOf('CPU'))
-    expect(html.match(/8 vCPU · 64 GB/g)).toHaveLength(1)
+    expect(html.match(/8 vCPU, 64 GB/g)).toHaveLength(1)
   })
 
   it('offers resize now and cancel while the resize waits for idle', async () => {
@@ -359,7 +360,7 @@ describe('PodPaneSection', () => {
       }),
     )
     expect(document.body.textContent).toContain('Waiting for idle…')
-    expect(document.body.textContent).toContain('Resizes to 8 vCPU · 64 GB when the pod is idle.')
+    expect(document.body.textContent).toContain('Resizes to 8 vCPU, 64 GB when the pod is idle.')
     await click(buttonNamed('Resize now'))
     expect(onResizeNow).toHaveBeenCalledTimes(1)
     await click(buttonNamed('Cancel'))

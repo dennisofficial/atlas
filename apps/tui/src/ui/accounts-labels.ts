@@ -33,7 +33,7 @@ export function accountDetail(account: Account): string {
     statusLabel(account),
   ]
 
-  return parts.filter((part): part is string => part !== null).join(' · ')
+  return parts.filter((part): part is string => part !== null).join('   ')
 }
 
 const FLOW_LABEL: Readonly<Record<ELoginFlow, string>> = {
@@ -50,7 +50,7 @@ export const signInFlows = (provider: EAuthProvider): readonly string[] => [
 export const signedOutDetail = (provider: EAuthProvider): string =>
   ['not signed in', signInFlows(provider).join(' or ')]
     .filter((part) => part.length > 0)
-    .join(' · ')
+    .join('   ')
 
 const ACTION_LABEL: Readonly<Record<EProviderAction, string>> = {
   [EProviderAction.SignIn]: 'Sign in',

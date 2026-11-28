@@ -70,6 +70,6 @@ describe('detailsTextOf', () => {
     expect(text).toContain('Reference: err_generated')
     expect(text).toContain('Request: req_abc')
     expect(text).toContain('URL: https://byatlas.io/sessions/1')
-    expect(text).toContain('Interface 1.179.4 · 5cc4b0e')
+    expect(text).toContain('Interface 1.179.4, 5cc4b0e')
   })
 })

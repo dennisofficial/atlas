@@ -35,7 +35,7 @@ describe('the compaction divider', () => {
 
     try {
       const frame = setup.captureCharFrame()
-      expect(frame).toContain('context compacted · 154 earlier entries summarised')
+      expect(frame).toContain('context compacted   154 earlier entries summarised')
       expect(frame).toContain('summary hidden')
       expect(frame).not.toContain('Notes to self')
     } finally {

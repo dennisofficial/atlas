@@ -20,9 +20,9 @@ describe('connectionLabel', () => {
       connectionLabel({
         connection: Connected,
         noun: 'pod',
-        detail: '4 vCPU · 8 GB',
+        detail: '4 vCPU, 8 GB',
       }),
-    ).toBe('Connected to pod · 4 vCPU · 8 GB')
+    ).toBe('Connected to pod, 4 vCPU, 8 GB')
     expect(connectionLabel({ connection: Paused, noun: 'pod' })).toBe('Pod paused')
     expect(connectionLabel({ connection: Disconnected, noun: 'sandbox' })).toBe(
       'Disconnected from sandbox',
@@ -34,7 +34,7 @@ describe('terminal chrome', () => {
   it('renders the header label', () => {
     expect(
       renderToStaticMarkup(<ConnectionHeader connection={Paused} detail="2 vCPU" />),
-    ).toContain('Pod paused · 2 vCPU')
+    ).toContain('Pod paused, 2 vCPU')
   })
 
   it('offers resume and reconnect actions', () => {

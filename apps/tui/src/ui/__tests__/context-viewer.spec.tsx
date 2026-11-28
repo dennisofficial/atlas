@@ -55,7 +55,7 @@ describe('the context viewer', () => {
       expect(frame).toContain('plan.md')
       expect(frame).toContain('first line')
       expect(frame).toContain('second line')
-      expect(frame).toContain('pgup/pgdn page · esc to close')
+      expect(frame).toContain('pgup/pgdn page   esc to close')
     } finally {
       await teardown(setup)
     }
@@ -159,7 +159,7 @@ describe('the context viewer', () => {
     )
     try {
       await setup.flush()
-      expect(setup.captureCharFrame()).toContain('the file is binary · 3 bytes')
+      expect(setup.captureCharFrame()).toContain('the file is binary   3 bytes')
     } finally {
       await teardown(setup)
     }

@@ -6,4 +6,4 @@ const sized = (attachment: Attachment): string | null => {
 }
 
 export const saidImageText = (attachment: Attachment): string =>
-  [attachment.name, sized(attachment)].filter((part): part is string => part !== null).join(' · ')
+  [attachment.name, sized(attachment)].filter((part): part is string => part !== null).join('   ')

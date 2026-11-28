@@ -113,6 +113,7 @@ describe('size and disk selections', () => {
       withAccountDefault: true,
     })
     expect(withDefault[0]).toMatchObject({ value: INHERIT_VALUE, label: 'Default' })
+    expect(withDefault[0]?.detail).not.toContain('\u00b7')
     expect(
       sandboxSizeOptionsOf({ inherited: DEFAULT_SANDBOX_SIZE, withAccountDefault: false })[0]
         ?.value,

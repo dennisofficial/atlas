@@ -38,8 +38,8 @@ describe('vercel pod shapes', () => {
 
 describe('pod shape labels', () => {
   it('names both values, since several sizes share a vCPU count', () => {
-    expect(podShapeLabel({ vcpus: 4, memoryGb: 16 })).toBe('4 vCPU · 16 GB')
-    expect(podShapeLabel({ vcpus: 4, memoryGb: 8 })).toBe('4 vCPU · 8 GB')
+    expect(podShapeLabel({ vcpus: 4, memoryGb: 16 })).toBe('4 vCPU, 16 GB')
+    expect(podShapeLabel({ vcpus: 4, memoryGb: 8 })).toBe('4 vCPU, 8 GB')
   })
 
   it('tells two shapes with the same vCPU count apart', () => {

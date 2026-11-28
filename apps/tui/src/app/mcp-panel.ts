@@ -104,8 +104,8 @@ export const mcpSignInRowOf = (args: {
 const serverDetail = (row: McpServerRow): string => {
   const tools = `${row.toolCount} ${row.toolCount === 1 ? 'tool' : 'tools'}`
   return row.reason === undefined
-    ? `${row.status} · ${tools}`
-    : `${row.status} · ${tools} — ${row.reason}`
+    ? `${row.status}   ${tools}`
+    : `${row.status}   ${tools} — ${row.reason}`
 }
 
 export const mcpPanelOf = (args: {

@@ -130,9 +130,12 @@ const AccountContent = ({
         {rows.map((row) => (
           <CardRow key={row.provider}>
             <View style={styles.method}>
-              <Text size={ETextRole.Sm}>
-                {row.label} · {row.badge}
-              </Text>
+              <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 8 }}>
+                <Text size={ETextRole.Sm}>{row.label}</Text>
+                <Text size={ETextRole.Sm} tone={ETextTone.Muted}>
+                  {row.badge}
+                </Text>
+              </View>
               <Text size={ETextRole.Sm} tone={ETextTone.Muted}>
                 {row.description}
               </Text>

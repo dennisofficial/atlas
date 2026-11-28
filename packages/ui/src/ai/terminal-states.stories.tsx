@@ -11,7 +11,7 @@ import {
 const meta = {
   title: 'AI/Terminal States',
   component: ConnectionHeader,
-  args: { connection: ETerminalConnection.Connected, detail: '4 vCPU · 8 GB' },
+  args: { connection: ETerminalConnection.Connected, detail: '4 vCPU, 8 GB' },
   parameters: { layout: 'centered' },
   decorators: [
     (Story) => (

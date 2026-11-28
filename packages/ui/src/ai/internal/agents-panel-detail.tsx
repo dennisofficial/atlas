@@ -29,13 +29,9 @@ function DetailHeader({ agent }: { agent: AgentsPanelAgent }) {
           {agentDisplayLabel(agent.display)}
         </Badge>
         <span>{agent.model}</span>
-        <span aria-hidden>·</span>
         <span className="tabular-nums">{agent.elapsed}</span>
         {agent.context ? (
-          <>
-            <span aria-hidden>·</span>
-            <span className="tabular-nums">{formatContext(agent.context)}</span>
-          </>
+          <span className="tabular-nums">{formatContext(agent.context)}</span>
         ) : null}
       </div>
     </div>

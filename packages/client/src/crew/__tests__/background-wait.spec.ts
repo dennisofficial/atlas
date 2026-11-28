@@ -42,8 +42,11 @@ describe('what a settled session says about the work it left running', () => {
 describe('how long the wait itself has run', () => {
   it('appends the elapsed reading when one is on offer', () => {
     expect(backgroundWaitLabel({ work: { subagents: 0, shells: 1 }, waitedMs: 64_000 })).toBe(
-      'Waiting for 1 shell to finish · 1m 4s',
+      'Waiting for 1 shell to finish, 1m 4s',
     )
+    expect(
+      backgroundWaitLabel({ work: { subagents: 0, shells: 1 }, waitedMs: 64_000 }),
+    ).not.toContain('\u00b7')
   })
 
   it('leaves the sentence bare when nothing has been timed yet', () => {

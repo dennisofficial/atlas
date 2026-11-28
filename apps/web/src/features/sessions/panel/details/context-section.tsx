@@ -7,6 +7,7 @@ import { contextTreeOf, useContextMirror, useContextMirrorRefresh } from '../../
 import { recallContextOpen, rememberContextOpen } from '../pane-memory'
 import { useSessionPaneValue } from '../pane-value'
 import { EmptyLine, Row, SectionHead } from './rows'
+import { Reveal, RevealRows } from './reveal'
 
 const INDENT_PER_DEPTH = 12
 
@@ -23,8 +24,10 @@ function ContextDirectory(props: {
   const entries = contextTreeOf({ files: props.files, directory: props.directory })
 
   return (
-    <>
-      {entries.map((entry) => {
+    <RevealRows
+      rows={entries}
+      rowKey={(entry) => entry.name}
+      render={(entry) => {
         const path = props.directory === '' ? entry.name : `${props.directory}/${entry.name}`
         const expanded = props.open.includes(path)
         const Icon = entry.isDirectory ? (expanded ? ChevronDownIcon : ChevronRightIcon) : FileIcon
@@ -32,13 +35,13 @@ function ContextDirectory(props: {
           <div key={path} style={{ paddingLeft: props.depth * INDENT_PER_DEPTH }}>
             <Row
               leading={<Icon aria-hidden className="size-3.5" />}
-              title={<span className="font-mono">{entry.name}</span>}
+              title={entry.name}
               label={entry.isDirectory ? `Expand ${entry.name}` : `Open ${entry.name}`}
               onSelect={
                 entry.isDirectory ? () => props.onToggle(path) : () => props.onOpenFile(path)
               }
             />
-            {entry.isDirectory && expanded ? (
+            <Reveal open={entry.isDirectory && expanded}>
               <ContextDirectory
                 files={props.files}
                 directory={path}
@@ -47,11 +50,11 @@ function ContextDirectory(props: {
                 onToggle={props.onToggle}
                 onOpenFile={props.onOpenFile}
               />
-            ) : null}
+            </Reveal>
           </div>
         )
-      })}
-    </>
+      }}
+    />
   )
 }
 
@@ -67,16 +70,21 @@ export function SessionContextSection(props: { onOpenFile: (path: string) => voi
   }
 
   return (
-    <section data-session-context aria-label="Context" className="flex flex-col">
-      <SectionHead title="Context" />
-      <ContextMirrorBody
-        state={mirror.isPending ? 'loading' : mirror.isError ? 'failed' : 'ready'}
-        files={mirror.data?.files ?? []}
-        open={open}
-        onToggle={handleToggle}
-        onOpenFile={props.onOpenFile}
-      />
-    </section>
+    <Reveal
+      open={mirror.isError || (!mirror.isPending && (mirror.data?.files.length ?? 0) > 0)}
+      section
+    >
+      <section data-session-context aria-label="Context" className="flex flex-col">
+        <SectionHead title="Context" />
+        <ContextMirrorBody
+          state={mirror.isPending ? 'loading' : mirror.isError ? 'failed' : 'ready'}
+          files={mirror.data?.files ?? []}
+          open={open}
+          onToggle={handleToggle}
+          onOpenFile={props.onOpenFile}
+        />
+      </section>
+    </Reveal>
   )
 }
 
@@ -87,9 +95,9 @@ export function ContextMirrorBody(props: {
   onToggle: (path: string) => void
   onOpenFile: (path: string) => void
 }) {
-  if (props.state === 'loading') return <EmptyLine>Reading context…</EmptyLine>
+  if (props.state === 'loading') return null
   if (props.state === 'failed') return <EmptyLine>Context unavailable</EmptyLine>
-  if (props.files.length === 0) return <EmptyLine>No context files yet</EmptyLine>
+  if (props.files.length === 0) return null
   return (
     <ContextDirectory
       files={props.files}

@@ -53,5 +53,5 @@ export function releaseRowsInRange(args: {
 
 export function releaseNotesHeading(args: { from: string | null; to: string }): string {
   if (args.from === null) return `welcome to atlas v${args.to}`
-  return `since your last launch · v${args.from} → v${args.to}`
+  return `since your last launch, v${args.from} → v${args.to}`
 }

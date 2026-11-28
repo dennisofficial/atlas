@@ -27,7 +27,7 @@ export const charCountOf = ({ length, limit }: { length: number; limit: number }
   const over = length - limit
   const count = `${formatted(length)} / ${formatted(limit)}`
   return over > 0
-    ? { text: `${count} · ${formatted(over)} over`, over: true }
+    ? { text: `${count}, ${formatted(over)} over`, over: true }
     : { text: count, over: false }
 }
 

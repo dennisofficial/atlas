@@ -94,7 +94,7 @@ describe('ThreadPodChip', () => {
     const unmount = await mount(
       <ThreadPodChip pod={pod} working={false} onResize={async () => undefined} />,
     )
-    expect(document.body.textContent).toContain('2 vCPU · 4 GB')
+    expect(document.body.textContent).toContain('2 vCPU, 4 GB')
     await unmount()
   })
 })

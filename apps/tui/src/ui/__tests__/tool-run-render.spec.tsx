@@ -569,12 +569,12 @@ describe('a run of tool calls in the transcript', () => {
     expect(frame).not.toContain('Read 2 files')
     expect(frame).toContain('Read docs/shot.png')
     expect(frame).toContain('Read docs/stripe.jpg')
-    expect(frame).toContain('▾ docs/shot.png · 60×30 · 412 KB')
-    expect(frame).toContain('▾ docs/stripe.jpg · 120×80 · 4 KB')
+    expect(frame).toContain('▾ docs/shot.png, 60×30, 412 KB')
+    expect(frame).toContain('▾ docs/stripe.jpg, 120×80, 4 KB')
 
     const folded = await frameOf(run, new Set([`more:${shot.callId}`]))
-    expect(folded).toContain('▸ docs/shot.png · 60×30 · 412 KB')
-    expect(folded).toContain('▾ docs/stripe.jpg · 120×80 · 4 KB')
+    expect(folded).toContain('▸ docs/shot.png, 60×30, 412 KB')
+    expect(folded).toContain('▾ docs/stripe.jpg, 120×80, 4 KB')
   })
 
   it('opens an image read onto what the picture is, not onto its bytes', async () => {
@@ -597,7 +597,7 @@ describe('a run of tool calls in the transcript', () => {
     expect(shut).toContain('1024\u00d7768')
 
     const open = await frameOf(run, new Set([shot.callId]))
-    expect(open).toContain('docs/shot.png \u00b7 1024\u00d7768 \u00b7 412 KB')
+    expect(open).toContain('docs/shot.png, 1024\u00d7768, 412 KB')
   })
 
   it('paints a stored picture fetched through its media url, not the file on this machine', async () => {
@@ -658,7 +658,7 @@ describe('a run of tool calls in the transcript', () => {
     const run = runOf([declined])
 
     const frame = await frameOf(run)
-    expect(frame).toContain('▾ docs/huge.png · 4000×3000 · 20.0 MB')
+    expect(frame).toContain('▾ docs/huge.png, 4000×3000, 20.0 MB')
     expect(frame).toContain('Not sent to the model: 20.0 MB is too large to inline')
     expect(painted(frame)).toBe(false)
   })
@@ -679,7 +679,7 @@ describe('a run of tool calls in the transcript', () => {
     const run = runOf([shot])
 
     const frame = await frameOf(run)
-    expect(frame).toContain('▾ docs/shot.png · 8×8 · 412 KB')
+    expect(frame).toContain('▾ docs/shot.png, 8×8, 412 KB')
     expect(frame).not.toContain('Not sent to the model')
   })
 

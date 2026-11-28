@@ -46,7 +46,7 @@ function DividerRow(props: {
   expanded: boolean
   hovered: boolean
 }): React.ReactNode {
-  const label = `${HEADING} · ${summarised(props.compactedEntries)}`
+  const label = `${HEADING}   ${summarised(props.compactedEntries)}`
   const trailing = props.expanded ? '' : ` ${OPEN_HINT}`
   const rule = RULE_CHARACTER.repeat(Math.max(0, props.inner - label.length - trailing.length - 1))
 

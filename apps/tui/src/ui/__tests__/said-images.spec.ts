@@ -15,7 +15,8 @@ const said = (over: Partial<Attachment> = {}): Attachment => ({
 
 describe('what a picture that rode along reads as in the transcript', () => {
   it('names the file and its size in pixels', () => {
-    expect(saidImageText(said())).toBe('paste-1.png · 560×280')
+    expect(saidImageText(said())).toBe('paste-1.png   560×280')
+    expect(saidImageText(said())).not.toContain('\u00b7')
   })
 
   it('leaves out the size when the dimensions were never read', () => {

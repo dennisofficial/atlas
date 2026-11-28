@@ -134,6 +134,9 @@ function HeaderPreviews({
   )
 }
 
+const HEADER_TOGGLE =
+  'hidden text-muted-foreground md:inline-flex aria-expanded:bg-accent aria-expanded:text-foreground dark:aria-expanded:bg-accent'
+
 export function SessionHeader({
   sessionId,
   state,
@@ -221,7 +224,7 @@ export function SessionHeader({
           size="icon-sm"
           aria-label="Session details"
           aria-expanded={detailsOpen}
-          className="hidden md:inline-flex"
+          className={HEADER_TOGGLE}
           onClick={onToggleDetails}
         >
           <InfoIcon />
@@ -231,7 +234,7 @@ export function SessionHeader({
           size="icon-sm"
           aria-label={paneCollapsed ? 'Open tools' : 'Close tools'}
           aria-expanded={!paneCollapsed}
-          className="hidden md:inline-flex"
+          className={HEADER_TOGGLE}
           onClick={onTogglePane}
         >
           <PanelRightIcon />

@@ -168,7 +168,7 @@ export function repairCardViewOf(args: {
   if (resets !== undefined) parts.push(resets)
   return {
     title: repairTitleOf(args.repair),
-    detail: parts.filter((part): part is string => part !== undefined && part !== '').join(' · '),
+    detail: parts.filter((part): part is string => part !== undefined && part !== '').join(', '),
     notes: [...args.repair.agents.map(noteOf), ...actionDetailsOf(args.actions ?? [])],
   }
 }

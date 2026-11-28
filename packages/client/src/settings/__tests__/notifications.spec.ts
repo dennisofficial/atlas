@@ -115,11 +115,12 @@ describe('notification devices', () => {
   })
 
   it('describes a device with its state', () => {
-    expect(notifyDeviceDetailOf({ kind: ENotifyDeviceKind.Expo, enabled: true })).toBe(
-      'iPhone · On',
+    expect(notifyDeviceDetailOf({ kind: ENotifyDeviceKind.Expo, enabled: true })).toBe('iPhone, On')
+    expect(notifyDeviceDetailOf({ kind: ENotifyDeviceKind.Expo, enabled: true })).not.toContain(
+      '\u00b7',
     )
     expect(notifyDeviceDetailOf({ kind: ENotifyDeviceKind.ApnsMac, enabled: false })).toBe(
-      'Mac · Off',
+      'Mac, Off',
     )
   })
 

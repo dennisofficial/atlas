@@ -179,8 +179,8 @@ describe('a provider holding two accounts', () => {
     )
 
     expect(element.textContent).toContain('one@example.com')
-    expect(element.textContent).toContain('Claude Max plan · Signed in Nov 12')
-    expect(element.textContent).toContain('API key · sk-ant-…4f2a · Added Nov 3')
+    expect(element.textContent).toContain('Claude Max plan, Signed in Nov 12')
+    expect(element.textContent).toContain('API key, sk-ant-…4f2a, Added Nov 3')
   })
 })
 
@@ -234,6 +234,6 @@ describe('a key row without a key hint', () => {
       />,
     )
 
-    expect(element.textContent).toContain('API key · Added Nov 3')
+    expect(element.textContent).toContain('API key, Added Nov 3')
   })
 })

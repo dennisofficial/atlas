@@ -71,7 +71,7 @@ const meta = {
     throttled: false,
     oomKills: 0,
     onResize: settle,
-    planCapHint: 'Hobby up to 4 vCPU · Pro up to 8 · Enterprise up to 32',
+    planCapHint: 'Hobby up to 4 vCPU, Pro up to 8, Enterprise up to 32',
     settingsHref: '#',
   },
   parameters: { layout: 'centered' },

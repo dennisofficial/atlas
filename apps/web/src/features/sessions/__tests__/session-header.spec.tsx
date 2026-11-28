@@ -308,7 +308,7 @@ describe('CrewPanel', () => {
     expect(html).toContain('dennis/wt')
     expect(html).toContain('/work/.atlas/worktrees/dennis/wt')
     expect(html).toContain('Committed and pushed.')
-    expect(html).toContain('1 turn · 2 tools')
+    expect(html).toContain('1 turn, 2 tools')
   })
 
   it('opens the clicked sub-agent', async () => {

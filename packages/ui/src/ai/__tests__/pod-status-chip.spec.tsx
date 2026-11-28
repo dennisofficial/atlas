@@ -20,7 +20,7 @@ const SIZES = [1, 2, 4, 6, 8, 10, 12, 14, 16, 18, 20, 22, 24, 26, 28, 30, 32]
 describe('PodStatusChip markup', () => {
   it('labels the trigger with the size while running', () => {
     expect(renderToStaticMarkup(<PodStatusChip status={RUNNING} sizes={SIZES} />)).toContain(
-      '4 vCPU · 8 GB',
+      '4 vCPU, 8 GB',
     )
   })
 
@@ -147,7 +147,7 @@ describe('PodStatusChip resize', () => {
         onResize={mock(() => Promise.resolve())}
       />,
     )
-    expect(view.container.textContent).toContain('Resizing to 8 vCPU · 16 GB')
+    expect(view.container.textContent).toContain('Resizing to 8 vCPU, 16 GB')
     expect(buttonNamed(view.container, 'Apply')?.disabled).toBe(true)
     await view.unmount()
   })
@@ -157,7 +157,7 @@ describe('PodStatusChip resize', () => {
     const view = await mount(
       <PodPopoverBody status={parked} sizes={SIZES} onResize={mock(() => Promise.resolve())} />,
     )
-    expect(view.container.textContent).toContain('Starts with 8 vCPU · 16 GB')
+    expect(view.container.textContent).toContain('Starts with 8 vCPU, 16 GB')
     await view.unmount()
   })
 
@@ -187,7 +187,7 @@ describe('PodStatusChip resize', () => {
       <PodPopoverBody
         {...bodyProps}
         onResize={mock(() => Promise.resolve())}
-        planCapHint="Hobby up to 4 vCPU · Pro up to 8 · Enterprise up to 32"
+        planCapHint="Hobby up to 4 vCPU, Pro up to 8, Enterprise up to 32"
       />,
     )
     expect(view.container.textContent).toContain('Applying restarts the pod')
@@ -220,7 +220,7 @@ describe('PodStatusChip resize', () => {
     const view = await mount(
       <PodPopoverBody status={waiting} sizes={SIZES} onResize={mock(() => Promise.resolve())} />,
     )
-    expect(view.container.textContent).toContain('Waiting for idle to resize to 8 vCPU · 16 GB')
+    expect(view.container.textContent).toContain('Waiting for idle to resize to 8 vCPU, 16 GB')
     expect(view.container.textContent).not.toContain('Restarting with')
     await view.unmount()
   })
@@ -234,7 +234,7 @@ describe('PodStatusChip resize', () => {
     const view = await mount(
       <PodPopoverBody status={restarting} sizes={SIZES} onResize={mock(() => Promise.resolve())} />,
     )
-    expect(view.container.textContent).toContain('Restarting with 8 vCPU · 16 GB')
+    expect(view.container.textContent).toContain('Restarting with 8 vCPU, 16 GB')
     expect(buttonNamed(view.container, 'Apply')?.disabled).toBe(true)
     await view.unmount()
   })

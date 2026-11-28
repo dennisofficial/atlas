@@ -140,7 +140,7 @@ export const SkillDetailScreen = ({ target }: { target: SkillTarget }) => {
       ) : null}
       {readOnly ? (
         <Text size={ETextRole.Sm} tone={ETextTone.Muted}>
-          Built-in skill · Read-only. Create a skill with the same name to override it.
+          Built-in skill, Read-only. Create a skill with the same name to override it.
         </Text>
       ) : null}
       {ready ? (
@@ -187,7 +187,7 @@ export const SkillDetailScreen = ({ target }: { target: SkillTarget }) => {
               <Section title={current.path}>
                 <View style={styles.binary}>
                   <Text size={ETextRole.Sm} tone={ETextTone.Muted}>
-                    Binary file · {formatBytes(current.sizeBytes)}
+                    Binary file, {formatBytes(current.sizeBytes)}
                   </Text>
                 </View>
                 <ActionRow label="Download file" loading={busy} onPress={handleDownload} />

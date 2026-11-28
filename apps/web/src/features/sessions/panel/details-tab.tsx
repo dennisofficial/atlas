@@ -14,6 +14,7 @@ import { SessionPodSection } from './details/pod-section'
 import { SessionServicesSection } from './details/services-section'
 import { SessionSubscriptionsSection } from './details/subscriptions-section'
 import { SessionTodoSection } from './details/todo-section'
+import { DetailsMotion } from './details/reveal'
 
 export function SessionDetailsTab() {
   const { sessionId, view } = useSessionPaneValue()
@@ -36,21 +37,25 @@ export function SessionDetailsTab() {
   }
 
   return (
-    <div
-      data-session-details
-      className="@container flex min-h-0 flex-1 flex-col gap-4 overflow-auto px-4 py-3"
-    >
-      <SessionDetailsHeader />
-      <SessionPodSection />
-      <div data-session-todo-slot className="contents">
-        <SessionTodoSection tasks={view.plan} />
+    <DetailsMotion>
+      <div
+        data-session-details
+        className="@container flex min-h-0 flex-1 flex-col overflow-auto px-4 py-3"
+      >
+        <SessionDetailsHeader />
+        <div className="shrink-0 pt-5">
+          <SessionPodSection />
+        </div>
+        <div data-session-todo-slot className="contents">
+          <SessionTodoSection tasks={view.plan} />
+        </div>
+        <SessionGithubSection />
+        <SessionContextSection onOpenFile={setContextPath} />
+        <SessionSubscriptionsSection />
+        <SessionServicesSection />
+        <SessionCrewSection />
+        <SessionBackgroundSection />
       </div>
-      <SessionGithubSection />
-      <SessionContextSection onOpenFile={setContextPath} />
-      <SessionSubscriptionsSection />
-      <SessionServicesSection />
-      <SessionCrewSection />
-      <SessionBackgroundSection />
-    </div>
+    </DetailsMotion>
   )
 }

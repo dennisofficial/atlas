@@ -36,7 +36,7 @@ export function destinationOf(args: {
   if (setting === undefined || agentTypeOf(setting) === undefined) return generic
 
   if (isOverriddenSetting(setting)) {
-    return { origin: READ_ONLY, status: `overridden · ${READ_ONLY}`, failing: false }
+    return { origin: READ_ONLY, status: `overridden   ${READ_ONLY}`, failing: false }
   }
   if (setting.writeOrigin !== undefined) {
     return {

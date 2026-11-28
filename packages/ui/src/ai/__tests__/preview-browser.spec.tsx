@@ -120,7 +120,7 @@ describe('deviceSummaryOf', () => {
   it('is empty for full, W×H when unscaled, with zoom when scaled', () => {
     expect(deviceSummaryOf({ viewport: FULL_VIEWPORT, fit })).toBe('')
     expect(deviceSummaryOf({ viewport: TABLET, fit: { ...fit, scale: 1 } })).toBe('768×1024')
-    expect(deviceSummaryOf({ viewport: TABLET, fit })).toBe('768×1024 · 50%')
+    expect(deviceSummaryOf({ viewport: TABLET, fit })).toBe('768×1024, 50%')
   })
 })
 

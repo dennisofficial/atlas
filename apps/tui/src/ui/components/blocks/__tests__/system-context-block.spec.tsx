@@ -131,7 +131,7 @@ describe('a group of injected prompts', () => {
     })
     await clickRow(setup, 'Atlas loaded 3 prompts')
 
-    expect(setup.captureCharFrame()).toContain('memory · superseded')
+    expect(setup.captureCharFrame()).toContain('memory, superseded')
   })
 
   test('marks a removal on its row instead of showing the label as a load', async () => {
@@ -141,7 +141,7 @@ describe('a group of injected prompts', () => {
     })
     await clickRow(setup, 'Atlas loaded 3 prompts')
 
-    expect(setup.captureCharFrame()).toContain('memory · removed')
+    expect(setup.captureCharFrame()).toContain('memory, removed')
   })
 })
 

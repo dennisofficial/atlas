@@ -535,7 +535,7 @@ describe('the pieces around the transcript mount', () => {
       80,
     )
 
-    expect(frame).toContain('1 shell to finish · 0s')
+    expect(frame).toContain('1 shell to finish, 0s')
   })
 
   /**
@@ -553,7 +553,7 @@ describe('the pieces around the transcript mount', () => {
       80,
     )
 
-    expect(frame).toContain('1 shell to finish · 1m 30s')
+    expect(frame).toContain('1 shell to finish, 1m 30s')
   })
 
   /**
@@ -570,12 +570,12 @@ describe('the pieces around the transcript mount', () => {
       { width: 80, height: HEIGHT },
     )
     try {
-      const first = await frameShowing({ setup, text: '1 shell to finish · 0s' })
-      expect(first).toContain('1 shell to finish · 0s')
+      const first = await frameShowing({ setup, text: '1 shell to finish, 0s' })
+      expect(first).toContain('1 shell to finish, 0s')
 
       await letTimersRun({ setup, ms: 1_500 })
 
-      expect(setup.captureCharFrame()).toMatch(/1 shell to finish · [1-9]\d*s/)
+      expect(setup.captureCharFrame()).toMatch(/1 shell to finish, [1-9]\d*s/)
     } finally {
       await teardown(setup)
     }
@@ -600,7 +600,7 @@ describe('the pieces around the transcript mount', () => {
       80,
     )
 
-    expect(frame).toContain('1 shell to finish · 1m')
+    expect(frame).toContain('1 shell to finish, 1m')
   })
 
   it('says what it is waiting on with no origin to time it against', async () => {
@@ -610,7 +610,7 @@ describe('the pieces around the transcript mount', () => {
     )
 
     expect(frame).toContain('1 shell to finish')
-    expect(frame).not.toContain('finish · ')
+    expect(frame).not.toContain('finish, ')
   })
 
   it('takes no room once the background is empty', async () => {

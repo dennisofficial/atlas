@@ -56,7 +56,7 @@ describe('the sweep, coloured', () => {
   })
 
   it('measures in code points, so a one-column glyph counts as one cell', () => {
-    const spans = shimmerSpans({ text: '↓ 12k tokens · esc', crest: 0, spec: WORKING_SHIMMER })
-    expect(spans.map((span) => span.text).join('')).toBe('↓ 12k tokens · esc')
+    const spans = shimmerSpans({ text: '↓ 12k tokens   esc', crest: 0, spec: WORKING_SHIMMER })
+    expect(spans.map((span) => span.text).join('')).toBe('↓ 12k tokens   esc')
   })
 })

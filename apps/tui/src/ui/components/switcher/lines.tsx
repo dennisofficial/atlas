@@ -179,19 +179,19 @@ export function EffortLine(props: {
 const THIS_THREAD: readonly Span[] = [
   { text: `${glyph.swap} `, fg: theme.accent },
   { text: 'next turn', fg: theme.hover },
-  { text: ' · this conversation only', fg: theme.hint },
+  { text: '   this conversation only', fg: theme.hint },
 ]
 
 const EVERY_NEW_THREAD: readonly Span[] = [
   { text: `${glyph.swap} `, fg: theme.accent },
   { text: 'the default', fg: theme.hover },
-  { text: ' · every new conversation', fg: theme.hint },
+  { text: '   every new conversation', fg: theme.hint },
 ]
 
 const QUICK_CALLS: readonly Span[] = [
   { text: `${glyph.swap} `, fg: theme.accent },
   { text: 'quick calls', fg: theme.hover },
-  { text: ' · tl;dr, titles and the judge', fg: theme.hint },
+  { text: '   tl;dr, titles and the judge', fg: theme.hint },
 ]
 
 const appliesSpans = (target: SwitcherTarget): readonly Span[] => {

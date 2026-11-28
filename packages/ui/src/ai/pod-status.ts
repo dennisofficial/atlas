@@ -42,7 +42,7 @@ export function ramOf(vcpus: number): number {
 }
 
 export function sizeLabel(vcpus: number): string {
-  return `${vcpus} vCPU · ${ramOf(vcpus)} GB`
+  return `${vcpus} vCPU, ${ramOf(vcpus)} GB`
 }
 
 export function showsSize(state: EPodState): boolean {
@@ -54,17 +54,17 @@ export function chipLabel(status: PodStatus): string {
   if (status.phase === 'failed') return 'Resize failed'
   if (status.label !== undefined) return status.label
   if (restarting && status.pendingVcpus !== undefined) {
-    if (status.phase === 'waiting') return `Waiting to resize · ${sizeLabel(status.pendingVcpus)}`
+    if (status.phase === 'waiting') return `Waiting to resize, ${sizeLabel(status.pendingVcpus)}`
     return status.phase === 'resizing'
-      ? `Resizing · ${sizeLabel(status.pendingVcpus)}`
-      : `Restarting · ${sizeLabel(status.pendingVcpus)}`
+      ? `Resizing, ${sizeLabel(status.pendingVcpus)}`
+      : `Restarting, ${sizeLabel(status.pendingVcpus)}`
   }
   if (status.state === EPodState.Running) {
     return status.vcpus === undefined ? STATE_LABEL[status.state] : sizeLabel(status.vcpus)
   }
   const label = STATE_LABEL[status.state]
   return showsSize(status.state) && status.vcpus !== undefined
-    ? `${label} · ${sizeLabel(status.vcpus)}`
+    ? `${label}, ${sizeLabel(status.vcpus)}`
     : label
 }
 

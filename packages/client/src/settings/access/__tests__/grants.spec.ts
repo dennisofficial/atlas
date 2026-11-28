@@ -59,9 +59,10 @@ describe('grant view and payloads', () => {
     expect(accessGrantMatchesQuery({ grant, query: 'other' })).toBe(false)
   })
   it('pluralizes both member counts', () => {
-    expect(accessGrantSummary(grantOf({ id: 'g', name: 'Empty' }))).toBe('0 secrets · 0 files')
-    expect(accessGrantSummary(GRANTS[0] as AccessGrant)).toBe('2 secrets · 0 files')
-    expect(accessGrantSummary(GRANTS[1] as AccessGrant)).toBe('0 secrets · 1 file')
+    expect(accessGrantSummary(grantOf({ id: 'g', name: 'Empty' }))).toBe('0 secrets, 0 files')
+    expect(accessGrantSummary(grantOf({ id: 'g', name: 'Empty' }))).not.toContain('\u00b7')
+    expect(accessGrantSummary(GRANTS[0] as AccessGrant)).toBe('2 secrets, 0 files')
+    expect(accessGrantSummary(GRANTS[1] as AccessGrant)).toBe('0 secrets, 1 file')
   })
 })
 

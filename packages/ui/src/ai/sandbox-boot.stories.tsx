@@ -80,7 +80,7 @@ export const SandboxFails: Story = {
         id: 'provision',
         label: 'Create sandbox',
         state: EBootStepState.Done,
-        detail: 'Vercel · iad1 · 4 vCPU',
+        detail: 'Vercel, iad1, 4 vCPU',
       },
       { id: 'serve', label: 'Start Atlas', state: EBootStepState.Error, detail: DAEMON_LOG },
       { id: 'clone', label: 'Clone repository', state: EBootStepState.Pending },

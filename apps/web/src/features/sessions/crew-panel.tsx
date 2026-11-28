@@ -20,7 +20,7 @@ import { sessionsApi } from './data/sessions-api'
 const effortOf = (row: CrewRow): string => {
   const turns = row.turns === 1 ? '1 turn' : `${row.turns} turns`
   const tools = row.toolCalls === 1 ? '1 tool' : `${row.toolCalls} tools`
-  return `${turns} · ${tools}`
+  return `${turns}, ${tools}`
 }
 
 function CrewRowBody({ row }: { row: CrewRow }) {
@@ -41,7 +41,7 @@ function CrewRowBody({ row }: { row: CrewRow }) {
           className="truncate font-mono text-[11px] text-muted-foreground"
           title={row.worktree.path}
         >
-          {row.worktree.branch} · {row.worktree.path}
+          {row.worktree.branch}, {row.worktree.path}
         </span>
       )}
       {row.prose === undefined ? null : (

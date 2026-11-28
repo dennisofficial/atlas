@@ -25,9 +25,9 @@ export const iconNameOf = (name: string): IconName | undefined =>
   iconNames.find((known) => known === name)
 
 export const subscriptionMetaOf = (row: SubscriptionRow): string =>
-  [row.presentation.meta.join(' · '), actorLabelOf(row.createdBy)]
+  [...row.presentation.meta, `by ${actorLabelOf(row.createdBy)}`]
     .filter((part) => part.length > 0)
-    .join(' · ')
+    .join(', ')
 
 export type SubscriptionTitle = { number: string | undefined; text: string }
 

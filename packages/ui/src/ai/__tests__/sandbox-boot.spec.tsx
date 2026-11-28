@@ -38,7 +38,7 @@ describe('sandboxBootTitle', () => {
     expect(sandboxBootTitle(Done)).toBe('Sandbox ready')
     expect(sandboxBootTitle(Error)).toBe('Sandbox failed to start')
     expect(sandboxBootTitle(Pending)).toBe('Waiting for sandbox')
-    expect(sandboxBootTitle(Interrupted)).toBe('Setup restarted · running again')
+    expect(sandboxBootTitle(Interrupted)).toBe('Setup restarted, running again')
   })
 })
 
@@ -46,7 +46,7 @@ describe('sandboxBootSummary', () => {
   const list = steps([Done, Running, Pending])
 
   it('counts finished steps and elapsed seconds while running', () => {
-    expect(sandboxBootSummary({ steps: list, state: Running, elapsedMs: 4400 })).toBe('1/3 · 4.4s')
+    expect(sandboxBootSummary({ steps: list, state: Running, elapsedMs: 4400 })).toBe('1/3, 4.4s')
     expect(sandboxBootSummary({ steps: list, state: Running })).toBe('1/3')
   })
 
@@ -69,7 +69,7 @@ describe('SandboxBoot', () => {
     const html = render()
 
     expect(html).toContain('Starting sandbox')
-    expect(html).toContain('1/3 · 4.4s')
+    expect(html).toContain('1/3, 4.4s')
     expect(html).toContain('data-status="running"')
     expect(html).toContain('Step label 0')
     expect(html).toContain('Step label 1')
@@ -141,7 +141,7 @@ describe('SandboxBoot', () => {
       steps: [
         {
           id: 'setup',
-          label: 'Setup restarted · running again',
+          label: 'Setup restarted, running again',
           state: Interrupted,
           command: 'bun install',
         },
@@ -150,7 +150,7 @@ describe('SandboxBoot', () => {
       onRetry: () => {},
     })
 
-    expect(html).toContain('Setup restarted · running again')
+    expect(html).toContain('Setup restarted, running again')
     expect(html).toContain('data-status="running"')
     expect(html).not.toContain('Sandbox failed to start')
     expect(html).not.toContain('sandbox-boot-error')

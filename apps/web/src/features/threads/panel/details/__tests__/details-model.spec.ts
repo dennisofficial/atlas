@@ -19,7 +19,7 @@ describe('details model', () => {
       '1/2',
     )
     expect(planDoneLabelOf({ hidden: 3, expanded: false })).toBe('3 earlier done')
-    expect(earlierLabelOf({ hidden: 2, failed: true })).toBe('+2 earlier · one failed')
+    expect(earlierLabelOf({ hidden: 2, failed: true })).toBe('+2 earlier, one failed')
   })
 
   it('shows uncached input, output and cache only when read', () => {
@@ -51,7 +51,7 @@ describe('details model', () => {
 
   it('labels the settled toggle', () => {
     expect(settledLabelOf({ collapsed: 2, expanded: false, failed: true })).toBe(
-      '2 settled · one failed',
+      '2 settled, one failed',
     )
   })
 })

@@ -25,7 +25,6 @@ export function ArtifactCard({ artifact }: { artifact: ArtifactSummary }) {
         </div>
         <div className="flex min-w-0 items-center gap-1.5 text-xs text-muted-foreground">
           <span className="truncate font-mono">{artifact.url}</span>
-          <span aria-hidden>·</span>
           <span className="shrink-0">Updated {relativeTime({ from: artifact.updatedAt })}</span>
         </div>
       </div>

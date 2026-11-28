@@ -68,7 +68,7 @@ export const DEFAULT_SANDBOX_VCPUS = 2
 
 export const SANDBOX_MEMORY_GB_PER_VCPU = 2
 
-export const SANDBOX_VCPU_PLAN_CAP_NOTE = 'Hobby up to 4 vCPU · Pro up to 8 · Enterprise up to 32'
+export const SANDBOX_VCPU_PLAN_CAP_NOTE = 'Hobby up to 4 vCPU, Pro up to 8, Enterprise up to 32'
 
 // https://www.agent37.com/docs/agents-api/instance-sizing.md — an Agent37 vm disk runs from 2 GB to
 // 100 GB and only ever grows, so the sizes offered for a new pod start at the shipped default.

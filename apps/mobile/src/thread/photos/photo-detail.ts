@@ -1,7 +1,7 @@
 import { describeBytes } from '../composer/attachment-plan'
 import type { Photo } from './photo-store'
 
-const SEPARATOR = ' · '
+const SEPARATOR = ', '
 
 const formatOf = (mediaType: string | undefined): string | undefined => {
   const subtype = mediaType?.split('/')[1]?.split('+')[0]

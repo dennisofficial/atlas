@@ -184,7 +184,7 @@ export function measureOfSentence(reads: readonly Read[]): string {
     .map((gather) => {
       const unit = CLAUSES[gather].unit
       const sum = totals.get(gather) ?? 0
-      return unit === null ? '' : ` · ${count(sum)} ${sum === 1 ? unit[0] : unit[1]}`
+      return unit === null ? '' : `, ${count(sum)} ${sum === 1 ? unit[0] : unit[1]}`
     })
     .join('')
 }

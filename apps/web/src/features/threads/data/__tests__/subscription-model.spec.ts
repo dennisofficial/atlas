@@ -173,7 +173,7 @@ describe('pullRequestBellOf', () => {
 describe('detailOf', () => {
   it('joins provider, creator and held count', () => {
     const subscription = row({ held: 2, createdBy: ESubscriptionActorWire.Operator })
-    expect(detailOf(subscription)).toBe('Pull request · You · 2 held')
+    expect(detailOf(subscription)).toBe('Pull request, You, 2 held')
   })
 })
 
