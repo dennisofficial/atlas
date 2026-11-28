@@ -55,8 +55,9 @@ Redis and sends the pushes.
 ### Implement a transport
 
 - `NotificationTransport`: one interface with a `kind`, `deliver` and `clear`.
-- `NotifyResult`: the `deviceId`, the flag `sent`, and the optional flag `gone`. A transport sets
-  `gone` when the token is dead, so the caller can remove the row.
+- `NotifyResult`: the `deviceId`, the flag `sent`, the optional flag `gone`, and the optional
+  `error` that names why a device was not sent. A transport sets `gone` when the token is dead, so
+  the caller can remove the row.
 
 ### Find the moment in a sessions list
 
@@ -100,6 +101,9 @@ Redis and sends the pushes.
 - `clear` posts `{ contentAvailable: true, data: { clearSessionId } }` with no title and no body.
 - A ticket with `details.error === 'DeviceNotRegistered'` reports the device `gone`. A refused or
   unreachable request reports every device unsent.
+- An unsent device carries `error`: the ticket's `details.error`, the code of a refused request
+  (`UNAUTHORIZED` when the project needs an access token and none was sent), `http-<status>`, or an
+  `EExpoSendError` value.
 - `EXPO_PUSH_URL` and `EXPO_PUSH_BATCH_SIZE`: the endpoint and the batch size.
 
 ### Send Mac push

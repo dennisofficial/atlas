@@ -4,6 +4,7 @@ import { z } from 'zod'
 
 import { ENotifyDeviceKind, type NotifyDevice } from '../model'
 import {
+  EExpoSendError,
   EXPO_PUSH_BATCH_SIZE,
   EXPO_PUSH_URL,
   expoTransport,
@@ -161,7 +162,46 @@ describe('expoTransport.deliver', () => {
 
     expect(results).toEqual([
       { deviceId: 'device-1', sent: true },
-      { deviceId: 'device-2', sent: false, gone: true },
+      { deviceId: 'device-2', sent: false, gone: true, error: 'DeviceNotRegistered' },
+    ])
+  })
+
+  it('names the error of a ticket that Expo refused', async () => {
+    const recorder = recorderOf((messages) => ({
+      status: 200,
+      json: async () => ({
+        data: messages.map(() => ({
+          status: 'error',
+          message: 'credentials',
+          details: { error: 'InvalidCredentials' },
+        })),
+      }),
+    }))
+
+    const results = await expoTransport({ fetch: recorder.fetch }).deliver({
+      devices: [deviceOf()],
+      notification: NOTIFICATION,
+    })
+
+    expect(results).toEqual([{ deviceId: 'device-1', sent: false, error: 'InvalidCredentials' }])
+  })
+
+  it('names the code of a batch refused without an access token', async () => {
+    const recorder = recorderOf(() => ({
+      status: 403,
+      json: async () => ({
+        errors: [{ code: 'UNAUTHORIZED', message: 'Insufficient permissions to send push' }],
+      }),
+    }))
+
+    const results = await expoTransport({ fetch: recorder.fetch }).deliver({
+      devices: [deviceOf(), deviceOf({ id: 'device-2' })],
+      notification: NOTIFICATION,
+    })
+
+    expect(results).toEqual([
+      { deviceId: 'device-1', sent: false, error: 'UNAUTHORIZED' },
+      { deviceId: 'device-2', sent: false, error: 'UNAUTHORIZED' },
     ])
   })
 
@@ -178,8 +218,10 @@ describe('expoTransport.deliver', () => {
       notification: NOTIFICATION,
     })
 
-    expect(refusedResults).toEqual([{ deviceId: 'device-1', sent: false }])
-    expect(malformedResults).toEqual([{ deviceId: 'device-1', sent: false }])
+    expect(refusedResults).toEqual([{ deviceId: 'device-1', sent: false, error: `http-503` }])
+    expect(malformedResults).toEqual([
+      { deviceId: 'device-1', sent: false, error: EExpoSendError.UnexpectedReply },
+    ])
   })
 
   it('reports every device unsent when the push service cannot be reached', async () => {
@@ -190,7 +232,9 @@ describe('expoTransport.deliver', () => {
       notification: NOTIFICATION,
     })
 
-    expect(results).toEqual([{ deviceId: 'device-1', sent: false }])
+    expect(results).toEqual([
+      { deviceId: 'device-1', sent: false, error: EExpoSendError.Unreachable },
+    ])
   })
 })
 
