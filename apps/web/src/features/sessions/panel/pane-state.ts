@@ -15,6 +15,7 @@ import {
   rememberDetailsOpen,
   rememberPaneTab,
 } from './pane-memory'
+import { morphSessionDetails } from './details-morph'
 import { EPaneOpen, type PaneOpenRequest } from './pane-open'
 import { ESessionPaneTab } from './pane-tab'
 
@@ -74,23 +75,30 @@ export function useSessionPane(sessionId: string): SessionPaneState {
 
   const openPane = useCallback(() => {
     setSheetOpen(true)
-    setCollapsed(false)
+    morphSessionDetails(() => setCollapsed(false))
   }, [setCollapsed])
 
-  const toggleCollapsed = useCallback(() => setCollapsed(!collapsed), [collapsed, setCollapsed])
+  const toggleCollapsed = useCallback(
+    () => morphSessionDetails(() => setCollapsed(!collapsed)),
+    [collapsed, setCollapsed],
+  )
 
   const detailsShown = detailsOpen && collapsed
   const toggleDetails = useCallback(() => {
-    if (detailsShown) return setDetailsOpen(false)
-    setDetailsOpen(true)
-    setCollapsed(true)
+    if (detailsShown) return morphSessionDetails(() => setDetailsOpen(false))
+    morphSessionDetails(() => {
+      setDetailsOpen(true)
+      setCollapsed(true)
+    })
   }, [detailsShown, setDetailsOpen, setCollapsed])
 
   const openDetails = useCallback(() => {
-    setDetailsOpen(true)
-    setCollapsed(true)
     setTab(ESessionPaneTab.Details)
     setSheetOpen(true)
+    morphSessionDetails(() => {
+      setDetailsOpen(true)
+      setCollapsed(true)
+    })
   }, [setDetailsOpen, setCollapsed])
 
   const openTab = useCallback(

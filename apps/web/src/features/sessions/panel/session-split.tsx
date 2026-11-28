@@ -19,6 +19,7 @@ import {
 } from '@/features/threads/panel/pane-split'
 import { PanelCollapsedProvider } from '@/features/threads/panel/panel-collapsed-context'
 
+import { DETAILS_MORPH_CLASS, EDetailsMorphSurface } from './details-morph'
 import { DESKTOP_PANE_TABS, type ESessionPaneTab } from './pane-tab'
 import { SessionPane } from './session-pane'
 
@@ -94,7 +95,10 @@ export function SessionSplit(props: SessionSplitProps) {
       >
         <PanelCollapsedProvider value={collapsed}>
           <div className="h-full min-h-0 p-2 pl-0">
-            <div className="flex h-full min-h-0 flex-col overflow-hidden rounded-xl bg-card ring-1 ring-border">
+            <div
+              data-details-morph={collapsed ? undefined : EDetailsMorphSurface.Pane}
+              className={`flex h-full min-h-0 flex-col overflow-hidden rounded-xl bg-card ring-1 ring-border ${collapsed ? '' : DETAILS_MORPH_CLASS}`}
+            >
               <SessionPane tab={tab} onTabChange={onTabChange} tabs={DESKTOP_PANE_TABS} />
             </div>
           </div>
