@@ -27,6 +27,7 @@ The package ships TypeScript source with no build step.
 | `@dltech/atlas-ui`                   | `cn` and the tokens, from one import.                                                                    |
 | `@dltech/atlas-ui/tokens`            | Pure token values. No platform import.                                                                   |
 | `@dltech/atlas-ui/brand`             | Pure brand data: `EBrand`, `BRAND_PATHS`, `brandOfProvider`.                                             |
+| `@dltech/atlas-ui/file-icons`        | Pure file and folder icon data and the name → icon resolver. No platform import.                         |
 | `@dltech/atlas-ui/sandbox-boot-copy` | The sandbox start title, summary and display rules (open, header error, retry), with no platform import. |
 | `@dltech/atlas-ui/components/*`      | A vendored component, such as `components/button`.                                                       |
 | `@dltech/atlas-ui/ai/*`              | An AI pattern, such as `ai/message` or `ai/tool`.                                                        |
@@ -75,6 +76,19 @@ The package ships TypeScript source with no build step.
 - `ai/diagram-repair`: `DiagramRepairProvider` gives every `ai/message-response` below it a repair
   handler, and each message hands over its own text, so a broken chart repairs wherever it renders.
   `repairDiagrams={false}` opts one message out, as a streaming reply does.
+
+### Show a file type icon
+
+`ai/file-type-icon` exports `FileTypeIcon` and `FileIconsProvider`. Icons use the basename, with `folder` and `open` selecting folder art. They inherit the text color by default; wrap an explorer in the provider to use the original colors.
+
+```tsx
+import { FileIconsProvider, FileTypeIcon } from '@dltech/atlas-ui/ai/file-type-icon'
+
+;<FileIconsProvider colored>
+  <FileTypeIcon name="index.ts" className="size-3.5" />
+  <FileTypeIcon name="src" folder open className="size-3.5" />
+</FileIconsProvider>
+```
 
 ### Describe the sandbox start
 

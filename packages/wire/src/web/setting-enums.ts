@@ -8,6 +8,7 @@ export {
   EClassifierModeWire,
   EDensity,
   EEffortLevel,
+  EFileIconStyle,
   EImageModelWire,
   ETheme,
   EVercelPlan,

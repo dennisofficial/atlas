@@ -1,8 +1,8 @@
 'use client'
 
 import { useState, type KeyboardEvent } from 'react'
-import { FileIcon, FolderIcon } from 'lucide-react'
 
+import { FileTypeIcon } from '@dltech/atlas-ui/ai/file-type-icon'
 import {
   Autocomplete,
   AutocompleteContent,
@@ -77,11 +77,11 @@ export function FilePathPicker({
               className="font-mono text-xs"
               onClick={() => handleChoose(choice)}
             >
-              {choice.endsWith('/') ? (
-                <FolderIcon className="text-muted-foreground" />
-              ) : (
-                <FileIcon className="text-muted-foreground" />
-              )}
+              <FileTypeIcon
+                name={choice.replace(/\/$/, '').split('/').at(-1) ?? choice}
+                folder={choice.endsWith('/')}
+                className="text-muted-foreground"
+              />
               <span className="truncate">{choice}</span>
             </AutocompleteItem>
           )}

@@ -20,7 +20,7 @@ import { QueryPage } from '../data/personal/query-boundary'
 import { AppearanceSkeleton } from '../skeletons/agent-skeletons'
 import { useCloudSettings } from '@/lib/cloud-settings'
 import { useSettingsDraft } from '../data/personal/use-settings-draft'
-import { CODE_FONT_SIZES, EDensity, ETheme } from '../fixtures/settings-interface'
+import { CODE_FONT_SIZES, EDensity, EFileIconStyle, ETheme } from '../fixtures/settings-interface'
 import { ThemeCard } from '../parts/interface-theme-card'
 import {
   SaveFooter,
@@ -86,6 +86,15 @@ function AppearanceEditor({
     }
   }
 
+  const handleFileIconsChange = (next: string[]) => {
+    const fileIcons = next.find(
+      (item) => item === EFileIconStyle.Monochrome || item === EFileIconStyle.Color,
+    )
+    if (fileIcons === EFileIconStyle.Monochrome || fileIcons === EFileIconStyle.Color) {
+      setValue({ ...value, fileIcons })
+    }
+  }
+
   const handleFontSizeChange = (next: string | null) => {
     const size = Number(next)
     if (size === 12 || size === 13 || size === 14) setValue({ ...value, codeFontSize: size })
@@ -129,6 +138,23 @@ function AppearanceEditor({
               >
                 <ToggleGroupItem value={EDensity.Comfortable}>Comfortable</ToggleGroupItem>
                 <ToggleGroupItem value={EDensity.Compact}>Compact</ToggleGroupItem>
+              </ToggleGroup>
+            }
+          />
+          <SettingsRow
+            title="File icons"
+            description="Icons in file trees. Colour uses each file type's brand colour."
+            control={
+              <ToggleGroup
+                variant="outline"
+                size="sm"
+                spacing={0}
+                value={[value.fileIcons]}
+                onValueChange={handleFileIconsChange}
+                aria-label="File icons"
+              >
+                <ToggleGroupItem value={EFileIconStyle.Monochrome}>Monochrome</ToggleGroupItem>
+                <ToggleGroupItem value={EFileIconStyle.Color}>Colour</ToggleGroupItem>
               </ToggleGroup>
             }
           />

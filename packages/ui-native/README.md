@@ -7,8 +7,8 @@ palette and one type scale. `apps/mobile` is the only consumer.
 ## Owns
 
 - The native components: `Alert`, `Avatar`, `Bubble`, `Button`, `Card`, `CodeBlock`, `HarnessNotice`,
-  `Icon`, `Input`, `Markdown`, `Reasoning`, `Separator`, `Spinner`, `Text`, `Trace`, `AtlasMark` and
-  `BrandMark`.
+  `Icon`, `Input`, `Markdown`, `Reasoning`, `Separator`, `Spinner`, `Text`, `Trace`, `AtlasMark`,
+  `BrandMark` and `FileTypeIcon`.
 - The native theme hooks: `useTheme`, `useScheme`, `useIsDark`.
 - The native type enums `ETextRole`, `ETextTone`, `EFontFamily`, `EFontWeight`.
 - A small markdown renderer with no web view.
@@ -18,7 +18,8 @@ palette and one type scale. `apps/mobile` is the only consumer.
 - The token values. `@dltech/atlas-ui/tokens` owns them.
 - The web components. `@dltech/atlas-ui` owns them.
 - Navigation, screens and data. `apps/mobile` owns them.
-- The icon set. `lucide-react-native` owns it.
+- The general icon set. `lucide-react-native` owns it. File and folder artwork comes from
+  `@dltech/atlas-ui/file-icons`.
 
 ## Entry points
 
@@ -58,6 +59,8 @@ palette and one type scale. `apps/mobile` is the only consumer.
   44 pt minimum, and `onPressIn` / `onPressOut` drive press feedback such as a bounce.
 - `Input` with `IInputProps`, `InputRef`: a text field.
 - `Avatar` with `EAvatarSize`, `Icon`: an avatar, and a lucide icon.
+- `FileTypeIcon`: a file or folder icon matched by `name`. Pass `folder` and `open` for folder
+  state, `colored` for source colours (monochrome by default), and `size` in pixels (16 by default).
 - `Spinner`: the Atlas loading spinner, the same turning `LoaderCircle` as the web `Spinner`.
 - `Bubble`, `MessageActions`, `MessageAction`, `MessageFooter`: a message and its actions.
 

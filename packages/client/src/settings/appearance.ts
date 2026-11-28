@@ -1,4 +1,4 @@
-import { EDensity, ETheme } from '@dltech/atlas-wire/web'
+import { EDensity, EFileIconStyle, ETheme } from '@dltech/atlas-wire/web'
 
 import {
   diffChanges,
@@ -9,11 +9,12 @@ import {
   type ISettingValues,
 } from './setting-values'
 
-export { EDensity, ETheme }
+export { EDensity, EFileIconStyle, ETheme }
 
 export type IAppearanceSettings = {
   theme: ETheme
   density: EDensity
+  fileIcons: EFileIconStyle
   codeFontSize: 12 | 13 | 14
   showDiffStat: boolean
   reduceMotion: boolean
@@ -22,6 +23,11 @@ export type IAppearanceSettings = {
 export const THEMES: readonly ETheme[] = [ETheme.Dark, ETheme.Light, ETheme.System]
 
 export const DENSITIES: readonly EDensity[] = [EDensity.Comfortable, EDensity.Compact]
+
+export const FILE_ICON_STYLES: readonly EFileIconStyle[] = [
+  EFileIconStyle.Monochrome,
+  EFileIconStyle.Color,
+]
 
 export const CODE_FONT_SIZES = [
   { value: '12', label: '12 px' },
@@ -42,13 +48,18 @@ const isTheme = (value: string): value is ETheme => THEMES.some((theme) => theme
 const isDensity = (value: string): value is EDensity =>
   DENSITIES.some((density) => density === value)
 
+const isFileIconStyle = (value: string): value is EFileIconStyle =>
+  FILE_ICON_STYLES.some((style) => style === value)
+
 export function appearanceFrom(values: ISettingValues): IAppearanceSettings {
   const theme = settingString({ values, key: `${APPEARANCE_PREFIX}theme` })
   const density = settingString({ values, key: `${APPEARANCE_PREFIX}density` })
+  const fileIcons = settingString({ values, key: `${APPEARANCE_PREFIX}fileIcons` })
   const size = settingValue({ values, key: `${APPEARANCE_PREFIX}codeFontSize` })
   return {
     theme: isTheme(theme) ? theme : ETheme.Dark,
     density: isDensity(density) ? density : EDensity.Comfortable,
+    fileIcons: isFileIconStyle(fileIcons) ? fileIcons : EFileIconStyle.Monochrome,
     codeFontSize: size === 12 || size === 14 ? size : 13,
     showDiffStat: settingBool({ values, key: `${APPEARANCE_PREFIX}showDiffStat` }),
     reduceMotion: settingBool({ values, key: `${APPEARANCE_PREFIX}reduceMotion` }),
@@ -58,6 +69,7 @@ export function appearanceFrom(values: ISettingValues): IAppearanceSettings {
 const appearanceFlat = (settings: IAppearanceSettings) => ({
   [`${APPEARANCE_PREFIX}theme`]: settings.theme,
   [`${APPEARANCE_PREFIX}density`]: settings.density,
+  [`${APPEARANCE_PREFIX}fileIcons`]: settings.fileIcons,
   [`${APPEARANCE_PREFIX}codeFontSize`]: settings.codeFontSize,
   [`${APPEARANCE_PREFIX}showDiffStat`]: settings.showDiffStat,
   [`${APPEARANCE_PREFIX}reduceMotion`]: settings.reduceMotion,

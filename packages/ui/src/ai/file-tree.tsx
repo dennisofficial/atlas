@@ -1,10 +1,12 @@
 'use client'
 
-import { ChevronRightIcon, FileIcon, FolderIcon } from 'lucide-react'
+import { ChevronRightIcon } from 'lucide-react'
+import { useState } from 'react'
 
 import { Button } from '#components/button'
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '#components/collapsible'
 import { cn } from '#lib/utils'
+import { FileTypeIcon } from './file-type-icon'
 import { TreeGuide } from './internal/tree-guide'
 
 export enum EFileChange {
@@ -116,17 +118,23 @@ export function openPropsOf(args: {
 }
 
 function FileTreeNode({ node, selected, onSelect, defaultOpen, open, onOpenChange }: NodeProps) {
+  const [localOpen, setLocalOpen] = useState(defaultOpen)
   if (node.children) {
-    const isOpen = open?.includes(node.path) ?? defaultOpen
+    const isOpen = open?.includes(node.path) ?? localOpen
+    const props = openPropsOf({ path: node.path, open, defaultOpen, onOpenChange })
+    const handleOpenChange = (next: boolean) => {
+      setLocalOpen(next)
+      props.onOpenChange(next)
+    }
     return (
-      <Collapsible {...openPropsOf({ path: node.path, open, defaultOpen, onOpenChange })}>
+      <Collapsible {...props} onOpenChange={handleOpenChange}>
         <CollapsibleTrigger
           render={
             <Button variant="tree" size="sm" className="w-full justify-start font-mono text-xs" />
           }
         >
           <ChevronRightIcon className="transition-transform group-data-panel-open/button:rotate-90" />
-          <FolderIcon />
+          <FileTypeIcon name={node.name} folder open={isOpen} />
           <span className={nameClassOf(node)}>{node.name}</span>
           {node.change ? <ChangeMark change={node.change} folder /> : null}
           {node.ignored && node.change === undefined ? <IgnoredMark /> : null}
@@ -161,7 +169,7 @@ function FileTreeNode({ node, selected, onSelect, defaultOpen, open, onOpenChang
       className="w-full justify-start font-mono text-xs"
       onClick={handleSelect}
     >
-      <FileIcon />
+      <FileTypeIcon name={node.name} />
       <span className={nameClassOf(node)}>{node.name}</span>
       {node.change ? <ChangeMark change={node.change} folder={false} /> : null}
       {node.ignored && node.change === undefined ? <IgnoredMark /> : null}

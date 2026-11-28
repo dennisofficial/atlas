@@ -1,7 +1,8 @@
-import { ChevronRightIcon, FolderIcon } from 'lucide-react'
+import { ChevronRightIcon } from 'lucide-react'
 import type { ReactNode } from 'react'
 
 import { cn } from '#lib/utils'
+import { FileTypeIcon } from '../file-type-icon'
 import { Counts } from './changes-format'
 import { FileRow } from './changes-file-row'
 import type { ChangeDirNode, ChangeTreeNode } from './changes-tree'
@@ -67,7 +68,12 @@ function FolderRow(args: {
               open && 'rotate-90',
             )}
           />
-          <FolderIcon className="size-3.5 shrink-0 text-muted-foreground" />
+          <FileTypeIcon
+            name={node.name}
+            folder
+            open={open}
+            className="size-3.5 shrink-0 text-muted-foreground"
+          />
           <span className="min-w-0 flex-1 truncate text-foreground">{node.name}</span>
           <Counts added={node.added} removed={node.removed} />
         </button>

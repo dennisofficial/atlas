@@ -26,6 +26,11 @@ export enum EDensity {
   Compact = 'compact',
 }
 
+export enum EFileIconStyle {
+  Monochrome = 'monochrome',
+  Color = 'color',
+}
+
 export enum EClassifierModeWire {
   Off = 'off',
   Shadow = 'shadow',

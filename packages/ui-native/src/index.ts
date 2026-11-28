@@ -7,6 +7,7 @@ export { Button, EButtonSize, EButtonVariant, type IButtonProps } from './button
 export { Card, CardList, CardRow } from './card'
 export { EHarnessNoticeTone, HarnessNotice } from './harness-notice'
 export { withAlpha } from './color'
+export { FileTypeIcon } from './file-type-icon'
 export { Icon } from './icon'
 export { Input, type IInputProps, type InputRef } from './input'
 export { CodeBlock } from './markdown/blocks'

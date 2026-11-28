@@ -2,7 +2,9 @@ import {
   CODE_FONT_SIZES,
   DENSITIES,
   EDensity,
+  EFileIconStyle,
   ETheme,
+  FILE_ICON_STYLES,
   THEMES,
   appearanceChanges,
   appearanceFrom,
@@ -26,6 +28,16 @@ const DENSITY_LABELS: Readonly<Record<EDensity, string>> = {
   [EDensity.Compact]: 'Compact',
 }
 
+const FILE_ICON_LABELS: Readonly<Record<EFileIconStyle, string>> = {
+  [EFileIconStyle.Monochrome]: 'Monochrome',
+  [EFileIconStyle.Color]: 'Colour',
+}
+
+const FILE_ICON_OPTIONS = FILE_ICON_STYLES.map((style) => ({
+  value: style,
+  label: FILE_ICON_LABELS[style],
+}))
+
 const THEME_OPTIONS = THEMES.map((theme) => ({ value: theme, label: THEME_LABELS[theme] }))
 const DENSITY_OPTIONS = DENSITIES.map((density) => ({
   value: density,
@@ -42,6 +54,7 @@ export default function AppearanceScreen() {
 
   const handleTheme = (theme: ETheme) => save({ ...appearance, theme })
   const handleDensity = (density: EDensity) => save({ ...appearance, density })
+  const handleFileIcons = (fileIcons: EFileIconStyle) => save({ ...appearance, fileIcons })
   const handleFontSize = (size: string) => {
     const next = Number(size)
     if (next === 12 || next === 13 || next === 14) save({ ...appearance, codeFontSize: next })
@@ -67,6 +80,13 @@ export default function AppearanceScreen() {
           value={appearance.density}
           options={DENSITY_OPTIONS}
           onChange={handleDensity}
+        />
+        <ChoiceRow
+          label="File icons"
+          detail="Icons in file trees. Colour uses each file type's brand colour."
+          value={appearance.fileIcons}
+          options={FILE_ICON_OPTIONS}
+          onChange={handleFileIcons}
         />
         <ChoiceRow
           label="Code font size"

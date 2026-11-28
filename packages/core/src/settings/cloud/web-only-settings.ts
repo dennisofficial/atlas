@@ -4,6 +4,7 @@ import type { CloudSettingEntry } from './setting-entry'
 import { ESettingConsumer, settingEntry } from './setting-entry'
 import {
   EDensity,
+  EFileIconStyle,
   ETheme,
   NOTIFY_CHANNEL_IDS,
   NOTIFY_EVENT_IDS,
@@ -55,6 +56,11 @@ export const WEB_ONLY_SETTING_ENTRIES = [
     key: 'web.appearance.density',
     schema: z.enum(EDensity),
     fallback: EDensity.Comfortable,
+  }),
+  webEntry({
+    key: 'web.appearance.fileIcons',
+    schema: z.enum(EFileIconStyle),
+    fallback: EFileIconStyle.Monochrome,
   }),
   webEntry({
     key: 'web.appearance.codeFontSize',
