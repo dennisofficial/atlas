@@ -156,7 +156,7 @@ const styles = StyleSheet.create({
   barPill: {
     borderRadius: BAR_PILL_HEIGHT / 2,
     minHeight: BAR_PILL_HEIGHT,
-    paddingVertical: 4,
+    paddingVertical: 1,
   },
   fillText: {
     flex: 1,
