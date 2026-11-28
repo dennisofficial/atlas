@@ -8,7 +8,7 @@ import { popupMotion } from '#lib/popup-motion'
 
 const popoverContentVariants = cva(
   cn(
-    'z-50 flex w-72 origin-(--transform-origin) flex-col gap-2.5 rounded-lg bg-popover p-2.5 text-sm has-[>[data-slot=command]]:gap-0 has-[>[data-slot=command]]:p-0 text-popover-foreground shadow-md ring-1 ring-foreground/10 outline-hidden',
+    'z-50 flex w-72 origin-(--transform-origin) flex-col gap-2.5 rounded-xl bg-popover p-2.5 text-sm has-[>[data-slot=command]]:gap-0 has-[>[data-slot=command]]:p-0 text-popover-foreground shadow-lg ring-1 ring-border outline-hidden',
     popupMotion,
   ),
   {
