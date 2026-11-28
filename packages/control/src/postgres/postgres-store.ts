@@ -173,7 +173,14 @@ import {
 } from './postgres-subscriptions'
 import { releasePullRequestTrackingIn, upsertTrackingTargetIn } from './postgres-tracking-targets'
 import { toLease, toThreadRow } from './postgres-rows'
-import { insertEventsIn, listSessionsIn, readEventsIn, writeThreadHeadIn } from './postgres-threads'
+import {
+  insertEventsIn,
+  listSessionsIn,
+  readEventCursorIn,
+  readEventsByBytesIn,
+  readEventsIn,
+  writeThreadHeadIn,
+} from './postgres-threads'
 import {
   createTerminalIn,
   deleteTerminalIn,
@@ -521,6 +528,14 @@ export class PostgresTx implements ControlTx {
 
   async lockContextDigest(params: { digest: string }): Promise<void> {
     await lockContextDigestIn({ tx: this.tx, ...params })
+  }
+
+  async readEventCursor(params: { threadId: string; seq: number }) {
+    return readEventCursorIn({ tx: this.tx, ...params })
+  }
+
+  async readEventsByBytes(params: ReadEventsParams & { maxBytes: number }) {
+    return readEventsByBytesIn({ tx: this.tx, ...params })
   }
 
   async readEvents(params: ReadEventsParams): Promise<StoredEvent[]> {

@@ -434,6 +434,11 @@ export class MemoryTx extends MemoryTxViews implements ControlTx {
     return Promise.resolve()
   }
 
+  async readEventCursor(params: { threadId: string; seq: number }) {
+    const row = this.state.events.get(params.threadId)?.find((event) => event.seq === params.seq)
+    return row === undefined ? undefined : { seq: row.seq, hash: row.hash }
+  }
+
   async readEvents(params: ReadEventsParams): Promise<StoredEvent[]> {
     return readEventsIn({ state: this.state, ...params })
   }

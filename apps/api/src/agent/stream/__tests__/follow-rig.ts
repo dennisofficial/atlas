@@ -62,6 +62,7 @@ export class FollowRig {
   readonly analytics = new RecordingAnalytics()
   buffered = 0
   reads = 0
+  cursorReads = 0
   headReads = 0
   tailBaseReads = 0
   tailBaseMissing = false
@@ -83,6 +84,10 @@ export class FollowRig {
       head: (params) => {
         this.headReads += 1
         return this.plane.head(params)
+      },
+      readEventCursor: (params) => {
+        this.cursorReads += 1
+        return this.plane.readEventCursor(params)
       },
       readEvents: async (params) => {
         this.reads += 1

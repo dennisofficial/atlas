@@ -577,6 +577,10 @@ export class ControlPlane {
     }
   }
 
+  async readEventCursor(params: { threadId: string; seq: number }) {
+    return this.store.transact((tx) => tx.readEventCursor(params))
+  }
+
   async readEvents(params: {
     threadId: string
     afterSeq: number

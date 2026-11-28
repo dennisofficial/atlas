@@ -56,6 +56,7 @@ a thread's event log.
 - `readEvents({ threadId, afterSeq, limit, visible, hiddenTypes?, maxBytes? })`, `readBlob`,
   `blobReferencedBy`. `MAX_READ_LIMIT` and `MAX_SESSION_LIST_LIMIT` cap a read. The page's
   `lastHash` is the stored hash of its last row, for a resume.
+- `readEventCursor({ threadId, seq })`: the stored `{ seq, hash }` at exactly that sequence, without the event body; missing rows return `undefined`.
 - `AppendHook`, `ViewChangeHook`, `ChangeFeed`: the hooks an append calls before it commits and
   after it moves the session view, and the change pointer it sends.
 

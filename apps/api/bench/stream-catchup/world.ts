@@ -159,6 +159,7 @@ export const createBenchWorld = async (args: {
       await delay(args.queryDelayMs)
       return plane.head(params)
     },
+    readEventCursor: (params) => plane.readEventCursor(params),
     readEvents: async (params) => {
       counts.readEvents += 1
       await delay(args.queryDelayMs)

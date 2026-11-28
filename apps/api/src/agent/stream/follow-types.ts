@@ -16,6 +16,7 @@ export type FollowPlane = Pick<
   | 'readThread'
   | 'head'
   | 'readEvents'
+  | 'readEventCursor'
   | 'readTailBase'
   | 'listSessionDigests'
   | 'readSessionView'

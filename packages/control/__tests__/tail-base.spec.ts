@@ -146,6 +146,13 @@ describe('readTailBase', () => {
     expect(base?.durable.map((event) => event.seq)).toEqual([1, 39, 40])
   })
 
+  test('refuses a base when the preceding cursor does not exist', async () => {
+    const { plane } = await worldOf()
+    expect(
+      await plane.readTailBase({ sessionId: SESSION, threadId: THREAD, tailFrom: 62 }),
+    ).toBeUndefined()
+  })
+
   test('refuses a base at the start of the log', async () => {
     const { plane } = await worldOf()
     expect(

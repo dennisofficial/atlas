@@ -1,5 +1,7 @@
 import { afterEach, beforeEach, describe, expect, it } from 'bun:test'
 
+import { EStreamResetReason } from '@dltech/atlas-protocol'
+
 import { FOLLOW_HIGH_WATER_BYTES } from '../follow-limits'
 import { FollowRig, OWNER, said, SESSION, THREAD } from './follow-rig'
 
@@ -29,6 +31,38 @@ describe('follow catch-up', () => {
     const seqs = rig.seqs()
     expect(seqs).toContain(251)
     expect(seqs).toEqual([...new Set(seqs)].sort((a, b) => a - b))
+  })
+
+  it('resumes a correct warm cursor without a full event read for validation', async () => {
+    await rig.seed({ events: 10 })
+    const cursor = await rig.plane.readEventCursor({ threadId: THREAD, seq: 5 })
+    if (cursor === undefined) throw new Error('missing cursor')
+    await rig.subscribe({ session: rig.open(), afterSeq: 5, afterHash: cursor.hash })
+    await rig.untilSeq(10)
+    await rig.settled()
+    expect(rig.cursorReads).toBe(1)
+    expect(rig.reads).toBe(1)
+    expect(rig.frames('reset')).toHaveLength(0)
+    expect(rig.seqs()).toEqual([6, 7, 8, 9, 10])
+  })
+
+  it('resets a forked warm cursor with a metadata-only lookup', async () => {
+    await rig.seed({ events: 10 })
+    await rig.subscribe({ session: rig.open(), afterSeq: 5, afterHash: 'wrong' })
+    await rig.untilSeq(10)
+    await rig.settled()
+    expect(rig.cursorReads).toBe(1)
+    expect(rig.frames('reset')[0]?.reason).toBe(EStreamResetReason.Fork)
+    expect(rig.seqs()).toEqual(Array.from({ length: 10 }, (_, index) => index + 1))
+  })
+
+  it('resets an ahead cursor without looking up event metadata', async () => {
+    await rig.seed({ events: 10 })
+    await rig.subscribe({ session: rig.open(), afterSeq: 11, afterHash: 'wrong' })
+    await rig.untilSeq(10)
+    await rig.settled()
+    expect(rig.cursorReads).toBe(0)
+    expect(rig.frames('reset')[0]?.reason).toBe(EStreamResetReason.Ahead)
   })
 
   it('replays a long cold log from its first event, newest last', async () => {
