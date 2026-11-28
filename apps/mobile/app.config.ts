@@ -13,6 +13,10 @@ export default (): ExpoConfig => ({
   scheme: 'atlas',
   userInterfaceStyle: 'automatic',
   ios: {
+    icon: {
+      light: './assets/images/icon.png',
+      dark: './assets/images/icon-dark.png',
+    },
     bundleIdentifier: 'io.byatlas.atlas',
     appleTeamId: '9H7HK25CVR',
     config: { usesNonExemptEncryption: false },
