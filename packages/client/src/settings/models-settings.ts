@@ -3,6 +3,7 @@ import {
   EFFORT_LADDER,
   roleKey,
   roleKeysOf,
+  refKey,
   type EEffort,
   type ModelRole,
   type ResolvedModelChoice,
@@ -93,6 +94,21 @@ export function pickedModelDraft(args: {
       model: args.model,
       effort: clampToRungs({ rungs, effort }) ?? effort,
       fast,
+    },
+  }
+}
+
+export function unfollowedDraft(args: {
+  draft: IModelsDraft
+  role: ModelRole
+  inherited: ResolvedModelChoice
+}): IModelsDraft {
+  return {
+    ...args.draft,
+    [roleKey(args.role)]: {
+      model: refKey(args.inherited.ref),
+      effort: args.inherited.effort,
+      fast: args.inherited.fast,
     },
   }
 }

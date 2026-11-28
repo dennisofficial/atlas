@@ -76,6 +76,7 @@ type HeaderProps = {
   previews?: readonly PreviewItem[]
   paneCollapsed?: boolean
   onTogglePane?: () => void
+  onTogglePane?: () => void
   onOpenPane?: () => void
   onOpenDetails?: () => void
   onOpenPreview?: (url: string) => void
@@ -281,13 +282,9 @@ describe('SessionHeader', () => {
     expect(render({ entries: [] })).not.toContain('data-session-routine')
   })
 
-  it('offers a pane toggle that reports whether the pane is collapsed', () => {
-    const expanded = render({ entries: [], paneCollapsed: false })
-    expect(expanded).toContain('aria-label="Collapse panel"')
-    expect(expanded).toContain('aria-expanded="true"')
-    const collapsed = render({ entries: [], paneCollapsed: true })
-    expect(collapsed).toContain('aria-label="Expand panel"')
-    expect(collapsed).toContain('aria-expanded="false"')
+  it('labels the tools toggle by what it will do', () => {
+    expect(render({ entries: [], paneCollapsed: true })).toContain('aria-label="Open tools"')
+    expect(render({ entries: [], paneCollapsed: false })).toContain('aria-label="Close tools"')
   })
 })
 

@@ -3,6 +3,8 @@ import { afterAll, afterEach, beforeAll, describe, expect, it, mock } from 'bun:
 import { act, type ReactNode } from 'react'
 import type { Root } from 'react-dom/client'
 import type { SkillSummary } from '@dltech/atlas-wire/web'
+import { ESkillScope } from '@dltech/atlas-wire/web'
+import { createTestQueryClient, TestQueryProvider } from '@/lib/__tests__/query-test-provider'
 
 const pushed: string[] = []
 
@@ -10,7 +12,8 @@ mock.module('next/navigation', () => ({
   useRouter: () => ({ push: (href: string) => pushed.push(href) }),
 }))
 
-const { SkillsTable } = await import('../skills-list-view')
+const { SkillsTable, SkillsListPage } = await import('../skills-list-view')
+const originalFetch = globalThis.fetch
 
 function summary(
   name: string,
@@ -56,6 +59,7 @@ afterEach(async () => {
   container?.remove()
   container = null
   pushed.length = 0
+  globalThis.fetch = originalFetch
 })
 
 async function renderTable(skills: SkillSummary[] = SKILLS): Promise<HTMLDivElement> {
@@ -94,6 +98,72 @@ async function click(target: Element): Promise<void> {
     target.dispatchEvent(new MouseEvent('click', { bubbles: true, cancelable: true }))
   })
 }
+
+describe('Skills page separate usage', () => {
+  async function renderPage() {
+    const usage = Promise.withResolvers<Response>()
+    const calls: string[] = []
+    globalThis.fetch = Object.assign(
+      async (input: Parameters<typeof fetch>[0]) => {
+        const url = String(input)
+        calls.push(url)
+        if (url.includes('skills.usage')) return usage.promise
+        return Response.json({
+          result: { data: { skills: [summary('review', 0, { usagePending: true })] } },
+        })
+      },
+      { preconnect: originalFetch.preconnect },
+    )
+    const client = createTestQueryClient()
+    const { createRoot } = await import('react-dom/client')
+    container = document.createElement('div')
+    document.body.append(container)
+    root = createRoot(container)
+    const mounted = root
+    await act(async () =>
+      mounted.render(
+        <TestQueryProvider client={client}>
+          <SkillsListPage
+            target={{ scope: ESkillScope.Personal }}
+            title="Skills"
+            description="Your skills"
+            detailHref={DETAIL_HREF}
+          />
+        </TestQueryProvider>,
+      ),
+    )
+    await act(async () => new Promise((done) => setTimeout(done, 20)))
+    return { element: container, usage, calls, client }
+  }
+
+  it('renders the list while usage is pending then shows the received counts', async () => {
+    const { element, usage, calls, client } = await renderPage()
+    expect(rowNamed(element, 'review').textContent).toContain('—')
+    expect(rowNamed(element, 'review').textContent).not.toContain('Never used')
+    expect(calls.filter((url) => url.includes('skills.list'))).toHaveLength(1)
+    expect(calls.filter((url) => url.includes('skills.usage'))).toHaveLength(1)
+    await act(async () =>
+      usage.resolve(
+        Response.json({
+          result: { data: { usage: { review: { usedCount30d: 9, lastUsedAt: null } } } },
+        }),
+      ),
+    )
+    await act(async () => new Promise((done) => setTimeout(done, 20)))
+    expect(rowNamed(element, 'review').textContent).toContain('Used 9×')
+    client.clear()
+  })
+
+  it('keeps the page usable and the usage empty after a timeout without retrying', async () => {
+    const { element, usage, calls, client } = await renderPage()
+    await act(async () => usage.reject(new DOMException('Timed out', 'TimeoutError')))
+    await act(async () => new Promise((done) => setTimeout(done, 20)))
+    expect(rowNamed(element, 'review').textContent).toContain('—')
+    expect(element.querySelector('tbody a')?.getAttribute('href')).toBe(DETAIL_HREF('review'))
+    expect(calls.filter((url) => url.includes('skills.usage'))).toHaveLength(1)
+    client.clear()
+  })
+})
 
 describe('SkillsTable rows', () => {
   it('opens the skill detail when a row body is clicked', async () => {

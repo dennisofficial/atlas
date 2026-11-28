@@ -15,9 +15,7 @@ import {
 } from '@dltech/atlas-ui/components/dialog'
 import { Input } from '@dltech/atlas-ui/components/input'
 import { Label } from '@dltech/atlas-ui/components/label'
-
-const NAME_PATTERN = /^[a-z0-9][a-z0-9-]*$/
-const MAX_NAME_LENGTH = 64
+import { skillNameIsValid } from '@dltech/atlas-client/settings'
 
 export function NewSkillDialog({
   onCreate,
@@ -28,7 +26,7 @@ export function NewSkillDialog({
 }) {
   const [open, setOpen] = useState(false)
   const [name, setName] = useState('')
-  const valid = NAME_PATTERN.test(name) && name.length <= MAX_NAME_LENGTH
+  const valid = skillNameIsValid({ name })
 
   const handleCreate = () => {
     if (!valid) return

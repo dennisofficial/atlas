@@ -27,8 +27,10 @@ afterEach(async () => {
 
 const headerOf = (args: {
   paneCollapsed?: boolean
-  onTogglePane: () => void
+  onTogglePane?: () => void
   onOpenPane: () => void
+  detailsOpen?: boolean
+  onToggleDetails?: () => void
 }) => (
   <SidebarProvider>
     <SessionHeader
@@ -47,6 +49,8 @@ const headerOf = (args: {
       paneCollapsed={args.paneCollapsed}
       onTogglePane={args.onTogglePane}
       onOpenPane={args.onOpenPane}
+      detailsOpen={args.detailsOpen}
+      onToggleDetails={args.onToggleDetails}
       onOpenPreview={() => undefined}
     />
   </SidebarProvider>
@@ -54,8 +58,10 @@ const headerOf = (args: {
 
 async function mount(args: {
   paneCollapsed?: boolean
-  onTogglePane: () => void
+  onTogglePane?: () => void
   onOpenPane: () => void
+  detailsOpen?: boolean
+  onToggleDetails?: () => void
 }) {
   const { createRoot } = await import('react-dom/client')
   const container = document.createElement('div')
@@ -71,36 +77,38 @@ async function mount(args: {
 }
 
 describe('SessionHeader pane buttons', () => {
-  it('toggles the pane from the header', async () => {
-    const calls: string[] = []
-    const { buttonOf } = await mount({
-      onTogglePane: () => calls.push('toggle'),
-      onOpenPane: () => calls.push('open'),
-    })
-    await act(async () => buttonOf('Collapse panel').click())
-    expect(calls).toEqual(['toggle'])
-  })
-
   it('opens the pane on a narrow screen', async () => {
     const calls: string[] = []
-    const { buttonOf } = await mount({
-      onTogglePane: () => calls.push('toggle'),
-      onOpenPane: () => calls.push('open'),
-    })
+    const { buttonOf } = await mount({ onOpenPane: () => calls.push('open') })
     await act(async () => buttonOf('Open panel').click())
     expect(calls).toEqual(['open'])
   })
 
-  it('asks to expand a collapsed pane', async () => {
+  it('opens and closes the tools panel with one button', async () => {
     const calls: string[] = []
     const { buttonOf } = await mount({
       paneCollapsed: true,
+      onOpenPane: () => undefined,
       onTogglePane: () => calls.push('toggle'),
-      onOpenPane: () => calls.push('open'),
     })
-    const expand = buttonOf('Expand panel')
-    expect(expand.getAttribute('aria-expanded')).toBe('false')
-    await act(async () => expand.click())
+    const toggle = buttonOf('Open tools')
+    expect(toggle.getAttribute('aria-expanded')).toBe('false')
+    await act(async () => toggle.click())
     expect(calls).toEqual(['toggle'])
+  })
+})
+
+describe('SessionHeader details card button', () => {
+  it('toggles the details card and reports whether it is open', async () => {
+    const calls: string[] = []
+    const { buttonOf } = await mount({
+      detailsOpen: true,
+      onOpenPane: () => calls.push('open'),
+      onToggleDetails: () => calls.push('details'),
+    })
+    const details = buttonOf('Session details')
+    expect(details.getAttribute('aria-expanded')).toBe('true')
+    await act(async () => details.click())
+    expect(calls).toEqual(['details'])
   })
 })

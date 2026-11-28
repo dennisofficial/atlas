@@ -1,6 +1,6 @@
 'use client'
 
-import { Bell, GitBranch, Globe, PanelRightIcon } from 'lucide-react'
+import { Bell, GitBranch, Globe, InfoIcon, PanelRightIcon } from 'lucide-react'
 
 import type { CrewRoster, CrewRow } from '@dltech/atlas-plugin-crew/client'
 import type { PreviewItem } from '@dltech/atlas-plugin-services/client'
@@ -151,6 +151,8 @@ export function SessionHeader({
   paneCollapsed = false,
   onTogglePane,
   onOpenPane,
+  detailsOpen = false,
+  onToggleDetails,
   onOpenDetails,
   onOpenPreview,
 }: {
@@ -170,6 +172,8 @@ export function SessionHeader({
   paneCollapsed?: boolean
   onTogglePane?: () => void
   onOpenPane?: () => void
+  detailsOpen?: boolean
+  onToggleDetails?: () => void
   onOpenDetails?: () => void
   onOpenPreview: (url: string) => void
 }) {
@@ -215,7 +219,17 @@ export function SessionHeader({
         <Button
           variant="ghost"
           size="icon-sm"
-          aria-label={paneCollapsed ? 'Expand panel' : 'Collapse panel'}
+          aria-label="Session details"
+          aria-expanded={detailsOpen}
+          className="hidden md:inline-flex"
+          onClick={onToggleDetails}
+        >
+          <InfoIcon />
+        </Button>
+        <Button
+          variant="ghost"
+          size="icon-sm"
+          aria-label={paneCollapsed ? 'Open tools' : 'Close tools'}
           aria-expanded={!paneCollapsed}
           className="hidden md:inline-flex"
           onClick={onTogglePane}

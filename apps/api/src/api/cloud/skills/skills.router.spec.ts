@@ -122,7 +122,7 @@ describe('SkillsRouter', () => {
     await seedUser({ db, id: USER_B })
   })
 
-  it('round-trips a personal skill: put, list with usage, listFiles, get, remove', async () => {
+  it('round-trips a personal skill: put, list with pending usage, listFiles, get, remove', async () => {
     const written = await put('session-a', {
       scope: 'personal',
       skill: 'review',
@@ -399,13 +399,25 @@ describe('SkillsRouter', () => {
       ],
     })
 
-    const personal = await list('session-a', { scope: 'personal' }).expect(200)
-    const review = (dataOf(personal.body) as { skills: { usage: unknown }[] }).skills[0]
-    expect(review?.usage).toEqual({ usedCount30d: 2, lastUsedAt: recent.toISOString() })
+    const personal = await trpcQuery({
+      app,
+      path: 'skills.usage',
+      token: 'session-a',
+      input: { scope: 'personal' },
+    }).expect(200)
+    expect(dataOf(personal.body)).toMatchObject({
+      usage: { review: { usedCount30d: 2, lastUsedAt: recent.toISOString() } },
+    })
 
-    const project = await list('session-a', { scope: 'project', projectId: 'proj-a' }).expect(200)
-    const deploy = (dataOf(project.body) as { skills: { usage: unknown }[] }).skills[0]
-    expect(deploy?.usage).toEqual({ usedCount30d: 1, lastUsedAt: recent.toISOString() })
+    const project = await trpcQuery({
+      app,
+      path: 'skills.usage',
+      token: 'session-a',
+      input: { scope: 'project', projectId: 'proj-a' },
+    }).expect(200)
+    expect(dataOf(project.body)).toMatchObject({
+      usage: { deploy: { usedCount30d: 1, lastUsedAt: recent.toISOString() } },
+    })
   })
 
   it('derives and persists an empty description from SKILL.md on list', async () => {

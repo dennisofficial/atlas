@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'bun:test'
 
 import { buildSkillTree } from '../skill-tree'
-import { ESkillFileKind, fileKindOf, formatBytes } from '../skill-format'
+import { ESkillFileKind, fileKindOf, formatBytes } from '@dltech/atlas-client/settings'
 
 describe('buildSkillTree', () => {
   it('builds nested folders with SKILL.md first among files', () => {

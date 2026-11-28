@@ -4,8 +4,10 @@ import { useSyncExternalStore } from 'react'
 
 export const RIGHT_PANEL_COLLAPSED_KEY = 'atlas:right-panel-collapsed'
 
+export const RIGHT_PANEL_COLLAPSED_BY_DEFAULT = true
+
 const listeners = new Set<() => void>()
-let collapsed = false
+let collapsed = RIGHT_PANEL_COLLAPSED_BY_DEFAULT
 
 function publish(next: boolean) {
   if (collapsed === next) return
@@ -15,7 +17,8 @@ function publish(next: boolean) {
 
 function readStoredCollapsed() {
   try {
-    publish(window.localStorage.getItem(RIGHT_PANEL_COLLAPSED_KEY) === 'true')
+    const stored = window.localStorage.getItem(RIGHT_PANEL_COLLAPSED_KEY)
+    publish(stored === null ? RIGHT_PANEL_COLLAPSED_BY_DEFAULT : stored === 'true')
   } catch {}
 }
 
@@ -43,7 +46,7 @@ function setCollapsed(next: boolean) {
 }
 
 const snapshot = () => collapsed
-const serverSnapshot = () => false
+const serverSnapshot = () => RIGHT_PANEL_COLLAPSED_BY_DEFAULT
 
 export function useRightPanelCollapsed() {
   return { collapsed: useSyncExternalStore(subscribe, snapshot, serverSnapshot), setCollapsed }

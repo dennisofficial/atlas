@@ -12,7 +12,7 @@ import { FOLLOW_HIGH_WATER_BYTES } from '../follow-limits'
 import type { FoldedStep } from './fold-live-buffer'
 import { atOrBefore, FrameOrder } from './frame-order'
 import { readJoin, type JoinRead } from './join-read'
-import { ShellFrameHold, type ShellFrame } from './shell-frames'
+import { ShellFrameHold } from './shell-frames'
 import { trackShown } from './shown-step'
 import { isStepFrame, sameLengths, sameStep, type OpenStep, type StepFrame } from './step-frames'
 
@@ -48,9 +48,9 @@ export class OverlayWatcher {
   private retries = 0
   private retryTimer: unknown
 
-  private readonly shells = new ShellFrameHold((frame) => {
-    if (!this.stopped) this.emit({ type: 'frame', id: this.args.id, frame })
-  })
+  private readonly shells = new ShellFrameHold(
+    (frame) => !this.stopped && this.emit({ type: 'frame', id: this.args.id, frame }),
+  )
 
   constructor(private readonly args: OverlayWatcherArgs) {}
 
@@ -64,7 +64,9 @@ export class OverlayWatcher {
   }
 
   handleDrain(): void {
-    if (this.stopped || !this.stale || this.overloaded()) return
+    if (this.stopped) return
+    if (this.queue === undefined) this.shells.drain()
+    if (!this.stale || this.overloaded()) return
     this.stale = false
     this.resync()
   }
@@ -92,8 +94,11 @@ export class OverlayWatcher {
     this.handleDrain()
     const { frame } = item
     if (!isStepFrame(frame)) {
-      if (frame.type === 'shell-output' && this.queue !== undefined) return this.shells.hold(frame)
-      return this.emit({ type: 'frame', id: this.args.id, frame })
+      if (frame.type === 'shell-output') {
+        this.shells.hold(frame)
+        if (this.queue === undefined) this.shells.drain()
+      } else this.emit({ type: 'frame', id: this.args.id, frame })
+      return
     }
     if (this.order.isStale(frame.at)) return
     if (this.queue !== undefined) {
@@ -283,16 +288,13 @@ export class OverlayWatcher {
     return this.args.bufferedAmount() >= FOLLOW_HIGH_WATER_BYTES
   }
 
-  private emit(message: StreamServerMessage): void {
+  private emit(message: StreamServerMessage): boolean {
     if (this.overloaded()) {
-      this.stale = true
-      return
+      if (message.type !== 'frame' || message.frame.type !== 'shell-output') this.stale = true
+      return false
     }
-    this.track(message)
-    this.args.send(message)
-  }
-
-  private track(message: StreamServerMessage): void {
     this.shown = trackShown({ shown: this.shown, message })
+    this.args.send(message)
+    return true
   }
 }

@@ -21,22 +21,22 @@ The headless client library that web, the TUI and the mobile app share.
 
 ## Entry points
 
-| Import                                          | Use it for                                                                                                                                                            |
-| ----------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `@dltech/atlas-client/stream`                   | The stream connection, the session follower, the log, the window and the overlay.                                                                                     |
-| `@dltech/atlas-client/channel`                  | The pod delta channel, the frame codecs and the tool requests.                                                                                                        |
-| `@dltech/atlas-client/chat`                     | The chat transport, the step chunks and the step messages.                                                                                                            |
-| `@dltech/atlas-client/crew`                     | The crew readout, the sub-agent state and the background work.                                                                                                        |
-| `@dltech/atlas-client/session`                  | The session create input, the rewind, the summarise, the image upload, the composer attachments, the message input, the draft sync and the sandbox start view.        |
-| `@dltech/atlas-client/account`                  | The Atlas Cloud device-code login and the PKCE pair a browser sign-in needs.                                                                                          |
-| `@dltech/atlas-client/settings`                 | The settings page and section lists, and the agent, models, appearance, instructions, memory, notifications, project, group, sandbox and pull-request settings logic. |
-| `@dltech/atlas-client/browser-return`           | The outcomes a browser sign-in brought back, held by the state of its start link.                                                                                     |
-| `@dltech/atlas-client/loopback`                 | Bun-only browser-return and provider loopback listeners, shared by the TUI and the Mac host.                                                                          |
-| `@dltech/atlas-client/transcript`               | The transcript rows, the tool runs and the turn rows.                                                                                                                 |
-| `@dltech/atlas-client/stream-fixture`           | A fake scheduler and transport, and the event factories, for a spec.                                                                                                  |
-| `@dltech/atlas-client/transcript-fixture`       | The event drafts and the step signals of a transcript, for a spec.                                                                                                    |
-| `@dltech/atlas-client/transcript-tool-fixture`  | The tool call and result drafts, for a spec.                                                                                                                          |
-| `@dltech/atlas-client/transcript-tools-fixture` | A sample tool call and shell call, for a spec or a prototype.                                                                                                         |
+| Import                                          | Use it for                                                                                                                                                                    |
+| ----------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `@dltech/atlas-client/stream`                   | The stream connection, the session follower, the log, the window and the overlay.                                                                                             |
+| `@dltech/atlas-client/channel`                  | The pod delta channel, the frame codecs and the tool requests.                                                                                                                |
+| `@dltech/atlas-client/chat`                     | The chat transport, the step chunks and the step messages.                                                                                                                    |
+| `@dltech/atlas-client/crew`                     | The crew readout, the sub-agent state and the background work.                                                                                                                |
+| `@dltech/atlas-client/session`                  | The session create input, the rewind, the summarise, the image upload, the composer attachments, the message input, the draft sync and the sandbox start view.                |
+| `@dltech/atlas-client/account`                  | The Atlas Cloud device-code login and the PKCE pair a browser sign-in needs.                                                                                                  |
+| `@dltech/atlas-client/settings`                 | The settings page and section lists, and the agent, models, appearance, instructions, memory, skills, notifications, project, group, sandbox and pull-request settings logic. |
+| `@dltech/atlas-client/browser-return`           | The outcomes a browser sign-in brought back, held by the state of its start link.                                                                                             |
+| `@dltech/atlas-client/loopback`                 | Bun-only browser-return and provider loopback listeners, shared by the TUI and the Mac host.                                                                                  |
+| `@dltech/atlas-client/transcript`               | The transcript rows, the tool runs and the turn rows.                                                                                                                         |
+| `@dltech/atlas-client/stream-fixture`           | A fake scheduler and transport, and the event factories, for a spec.                                                                                                          |
+| `@dltech/atlas-client/transcript-fixture`       | The event drafts and the step signals of a transcript, for a spec.                                                                                                            |
+| `@dltech/atlas-client/transcript-tool-fixture`  | The tool call and result drafts, for a spec.                                                                                                                                  |
+| `@dltech/atlas-client/transcript-tools-fixture` | A sample tool call and shell call, for a spec or a prototype.                                                                                                                 |
 
 ## Capabilities
 
@@ -77,17 +77,46 @@ The headless client library that web, the TUI and the mobile app share.
   `choiceOf`, `staleOwnerOf`, `ownsModel`, `affectedOf`: the model roles a Models & Effort page
   lists, the copy it shows and the model, effort and fast each role resolves to.
 - `modelsDraftFrom(values)`, `modelsChanges({ saved, draft })`, `pickedModelDraft`, `effortDraft`,
-  `fastDraft`, `followedDraft`: the per-role draft and the flat changes it saves.
+  `fastDraft`, `followedDraft`, `unfollowedDraft`: the per-role draft and the flat changes it saves.
+  `unfollowedDraft({ draft, role, inherited })` keeps the resolved model, effort and fast when a role stops following.
 - `settingValue`, `settingString`, `settingBool`, `diffChanges({ saved, draft })`: read a flat setting
   from its registry entry, and diff two flat records into the keys to patch.
 - `INSTRUCTIONS_CHAR_LIMIT`, `instructionsOf({ files, path?, decode })`, `charCountOf({ length, limit })`,
   `canSaveInstructions(args)`: one instructions document, its character budget, and whether a save is
   allowed. The page descriptions travel with them.
+- `skillUsageKeyOf(target)`, `skillUsageTargetOf(layer)`, `withSkillUsage({ skills, usage })`:
+  cache keys and scope mapping for the separate `skills.usage` query. Merge counts without
+  blocking the list or losing inherited-layer metadata. Pending or failed usage leaves each
+  summary's `usagePending` marker intact; a received count clears it. Built-ins use personal usage.
 - `EMemoryScope`, `EMemoryType`, `MemoryEntry`, `MemoryScopeGroup`, `MEMORY_TYPE_LABELS`,
   `buildMemoryGroups({ memories, groupNames })`, `memoryMatchesFilter({ entry, query, type })`,
   `memoryScopeOptionsOf(groups)`, `memoryScopeHintOf(group)`, `memoryClearDescriptionOf(group)`,
   `memoryKeyInput(key)`, `formatMemoryDate(updatedAt)`: the memory scopes, their rows, and the copy
   around them.
+
+### Read skills
+
+- `matchesSkill({ skill, query })`, `orderSkills({ skills, sort })`, `cycleSkillSort({ current, key })`,
+  `ariaSortOf({ sort, key })`: search, order and the ascending, descending, off cycle of a skills list.
+  `ESkillSortKey`, `ESortDirection` and `SkillSort` are its model.
+- `personalSkillTarget`, `projectSkillTarget({ projectId })`, `groupSkillTarget({ groupId })`,
+  `skillsDescriptionOf(target)`: the `skills.*` router input for each scope, and the copy that says
+  where that scope's skills load.
+- `skillNameIsValid({ name })`, `SKILL_NAME_PATTERN`, `MAX_SKILL_NAME_LENGTH`, `EMPTY_SKILL_MD`,
+  `SKILL_ENTRY_PATH`: a new skill's name rule, and the bare `SKILL.md` it starts as.
+- `newSkillFileOf({ target, name, hashOf })`: the `skills.put` payload that creates a skill as its
+  bare `SKILL.md`, hashed by the surface's own SHA-256.
+- `visibleSkillsOf({ skills, query, sort })`, `liveSelectedOf({ selected, visible })`,
+  `skillIsSelectable(skill)`: the rows a list shows, the selection that still matches them, and the
+  built-in skills no delete can reach.
+- `skillUsageViewOf({ skill, now })`, `skillRelativeTimeOf({ iso, now })`, `SkillUsageView`: a row's
+  usage text, its last use as a relative time, and "Never used". Pending or failed usage reads "—".
+- `toBase64Utf8`, `fromBase64Utf8`, `base64OfBytes`, `bytesOfBase64`: a skill file's payload.
+- `formatBytes(bytes)`, `formatSkillDate(updatedAt)`, `fileKindOf(path)`, `ESkillFileKind`,
+  `SKILL_PRECEDENCE_COPY`: how a skill row reads.
+- `inheritedTitleOf(ref)`, `overriddenLabelOf(layer)`, `overridesLabelOf(layer)`, `originNounOf(ref)`,
+  `layersBelowOf(layer)`, `shadowedBelowOf(args)`, `inheritedIdsOf(args)`, `LayerRef`: how an inherited
+  layer, its owner and its shadow are named.
 
 - `NOTIFY_MOMENTS`, `notifyEventKey(moment)`, `NotificationSettings`, `notificationsFrom(values)`,
   `notificationChanges({ saved, draft })`, `withDeviceZone(settings)`, `QUIET_HOUR_OPTIONS`,

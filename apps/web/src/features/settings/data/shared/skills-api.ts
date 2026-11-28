@@ -1,12 +1,32 @@
+import { createApiClient } from '@dltech/atlas-api-router'
 import type {
   ESkillScope,
   SkillFileContent,
   SkillFileMeta,
   SkillSummary,
+  SkillUsageReply,
 } from '@dltech/atlas-wire/web'
+
+import {
+  base64OfBytes,
+  bytesOfBase64,
+  fromBase64Utf8,
+  toBase64Utf8,
+} from '@dltech/atlas-client/settings'
 
 import { api, cloudCall } from '@/lib/api-client'
 import { CloudApiError } from '@/lib/cloud-api'
+import { apiBaseUrl } from '@/lib/api-base-url'
+
+const usageApi = createApiClient({
+  baseUrl: apiBaseUrl(),
+  credentials: 'include',
+  queryDeadlineMs: 30_000,
+})
+
+export async function listSkillUsage(target: SkillScopeTarget): Promise<SkillUsageReply> {
+  return cloudCall(usageApi.skills.usage.query(target))
+}
 
 export type SkillScopeTarget = { scope: ESkillScope; projectId?: string; groupId?: string }
 
@@ -57,26 +77,12 @@ export async function removeSkill(target: SkillScopeTarget & { skill: string }):
   return body.removed
 }
 
-const bytesOfUtf8 = (text: string): Uint8Array<ArrayBuffer> => new TextEncoder().encode(text)
-
-export function bytesOfBase64(content: string): Uint8Array<ArrayBuffer> {
-  const binary = atob(content)
-  return Uint8Array.from(binary, (char) => char.charCodeAt(0))
-}
-
-export function fromBase64Utf8(content: string): string {
-  return new TextDecoder().decode(bytesOfBase64(content))
-}
-
-export function base64OfBytes(bytes: Uint8Array<ArrayBuffer>): string {
-  let binary = ''
-  for (const byte of bytes) binary += String.fromCharCode(byte)
-  return btoa(binary)
-}
-
-export function toBase64Utf8(text: string): string {
-  return base64OfBytes(bytesOfUtf8(text))
-}
+export {
+  base64OfBytes,
+  bytesOfBase64,
+  fromBase64Utf8,
+  toBase64Utf8,
+} from '@dltech/atlas-client/settings'
 
 export async function fileToBase64(file: File): Promise<string> {
   return base64OfBytes(new Uint8Array(await file.arrayBuffer()))
@@ -85,6 +91,10 @@ export async function fileToBase64(file: File): Promise<string> {
 export async function sha256HexOfBase64(content: string): Promise<string> {
   const digest = await crypto.subtle.digest('SHA-256', bytesOfBase64(content))
   return Array.from(new Uint8Array(digest), (byte) => byte.toString(16).padStart(2, '0')).join('')
+}
+
+export async function sha256HexOfText(text: string): Promise<string> {
+  return sha256HexOfBase64(toBase64Utf8(text))
 }
 
 export type SkillSaveOutcome =
