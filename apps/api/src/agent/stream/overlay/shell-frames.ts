@@ -54,9 +54,18 @@ export class ShellFrameHold {
       })
       through.set(frame.shellId, end)
     }
+    const byShell = new Map<string, ShellFrame[]>()
+    for (const { frame } of pending) {
+      const shell = byShell.get(frame.shellId) ?? []
+      shell.push(frame)
+      byShell.set(frame.shellId, shell)
+    }
     this.pending = pending
       .sort((left, right) => left.order - right.order)
+      .flatMap(({ frame }) => {
+        const next = byShell.get(frame.shellId)?.shift()
+        return next ? [next] : []
+      })
       .slice(-SHELL_BACKLOG_FRAMES)
-      .map(({ frame }) => frame)
   }
 }

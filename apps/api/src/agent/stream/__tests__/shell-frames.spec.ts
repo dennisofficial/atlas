@@ -62,6 +62,66 @@ describe('shell frame delivery', () => {
     expect(sent.at(-1)?.offset).toBe(299)
   })
 
+  it('retains a newer recovery snapshot instead of older blocked frames', () => {
+    let accepting = false
+    const sent: ShellFrame[] = []
+    const hold = new ShellFrameHold((item) => {
+      if (!accepting) return false
+      sent.push(item)
+      return true
+    })
+    for (let offset = 0; offset < 256; offset += 1) {
+      hold.hold(frame({ offset, text: 'x' }))
+    }
+    const snapshot = Array.from({ length: 256 }, (_, index) =>
+      frame({ offset: index + 256, text: 'x' }),
+    )
+    hold.flush(snapshot)
+    expect(sent).toEqual([])
+    accepting = true
+    hold.drain()
+    hold.hold(frame({ offset: 512, text: 'x' }))
+    hold.drain()
+    expect(sent).toEqual([...snapshot, frame({ offset: 512, text: 'x' })])
+  })
+
+  it('retains live frames newer than the snapshot read while blocked', () => {
+    let accepting = false
+    const sent: ShellFrame[] = []
+    const hold = new ShellFrameHold((item) => {
+      if (!accepting) return false
+      sent.push(item)
+      return true
+    })
+    const live = Array.from({ length: 256 }, (_, index) =>
+      frame({ offset: index + 256, text: 'x' }),
+    )
+    for (const item of live) hold.hold(item)
+    hold.flush(Array.from({ length: 256 }, (_, offset) => frame({ offset, text: 'x' })))
+    accepting = true
+    hold.drain()
+    expect(sent).toEqual(live)
+  })
+
+  it('does not compare retention offsets across independent shells', () => {
+    const sent: ShellFrame[] = []
+    const hold = new ShellFrameHold((item) => {
+      sent.push(item)
+      return true
+    })
+    for (let offset = 256; offset < 512; offset += 1) {
+      hold.hold(frame({ offset, text: 'x' }))
+    }
+    const latest = frame({ shellId: 'shell-b', offset: 0, text: 'new' })
+    hold.hold(latest)
+    hold.drain()
+    expect(sent).toHaveLength(256)
+    expect(sent).toContainEqual(latest)
+    expect(sent.filter((item) => item.shellId === 'shell-a').map((item) => item.offset)).toEqual(
+      Array.from({ length: 255 }, (_, index) => index + 257),
+    )
+  })
+
   it('keeps the unsent suffix without advancing delivery on rejection', () => {
     let accepting = false
     const sent: ShellFrame[] = []
