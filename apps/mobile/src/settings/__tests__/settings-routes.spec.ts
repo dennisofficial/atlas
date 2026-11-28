@@ -57,6 +57,25 @@ describe('ios settings pages', () => {
     }
   })
 
+  it('routes Access at all scopes with no settings pages left pending', () => {
+    expect(IOS_SETTINGS_ROUTES[ESettingsPage.Access]).toBe('/settings/access')
+    expect(IOS_PROJECT_SECTION_ROUTES[EProjectSettingsSection.Access]?.({ id: 'p /1' })).toBe(
+      '/project-settings/p%20%2F1/access',
+    )
+    expect(IOS_GROUP_SECTION_ROUTES[EProjectSettingsSection.Access]?.({ id: 'g /1' })).toBe(
+      '/group-settings/g%20%2F1/access',
+    )
+    expect(
+      IOS_PENDING_PAGES.size + IOS_PENDING_PROJECT_SECTIONS.size + IOS_PENDING_GROUP_SECTIONS.size,
+    ).toBe(0)
+    expect(
+      SETTINGS_STACK_SCREENS.find((screen) => screen.name === 'settings/access-form')?.sheet,
+    ).toBeDefined()
+    const lists = SETTINGS_STACK_SCREENS.filter((screen) => screen.name.endsWith('/access'))
+    expect(lists).toHaveLength(3)
+    for (const screen of lists) expect(screen.titleButtons).toBe(2)
+  })
+
   it('keeps no pending page that does not exist', () => {
     for (const page of IOS_PENDING_PAGES) expect(Object.values(ESettingsPage)).toContain(page)
   })
@@ -74,6 +93,7 @@ describe('ios project sections', () => {
     expect(routedProjectSections().map((item) => item.section)).toEqual([
       EProjectSettingsSection.Overview,
       EProjectSettingsSection.Sandbox,
+      EProjectSettingsSection.Access,
       EProjectSettingsSection.Skills,
       EProjectSettingsSection.Mcp,
       EProjectSettingsSection.PullRequests,
@@ -95,6 +115,7 @@ describe('ios group sections', () => {
       EProjectSettingsSection.Overview,
       EGroupSettingsSection.Instructions,
       EProjectSettingsSection.Sandbox,
+      EProjectSettingsSection.Access,
       EProjectSettingsSection.Skills,
       EProjectSettingsSection.Mcp,
     ])

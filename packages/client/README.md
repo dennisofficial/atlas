@@ -133,6 +133,14 @@ The headless client library that web, the TUI and the mobile app share.
 - `providerUsageWindowsOf`, `providerUsageAgeOf`: plan usage meter values and stale-read text.
 - `classifierSettingsFrom`, `classifierChanges`, `classifierModelItems`, `classifierAvailabilityIn`, `classifierStatusOf`, `classifierSuggestionOf`, `classifierFeaturesOf`, `classifierTestLineOf`: classifier drafts, availability, suggestions and status text.
 
+### Access grants and secrets
+
+- `createAccessMemberApi({ api, scope })`: select personal, group or project secret and file operations using a surface-supplied transport.
+- `scopeKeyOf`, `moveTargetsOf`, `grantMoveBranchesOf`, `deleteGrantDescription`: grant identity, move destinations and delete confirmation copy.
+- `accessGrantSaveOf`, `accessGrantMatchesQuery`, `accessGrantSummary`: grant save payloads, case-insensitive search and member count labels.
+- `SECRET_NAME`, `parseEnvLines`, `SecretPair`: secret name validation and .env bulk parsing, with invalid line numbers.
+- `accessScopeOfParams`, `accessParamsOfScope`: round-trip scope through settings routes.
+
 ### Read an account and its signed-in devices
 
 - `createAuthAccountApi({ baseUrl, token, fetchFn })`: the better-auth REST calls a surface makes
