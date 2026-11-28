@@ -164,12 +164,16 @@ const contrastOf = ({ text, surface }: { text: string; surface: string }): numbe
   return ((lighter ?? 0) + 0.05) / ((darker ?? 0) + 0.05)
 }
 
-describe('sky accent', () => {
-  test('primary is a sky blue, not a graphite', () => {
+const isNeutral = (hex: string): boolean =>
+  hex.slice(1, 3) === hex.slice(3, 5) && hex.slice(3, 5) === hex.slice(5, 7)
+
+describe('monochrome primary', () => {
+  test('primary, ring and the sidebar primary are greys, not an accent hue', () => {
     for (const scheme of Object.values(EColorScheme)) {
-      const { primary } = semantic[scheme]
-      expect(primary, scheme).not.toBe(semantic[scheme].foreground)
-      expect(primary.slice(5, 7) > primary.slice(1, 3), scheme).toBe(true)
+      const theme = semantic[scheme]
+      for (const token of [theme.primary, theme.ring, theme.sidebarPrimary, theme.sidebarRing]) {
+        expect(isNeutral(token), `${scheme} ${token}`).toBe(true)
+      }
     }
   })
 
