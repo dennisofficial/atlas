@@ -1,77 +1,12 @@
-import { testRender } from '@opentui/react/test-utils'
-import { afterEach, describe, expect, test } from 'bun:test'
-import { mkdtempSync } from 'node:fs'
-import { tmpdir } from 'node:os'
-import { join } from 'node:path'
+import { describe, expect, test } from 'bun:test'
 
 import { frameShowing, frameWhen } from '../../ui/__tests__/waiting'
 import { teardown } from '../../ui/markdown/__tests__/harness'
-import { resetPalette } from '../../ui/palette-store'
-import { ACCOUNT_FILE_VERSION, writeAccount, type AccountFile } from '../account/account-file'
-import { AppNext, type SessionClientFactory } from '../app-next'
 import type { ProviderSignInBegin, ProviderSignInPoll } from '../session-api'
-import { accountRowOf, fakeSessionClient, type FakeSessionClient } from './fake-session-client'
+import { openApp as open, openDrawer, resetPaletteAfterEach, WITHIN } from './app-accounts-fixture'
+import { accountRowOf } from './fake-session-client'
 
-const API_URL = 'https://api.example.test'
-
-const WITHIN = 15_000
-
-const ACCOUNT: AccountFile = {
-  version: ACCOUNT_FILE_VERSION,
-  apiUrl: API_URL,
-  email: 'dennis@example.test',
-  token: 'token-1',
-  preferences: {},
-}
-
-type Mounted = {
-  client: () => FakeSessionClient
-  setup: Awaited<ReturnType<typeof testRender>>
-  opened: string[]
-}
-
-afterEach(() => {
-  resetPalette()
-})
-
-const open = async (args?: {
-  configure?: (client: FakeSessionClient) => void
-}): Promise<Mounted> => {
-  const home = mkdtempSync(join(tmpdir(), 'atlas-app-accounts-'))
-  const accountPath = join(home, 'account.json')
-  writeAccount({ path: accountPath, account: ACCOUNT })
-
-  const opened: string[] = []
-  let held: FakeSessionClient | null = null
-  const createClient: SessionClientFactory = (clientArgs) => {
-    const made = fakeSessionClient({ onAuthLost: clientArgs.onAuthLost, accounts: [] })
-    held = made
-    return made
-  }
-
-  const setup = await testRender(
-    <AppNext
-      accountPath={accountPath}
-      initialAccount={ACCOUNT}
-      apiUrl={API_URL}
-      clientVersion="test"
-      openUrl={(url) => void opened.push(url)}
-      createClient={createClient}
-      onQuit={() => undefined}
-    />,
-    { width: 140, height: 40 },
-  )
-
-  await frameShowing({ setup, text: 'welcome to atlas', within: WITHIN })
-  const mounted = { client: () => held as FakeSessionClient, setup, opened }
-  args?.configure?.(mounted.client())
-  return mounted
-}
-
-const openDrawer = async (mounted: Mounted): Promise<void> => {
-  mounted.setup.mockInput.pressKey('a', { ctrl: true })
-  await frameShowing({ setup: mounted.setup, text: 'MODEL PROVIDERS', within: WITHIN })
-}
+resetPaletteAfterEach()
 
 const TWO_LOGINS = [
   accountRowOf({ id: 'account-1', provider: 'anthropic', label: 'first login' }),
@@ -89,41 +24,6 @@ describe('the accounts drawer', () => {
       expect(frame).toContain('OpenAI')
       expect(frame).toContain('○ not signed in')
       expect(mounted.client().calls.accounts).toBeGreaterThan(0)
-    } finally {
-      await teardown(mounted.setup)
-    }
-  }, 60_000)
-
-  test('anthropic signs in by pasting the code', async () => {
-    const mounted = await open()
-
-    try {
-      await openDrawer(mounted)
-      mounted.setup.mockInput.pressEnter()
-      await frameShowing({ setup: mounted.setup, text: 'Sign in', within: WITHIN })
-      mounted.setup.mockInput.pressEnter()
-
-      await frameShowing({
-        setup: mounted.setup,
-        text: 'auth.example.test/anthropic',
-        within: WITHIN,
-      })
-      expect(String(mounted.client().calls.beginProviderSignIn[0]?.provider)).toBe('anthropic')
-      expect(mounted.opened).toContain('https://auth.example.test/anthropic')
-
-      await mounted.setup.mockInput.typeText('the-code')
-      mounted.setup.mockInput.pressEnter()
-
-      await frameWhen({
-        setup: mounted.setup,
-        holds: () => mounted.client().calls.completeProviderSignIn.length === 1,
-        within: WITHIN,
-        describe: 'the pasted code to be submitted',
-      })
-      expect(mounted.client().calls.completeProviderSignIn[0]).toEqual({
-        attemptId: 'attempt-1',
-        code: 'the-code',
-      })
     } finally {
       await teardown(mounted.setup)
     }

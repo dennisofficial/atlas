@@ -45,7 +45,7 @@ export function SortableHead({
 
 export function UsageCell({ skill, now }: { skill: SkillSummary; now: number }) {
   const { usageLabel, lastUsedLabel } = skillUsageViewOf({ skill, now })
-  if (skill.usage.usedCount30d === 0) {
+  if (skill.usagePending || skill.usage.usedCount30d === 0) {
     return <span className="text-xs text-muted-foreground">{usageLabel}</span>
   }
   return (

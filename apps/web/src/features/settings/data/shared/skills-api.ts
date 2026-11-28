@@ -1,8 +1,10 @@
+import { createApiClient } from '@dltech/atlas-api-router'
 import type {
   ESkillScope,
   SkillFileContent,
   SkillFileMeta,
   SkillSummary,
+  SkillUsageReply,
 } from '@dltech/atlas-wire/web'
 
 import {
@@ -14,6 +16,17 @@ import {
 
 import { api, cloudCall } from '@/lib/api-client'
 import { CloudApiError } from '@/lib/cloud-api'
+import { apiBaseUrl } from '@/lib/api-base-url'
+
+const usageApi = createApiClient({
+  baseUrl: apiBaseUrl(),
+  credentials: 'include',
+  queryDeadlineMs: 30_000,
+})
+
+export async function listSkillUsage(target: SkillScopeTarget): Promise<SkillUsageReply> {
+  return cloudCall(usageApi.skills.usage.query(target))
+}
 
 export type SkillScopeTarget = { scope: ESkillScope; projectId?: string; groupId?: string }
 

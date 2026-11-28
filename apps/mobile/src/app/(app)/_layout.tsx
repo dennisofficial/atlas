@@ -113,6 +113,7 @@ const AppStack = () => {
               barWidth,
               buttons: screen.titleButtons,
             }),
+            ...(screen.presentation === undefined ? {} : { presentation: screen.presentation }),
           }}
         />
       ))}

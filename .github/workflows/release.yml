@@ -17,6 +17,7 @@ jobs:
     runs-on: ubuntu-latest
     outputs:
       deploy-preview-worker: ${{ steps.diff.outputs.deploy-preview-worker }}
+      deploy-github-hook-relay: ${{ steps.diff.outputs.deploy-github-hook-relay }}
       deploy-artifacts-worker: ${{ steps.diff.outputs.deploy-artifacts-worker }}
       deploy-install-worker: ${{ steps.diff.outputs.deploy-install-worker }}
     steps:
@@ -28,10 +29,12 @@ jobs:
           EVENT: ${{ github.event_name }}
         run: |
           worker='^(apps/preview-worker/|\.github/workflows/release\.yml$)'
+          relay='^(apps/github-hook-relay/|\.github/workflows/release\.yml$)'
           artifacts='^(apps/artifacts-host/|packages/artifacts/|\.github/workflows/release\.yml$)'
           install='^(scripts/install-worker/|\.github/workflows/release\.yml$)'
           if [ "$EVENT" = "workflow_dispatch" ] || ! git fetch --no-tags --depth=1 origin "$BEFORE"; then
             echo "deploy-preview-worker=true" >> "$GITHUB_OUTPUT"
+            echo "deploy-github-hook-relay=true" >> "$GITHUB_OUTPUT"
             echo "deploy-artifacts-worker=true" >> "$GITHUB_OUTPUT"
             echo "deploy-install-worker=true" >> "$GITHUB_OUTPUT"
             exit 0
@@ -41,6 +44,11 @@ jobs:
             echo "deploy-preview-worker=true" >> "$GITHUB_OUTPUT"
           else
             echo "deploy-preview-worker=false" >> "$GITHUB_OUTPUT"
+          fi
+          if echo "$changed" | grep -Eq "$relay"; then
+            echo "deploy-github-hook-relay=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "deploy-github-hook-relay=false" >> "$GITHUB_OUTPUT"
           fi
           if echo "$changed" | grep -Eq "$artifacts"; then
             echo "deploy-artifacts-worker=true" >> "$GITHUB_OUTPUT"
@@ -137,6 +145,33 @@ jobs:
         run: bun run deploy
         env:
           DOTENV_PRIVATE_KEY_PRODUCTION_ENC: ${{ secrets.PREVIEW_WORKER_DOTENV_PRIVATE_KEY }}
+
+  deploy-github-hook-relay:
+    needs: changes
+    if: needs.changes.outputs.deploy-github-hook-relay == 'true'
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: apps/github-hook-relay
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: oven-sh/setup-bun@v2.2.0
+
+      - uses: actions/cache@v6
+        with:
+          path: ~/.bun/install/cache
+          key: bun-${{ runner.os }}-${{ hashFiles('bun.lock') }}
+
+      - run: bun install --frozen-lockfile
+        working-directory: .
+
+      - run: bun test
+
+      - name: deploy the worker in front of hooks.byatlas.io
+        run: bun run deploy
+        env:
+          DOTENV_PRIVATE_KEY_PRODUCTION_ENC: ${{ secrets.HOOK_RELAY_DOTENV_PRIVATE_KEY }}
 
   deploy-artifacts-worker:
     needs: changes

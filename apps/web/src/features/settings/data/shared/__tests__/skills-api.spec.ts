@@ -28,6 +28,7 @@ const {
   isSkillConflict,
   listSkillFiles,
   listSkills,
+  listSkillUsage,
   putSkillFile,
   removeSkill,
   removeSkillFile,
@@ -83,6 +84,18 @@ describe('skills api', () => {
     const skills = await listSkills({ scope: ESkillScope.Personal })
     expect(skills[0]?.usage.usedCount30d).toBe(4)
     expect(calls[0]?.url).toContain('/v1/trpc/skills.list')
+  })
+
+  it('loads usage separately for the same scope', async () => {
+    reply = () => ok({ usage: { atlas: { usedCount30d: 6, lastUsedAt: null } } })
+    const result = await listSkillUsage({ scope: ESkillScope.Group, groupId: 'group-1' })
+    expect(result.usage.atlas?.usedCount30d).toBe(6)
+    const url = new URL(calls[0]?.url ?? '', 'http://test')
+    expect(url.pathname).toContain('/v1/trpc/skills.usage')
+    expect(JSON.parse(url.searchParams.get('input') ?? '{}')).toEqual({
+      scope: 'group',
+      groupId: 'group-1',
+    })
   })
 
   it('scopes project calls by projectId', async () => {

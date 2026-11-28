@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'bun:test'
 import { ESkillOrigin, type SkillSummary } from '@dltech/atlas-wire/web'
 
+import { withSkillUsage } from '../../skills'
 import { skillRelativeTimeOf, skillUsageViewOf } from '../skill-usage'
 
 const NOW = Date.parse('2026-11-27T12:00:00Z')
@@ -38,6 +39,28 @@ describe('skillRelativeTimeOf', () => {
 })
 
 describe('skillUsageViewOf', () => {
+  it('does not label pending usage as never used', () => {
+    const skill = { ...summary({ usedCount30d: 0, lastUsedAt: null }), usagePending: true }
+    expect(skillUsageViewOf({ skill, now: NOW })).toEqual({
+      usageLabel: '—',
+      lastUsedLabel: null,
+    })
+  })
+
+  it('keeps the placeholder after usage fails and replaces it after success', () => {
+    const skill = { ...summary({ usedCount30d: 0, lastUsedAt: null }), usagePending: true }
+    const failed = withSkillUsage({ skills: [skill], usage: undefined })
+    expect(failed.map((entry) => skillUsageViewOf({ skill: entry, now: NOW }))).toEqual([
+      { usageLabel: '—', lastUsedLabel: null },
+    ])
+    const loaded = withSkillUsage({
+      skills: [skill],
+      usage: { tdd: { usedCount30d: 4, lastUsedAt: '2026-11-27T09:00:00Z' } },
+    })
+    expect(loaded.map((entry) => skillUsageViewOf({ skill: entry, now: NOW }))).toEqual([
+      { usageLabel: 'Used 4× · 30d', lastUsedLabel: 'last used 3h ago' },
+    ])
+  })
   it('reads never used when nothing loaded the skill in 30 days', () => {
     expect(
       skillUsageViewOf({ skill: summary({ usedCount30d: 0, lastUsedAt: null }), now: NOW }),

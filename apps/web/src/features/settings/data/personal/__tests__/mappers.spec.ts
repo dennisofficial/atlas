@@ -3,34 +3,13 @@ import { describe, expect, it } from 'bun:test'
 import { EMemoryScope, EMemoryType, EMcpTransportKind } from '@dltech/atlas-wire/web'
 
 import { EMcpTransport } from '../../../fixtures/settings-mcp'
-import { EDeviceKind } from '../../../fixtures/settings-security'
-import { deviceNameOf, toDevice } from '../auth-session-api'
 import { base64ToUtf8, encodeFileContent, utf8ToBase64 } from '../file-encoding'
 import { docOf } from '../instructions-api'
-import {
-  appearanceChanges,
-  appearanceFrom,
-  notificationChanges,
-  notificationsFrom,
-} from '../interface-settings'
+import { appearanceChanges, appearanceFrom } from '../interface-settings'
 import { splitCommandLine } from '../../command-line'
 import { toMcpServer, transportOf } from '../mcp-api'
 import { buildGroups, memoryKeyInput } from '../memory-api'
 import { modelsChanges, modelsDraftFrom } from '../models-settings'
-import { relativeTime } from '../relative-time'
-
-const NOW = Date.parse('2026-10-20T12:00:00Z')
-const ago = (ms: number) => new Date(NOW - ms).toISOString()
-
-describe('relativeTime', () => {
-  it('buckets elapsed time', () => {
-    expect(relativeTime({ from: ago(10_000), now: NOW })).toBe('just now')
-    expect(relativeTime({ from: ago(5 * 60_000), now: NOW })).toBe('5m ago')
-    expect(relativeTime({ from: ago(3 * 3_600_000), now: NOW })).toBe('3h ago')
-    expect(relativeTime({ from: ago(3 * 86_400_000), now: NOW })).toBe('3d ago')
-    expect(relativeTime({ from: ago(21 * 86_400_000), now: NOW })).toBe('3w ago')
-  })
-})
 
 describe('file encoding', () => {
   it('round-trips utf8 and hashes the raw bytes', async () => {
@@ -192,57 +171,5 @@ describe('interface settings', () => {
     expect(appearanceChanges({ saved, draft: { ...saved, reduceMotion: true } })).toEqual({
       'web.appearance.reduceMotion': true,
     })
-  })
-
-  it('reads and diffs the three notification moments', () => {
-    const saved = notificationsFrom(
-      new Map([
-        ['web.notifications.event.finished.push', false],
-        ['web.notifications.timezone', 'Europe/Berlin'],
-      ]),
-    )
-    expect(saved.events).toEqual({ finished: false, errored: true, approval: true })
-    expect(saved.timezone).toBe('Europe/Berlin')
-    const draft = { ...saved, quietFrom: '23:00' }
-    expect(notificationChanges({ saved, draft })).toEqual({
-      'web.notifications.quietFrom': '23:00',
-    })
-  })
-
-  it('writes a moment to its push key and keeps the zone', () => {
-    const saved = notificationsFrom(new Map())
-    const draft = { ...saved, events: { ...saved.events, approval: false }, timezone: 'UTC' }
-    expect(notificationChanges({ saved, draft })).toEqual({
-      'web.notifications.event.approval.push': false,
-      'web.notifications.timezone': 'UTC',
-    })
-  })
-})
-
-describe('sessions and sandboxes', () => {
-  it('names devices from the user agent', () => {
-    expect(
-      deviceNameOf('Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15) Chrome/120 Safari/537'),
-    ).toBe('Chrome on macOS')
-    expect(deviceNameOf(null)).toBe('Unknown device')
-  })
-
-  it('marks the current session', () => {
-    const session = {
-      id: 'i',
-      token: 't',
-      userAgent: 'curl/8',
-      ipAddress: '1.2.3.4',
-      createdAt: ago(60_000 * 5),
-      expiresAt: 'x',
-    }
-    const device = toDevice({ session, currentToken: 't', now: NOW })
-    expect(device).toMatchObject({
-      id: 't',
-      current: true,
-      kind: EDeviceKind.Cli,
-      meta: '1.2.3.4 · Last active 5m ago',
-    })
-    expect(toDevice({ session, currentToken: 'other', now: NOW }).current).toBe(false)
   })
 })

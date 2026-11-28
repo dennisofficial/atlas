@@ -1,11 +1,18 @@
 import type { ApiClient } from '@dltech/atlas-api-router'
-import { newSkillFileOf, type SkillScopeTarget } from '@dltech/atlas-client/settings'
+import {
+  newSkillFileOf,
+  skillUsageKeyOf,
+  skillUsageTargetOf,
+  type SkillScopeTarget,
+  withSkillUsage,
+} from '@dltech/atlas-client/settings'
 import type { SkillLayer, SkillSummary } from '@dltech/atlas-wire/web'
 import { useCallback } from 'react'
 
-import { type EResourceState } from '../settings/api-resource-state'
+import { EResourceState } from '../settings/api-resource-state'
 import { useApiResource } from '../settings/use-api-resource'
 import { sha256HexOfText } from './skill-hash'
+import { useSkillUsage } from './use-skill-usage'
 
 export type ISkillsResource = {
   skills: SkillSummary[]
@@ -41,6 +48,10 @@ export const useSkills = ({
   }, [api, scope, projectId, groupId])
   const resource = useApiResource<SkillSummary[]>({ load, deps: [api, scope, projectId, groupId] })
   const { reload } = resource
+  const usage = useSkillUsage({
+    targets: resource.state === EResourceState.Ready ? [input] : [],
+    revision: resource.data,
+  })
 
   const create = useCallback(
     async ({ name }: { name: string }) => {
@@ -66,7 +77,16 @@ export const useSkills = ({
     [api, reload, onMutated, scope, projectId, groupId],
   )
 
-  return { skills: resource.data ?? [], state: resource.state, reload, create, remove }
+  return {
+    skills: withSkillUsage({
+      skills: resource.data ?? [],
+      usage: usage.get(skillUsageKeyOf(input))?.usage,
+    }),
+    state: resource.state,
+    reload,
+    create,
+    remove,
+  }
 }
 
 export const useSkillLayers = ({
@@ -86,5 +106,27 @@ export const useSkillLayers = ({
     return (await api.skills.layered.query(input)).layers
   }, [api, scope, projectId, groupId])
   const resource = useApiResource<SkillLayer[]>({ load, deps: [api, scope, projectId, groupId] })
-  return { layers: resource.data ?? [], state: resource.state, reload: resource.reload }
+  const usage = useSkillUsage({
+    targets:
+      resource.state !== EResourceState.Ready
+        ? []
+        : (resource.data ?? []).flatMap((layer) => {
+            const target = skillUsageTargetOf(layer)
+            return target === undefined || skillUsageKeyOf(target) === skillUsageKeyOf(input)
+              ? []
+              : [target]
+          }),
+    revision: resource.data,
+  })
+  const layers = (resource.data ?? []).map((layer) => {
+    const target = skillUsageTargetOf(layer)
+    return {
+      ...layer,
+      items: withSkillUsage({
+        skills: layer.items,
+        usage: target === undefined ? undefined : usage.get(skillUsageKeyOf(target))?.usage,
+      }),
+    }
+  })
+  return { layers, state: resource.state, reload: resource.reload }
 }

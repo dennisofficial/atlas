@@ -1,4 +1,8 @@
-import { inheritedTitleOf, overriddenLabelOf } from '@dltech/atlas-client/settings'
+import {
+  inheritedTitleOf,
+  overriddenLabelOf,
+  skillUsageViewOf,
+} from '@dltech/atlas-client/settings'
 import { CardRow, EFontFamily, ETextRole, ETextTone, Text } from '@dltech/atlas-ui-native'
 import { space } from '@dltech/atlas-ui/tokens'
 import type { EConfigLayer } from '@dltech/atlas-core'
@@ -30,25 +34,36 @@ export const InheritedSkills = ({
         const href = layerSkillsRouteOf({ layer: entry.layer, owner: entry.owner })
         return (
           <Section key={entry.layer} title={inheritedTitleOf(entry)}>
-            {entry.items.map((item) => (
-              <CardRow key={item.name}>
-                <View style={styles.body}>
-                  <Text size={ETextRole.Sm} family={EFontFamily.Mono} numberOfLines={1}>
-                    {item.name}
-                  </Text>
-                  {item.description === '' ? null : (
-                    <Text size={ETextRole.Xs} tone={ETextTone.Muted} numberOfLines={1}>
-                      {item.description}
+            {entry.items.map((item) => {
+              const usage = skillUsageViewOf({ skill: item, now: Date.now() })
+              return (
+                <CardRow key={item.name}>
+                  <View style={styles.body}>
+                    <Text size={ETextRole.Sm} family={EFontFamily.Mono} numberOfLines={1}>
+                      {item.name}
+                    </Text>
+                    {item.description === '' ? null : (
+                      <Text size={ETextRole.Xs} tone={ETextTone.Muted} numberOfLines={1}>
+                        {item.description}
+                      </Text>
+                    )}
+                    <Text size={ETextRole.Xs} tone={ETextTone.Muted}>
+                      {usage.usageLabel}
+                    </Text>
+                    {usage.lastUsedLabel === null ? null : (
+                      <Text size={ETextRole.Xs} tone={ETextTone.Muted}>
+                        {usage.lastUsedLabel}
+                      </Text>
+                    )}
+                  </View>
+                  {item.overriddenBy === null ? null : (
+                    <Text size={ETextRole.Xs} tone={ETextTone.Muted}>
+                      {overriddenLabelOf(item.overriddenBy)}
                     </Text>
                   )}
-                </View>
-                {item.overriddenBy === null ? null : (
-                  <Text size={ETextRole.Xs} tone={ETextTone.Muted}>
-                    {overriddenLabelOf(item.overriddenBy)}
-                  </Text>
-                )}
-              </CardRow>
-            ))}
+                </CardRow>
+              )
+            })}
             {href === null ? null : (
               <NavRow label="Edit these skills" onPress={() => router.push(href)} />
             )}

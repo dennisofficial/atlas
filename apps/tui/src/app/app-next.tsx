@@ -116,6 +116,8 @@ export function AppNext(props: AppNextProps): React.ReactNode {
     openUrl: props.openUrl,
     onChanged: models.reload,
     onProblem: problemOf,
+    env: props.env,
+    platform: props.platform,
     resolution: panel.drawer.resolution,
     onChooseModel: pick.chooseSetting,
     settingsOpen: panel.drawer.state !== null,

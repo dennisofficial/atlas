@@ -1,11 +1,13 @@
 'use client'
 
 import { useCallback } from 'react'
+import { skillUsageKeyOf, withSkillUsage } from '@dltech/atlas-client/settings'
+import { useSkillUsage } from './use-skill-usage'
 import type { SkillFileMeta, SkillSummary } from '@dltech/atlas-wire/web'
 
 import { newSkillFileOf } from '@dltech/atlas-client/settings'
 
-import { useCloudQuery } from '@/lib/use-cloud-query'
+import { EQueryState, useCloudQuery } from '@/lib/use-cloud-query'
 
 import {
   fileToBase64,
@@ -51,6 +53,7 @@ export function useSkills(target: SkillScopeTarget) {
     [target.scope, target.projectId, target.groupId],
   )
   const query = useCloudQuery<SkillsSnapshot>({ key: keyOfSkills(target), load })
+  const usage = useSkillUsage(query.state === EQueryState.Ready ? [target] : [])
   const { reload } = query
 
   const createSkill = useCallback(
@@ -69,7 +72,20 @@ export function useSkills(target: SkillScopeTarget) {
     [reload, target.scope, target.projectId, target.groupId],
   )
 
-  return { query, createSkill, deleteSkills }
+  const enriched =
+    query.state !== EQueryState.Ready
+      ? query
+      : {
+          ...query,
+          data: {
+            ...query.data,
+            skills: withSkillUsage({
+              skills: query.data.skills,
+              usage: usage.get(skillUsageKeyOf(target))?.usage,
+            }),
+          },
+        }
+  return { query: enriched, createSkill, deleteSkills }
 }
 
 export function useSkillFiles(target: SkillScopeTarget & { skill: string }) {

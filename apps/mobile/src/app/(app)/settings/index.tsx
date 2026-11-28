@@ -10,20 +10,13 @@ import {
 } from '@dltech/atlas-ui-native'
 import { router, Stack } from 'expo-router'
 import { useState } from 'react'
-import { Alert, Linking, Platform } from 'react-native'
+import { Alert, Platform } from 'react-native'
 
 import { useAuth } from '../../../auth/auth-provider'
-import { pushRegistrationLabelOf } from '../../../push/push-registration'
-import { ModelDefaultsSection } from '../../../settings/model-defaults-section'
 import { ActionRow, EActionTone, NavRow, Row, Section } from '../../../settings/settings-parts'
 import { SettingsScroll } from '../../../settings/settings-scroll'
 import { IOS_SETTINGS_ROUTES } from '../../../settings/settings-routes'
-import {
-  ETestResult,
-  usePermissionStatus,
-  useTestNotification,
-  useUpdateInfo,
-} from '../../../settings/use-settings'
+import { useUpdateInfo } from '../../../settings/use-settings'
 
 const confirmSignOut = (signOut: () => void) => {
   if (Platform.OS !== 'web') {
@@ -43,19 +36,15 @@ const routedGroups = () =>
   })).filter((group) => group.items.length > 0)
 
 export default function SettingsScreen() {
-  const { user, signOut, pushRegistration } = useAuth()
-  const permissionStatus = usePermissionStatus()
-  const testNotification = useTestNotification()
+  const { signOut } = useAuth()
   const update = useUpdateInfo()
   const [query, setQuery] = useState('')
-  const testFailed = testNotification.state.result === ETestResult.Failed
   const groups = filterNav({ groups: routedGroups(), query })
 
   const handleSearch = (event: { nativeEvent: { text: string } }) =>
     setQuery(event.nativeEvent.text)
   const handleCancelSearch = () => setQuery('')
   const handleOpenDictationLab = () => router.push('/dictation-lab')
-  const handleOpenSystemSettings = () => void Linking.openSettings()
   const handleSignOut = () => confirmSignOut(() => void signOut())
 
   return (
@@ -70,10 +59,6 @@ export default function SettingsScreen() {
           },
         }}
       />
-      <Section title="Account">
-        <Row label="Email" value={user?.email ?? 'Unknown account'} />
-        {user?.name === undefined ? null : <Row label="Name" value={user.name} />}
-      </Section>
       {groups.map((group, index) => (
         <Section key={group.label ?? `group-${index}`} title={group.label}>
           {group.items.map((item) => {
@@ -83,53 +68,6 @@ export default function SettingsScreen() {
           })}
         </Section>
       ))}
-      <ModelDefaultsSection />
-      <Section title="Notifications">
-        {permissionStatus === 'denied' ? (
-          <CardRow>
-            <Text size={ETextRole.Sm} tone={ETextTone.Destructive}>
-              Notifications are off for Atlas.
-            </Text>
-            <Button
-              label="Open Settings"
-              variant={EButtonVariant.Outline}
-              size={EButtonSize.Sm}
-              onPress={handleOpenSystemSettings}
-            />
-          </CardRow>
-        ) : (
-          <CardRow>
-            <Text size={ETextRole.Sm}>Permission</Text>
-            <Text size={ETextRole.Sm} tone={ETextTone.Muted}>
-              {permissionStatus}
-            </Text>
-          </CardRow>
-        )}
-        <CardRow>
-          <Text size={ETextRole.Sm}>This device</Text>
-          <Text size={ETextRole.Sm} tone={ETextTone.Muted} numberOfLines={1}>
-            {pushRegistrationLabelOf(pushRegistration)}
-          </Text>
-        </CardRow>
-        <CardRow>
-          <Text
-            size={ETextRole.Sm}
-            tone={testFailed ? ETextTone.Destructive : ETextTone.Muted}
-            style={{ flexShrink: 1 }}
-          >
-            {testNotification.state.detail.length > 0
-              ? testNotification.state.detail
-              : 'Send yourself a test push.'}
-          </Text>
-          <Button
-            label="Send test notification"
-            variant={EButtonVariant.Outline}
-            size={EButtonSize.Sm}
-            loading={testNotification.state.result === ETestResult.Sending}
-            onPress={() => void testNotification.sendTest()}
-          />
-        </CardRow>
-      </Section>
       <Section title="Updates">
         <Row label="Channel" value={update.channel || 'unavailable'} mono />
         <Row label="Update" value={update.updateId} mono />

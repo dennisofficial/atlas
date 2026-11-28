@@ -28,6 +28,10 @@ describe('settings pages', () => {
       ESettingsPage.Access,
       ESettingsPage.Groups,
     ])
+    const qual = filterNav({ groups: SETTINGS_NAV, query: 'qual' })
+    expect(qual.flatMap((group) => group.items.map((item) => item.page))).toEqual([
+      ESettingsPage.Quality,
+    ])
     expect(filterNav({ groups: SETTINGS_NAV, query: 'zzz' })).toEqual([])
     expect(filterNav({ groups: SETTINGS_NAV, query: '  ' })).toEqual(SETTINGS_NAV)
   })

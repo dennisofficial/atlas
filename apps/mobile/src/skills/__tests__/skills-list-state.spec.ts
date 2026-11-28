@@ -72,6 +72,12 @@ describe('skillMetaLineOf', () => {
     expect(skillMetaLineOf({ skill: summary('tdd', 0), now: NOW })).toStartWith('Never used')
   })
 
+  it('keeps file metadata visible while usage is pending or failed', () => {
+    expect(skillMetaLineOf({ skill: summary('tdd', 0, { usagePending: true }), now: NOW })).toBe(
+      '— · 1 file · 2.0 KB · Nov 1',
+    )
+  })
+
   it('adds the last use when the API knows it', () => {
     expect(
       skillMetaLineOf({

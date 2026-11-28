@@ -1,6 +1,6 @@
+import { EDeviceKind } from '@dltech/atlas-client/settings'
 import type { ReactNode } from 'react'
 
-import { EDeviceKind } from '../fixtures/settings-security'
 import { AccountProfileCard } from '../parts/account-profile-card'
 import { AccountSignInMethodsCard } from '../parts/account-sign-in-methods-card'
 import { EMemoryType, type MemoryEntry } from '../fixtures/settings-memory'

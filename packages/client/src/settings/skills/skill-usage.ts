@@ -32,6 +32,7 @@ export const skillUsageViewOf = ({
   skill: SkillSummary
   now: number
 }): SkillUsageView => {
+  if (skill.usagePending) return { usageLabel: '—', lastUsedLabel: null }
   if (skill.usage.usedCount30d === 0) return { usageLabel: 'Never used', lastUsedLabel: null }
   return {
     usageLabel: `Used ${skill.usage.usedCount30d}× · 30d`,
