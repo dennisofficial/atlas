@@ -1,4 +1,4 @@
-import { radius, space, typeScale } from '@dltech/atlas-ui/tokens'
+import { typeScale } from '@dltech/atlas-ui/tokens'
 import type { ReactNode } from 'react'
 import { Linking } from 'react-native'
 
@@ -6,7 +6,8 @@ import { Text, TextSpan } from '../text'
 import { EFontFamily, EFontWeight, ETextTone, RELAXED_LEADING } from '../text-style'
 import { useTheme } from '../use-theme'
 import { EMdSpan, type MdSpan } from './parse'
-import { INLINE_CODE_LEADING, INLINE_CODE_SCALE, type IInlineStyle, styles } from './styles'
+import { inlineCodeTextOf } from './inline-code-text'
+import { INLINE_CODE_SCALE, type IInlineStyle, styles } from './styles'
 
 export const Spans = ({
   spans,
@@ -22,24 +23,19 @@ export const Spans = ({
     const key = `${span.type}-${index}`
     if (span.type === EMdSpan.Text) return <TextSpan key={key}>{span.value}</TextSpan>
     if (span.type === EMdSpan.Code) {
-      const codeSize = typeScale[style.size].fontSize * INLINE_CODE_SCALE
       return (
         <Text
           key={key}
           size={style.size}
           family={EFontFamily.Mono}
-          color={theme.foreground}
+          color={theme.code}
           selectable={selectable}
           style={{
-            backgroundColor: theme.secondary,
-            borderRadius: radius(0.4),
-            fontSize: codeSize,
-            lineHeight: codeSize * INLINE_CODE_LEADING,
-            paddingHorizontal: space(1),
-            paddingVertical: space(0.5),
+            backgroundColor: theme.codeBackground,
+            fontSize: typeScale[style.size].fontSize * INLINE_CODE_SCALE,
           }}
         >
-          {span.value}
+          {inlineCodeTextOf(span.value)}
         </Text>
       )
     }

@@ -92,7 +92,7 @@ describe('MessageResponse', () => {
 
   it('keeps h2 and inline code in the reading colours, not the accent', () => {
     expect(render('## Title')).not.toMatch(/<h2[^>]*text-primary/)
-    expect(render('Use `bun test` here')).toMatch(/<code[^>]*text-foreground/)
+    expect(render('Use `bun test` here')).toMatch(/<code[^>]*bg-code-background[^>]*text-code/)
   })
 
   it('colors links with the link token, not the accent', () => {
