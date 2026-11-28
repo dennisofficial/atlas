@@ -87,6 +87,10 @@ web spinner), never `ActivityIndicator`.
   publishes an OTA update when a store build with the same fingerprint exists, and otherwise makes a
   native build for TestFlight. Do not check fingerprints or run `eas update` by hand, and do not
   avoid a native change to keep a change OTA-only.
+- The fingerprint does not see a bun patch on its own: it hashes a dependency's `package.json`,
+  not the patched files. `fingerprint.config.js` adds `patches/` to it, so a patch to native code
+  makes a native build. #3182 shipped its native patch as an OTA update before this, and the patch
+  never ran.
 - Every `expo export` (and so the workflow's `eas update`) needs `EXPO_NO_BUNDLE_SPLITTING=1`.
   Without it, @expo/cli 58 renames the split chunks of a DOM component (`'use dom'`) to their md5
   hashes but keeps the old names in their `requires`, and the export fails with `Asset not found:
