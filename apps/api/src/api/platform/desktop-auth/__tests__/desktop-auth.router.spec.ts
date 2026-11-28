@@ -11,7 +11,7 @@ import {
 import { DesktopAuthRouter } from '../desktop-auth.router'
 import { DesktopAuthService } from '../desktop-auth.service'
 
-const service = { authorize: vi.fn(), exchange: vi.fn() }
+const service = { authorize: vi.fn(), exchange: vi.fn(), beginGoogleReauth: vi.fn() }
 const CHALLENGE = 'a'.repeat(43)
 const GOOD = {
   redirectUri: 'http://127.0.0.1:5000/desktop/auth/callback',
@@ -24,6 +24,7 @@ describe('DesktopAuthRouter', () => {
   beforeEach(async () => {
     service.authorize.mockReset().mockResolvedValue('code-1')
     service.exchange.mockReset().mockResolvedValue('tok')
+    service.beginGoogleReauth.mockReset().mockResolvedValue('https://byatlas.io/desktop/authorize')
     app = await createMiddlewareApp({
       rateLimit: UNTHROTTLED_RATE_LIMIT,
       providers: [
@@ -76,6 +77,21 @@ describe('DesktopAuthRouter', () => {
 
   it('rejects a non-S256 method', async () => {
     expect((await authorize({ ...GOOD, codeChallengeMethod: 'plain' }, 's')).status).toBe(400)
+  })
+
+  it('requires a session to begin Google confirmation and validates PKCE', async () => {
+    const begin = () => request(app.getHttpServer()).post('/v1/trpc/desktopAuth.beginGoogleReauth')
+    const input = { ...GOOD, state: 'state' }
+    expect((await begin().send(input)).status).toBe(401)
+    expect(
+      (
+        await begin()
+          .set(as('s'))
+          .send({ ...input, codeChallenge: 'bad' })
+      ).status,
+    ).toBe(400)
+    expect((await begin().set(as('s')).send(input)).status).toBe(200)
+    expect(service.beginGoogleReauth).toHaveBeenCalledWith({ userId: 'u1', input })
   })
 
   it('exchange is public', async () => {

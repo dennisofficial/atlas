@@ -3,10 +3,12 @@ import {
   acceptRevealRequest,
   beginRevealRequest,
   cancelRevealRequest,
+  confirmationMethodsOf,
   createAccessMemberApi,
   EAccessMemberKind,
   ERevealRequestStatus,
   revealRequestPending,
+  revealWithTemporarySession,
   type AccessScope,
   type RevealRequest,
 } from '@dltech/atlas-client/settings'
@@ -15,10 +17,11 @@ import { useEffect, useRef, useState } from 'react'
 import { ScrollView, View } from 'react-native'
 
 import { useAuth } from '../../auth/auth-provider'
-import { revokeSession, signInWithPassword } from '../../auth/session'
+import { EHandoffResult, runHandoffSignIn } from '../../auth/sign-in-flow'
+import { fetchSession, revokeSession, signInWithPassword } from '../../auth/session'
 import { revokeOrPersist } from '../../auth/revoke-queue'
 import { createPendingRevokeStorage } from '../../auth/token-store'
-import { apiOrigin } from '../../config'
+import { apiOrigin, webOrigin } from '../../config'
 import { useAccountApi } from '../account/use-account-api'
 import { ActionRow } from '../settings-parts'
 import { AccessNote, accessStyles } from './access-parts'
@@ -40,7 +43,7 @@ export const SecretReveal = ({
   const account = useAccountApi()
   const [value, setValue] = useState<string | null>(null)
   const [password, setPassword] = useState('')
-  const [needsPassword, setNeedsPassword] = useState(false)
+  const [methods, setMethods] = useState({ password: false, google: false })
   const [failure, setFailure] = useState('')
   const [busy, setBusy] = useState(false)
   const request = useRef<RevealRequest>({ id: 0, status: ERevealRequestStatus.Cancelled })
@@ -72,7 +75,7 @@ export const SecretReveal = ({
     if (!pending(id)) return
     request.current = acceptRevealRequest({ request: request.current, id })
     setValue(revealed)
-    setNeedsPassword(false)
+    setMethods({ password: false, google: false })
   }
   const handleReveal = async () => {
     if (api === undefined || busy) return
@@ -93,8 +96,10 @@ export const SecretReveal = ({
         try {
           const methods = await account?.listSignInMethods()
           if (!pending(id)) return
-          if (methods?.password) setNeedsPassword(true)
-          else setFailure('Sign out and sign back in to reveal values.')
+          const available = confirmationMethodsOf(methods)
+          setMethods(available)
+          if (!available.password && !available.google)
+            setFailure('Sign out and sign back in to reveal values.')
         } catch {
           if (pending(id)) setFailure('Your sign-in methods could not be loaded. Try again.')
         }
@@ -115,27 +120,70 @@ export const SecretReveal = ({
         if (pending(id)) setFailure(signedIn.error)
         return
       }
-      try {
-        if (!pending(id)) return
-        setPassword('')
-        const freshApi = createApiClient({ baseUrl: apiOrigin, token: signedIn.token })
-        await reveal({ client: freshApi, id })
-      } finally {
-        await revokeOrPersist({
-          storage: createPendingRevokeStorage(),
-          revoke: (token) => revokeSession({ apiOrigin, token }),
-          token: signedIn.token,
-        })
-      }
+      await revealWithTemporarySession({
+        token: signedIn.token,
+        isPending: () => pending(id),
+        reveal: async (token) => {
+          setPassword('')
+          await reveal({ client: createApiClient({ baseUrl: apiOrigin, token }), id })
+        },
+        revoke: (token) =>
+          revokeOrPersist({
+            storage: createPendingRevokeStorage(),
+            revoke: (value) => revokeSession({ apiOrigin, token: value }),
+            token,
+          }),
+      })
     } catch {
       if (pending(id)) setFailure('The value could not be revealed. Try again.')
     } finally {
       finish(id)
     }
   }
+  const handleGoogle = async () => {
+    if (api === undefined || user === undefined || busy) return
+    request.current = beginRevealRequest(request.current)
+    const { id } = request.current
+    setBusy(true)
+    setFailure('')
+    try {
+      const outcome = await runHandoffSignIn({
+        webOrigin,
+        beginGoogleReauth: (input) => api.desktopAuth.beginGoogleReauth.mutate(input),
+      })
+      if (outcome.kind === EHandoffResult.Cancelled) return
+      if (outcome.kind !== EHandoffResult.Redirect)
+        throw new Error('Google confirmation did not complete')
+      const { token } = await api.desktopAuth.exchange.mutate({
+        code: outcome.code,
+        codeVerifier: outcome.verifier,
+        redirectUri: outcome.redirectUri,
+      })
+      await revealWithTemporarySession({
+        token,
+        isPending: () => pending(id),
+        reveal: async (token) => {
+          const freshUser = await fetchSession({ apiOrigin, token })
+          if (!pending(id)) return
+          if (freshUser?.id !== user.id) throw new Error('Use the Google account linked to Atlas')
+          await reveal({ client: createApiClient({ baseUrl: apiOrigin, token }), id })
+        },
+        revoke: (token) =>
+          revokeOrPersist({
+            storage: createPendingRevokeStorage(),
+            revoke: (value) => revokeSession({ apiOrigin, token: value }),
+            token,
+          }),
+      })
+    } catch {
+      if (pending(id)) setFailure('Google confirmation did not complete. Try again.')
+    } finally {
+      finish(id)
+    }
+  }
   const handleCancel = () => {
     request.current = cancelRevealRequest(request.current)
-    setNeedsPassword(false)
+    setMethods({ password: false, google: false })
     setPassword('')
     setBusy(false)
   }
@@ -158,17 +206,32 @@ export const SecretReveal = ({
       {value !== null && onEdit !== undefined ? (
         <ActionRow label="Edit file" onPress={() => onEdit(value)} loading={busy} />
       ) : null}
-      {needsPassword ? (
+      {methods.password || methods.google ? (
         <View style={accessStyles.field}>
-          <AccessNote text="Confirm it’s you. Enter your password to reveal this value." />
-          <Input
-            accessibilityLabel="Password"
-            value={password}
-            onChangeText={setPassword}
-            secureTextEntry
-            autoComplete="current-password"
-          />
-          <ActionRow label="Confirm password" loading={busy} onPress={() => void handleConfirm()} />
+          <AccessNote text="Confirm it’s you. Sign in again to reveal this value." />
+          {methods.password ? (
+            <>
+              <Input
+                accessibilityLabel="Password"
+                value={password}
+                onChangeText={setPassword}
+                secureTextEntry
+                autoComplete="current-password"
+              />
+              <ActionRow
+                label="Confirm password"
+                loading={busy}
+                onPress={() => void handleConfirm()}
+              />
+            </>
+          ) : null}
+          {methods.google ? (
+            <ActionRow
+              label="Confirm with Google"
+              loading={busy}
+              onPress={() => void handleGoogle()}
+            />
+          ) : null}
           <ActionRow label="Cancel confirmation" onPress={handleCancel} />
         </View>
       ) : null}

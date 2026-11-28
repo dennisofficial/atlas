@@ -35,6 +35,7 @@ reaches the API through this package. No client imports `apps/api`.
   object. Load `skills.usage` separately with the same scope to get counts by skill name. Its
   failure does not prevent rendering the list; web gives this non-blocking scan its own 30 s
   client while keeping the normal 10 s deadline for lists and all other API calls.
+- `api.googleAccount.beginLink.mutate({})` returns the browser-return start link for linking Google. `api.desktopAuth.beginGoogleReauth.mutate({ redirectUri, state, codeChallenge, codeChallengeMethod: 'S256' })` starts fresh Google confirmation through the existing PKCE authorize and exchange flow. Both require the initiating user's session; normal desktop authorize inputs remain valid.
 - `QUERY_DEADLINE_MS` (`10_000`): a query is an HTTP `GET`, and it is aborted once this long passes,
   body read included, so a query on a dead socket settles and the caller's retry can run. A
   mutation is never aborted, because a slow write must finish. `queryDeadlineMs` on the client

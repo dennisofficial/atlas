@@ -98,11 +98,20 @@ sign-in results for flows, not tokens.
   back to the device code on its own. While the browser is open the waiting screen keeps the
   device code one keypress away, so a session that looks local still has a way through.
 
+### Google settings on iOS
+
+Account linking calls `googleAccount.beginLink`, then opens the returned browser-return start link. The one-use `/google-link/start` bootstrap calls better-auth with the initiating user's sealed bearer and forwards the OAuth state cookies before redirecting to Google. `/google-link/callback` verifies the expected account gained Google and answers the framework. A different browser account cannot select the account being linked.
+
+Access confirmation calls `desktopAuth.beginGoogleReauth` with the existing PKCE binding. `/desktop/authorize` starts Google sign-in even when an Atlas browser session already exists, then returns to itself to authorize the handoff. The API requires the same user, redirect and challenge, a session created after begin, and a one-use proof written only when the Google callback creates that session. An old Atlas cookie or a fresh password session cannot confirm Google. The app exchanges the code through `desktopAuth.exchange`, reveals the value with that temporary bearer and revokes it, including cancellation and reveal failures. Normal web, Mac and TUI login does not send the optional Google confirmation nonce and is unchanged.
+
+This settings UI is mobile-only; web already has Google linking and confirmation. Mac and TUI retain their existing login flow. Native browser-sheet rendering and Google consent need a real-device check; the Expo web bundle does not prove them.
+
 ## Flows on the framework
 
-| Flow  | Start                                                 | Return path                                                                                            | Durable result                        |
-| ----- | ----------------------------------------------------- | ------------------------------------------------------------------------------------------------------ | ------------------------------------- |
-| `mcp` | the MCP transcript card's sign-in, or a settings page | `/sessions/<id>`, `/settings/integrations`, `/projects/<id>/settings/mcp`, `/groups/<id>/settings/mcp` | the roster row, read by the next turn |
+| Flow          | Start                                                 | Return path                                                                                            | Durable result                        |
+| ------------- | ----------------------------------------------------- | ------------------------------------------------------------------------------------------------------ | ------------------------------------- |
+| `google-link` | the iOS Account settings Link Google button           | `/settings/account`                                                                                    | the linked sign-in methods            |
+| `mcp`         | the MCP transcript card's sign-in, or a settings page | `/sessions/<id>`, `/settings/integrations`, `/projects/<id>/settings/mcp`, `/groups/<id>/settings/mcp` | the roster row, read by the next turn |
 
 The MCP transcript card signs in an `http` MCP server. The agent tool `operator_mcp_sign_in` begins
 the flow, and the callback answers a session screen through `BrowserReturnService.answer`, so the

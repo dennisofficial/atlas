@@ -1,3 +1,4 @@
+import type { GoogleReauthBegin } from '@dltech/atlas-client/settings'
 import * as WebBrowser from 'expo-web-browser'
 
 import {
@@ -35,17 +36,29 @@ const fullPageRedirect = ({ authorizeUrl }: { authorizeUrl: string }): THandoffO
 
 export const runHandoffSignIn = async ({
   webOrigin,
+  beginGoogleReauth,
 }: {
   webOrigin: string
+  beginGoogleReauth?: GoogleReauthBegin | undefined
 }): Promise<THandoffOutcome> => {
   const pair = await createPkcePair()
   const redirectUri = webRedirectUri({ origin: window.location.origin })
-  const authorizeUrl = buildAuthorizeUrl({
-    webOrigin,
-    redirectUri,
-    state: pair.state,
-    codeChallenge: pair.challenge,
-  })
+  const authorizeUrl =
+    beginGoogleReauth === undefined
+      ? buildAuthorizeUrl({
+          webOrigin,
+          redirectUri,
+          state: pair.state,
+          codeChallenge: pair.challenge,
+        })
+      : (
+          await beginGoogleReauth({
+            redirectUri,
+            state: pair.state,
+            codeChallenge: pair.challenge,
+            codeChallengeMethod: 'S256',
+          })
+        ).url
   const storage = pendingAuthStorage()
   const pending: IPendingAuth = { verifier: pair.verifier, state: pair.state, redirectUri }
   try {
@@ -62,7 +75,8 @@ export const runHandoffSignIn = async ({
       verifier: pair.verifier,
       redirectUri,
     }
-  } catch {
+  } catch (error) {
+    if (beginGoogleReauth !== undefined) throw error
     storage.save(JSON.stringify(pending))
     return fullPageRedirect({ authorizeUrl })
   }

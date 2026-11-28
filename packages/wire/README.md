@@ -52,6 +52,7 @@ response payloads, the constants that both sides must agree on, and the sandbox 
 ### Share an HTTP payload
 
 - `threadMessageRequestSchema`, `threadMessageReplySchema`: the send of a message to a thread.
+- `beginGoogleLinkInputSchema`, `beginGoogleReauthInputSchema`, `beginGoogleReplySchema`: authenticated Google account linking and fresh PKCE confirmation begins. `authorizeDesktopInputSchema.googleReauth` is optional so released Mac and TUI sign-in requests remain valid.
 - `dictationTokenReplySchema`: the single-use Gateway transcription token a phone dictates with,
   with the socket `url` it opens and the `DICTATION_MODEL` it is bound to.
 - `modelsResponseSchema`: the model list of the providers, with the live error.

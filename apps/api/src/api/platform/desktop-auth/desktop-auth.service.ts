@@ -5,6 +5,7 @@ import { needsTrustedOrigin } from '@dltech/atlas-wire'
 import { z } from 'zod'
 import { EnvService } from '../../../_core/config/env/env.service'
 import { auth } from '../auth/auth.server'
+import { beginGoogleReauth, confirmGoogleReauth } from './google-reauth'
 import { trustedOriginsOf } from './trusted-origins'
 
 export const CODE_TTL_MS = 60_000
@@ -26,12 +27,39 @@ export const challengeOf = (verifier: string): string => sha256(verifier).toStri
 export class DesktopAuthService {
   constructor(private readonly env: EnvService) {}
 
-  async authorize(args: { userId: string; input: AuthorizeDesktopInput }): Promise<string> {
-    if (needsTrustedOrigin(args.input.redirectUri)) {
-      const origin = new URL(args.input.redirectUri).origin
+  async beginGoogleReauth(args: {
+    userId: string
+    input: import('@dltech/atlas-wire').BeginGoogleReauthInput
+  }): Promise<string> {
+    this.checkRedirect(args.input.redirectUri)
+    return beginGoogleReauth({ ...args, webOrigin: this.env.get('WEB_ORIGIN') })
+  }
+
+  private checkRedirect(redirectUri: string): void {
+    if (needsTrustedOrigin(redirectUri)) {
+      const origin = new URL(redirectUri).origin
       if (!trustedOriginsOf(this.env).has(origin)) {
         throw new BadRequestException('redirect origin is not trusted')
       }
+    }
+  }
+
+  async authorize(args: {
+    userId: string
+    input: AuthorizeDesktopInput
+    sessionCreatedAt?: Date | undefined
+    sessionId?: string | undefined
+  }): Promise<string> {
+    this.checkRedirect(args.input.redirectUri)
+    if (args.input.googleReauth !== undefined) {
+      await confirmGoogleReauth({
+        nonce: args.input.googleReauth,
+        userId: args.userId,
+        sessionCreatedAt: args.sessionCreatedAt,
+        sessionId: args.sessionId ?? '',
+        redirectUri: args.input.redirectUri,
+        codeChallenge: args.input.codeChallenge,
+      })
     }
     const code = randomBytes(32).toString('base64url')
     const { internalAdapter } = await auth.$context

@@ -1,4 +1,8 @@
 import {
+  beginGoogleReauthInputSchema,
+  beginGoogleReplySchema,
+  type BeginGoogleReauthInput,
+  type BeginGoogleReply,
   authorizeDesktopInputSchema,
   authorizeDesktopReplySchema,
   exchangeDesktopCodeInputSchema,
@@ -18,6 +22,14 @@ import { DesktopAuthService } from './desktop-auth.service'
 export class DesktopAuthRouter {
   constructor(private readonly desktopAuth: DesktopAuthService) {}
 
+  @Mutation({ input: beginGoogleReauthInputSchema, output: beginGoogleReplySchema })
+  async beginGoogleReauth(
+    @Input() input: BeginGoogleReauthInput,
+    @Ctx() ctx: SessionTrpcCtx,
+  ): Promise<BeginGoogleReply> {
+    return { url: await this.desktopAuth.beginGoogleReauth({ userId: ctx.auth.userId, input }) }
+  }
+
   @Mutation({
     input: authorizeDesktopInputSchema,
     output: authorizeDesktopReplySchema,
@@ -29,6 +41,9 @@ export class DesktopAuthRouter {
     return {
       code: await this.desktopAuth.authorize({
         userId: ctx.auth.userId,
+        ...(input.googleReauth === undefined
+          ? {}
+          : { sessionCreatedAt: ctx.auth.sessionCreatedAt, sessionId: ctx.auth.sessionId }),
         input,
       }),
     }
