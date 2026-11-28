@@ -1,6 +1,7 @@
 'use client'
 
 import { useRouter } from 'next/navigation'
+import { useEffect, useState } from 'react'
 
 import { EModelSelectorVariant, ModelSelector } from '@dltech/atlas-ui/ai/model-selector'
 
@@ -9,6 +10,8 @@ import { PROVIDERS_HREF } from '@/features/settings/settings-nav'
 import type { ModelPicker } from './data/use-model-picker'
 import type { ModelSelection } from './data/model-selection'
 import { selectionAfterPick } from './data/model-selection'
+import { nativePickerAvailable } from './data/native-model-picker'
+import { NativeModelPickerControls } from './native-model-picker'
 
 export type PickerFollow = {
   label: string
@@ -17,20 +20,7 @@ export type PickerFollow = {
   note?: string
 }
 
-export function ModelPickerControls({
-  picker,
-  selection,
-  onSelectionChange,
-  open,
-  onOpenChange,
-  follow,
-  effortReadOnly = false,
-  effortNote,
-  showEffortLabel = false,
-  placeholder = 'Default',
-  variant,
-  className,
-}: {
+export type ModelPickerControlsProps = {
   picker: ModelPicker
   selection: ModelSelection
   onSelectionChange: (selection: ModelSelection) => void
@@ -43,10 +33,46 @@ export function ModelPickerControls({
   placeholder?: string | undefined
   variant?: EModelSelectorVariant | undefined
   className?: string | undefined
-}) {
+}
+
+export function ModelPickerControls({
+  native = false,
+  ...props
+}: ModelPickerControlsProps & { native?: boolean }) {
   const router = useRouter()
-  const { models, reconnectProviders } = picker.options
+  const [nativeUnavailable, setNativeUnavailable] = useState(false)
+  const [nativeReady, setNativeReady] = useState(false)
+  useEffect(() => {
+    if (native) setNativeReady(nativePickerAvailable(window))
+  }, [native])
   const handleManage = () => router.push(PROVIDERS_HREF)
+  if (native && nativeReady && !nativeUnavailable) {
+    return (
+      <NativeModelPickerControls
+        {...props}
+        onNativeUnavailable={() => setNativeUnavailable(true)}
+      />
+    )
+  }
+  return <ModelSelectorControls {...props} onManage={handleManage} />
+}
+
+function ModelSelectorControls({
+  picker,
+  selection,
+  onSelectionChange,
+  open,
+  onOpenChange,
+  follow,
+  effortReadOnly = false,
+  effortNote,
+  showEffortLabel = false,
+  placeholder = 'Default',
+  variant,
+  className,
+  onManage,
+}: ModelPickerControlsProps & { onManage: () => void }) {
+  const { models, reconnectProviders } = picker.options
   const handleValueChange = (id: string) =>
     onSelectionChange(
       selectionAfterPick({ models, id, effort: selection.effort, fast: selection.fast }),
@@ -71,8 +97,8 @@ export function ModelPickerControls({
       pinned={picker.pinned}
       onPinnedChange={picker.onPinnedChange}
       reconnectProviders={reconnectProviders}
-      onReconnect={handleManage}
-      onManageProviders={handleManage}
+      onReconnect={onManage}
+      onManageProviders={onManage}
       {...(variant === undefined ? {} : { variant })}
       {...(className === undefined ? {} : { className })}
     />

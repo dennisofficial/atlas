@@ -1,6 +1,6 @@
 import { describe, expect, test } from 'bun:test'
 
-import { signatureProblems } from '../scripts/verify-signature'
+import { addonSignatureProblems, signatureProblems } from '../scripts/verify-signature'
 
 const ENTITLEMENTS = `<?xml version="1.0" encoding="UTF-8"?>
 <plist version="1.0"><dict>
@@ -51,6 +51,28 @@ describe('signatureProblems', () => {
     )
     expect(signatureProblems({ codesign: SIGNED, entitlements: bare })).toEqual([
       'the bun runtime cannot use the JIT',
+    ])
+  })
+})
+
+describe('addonSignatureProblems', () => {
+  const ADDON = SIGNED.replace('bin/bun', 'native/atlas_native.node').replace(
+    'Identifier=bun',
+    'Identifier=atlas_native',
+  )
+
+  test('passes a native addon that carries the identity and the runtime flag', () => {
+    expect(addonSignatureProblems({ codesign: ADDON })).toEqual([])
+  })
+
+  test('rejects an addon that electron-builder left unsigned', () => {
+    const unsigned = ADDON.replace('flags=0x10000(runtime)', 'flags=0x0(none)').replace(
+      'Authority=Developer ID Application: Dennis Lysenko (9H7HK25CVR)\nAuthority=Developer ID Certification Authority\nAuthority=Apple Root CA\n',
+      '',
+    )
+    expect(addonSignatureProblems({ codesign: unsigned })).toEqual([
+      'the native picker addon is not signed with the hardened runtime',
+      'the native picker addon is not Developer ID signed',
     ])
   })
 })

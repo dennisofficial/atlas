@@ -25,6 +25,7 @@ import type { PodMemory } from './memory'
 import type { PodMessages } from './messages'
 import type { ECloudSetting, PodResource, PodResources } from './resources'
 import type { PodRoutines } from './routines'
+import type { PodRuntimeScope } from './runtime-scope'
 import type { PodSessions } from './sessions'
 import type { PodSubscriptions } from './subscriptions'
 import type { PodWorktrees } from './worktrees'
@@ -152,6 +153,7 @@ export type PluginPodContext = {
   sessions: PodSessions
   worktrees: PodWorktrees
   resources: PodResources
+  runtime?: PodRuntimeScope | undefined
   append(drafts: readonly (EventDraft | RecordBody | PluginEventBody)[]): Promise<void>
   /** Delivers a turn-taking notice through the agent's queue. */
   notify(event: EventBody, options: { key: string }): Promise<void>

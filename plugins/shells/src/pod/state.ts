@@ -1,12 +1,12 @@
-import type { PluginPodContext } from '@dltech/atlas-plugin-sdk'
+import { PodRuntimeScope, type PluginPodContext } from '@dltech/atlas-plugin-sdk'
 import type { DaemonEventFrame } from '@dltech/atlas-protocol'
 
 import { ShellCursors } from './cursors'
-import { ShellLive } from './live-watch'
+import { shellLiveOf } from './live-watch'
 
 export type ShellPodState = {
   cursors: ShellCursors
-  live: ShellLive
+  live: ReturnType<typeof shellLiveOf>
   awaiting: Set<string>
   endings: Set<string>
   inputs: Set<string>
@@ -20,7 +20,7 @@ export const stateFor = (ctx: PluginPodContext): ShellPodState => {
   if (kept !== undefined) return kept
   const state: ShellPodState = {
     cursors: new ShellCursors(),
-    live: new ShellLive(ctx),
+    live: (ctx.runtime ?? new PodRuntimeScope(ctx)).shared(shellLiveOf),
     awaiting: new Set(),
     endings: new Set(),
     inputs: new Set(),

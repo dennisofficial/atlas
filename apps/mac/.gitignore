@@ -4,3 +4,6 @@ payload
 dist
 build/icon.icns
 web-standalone/
+native/build
+native/lib
+native/prebuilds

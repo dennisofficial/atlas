@@ -86,6 +86,13 @@ the hashes `session_hash` and `thread_hash`.
 `ctx.control` is a `PodControl`: `exposePort({port})`, `settingsVersions()`, `memory`,
 `gateway` (`apiKey()`, `imageModel()`), `mcp`, `routines`, `subscriptions`.
 
+`ctx.runtime` is the optional `PodRuntimeScope` supplied by a host. The main thread and all its
+sub-agents share it. `shared(factory)` constructs one ephemeral resource per factory per held
+runtime. The factory receives session-level `call`, `live`, `log`, `onDaemonEvent`, `onReset` and
+`onDispose` ports. These listeners outlive individual threads. A changed daemon boot calls `reset()`;
+runtime release calls `dispose()`, which removes subscriptions and invalidates resources. Keep tool
+read cursors and durable facts outside this scope. A context without a host scope cannot share resources.
+
 A handoff may run a tool body again, so a port that changes something names it first.
 `crew.spawn`, `sessions.spawn`, `messages.send`, `routines.*` and `memory.edit` key it by the step
 key; `sessions.archive`, memory writes and deletes, `exposePort`, `subscriptions`, worktrees by
