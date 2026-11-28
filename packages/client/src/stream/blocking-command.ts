@@ -8,7 +8,7 @@ type Status = SessionSnapshot['status']
 export type BlockingCopy = { readonly label: string; readonly queued: string }
 
 export type BlockingCommand = {
-  readonly inboxId: number
+  readonly inboxId: number | undefined
   readonly name: string
   readonly startedAt: string
   readonly copy: BlockingCopy

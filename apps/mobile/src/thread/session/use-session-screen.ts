@@ -1,6 +1,5 @@
 import { clientOnlyReason } from '@dltech/atlas-commands'
 import {
-  blockingCommandOf,
   type BlockingCommand,
   canReconnectOf,
   ESessionConnection,
@@ -37,6 +36,7 @@ import { useOperatorRequest, type OperatorRequestControl } from './use-operator-
 import { useQueuedWithdraw } from './use-queued-withdraw'
 import { useRestoredDraft } from './use-restored-draft'
 import { useSessionMessageActions } from './use-session-message-actions'
+import { useRequestedCommand } from './use-requested-command'
 import type { QueuedRestore } from './withdraw-queued'
 
 const TICK_MS = 1_000
@@ -97,7 +97,7 @@ export function useSessionScreen(args: {
   const operator = useOperatorRequest({ api, sessionId, events: snapshot.foldable })
   const [now, setNow] = useState(() => Date.now())
   const view = useThreadView({ snapshot, now })
-  const blocking = useMemo(() => blockingCommandOf(snapshot.status), [snapshot.status])
+  const requested = useRequestedCommand(snapshot)
   const boot = useMemo(
     () =>
       sessionBootViewOf({
@@ -128,11 +128,11 @@ export function useSessionScreen(args: {
   }, [sessionId])
 
   useEffect(() => {
-    if (!view.working && blocking === undefined) return undefined
+    if (!view.working && requested.blocking === undefined) return undefined
     setNow(Date.now())
     const timer = setInterval(() => setNow(Date.now()), TICK_MS)
     return () => clearInterval(timer)
-  }, [view.working, blocking])
+  }, [view.working, requested.blocking])
 
   useEffect(() => {
     const pending = quickStopRestoresToApply({
@@ -159,13 +159,13 @@ export function useSessionScreen(args: {
     (queued: QueuedRestore) => restore({ text: queued.text, attachments: queued.attachments }),
     [restore],
   )
-  const reportNotice = useCallback((notice: string) => setNotice(notice), [])
   const messageActions = useSessionMessageActions({
     sessionId,
     events: snapshot.foldable,
     api,
+    requested,
     onRestore: restore,
-    onNotice: reportNotice,
+    onNotice: setNotice,
   })
   const withdraw = useQueuedWithdraw({
     api,
@@ -173,7 +173,7 @@ export function useSessionScreen(args: {
     pending: snapshot.pending,
     foldable: snapshot.foldable,
     onRestore: restoreQueued,
-    onNotice: reportNotice,
+    onNotice: setNotice,
   })
 
   useEffect(() => {
@@ -274,7 +274,7 @@ export function useSessionScreen(args: {
     header,
     queued,
     sessionNameOf,
-    blocking,
+    blocking: requested.blocking,
     startFailure: startFailureOf(snapshot.status),
     loaded,
     agentLinks,

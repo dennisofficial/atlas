@@ -8,12 +8,7 @@ import type { Attachment } from '@dltech/atlas-core'
 
 import { liveBackgroundOf } from '@dltech/atlas-client/crew'
 import { mergedDraftOf, sessionBootViewOf } from '@dltech/atlas-client/session'
-import {
-  blockingCommandOf,
-  ESessionConnection,
-  isTurnRunning,
-  startFailureOf,
-} from '@dltech/atlas-client/stream'
+import { ESessionConnection, isTurnRunning, startFailureOf } from '@dltech/atlas-client/stream'
 import { turnStartedAtOf } from '@dltech/atlas-client/transcript'
 import { pendingOperatorRequestOf } from '@dltech/atlas-plugin-operator/client'
 
@@ -67,6 +62,7 @@ import { useSessionCommands } from './data/use-session-commands'
 import { composerEntriesOf, requestResume, resumePendingOf } from './data/session-commands'
 import { composerActionsOf } from './data/session-composer-actions'
 import { useSessionSummarise } from './data/use-session-summarise'
+import { useRequestedCommand } from './data/use-requested-command'
 import { useSessionStream } from './data/use-session-stream'
 import { BlockingDock } from './blocking/blocking-dock'
 import { CommandListDialog } from './command-list-dialog'
@@ -118,7 +114,8 @@ export function SessionView({ sessionId }: { sessionId: string }) {
     return (id: string) => titles.get(id)
   }, [sessions])
   const working = isSessionWorking(snapshot.status)
-  const blocking = blockingCommandOf(snapshot.status)
+  const requested = useRequestedCommand(snapshot)
+  const { blocking } = requested
   const composer = useSessionComposer({ sessionId, working })
   const draftAttachments = useDraftAttachments({
     media: composer.attachments.media,
@@ -271,7 +268,7 @@ export function SessionView({ sessionId }: { sessionId: string }) {
       return next
     })
 
-  const summarise = useSessionSummarise({ sessionId, events: snapshot.events })
+  const summarise = useSessionSummarise({ sessionId, events: snapshot.events, requested })
   const resume = useMemo(
     () => ({
       pending: resumePendingOf(snapshot.status?.commands),
