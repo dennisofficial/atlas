@@ -1,3 +1,4 @@
+import { createRequire } from 'node:module'
 import { join, resolve } from 'node:path'
 
 import { app, BrowserWindow, ipcMain, WebContentsView } from 'electron'
@@ -21,6 +22,11 @@ import { attachContextMenu, denyWindow, sendToBrowser } from './window-chrome.js
 import { createHostLauncher } from './host-launch.js'
 import { createHostTrust } from './host-trust.js'
 import { createClickWatcher, createSessionOpener, revealWindow } from './notification-clicks.js'
+import {
+  createNativeModelPicker,
+  loadNativeAddon,
+  registerModelPickerIpc,
+} from './native-picker.js'
 import { createPaneRegistry } from './panes.js'
 import { createBinaryUpdater, createDesktopUpdates } from './updates.js'
 import {
@@ -55,6 +61,22 @@ ipcMain.on(FULLSCREEN_QUERY, (event) => {
   event.returnValue = BrowserWindow.fromWebContents(event.sender)?.isFullScreen() ?? false
 })
 
+const nativePicker = createNativeModelPicker({
+  addon: loadNativeAddon({
+    resourcesPath: app.isPackaged ? process.resourcesPath : undefined,
+    appRoot: app.getAppPath(),
+    platform: process.platform,
+    arch: process.arch,
+    require: createRequire(import.meta.url),
+  }),
+})
+
+registerModelPickerIpc({
+  ipcMain,
+  picker: nativePicker,
+  windowOf: (sender) => BrowserWindow.fromWebContents(sender),
+})
+
 async function createWindow({ sessionId, path } = {}) {
   const win = new BrowserWindow({
     width: WINDOW_WIDTH,
@@ -70,6 +92,7 @@ async function createWindow({ sessionId, path } = {}) {
   })
 
   hostTrust.install()
+  nativePicker.attach({ win })
 
   win.on('enter-full-screen', () => win.webContents.send(FULLSCREEN_STATE, true))
   win.on('leave-full-screen', () => win.webContents.send(FULLSCREEN_STATE, false))
@@ -181,6 +204,7 @@ async function createWindow({ sessionId, path } = {}) {
   session = await startDesktopServer({ panes, updates })
 
   win.on('closed', () => {
+    nativePicker.detach({ win })
     payloads.stop()
     binary.stop()
     host?.child.kill('SIGTERM')
@@ -266,4 +290,8 @@ app.whenReady().then(async () => {
 
 app.on('window-all-closed', () => {
   if (process.platform !== 'darwin') app.quit()
+})
+
+app.on('before-quit', () => {
+  nativePicker.dispose()
 })

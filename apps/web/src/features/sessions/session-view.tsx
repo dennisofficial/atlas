@@ -451,6 +451,7 @@ export function SessionView({ sessionId }: { sessionId: string }) {
                               onSelectionChange={choice.onSelectionChange}
                               open={choice.open}
                               onOpenChange={choice.onOpenChange}
+                              native
                             />
                           )}
                           <span aria-hidden className="flex-1" />
