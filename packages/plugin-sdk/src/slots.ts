@@ -142,7 +142,13 @@ export const EMPTY_CLASSIFIER: PodClassifier = Object.freeze({
   }),
 })
 
+export type PodSubAgent = {
+  agentId: string
+  appendToParent(drafts: readonly (EventDraft | RecordBody | PluginEventBody)[]): Promise<void>
+}
+
 export type PluginPodContext = {
+  subAgent?: PodSubAgent | undefined
   sessionId: string
   workspaceDirectory?: string | null | undefined
   control: PodControl

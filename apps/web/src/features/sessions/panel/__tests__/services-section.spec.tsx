@@ -74,6 +74,11 @@ describe('SessionServicesSection', () => {
     expect(html).toContain('aria-label="Open the web log"')
   })
 
+  it('labels an old blank service row with its id', () => {
+    const html = render(valueOf([serviceRowFixture({ name: undefined, command: '' })]))
+    expect(html).toContain('aria-label="Open the svc-web log"')
+  })
+
   it('marks a running service paused but still offers its preview while the pod is asleep', () => {
     const base = valueOf()
     const html = render({

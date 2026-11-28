@@ -47,24 +47,32 @@ export class GithubService {
       deviceCode: args.deviceCode,
     })
     if (outcome.kind === 'error') return mapPollError(outcome)
-    const missing = missingScopesOf(outcome.scope)
+    return this.connectWithToken({ userId: args.userId, ...outcome })
+  }
+
+  async connectWithToken(args: {
+    userId: string
+    accessToken: string
+    scope: string
+  }): Promise<GithubPollResultDto> {
+    const missing = missingScopesOf(args.scope)
     if (missing.length > 0) {
       return { status: EGithubPollStatus.MissingScopes, missing }
     }
-    const { login } = await this.client.verifyToken({ accessToken: outcome.accessToken })
-    const sealedToken = this.cipher.encrypt(outcome.accessToken)
+    const { login } = await this.client.verifyToken({ accessToken: args.accessToken })
+    const sealedToken = this.cipher.encrypt(args.accessToken)
     await db.orm.public.GithubConnection.upsert({
       conflictOn: { userId: args.userId },
       create: {
         id: `gh_${randomUUID()}`,
         login,
-        scopes: outcome.scope,
+        scopes: args.scope,
         sealedToken,
         userId: args.userId,
       },
-      update: { login, scopes: outcome.scope, sealedToken },
+      update: { login, scopes: args.scope, sealedToken },
     })
-    return { status: EGithubPollStatus.Connected, login, scopes: splitScopes(outcome.scope) }
+    return { status: EGithubPollStatus.Connected, login, scopes: splitScopes(args.scope) }
   }
 
   async read(args: { userId: string }): Promise<GithubConnectionDto> {

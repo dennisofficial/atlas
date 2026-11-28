@@ -36,6 +36,10 @@ const host = await createDesktopHost({
   secret,
   app: { version: process.env.ATLAS_VERSION ?? '0.0.0', channel: 'stable', chromium: false },
   auth: { home: defaultDesktopHome(), openExternal: () => true },
+  openExternal: async (url) => {
+    const browser = Bun.spawn(['/usr/bin/open', url], { stdout: 'ignore', stderr: 'ignore' })
+    return (await browser.exited) === 0
+  },
   // The pane is a real browser, so every origin the web app asks about is allowed. The route exists
   // because the electrobun webview needed an allowlist; the shell keeps it answering 204 so the web
   // app's preview gate settles instead of failing.

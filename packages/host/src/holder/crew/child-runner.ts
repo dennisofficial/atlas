@@ -11,6 +11,7 @@ import { dispatchableScopeKey, ScopedToolDispatcher } from '../../calls/call-sco
 import { InFlightSteps } from '../../calls/step-detach'
 import type { HeldSessionDeps } from '../held-session-deps'
 import { pluginPodContextOf, pluginToolsOf, resolvedEventsOf } from '../plugin-pod'
+import { podAppendOf } from '../pod-append'
 import { pluginHooksOf, resourceSyncOf } from '../plugin-hooks'
 import { hookedToolsOf } from '../hooked-tools'
 import { liveOutputOf } from '../live-output'
@@ -48,6 +49,14 @@ export const childRunnerOf = (args: {
     signal: args.signal,
     crew: args.crew,
     selfAgentId: args.agentId,
+    subAgent: {
+      agentId: args.agentId,
+      appendToParent: podAppendOf({
+        record: args.parentRecord,
+        threadId: args.parentThreadId,
+        deps,
+      }),
+    },
     steps,
     notify: (event, options) => args.notify(event, options),
   })

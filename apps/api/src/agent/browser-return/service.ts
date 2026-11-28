@@ -14,7 +14,7 @@ import { z } from 'zod'
 import { clearedReturnCookie, returnCookieIn, returnCookieOf } from './cookie'
 import { continuePageOf, gonePageOf } from './pages'
 import { sealJson, unsealJson, type JsonCipher } from './seal'
-import { BrowserReturnStore, recordedTargetOf } from './store'
+import { BrowserReturnStore, recordedTargetOf, type BrowserReturnRow } from './store'
 
 export type BrowserReturnServiceArgs = {
   db: Db
@@ -52,6 +52,8 @@ export type BrowserReturnAnswerRequest = {
   outcome: ReturnOutcome
   fallbackWebPath: string
 }
+
+export type BrowserReturnClaim = { userId: string | undefined; row: BrowserReturnRow }
 
 export type BrowserReturnCallbackAnswer =
   | { kind: 'redirect'; location: string; clearCookie: string }
@@ -103,6 +105,13 @@ export class BrowserReturnService {
     }
   }
 
+  async claim(args: { state: string; flow: string }): Promise<BrowserReturnClaim | null> {
+    const open = await this.store.findOpen({ state: args.state, now: this.now() })
+    if (open === null || open.flow !== args.flow) return null
+    const row = await this.store.take({ state: args.state, now: this.now() })
+    return row === null ? null : { userId: row.userId ?? undefined, row }
+  }
+
   async start(request: BrowserReturnStartRequest): Promise<BrowserReturnStartAnswer> {
     const row = await this.store.findOpen({ state: request.state, now: this.now() })
     if (row === null) return { kind: 'gone', html: gonePageOf() }
@@ -129,6 +138,26 @@ export class BrowserReturnService {
 
   async answer(request: BrowserReturnAnswerRequest): Promise<BrowserReturnCallbackAnswer> {
     const row = await this.store.take({ state: request.state, now: this.now() })
+    return this.answerFor({ request, row })
+  }
+
+  answerClaimed(args: {
+    claim: BrowserReturnClaim | null
+    request: BrowserReturnAnswerRequest
+  }): BrowserReturnCallbackAnswer {
+    if (args.claim === null)
+      return this.answerFor({
+        request: { ...args.request, cookieHeader: undefined },
+        row: null,
+      })
+    return this.answerFor({ request: args.request, row: args.claim.row })
+  }
+
+  private answerFor(args: {
+    request: BrowserReturnAnswerRequest
+    row: BrowserReturnRow | null
+  }): BrowserReturnCallbackAnswer {
+    const { request, row } = args
     const target = returnTargetOf({
       state: request.state,
       cookie: returnCookieIn({ cipher: this.args.cipher, header: request.cookieHeader }),

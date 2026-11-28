@@ -31,6 +31,7 @@ The headless client library that web, the TUI and the mobile app share.
 | `@dltech/atlas-client/account`                  | The Atlas Cloud device-code login and the PKCE pair a browser sign-in needs.                                                                                                  |
 | `@dltech/atlas-client/settings`                 | The settings page and section lists, and the agent, models, appearance, instructions, memory, skills, notifications, project, group, sandbox and pull-request settings logic. |
 | `@dltech/atlas-client/browser-return`           | The outcomes a browser sign-in brought back, held by the state of its start link.                                                                                             |
+| `@dltech/atlas-client/loopback`                 | Bun-only browser-return and provider loopback listeners, shared by the TUI and the Mac host.                                                                                  |
 | `@dltech/atlas-client/transcript`               | The transcript rows, the tool runs and the turn rows.                                                                                                                         |
 | `@dltech/atlas-client/stream-fixture`           | A fake scheduler and transport, and the event factories, for a spec.                                                                                                          |
 | `@dltech/atlas-client/transcript-fixture`       | The event drafts and the step signals of a transcript, for a spec.                                                                                                            |
@@ -295,6 +296,22 @@ The headless client library that web, the TUI and the mobile app share.
 - A sign-in flow remembers the outcome the browser brought back under the state of its start
   link, and a card reads it with `read(state)`. `returnOutcomeOf` in `@dltech/atlas-core` picks
   the durable outcome over the kept one.
+
+### Receive a browser return in a Bun client
+
+The `loopback` entry point is Bun-only. It binds `Bun.serve` on loopback, so import it only in the
+TUI or the Mac host, never in a browser or the mobile app. Other entry points remain portable.
+- `startLoopbackListener({ spec, copy, port?, timeoutMs? })` binds a listener and returns its `port`,
+  `outcome` and `stop`. The spec checks the path, allowed hosts and return state.
+- `startLoopbackReturn({ url, open, copy, timeoutMs? })` opens a framework start link for the TUI.
+  `startLoopbackWait({ spec, open, copy, timeoutMs? })` uses the same listener for a PKCE login.
+- `startProviderLoopback({ provider, begin, open, ports?, timeoutMs?, signal? })` binds a provider's
+  registered address before calling `begin({ redirectUri })`. It opens the system browser and
+  returns `attemptId`, `authorizeUrl`, `redirectUri`, `port`, `outcome`, `done` and `stop`.
+  `outcome` preserves the code or provider refusal; `done` keeps only `{ attemptId, code }` for a
+  successful return. The caller exchanges that code through its API client, not through this module.
+  An unavailable port, refused begin or failed opener rejects start; cancellation and timeout close
+  the port. `providerLoopbackOf`, `providerReturnOf` and `loopbackPageOf` expose the shapes and page.
 
 ## Usage
 

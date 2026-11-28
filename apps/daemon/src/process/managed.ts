@@ -175,6 +175,11 @@ export class ManagedProcess {
     setTimeout(() => this.killGroupNow(), KILL_GRACE_MS).unref()
   }
 
+  killNow(): void {
+    this.killing = true
+    this.killGroupNow()
+  }
+
   async exit(): Promise<ManagedExit> {
     await this.child.exited
     if (this.killing) this.killGroupNow()

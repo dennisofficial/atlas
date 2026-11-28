@@ -15,10 +15,20 @@ import { z } from 'zod'
 import { SessionMiddleware, type SessionTrpcCtx } from '../../../_module/session/session.middleware'
 import { GithubService } from '@dltech/atlas-github'
 
+import { GithubRedirectService } from './github-redirect.service'
+
 @Router({ alias: 'github' })
 @UseMiddlewares(SessionMiddleware)
 export class GithubRouter {
-  constructor(private readonly github: GithubService) {}
+  constructor(
+    private readonly github: GithubService,
+    private readonly redirects: GithubRedirectService,
+  ) {}
+
+  @Mutation({ output: z.strictObject({ url: z.string() }) })
+  beginRedirect(@Ctx() ctx: SessionTrpcCtx): Promise<{ url: string }> {
+    return this.redirects.begin({ userId: ctx.auth.userId })
+  }
 
   @Mutation({ output: githubDeviceCodesSchema })
   beginConnect(): Promise<GithubDeviceCodes> {

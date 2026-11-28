@@ -18,7 +18,8 @@ type Lost = {
 
 const lostDeclaredOf = (open: ReturnType<typeof lostServicesOf>): Lost[] =>
   open.flatMap((service) => {
-    const { name, root, declarationHash, branch, pid, command } = service.started
+    const { name, root, declarationHash, branch, pid, command, agentId } = service.started
+    if (agentId !== undefined) return []
     if (name === undefined || root === undefined || declarationHash === undefined) return []
     return [{ name, root, branch, pid, command }]
   })

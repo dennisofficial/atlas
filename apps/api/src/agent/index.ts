@@ -78,6 +78,7 @@ export type {
   BrowserReturnBeginAnswer,
   BrowserReturnBeginRequest,
   BrowserReturnCallbackAnswer,
+  BrowserReturnClaim,
   BrowserReturnServiceArgs,
   BrowserReturnStartAnswer,
   BrowserReturnStartRequest,

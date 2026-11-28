@@ -24,7 +24,7 @@ import {
   startLoopbackWait,
   type LoopbackReturn,
   type LoopbackWait,
-} from '../browser-return/loopback-server'
+} from '@dltech/atlas-client/loopback'
 import { ELoginFlow, loginFlowOf } from './login-flow'
 import {
   authorizeUrlOf,

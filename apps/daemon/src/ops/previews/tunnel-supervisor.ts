@@ -263,7 +263,7 @@ export class TunnelSupervisor {
       this.child = undefined
       const stoppingAt = this.clock.now()
       if (child !== undefined) {
-        child.kill()
+        child.killNow()
         await child.exit().catch(() => undefined)
       }
       const stopMs = Math.max(0, this.clock.now() - stoppingAt)

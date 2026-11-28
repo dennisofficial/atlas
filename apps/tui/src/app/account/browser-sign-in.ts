@@ -7,7 +7,7 @@ import {
   startProviderLoopback,
   type ProviderLoopback,
   type ProviderSignInLoopbackBegin,
-} from './provider-loopback'
+} from '@dltech/atlas-client/loopback'
 
 export type BrowserSignIn = {
   api: SessionApi

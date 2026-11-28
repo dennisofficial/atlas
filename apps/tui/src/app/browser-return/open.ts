@@ -1,8 +1,12 @@
 import { browserReturns, type ReturnStore } from '@dltech/atlas-client/browser-return'
 import { stateOfStartLink } from '@dltech/atlas-core'
 
-import type { LoopbackCopy } from './loopback-page'
-import { startLoopbackReturn, type LoopbackReturn, type LoopbackStart } from './loopback-server'
+import type { LoopbackCopy } from '@dltech/atlas-client/loopback'
+import {
+  startLoopbackReturn,
+  type LoopbackReturn,
+  type LoopbackStart,
+} from '@dltech/atlas-client/loopback'
 
 export type OpenBrowserReturn = {
   url: string
