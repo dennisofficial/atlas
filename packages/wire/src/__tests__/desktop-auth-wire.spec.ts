@@ -1,6 +1,9 @@
 import { describe, expect, it } from 'bun:test'
 import {
   APP_REDIRECT_URI,
+  beginGoogleReauthInputSchema,
+  beginGoogleLinkInputSchema,
+  beginGoogleReplySchema,
   authorizeDesktopInputSchema,
   exchangeDesktopCodeInputSchema,
   isAuthorizableRedirectUri,
@@ -41,6 +44,30 @@ describe('desktop auth redirect uris', () => {
     expect(authorizeDesktopInputSchema.safeParse({ redirectUri: uri }).success).toBe(false)
   })
 
+  it('keeps old clients valid and validates Google begin bindings', () => {
+    const input = {
+      redirectUri: APP_REDIRECT_URI,
+      codeChallenge: CHALLENGE,
+      codeChallengeMethod: 'S256',
+    }
+    expect(authorizeDesktopInputSchema.safeParse(input).success).toBe(true)
+    expect(
+      authorizeDesktopInputSchema.safeParse({ ...input, googleReauth: 'n'.repeat(43) }).success,
+    ).toBe(true)
+    expect(authorizeDesktopInputSchema.safeParse({ ...input, googleReauth: 'short' }).success).toBe(
+      false,
+    )
+    expect(beginGoogleReauthInputSchema.safeParse({ ...input, state: 's' }).success).toBe(true)
+    expect(beginGoogleReauthInputSchema.safeParse(input).success).toBe(false)
+    expect(beginGoogleLinkInputSchema.safeParse({}).success).toBe(true)
+    expect(beginGoogleLinkInputSchema.safeParse({ callbackURL: 'https://evil.test' }).success).toBe(
+      false,
+    )
+    expect(
+      beginGoogleReplySchema.safeParse({ url: 'https://api.byatlas.io/return/start/s' }).success,
+    ).toBe(true)
+  })
+
   it('accepts the app uri in both authorize and exchange inputs', () => {
     const authorize = authorizeDesktopInputSchema.safeParse({
       redirectUri: APP_REDIRECT_URI,
@@ -54,5 +81,21 @@ describe('desktop auth redirect uris', () => {
       redirectUri: 'https://app.example.test/auth/callback',
     })
     expect(exchange.success).toBe(true)
+    expect(
+      exchangeDesktopCodeInputSchema.safeParse({
+        code: 'c',
+        codeVerifier: 'v'.repeat(43),
+        redirectUri: APP_REDIRECT_URI,
+        requireGoogleReauth: true,
+      }).success,
+    ).toBe(true)
+    expect(
+      exchangeDesktopCodeInputSchema.safeParse({
+        code: 'c',
+        codeVerifier: 'v'.repeat(43),
+        redirectUri: APP_REDIRECT_URI,
+        requireGoogleReauth: 'yes',
+      }).success,
+    ).toBe(false)
   })
 })

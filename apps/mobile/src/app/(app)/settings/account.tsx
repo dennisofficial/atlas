@@ -24,6 +24,7 @@ import { Platform, StyleSheet, View } from 'react-native'
 
 import { useAuth } from '../../../auth/auth-provider'
 import { loadAccountData, type IAccountData } from '../../../settings/account/account-data'
+import { useGoogleLink } from '../../../settings/account/use-google-link'
 import { useAccountApi } from '../../../settings/account/use-account-api'
 import { confirmDestructive } from '../../../settings/confirm'
 import { Row, Section, StatusRows } from '../../../settings/settings-parts'
@@ -55,10 +56,12 @@ const AccountContent = ({
   authApi: IAuthAccountApi
   reload: () => void
 }) => {
+  const { api } = useAuth()
+  const google = useGoogleLink({ api, reload })
   const [busy, setBusy] = useState(false)
   const [notice, setNotice] = useState<string | null>(null)
   const [failure, setFailure] = useState<string | null>(null)
-  const rows = signInMethodRowsOf({ methods: data.signInMethods, busy })
+  const rows = signInMethodRowsOf({ methods: data.signInMethods, busy: busy || google.busy })
 
   const run = async ({ work, success }: { work: () => Promise<void>; success: string }) => {
     setBusy(true)
@@ -98,6 +101,10 @@ const AccountContent = ({
   }
 
   const handleMethod = (row: ISignInMethodRow) => {
+    if (row.action === ESignInMethodAction.Link) {
+      void google.handleLink()
+      return
+    }
     if (row.action === ESignInMethodAction.SendSetupLink) {
       handleSendSetupLink()
       return
@@ -130,18 +137,24 @@ const AccountContent = ({
                 {row.description}
               </Text>
             </View>
-            {row.action === ESignInMethodAction.Link ? null : (
-              <Button
-                label={row.actionLabel}
-                variant={row.primary ? EButtonVariant.Default : EButtonVariant.Outline}
-                size={EButtonSize.Sm}
-                disabled={row.disabled}
-                onPress={() => handleMethod(row)}
-              />
-            )}
+            <Button
+              label={row.actionLabel}
+              variant={row.primary ? EButtonVariant.Default : EButtonVariant.Outline}
+              size={EButtonSize.Sm}
+              disabled={row.disabled}
+              onPress={() => handleMethod(row)}
+            />
           </CardRow>
         ))}
       </Section>
+      {google.message === undefined ? null : (
+        <Text
+          size={ETextRole.Sm}
+          tone={google.message.success ? ETextTone.Muted : ETextTone.Destructive}
+        >
+          {google.message.message}
+        </Text>
+      )}
       {notice === null ? null : (
         <Text size={ETextRole.Sm} tone={ETextTone.Muted}>
           {notice}

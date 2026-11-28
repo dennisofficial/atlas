@@ -163,6 +163,8 @@ The headless client library that web, the TUI and the mobile app share.
 - `signInMethodsOf(accounts)`, `signInMethodRowsOf({ methods, busy })`, `ESignInMethodAction` and
   `ESignInMethodProvider`: which methods a user has, and the two rows a settings page shows.
 - `linkReturnOf(params)`, `ELinkReturnKind`: the outcome a Google link came back with.
+- `googleLinkMessageOf(outcome)`, `googleReauthCallbackPath(args)`, `confirmationMethodsOf(methods)` and `GoogleReauthBegin`: the shared browser-return copy, forced Google handoff callback and available confirmation methods.
+- `revealWithTemporarySession(args)`: reveal only while a request is pending and always revoke the temporary password or Google session, including failures and cancelled requests.
 - `unlinkRefusalOf(args)`, `SESSION_NOT_FRESH`, `UNREACHABLE`: the refusals a settings page names.
 
 ### Read MCP and GitHub settings
