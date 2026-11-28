@@ -545,8 +545,8 @@ describe('pod memory signals', () => {
     expect(htmlOf()).not.toContain('killed for memory')
   })
 
-  it('shows the command memory limit next to the pod RAM', () => {
-    expect(htmlOf({ commandRamLimitGb: 2.3 })).toContain('commands ≤ 2.3 GB')
+  it('shows only used and total RAM, without the command memory limit', () => {
+    expect(htmlOf({ commandRamLimitGb: 2.3 })).not.toContain('commands ≤')
     expect(htmlOf()).not.toContain('commands ≤')
   })
 })

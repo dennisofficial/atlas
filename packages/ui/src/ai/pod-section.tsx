@@ -1,17 +1,17 @@
 'use client'
 
 import { AlertDialog } from '#components/alert-dialog'
-import { MoonIcon, TriangleAlertIcon } from 'lucide-react'
+import { MoonIcon, TriangleAlertIcon, ZapIcon } from 'lucide-react'
 import type { ReactNode } from 'react'
 
 import { PodDiskSelect } from './internal/pod-disk-control'
 import { EPodAction, PodActionConfirm } from './internal/pod-action-confirm'
-import { MetricSignals } from './internal/pod-metrics-parts'
 import { PodSectionHeader } from './internal/pod-section-header'
 import { PodSizeSelect, PodSizeStatus, type PodSizeControlProps } from './internal/pod-size-control'
 import { PodUsageSpark } from './internal/pod-spark'
 import {
-  commandMemorySuffix,
+  oomKillsLabelOf,
+  oomSignalLabel,
   diskPercentOf,
   formatRam,
   gigabytes,
@@ -74,25 +74,46 @@ function PodSeriesRow({
   label,
   value,
   swatch,
-  detail,
   children,
 }: {
   label: string
   value: string
   swatch: string
-  detail?: string
   children?: ReactNode
 }) {
   return (
     <div className="flex w-full items-center gap-2">
       <span aria-hidden className={`size-2 shrink-0 rounded-[2px] ${swatch}`} />
       <span className="w-8 shrink-0 text-muted-foreground">{label}</span>
-      <span className="min-w-0 flex-1 text-foreground tabular-nums wrap-anywhere">
-        {value}
-        {detail ? <span className="block text-[11px] text-muted-foreground">{detail}</span> : null}
-      </span>
+      <span className="min-w-0 flex-1 text-foreground tabular-nums wrap-anywhere">{value}</span>
       {children}
     </div>
+  )
+}
+
+const SIGNAL_CLASS =
+  'flex shrink-0 items-center gap-1 text-[11px] leading-4 animate-in fade-in-0 duration-200 motion-reduce:animate-none'
+
+function ThrottledSignal({ throttled }: { throttled: boolean }) {
+  if (!throttled) return null
+  return (
+    <span data-pod-signal className={`${SIGNAL_CLASS} text-warning`}>
+      <ZapIcon aria-hidden className="size-3" />
+      Throttled
+    </span>
+  )
+}
+
+function OomSignal(props: { oomEvents?: number | undefined; oomKills: number }) {
+  const short = oomKillsLabelOf(props)
+  const full = oomSignalLabel(props)
+  if (short === null || full === null) return null
+  return (
+    <span data-pod-signal title={full} className={`${SIGNAL_CLASS} text-destructive`}>
+      <TriangleAlertIcon aria-hidden className="size-3" />
+      <span aria-hidden>{short}</span>
+      <span className="sr-only">{full}</span>
+    </span>
   )
 }
 
@@ -209,13 +230,12 @@ export function PodSection(props: PodSectionProps) {
         <PodUsageIdle state={props.state} unavailable={props.usageUnavailable === true} />
       )}
       <div className="flex flex-col gap-1 text-xs">
-        <PodSeriesRow label="CPU" value={running ? view.cpuLabel : '—'} swatch="bg-primary" />
-        <PodSeriesRow
-          label="RAM"
-          value={ramValue}
-          detail={commandMemorySuffix(props.commandRamLimitGb)}
-          swatch="bg-muted-foreground"
-        />
+        <PodSeriesRow label="CPU" value={running ? view.cpuLabel : '—'} swatch="bg-primary">
+          <ThrottledSignal throttled={props.throttled === true} />
+        </PodSeriesRow>
+        <PodSeriesRow label="RAM" value={ramValue} swatch="bg-muted-foreground">
+          <OomSignal oomEvents={props.oomEvents} oomKills={props.oomKills ?? 0} />
+        </PodSeriesRow>
         <PodSeriesRow label="Disk" value={diskValue} swatch="bg-chart-2">
           {diskGrow ? (
             <PodDiskSelect
@@ -226,12 +246,7 @@ export function PodSection(props: PodSectionProps) {
           ) : null}
         </PodSeriesRow>
       </div>
-      <div className="flex flex-col gap-2 pl-4">
-        <MetricSignals
-          throttled={props.throttled === true}
-          oomEvents={props.oomEvents}
-          oomKills={props.oomKills ?? 0}
-        />
+      <div className="pl-4 empty:hidden">
         <PodSizeStatus {...sizeProps} />
       </div>
       {props.confirmAction === undefined ? null : (

@@ -316,12 +316,10 @@ describe('PodPaneSection', () => {
     expect(html).toContain('2 out-of-memory kills (3 processes)')
   })
 
-  it('shows the command memory limit below the pod RAM', () => {
+  it('shows only used and total pod RAM', () => {
     const html = renderToStaticMarkup(sectionOf({ series: [sample({ commandRamLimitGb: 2.3 })] }))
     expect(html).toContain('3 / 16 GB')
-    expect(html).toContain(
-      '<span class="block text-[11px] text-muted-foreground">commands ≤ 2.3 GB</span>',
-    )
+    expect(html).not.toContain('commands ≤')
   })
 
   it('offers to start a parked pod instead of stopping it', () => {

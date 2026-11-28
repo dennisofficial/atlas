@@ -25,11 +25,10 @@ describe('pod section vertical layout', () => {
     expect(html).not.toContain('grid-cols-[1rem_minmax(0,1fr)_auto]')
   })
 
-  it('keeps the whole RAM value and command limit visible without truncation', () => {
+  it('keeps the whole RAM value visible without truncation or a command-limit line', () => {
     const html = htmlOf()
-    const value = html.match(
-      /<span class="([^"]*)">2\.5 \/ 16 GB<span class="block text-\[11px\] text-muted-foreground">commands ≤ 7 GB<\/span><\/span>/,
-    )
+    const value = html.match(/<span class="([^"]*)">2\.5 \/ 16 GB<\/span>/)
+    expect(html).not.toContain('commands ≤')
     expect(html).not.toContain('·')
     expect(value).not.toBeNull()
     expect(value?.[1]).toContain('tabular-nums')
@@ -57,11 +56,23 @@ describe('pod section vertical layout', () => {
     expect(html).toMatch(/data-slot="select-value"[^>]*>20 GB<\/span>/)
   })
 
-  it('aligns signals and resize status with the metric text after the swatch', () => {
+  it('puts throttling on the CPU line and memory kills on the RAM line so nothing below shifts', () => {
+    const html = htmlOf({ throttled: true, oomEvents: 5 })
+    const cpu = html.indexOf('>CPU</span>')
+    const ram = html.indexOf('>RAM</span>')
+    const disk = html.indexOf('>Disk</span>')
+    const throttled = html.indexOf('Throttled')
+    const kills = html.indexOf('5 out-of-memory kills')
+    expect(cpu).toBeLessThan(throttled)
+    expect(throttled).toBeLessThan(ram)
+    expect(ram).toBeLessThan(kills)
+    expect(kills).toBeLessThan(disk)
+    expect(html).toContain('animate-in fade-in-0')
+  })
+
+  it('aligns the resize status with the metric text after the swatch', () => {
     const html = htmlOf({ throttled: true, oomEvents: 1 })
-    expect(html).toContain('flex flex-col gap-2 pl-4')
-    expect(html).toContain('Throttled')
-    expect(html).toContain('1 out-of-memory kill')
+    expect(html).toContain('pl-4 empty:hidden')
     expect(html).not.toContain('pl-[1.625rem]')
   })
 })
