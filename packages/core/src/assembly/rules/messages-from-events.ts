@@ -11,7 +11,7 @@ import { currentContextEvents } from '../../context/supersede'
 import { EMessageOrigin, saidBy, type AssistantPart } from '../../events/body'
 import { callIdsIn, freshCallId } from '../../events/dedupe-call-ids'
 import type { Event, EventOfType, EventRef } from '../../events/envelope'
-import { isNoticeArrival } from '../../events/notice-stage'
+import { isNoticeArrival, reachesModel } from '../../events/notice-stage'
 import { liveNudgeIds } from '../../events/nudges'
 import { RESUME_AFTER_INTERRUPTED_TOOL } from '../../events/resume-plan'
 import { EResumePoint, type ResumeDiscard } from '../../record/resume-point'
@@ -361,7 +361,7 @@ function walkEvents({
     }
 
     if (event.type === 'service-ended') {
-      if (event.restarting === true) continue
+      if (!reachesModel(event)) continue
       groups.push({
         message: {
           role: 'user',

@@ -24,7 +24,11 @@ export const isTurnTaking = (event: EventDraft): boolean => {
     case 'resume-marked':
       return true
     case 'service-ended':
-      return event.restarting !== true && event.cause !== EShellEndCause.PodRestarted
+      return (
+        event.agentId === undefined &&
+        event.restarting !== true &&
+        event.cause !== EShellEndCause.PodRestarted
+      )
     case 'agent-reported':
       return true
     case 'agent-ended':

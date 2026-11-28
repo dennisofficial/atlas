@@ -4,6 +4,7 @@ import { EServiceRunStatus, type ServiceInfo } from '@dltech/atlas-protocol'
 import { servicesOfEvents } from '../core'
 import { listServices } from './daemon'
 import type { DeclaredPlace } from './place'
+import { appendStarted } from './record-started'
 
 const LIVE = new Set<EServiceRunStatus>([EServiceRunStatus.Starting, EServiceRunStatus.Ready])
 
@@ -43,8 +44,9 @@ export const adoptUntracked = async (args: {
   if (!listed.ok) return undefined
   const found = untrackedOn({ ctx, services: listed.value, command: args.command, port })
   if (found === undefined) return undefined
-  await ctx.append([
-    {
+  await appendStarted({
+    ctx,
+    started: {
       type: 'service-started',
       serviceId: found.serviceId,
       command: found.command,
@@ -57,7 +59,7 @@ export const adoptUntracked = async (args: {
       ...(args.place.branch === undefined ? {} : { branch: args.place.branch }),
       port,
     },
-  ])
+  })
   ctx.log(`services: adopted the running ${args.name} (${found.serviceId}) the record had lost`)
   return found.serviceId
 }

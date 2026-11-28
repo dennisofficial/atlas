@@ -4,6 +4,7 @@ import {
   prEventContent,
   runEventContent,
   serviceFailed,
+  reachesModel,
   type Event,
 } from '@dltech/atlas-core'
 
@@ -69,7 +70,7 @@ export function noticeEntriesOf(event: Event): TranscriptEntry[] | null {
   }
 
   if (event.type === 'service-ended') {
-    if (event.restarting === true) return []
+    if (!reachesModel(event)) return []
     return [
       {
         kind: EEntryKind.ServiceEnded,

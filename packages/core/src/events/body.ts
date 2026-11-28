@@ -298,6 +298,7 @@ export type EventBody =
   | {
       type: 'service-started'
       serviceId: string
+      agentId?: string | undefined
       name?: string | undefined
       pid?: number | undefined
       port?: number | undefined
@@ -314,6 +315,7 @@ export type EventBody =
   | {
       type: 'service-ended'
       serviceId: string
+      agentId?: string | undefined
       command: string
       description?: string | undefined
       bootId?: string | undefined

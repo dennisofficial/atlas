@@ -25,6 +25,11 @@ describe('drawerServicesOf', () => {
     })
   })
 
+  test('a blank row falls back to its service id', () => {
+    const services = drawerServicesOf([rowOf({ name: ' ', command: '' })])
+    expect(services[0]?.description).toBe('svc-1')
+  })
+
   test('a row with no name falls back to its command', () => {
     const [service] = drawerServicesOf([rowOf({})])
 

@@ -1,13 +1,10 @@
 import { HookChain, ToolRegistry } from '@dltech/atlas-agent'
 import {
-  CallHandedOffError,
   EModelFallbackReason,
   TEAMMATE_AGENT_TYPE,
   projectDirectoryOfState,
   type EventBody,
   type EventDraft,
-  type PluginEventBody,
-  type RecordBody,
   type RecordEvent,
   type ThreadId,
 } from '@dltech/atlas-core'
@@ -17,6 +14,7 @@ import {
   type PodCrew,
   type PodResources,
   type PodSlash,
+  type PodSubAgent,
 } from '@dltech/atlas-plugin-sdk'
 
 import { worktreesOf } from './checkouts'
@@ -38,8 +36,7 @@ import { heldMessagesOf } from './pod-messages'
 import type { RoleModelChoice, SessionRuntime } from './ports'
 import type { SessionRecord } from './record/record-adapter'
 import { recordStep, recordedStepsOf } from './record/call-steps'
-import { LeaseLostError } from './record/lease-lost-error'
-import { holdsLatestFact } from './record/latest-fact'
+import { podAppendOf } from './pod-append'
 import { hostStepOf } from './record/host-step'
 import type { InFlightSteps } from '../calls/step-detach'
 
@@ -101,8 +98,6 @@ const podResourcesOf = (args: {
   }
 }
 
-type PodDraft = EventDraft | RecordBody | PluginEventBody
-
 export const resolvedEventsOf = (record: SessionRecord): readonly RecordEvent[] => {
   const cache = record.eventCache()
   return cache.eventsAfter(0).map((event) => cache.resolvedEvent(event))
@@ -116,6 +111,7 @@ export const pluginPodContextOf = (args: {
   signal: AbortSignal
   crew: PodCrew
   selfAgentId?: string | undefined
+  subAgent?: PodSubAgent | undefined
   steps?: InFlightSteps | undefined
   notify?: ((event: EventBody, options: { key: string }) => Promise<void>) | undefined
 }): PluginPodContext => {
@@ -128,20 +124,7 @@ export const pluginPodContextOf = (args: {
       op: request.op,
       input: request.input,
     })
-  const append = async (drafts: readonly PodDraft[]): Promise<void> => {
-    const fresh = drafts.filter((draft) => !holdsLatestFact({ record, draft }))
-    if (fresh.length === 0) return
-    try {
-      await record.append({ threadId, runId: deps.ids.nextRunId(), drafts: fresh })
-    } catch (error) {
-      if (error instanceof LeaseLostError && error.refusal === 'self-fenced') {
-        throw new CallHandedOffError(
-          `the holder handed the record back before this work was recorded: ${error.message}`,
-        )
-      }
-      throw error
-    }
-  }
+  const append = podAppendOf({ record, threadId, deps })
   const ctx: PluginPodContext = {
     get runtime() {
       return pluginRuntimeOf({ deps, runtime })
@@ -190,6 +173,7 @@ export const pluginPodContextOf = (args: {
       ...(runtime.workspaceGate === undefined ? {} : { gate: runtime.workspaceGate }),
     }),
     append,
+    ...(args.subAgent === undefined ? {} : { subAgent: args.subAgent }),
     notify: async (event, options) =>
       await (args.notify === undefined
         ? postNoticeToSession({ deps, event, key: options.key })
