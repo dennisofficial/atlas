@@ -1,6 +1,7 @@
 import { CallFailureError, ECallFailure } from '@dltech/atlas-protocol'
 
 import { ManagedProcess, type ManagedExit } from '../../process/managed'
+import { TunnelClock, type TunnelClockArgs } from './tunnel-clock'
 import { readStored, type StoredTunnel, writeStored } from './tunnel-token'
 
 const REGISTERED_MARKER = 'Registered tunnel connection'
@@ -8,8 +9,7 @@ const OUTPUT_TAIL_CHARS = 2_000
 const READY_POLL_MS = 100
 const BACKOFF_START_MS = 1_000
 const BACKOFF_MAX_MS = 30_000
-const HEARTBEAT_MS = 5_000
-const SUSPEND_GAP_MS = 30_000
+const HEARTBEAT_MS = 2_000
 const decoder = new TextDecoder()
 
 export type TunnelState = 'stopped' | 'starting' | 'up' | 'failed'
@@ -23,13 +23,12 @@ export type TunnelStatus = {
   tail: string
 }
 
-export type TunnelSupervisorArgs = {
+export type TunnelSupervisorArgs = TunnelClockArgs & {
   binary: string
   env: Record<string, string | undefined>
   file: string
   readyTimeoutMs: number
   heartbeatMs?: number | undefined
-  suspendGapMs?: number | undefined
   log(line: string): void
 }
 
@@ -81,11 +80,12 @@ export class TunnelSupervisor {
   private pending: Promise<TunnelStatus> | undefined
   private stopping = false
   private upAt: string | undefined
-  private lastBeat = Date.now()
+  private readonly clock: TunnelClock
   private redialing = false
   private readonly heartbeat: ReturnType<typeof setInterval>
 
   constructor(private readonly args: TunnelSupervisorArgs) {
+    this.clock = new TunnelClock(args)
     this.heartbeat = setInterval(() => this.watchForSuspend(), args.heartbeatMs ?? HEARTBEAT_MS)
     this.heartbeat.unref?.()
   }
@@ -255,10 +255,8 @@ export class TunnelSupervisor {
   }
 
   private watchForSuspend(): void {
-    const now = Date.now()
-    const gap = now - this.lastBeat
-    this.lastBeat = now
-    if (gap < (this.args.suspendGapMs ?? SUSPEND_GAP_MS)) return
+    const gap = this.clock.suspendGap()
+    if (gap === undefined) return
     if (this.state !== 'up' || this.child === undefined) return
     void this.redial({ gapMs: gap })
   }
