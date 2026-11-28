@@ -21,9 +21,12 @@ import { installVirtuaViewport } from './virtua-viewport'
 
 let restoreViewport = () => {}
 
+const offlineFetch = (): Promise<Response> => Promise.resolve(new Response(null, { status: 503 }))
+
 beforeAll(() => {
   registerDom()
   globalThis.IS_REACT_ACT_ENVIRONMENT = true
+  globalThis.fetch = Object.assign(offlineFetch, { preconnect: () => undefined })
   restoreViewport = installVirtuaViewport()
 })
 
