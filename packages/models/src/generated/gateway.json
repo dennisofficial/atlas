@@ -2133,8 +2133,9 @@
     ],
     "maxOutputTokens": 32768,
     "cost": {
-      "inputPerMillion": 0,
-      "outputPerMillion": 0
+      "inputPerMillion": 1,
+      "outputPerMillion": 5.2,
+      "cacheReadPerMillion": 0.2
     },
     "effort": {
       "low": "low",

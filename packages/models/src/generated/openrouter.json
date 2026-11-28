@@ -1054,9 +1054,9 @@
     ],
     "maxOutputTokens": 393216,
     "cost": {
-      "inputPerMillion": 0.70487,
-      "outputPerMillion": 1.544,
-      "cacheReadPerMillion": 0.21
+      "inputPerMillion": 0.30941,
+      "outputPerMillion": 1.5358,
+      "cacheReadPerMillion": 0.24
     },
     "effort": {
       "off": "none",
@@ -1102,11 +1102,11 @@
       "text",
       "image"
     ],
-    "maxOutputTokens": 393216,
+    "maxOutputTokens": 384000,
     "cost": {
-      "inputPerMillion": 0.0507,
-      "outputPerMillion": 0.2028,
-      "cacheReadPerMillion": 0.001014
+      "inputPerMillion": 0.051,
+      "outputPerMillion": 0.567,
+      "cacheReadPerMillion": 0.018
     },
     "effort": {
       "off": "none",
@@ -1732,9 +1732,9 @@
     ],
     "maxOutputTokens": 32768,
     "cost": {
-      "inputPerMillion": 0.09,
-      "outputPerMillion": 0.3,
-      "cacheReadPerMillion": 0.05
+      "inputPerMillion": 0.0675,
+      "outputPerMillion": 0.225,
+      "cacheReadPerMillion": 0.0375
     }
   },
   {
@@ -3157,9 +3157,9 @@
     ],
     "maxOutputTokens": 262144,
     "cost": {
-      "inputPerMillion": 0.07,
+      "inputPerMillion": 0.05,
       "outputPerMillion": 0.2,
-      "cacheReadPerMillion": 0.04
+      "cacheReadPerMillion": 0.01
     }
   },
   {
@@ -3194,10 +3194,10 @@
       "image",
       "video"
     ],
-    "maxOutputTokens": 8192,
+    "maxOutputTokens": 131072,
     "cost": {
       "inputPerMillion": 0.15,
-      "outputPerMillion": 0.47,
+      "outputPerMillion": 0.45,
       "cacheReadPerMillion": 0.02
     }
   },
@@ -4947,24 +4947,6 @@
   {
     "ref": {
       "providerId": "openrouter",
-      "modelId": "qwen/qwen3-235b-a22b-thinking-2507"
-    },
-    "label": "Qwen3 235B-A22B Thinking 2507",
-    "api": "openai-completions",
-    "contextWindow": 128000,
-    "imageTier": "standard",
-    "inputModalities": [
-      "text"
-    ],
-    "maxOutputTokens": 16384,
-    "cost": {
-      "inputPerMillion": 0.45,
-      "outputPerMillion": 3.5
-    }
-  },
-  {
-    "ref": {
-      "providerId": "openrouter",
       "modelId": "qwen/qwen3-30b-a3b"
     },
     "label": "Qwen3 30B A3B",
@@ -5477,7 +5459,7 @@
     "inputModalities": [
       "text"
     ],
-    "maxOutputTokens": 65536,
+    "maxOutputTokens": 131072,
     "cost": {
       "inputPerMillion": 2,
       "outputPerMillion": 6,
@@ -5711,9 +5693,9 @@
     ],
     "maxOutputTokens": 131072,
     "cost": {
-      "inputPerMillion": 0.3,
+      "inputPerMillion": 0.25,
       "outputPerMillion": 1,
-      "cacheReadPerMillion": 0.04
+      "cacheReadPerMillion": 0.05
     },
     "effort": {
       "low": "low",
@@ -6099,8 +6081,8 @@
     ],
     "maxOutputTokens": 131072,
     "cost": {
-      "inputPerMillion": 0.3,
-      "outputPerMillion": 1,
+      "inputPerMillion": 0.15,
+      "outputPerMillion": 0.5,
       "cacheReadPerMillion": 0.03
     },
     "effort": {
@@ -7081,7 +7063,7 @@
     "maxOutputTokens": 943718,
     "cost": {
       "inputPerMillion": 0.1824,
-      "outputPerMillion": 11.0055,
+      "outputPerMillion": 12.2894,
       "cacheReadPerMillion": 0.18
     },
     "effort": {

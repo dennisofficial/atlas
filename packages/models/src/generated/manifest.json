@@ -1,7 +1,7 @@
 {
-  "generatedAt": "2026-11-27T21:28:58.777Z",
+  "generatedAt": "2026-11-28T08:06:06.504Z",
   "source": "models.dev + api.inference.net + ai-gateway.vercel.sh",
   "providerCount": 5,
-  "modelCount": 674,
-  "hash": "580cacc68135897a272db23d672d7bf1f5f7cfcb67f1ac7824bc0fcb57312c5f"
+  "modelCount": 673,
+  "hash": "a06cb2c0907dca0169489674afc941c26a89d8b871666877b8a892d65af9b40d"
 }
