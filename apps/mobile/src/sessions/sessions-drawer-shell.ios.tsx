@@ -10,12 +10,12 @@ import {
   SearchBar,
   type SearchBarCommands,
 } from 'react-native-screens'
-import { ScrollToTopGuard } from 'react-native-screens/experimental'
 
 import { usePosture } from '../layout/use-posture'
 import { AccountButton } from '../navigation/account-button'
 import { usesGlassHeader } from '../navigation/glass-header'
 import { LEAD_GAP, TabHeaderTitle } from '../navigation/header-options'
+import { HeaderTapShield } from '../navigation/header-tap-shield'
 import { drawerBarItemsOf, drawerSearchBarPropsOf, usesNativeSearchOf } from './drawer-header-items'
 import { showsHideSessionsButtonOf } from './drawer-layout'
 import {
@@ -85,18 +85,15 @@ const DrawerScreen = ({ activeId, onOpen }: TDrawerScreenProps) => {
           <>
             {glass ? (
               <ScreenStackHeaderLeftView hidesSharedBackground={false} visibilityPriority="high">
-                <ScrollToTopGuard>
-                  <View style={[styles.glassTitle, styles.glassTitleWithLead]}>
-                    <AccountButton />
-                    <TabHeaderTitle title={SESSIONS_TITLE} />
-                  </View>
-                </ScrollToTopGuard>
+                <View style={[styles.glassTitle, styles.glassTitleWithLead]}>
+                  <HeaderTapShield />
+                  <AccountButton />
+                  <TabHeaderTitle title={SESSIONS_TITLE} />
+                </View>
               </ScreenStackHeaderLeftView>
             ) : (
               <ScreenStackHeaderLeftView>
-                <ScrollToTopGuard>
-                  <AccountButton />
-                </ScrollToTopGuard>
+                <AccountButton />
               </ScreenStackHeaderLeftView>
             )}
             {nativeSearch ? (
