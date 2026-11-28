@@ -91,7 +91,9 @@ The headless client library that web, the TUI and the mobile app share.
   `buildMemoryGroups({ memories, groupNames })`, `memoryMatchesFilter({ entry, query, type })`,
   `memoryScopeOptionsOf(groups)`, `memoryScopeHintOf(group)`, `memoryClearDescriptionOf(group)`,
   `memoryKeyInput(key)`, `formatMemoryDate(updatedAt)`: the memory scopes, their rows, and the copy
-  around them.
+  around them. `selectedMemoryNamesOf({ selected, memories })`, `memorySelectionOf({ selectedNames, name, selected })` and `memoryDeleteTitleOf(count)` share bulk selection and deletion copy.
+- `pickedAdditionalRepository({ repositories, mainRepository, index, value })` applies a repository picker result to an overview draft, rejects duplicate or malformed names, and keeps the additional-repository limit.
+- `repoChoices({ repos, query })`, `parseRepoInput(raw)`, `additionalRepoChoices({ repos, query, taken })` and `repositoryPickerChoices({ repos, query, taken })`: search GitHub repositories, accept pasted GitHub links, and exclude repositories already used by a project. The picker excludes all taken names, even when they match the search exactly.
 
 ### Read skills
 

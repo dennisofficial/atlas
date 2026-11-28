@@ -10,7 +10,7 @@ import {
   parseRepoInput,
   repoChoices,
   repoInputError,
-} from '../new-project-repos'
+} from '../repositories'
 
 const repo = (fullName: string, defaultBranch = 'main'): GithubRepoSummary => ({
   fullName,

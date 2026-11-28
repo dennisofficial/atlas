@@ -114,6 +114,25 @@ export const editAdditionalRepository = ({
 }): readonly string[] =>
   repositories.map((repository, position) => (position === index ? value : repository))
 
+export const pickedAdditionalRepository = ({
+  repositories,
+  mainRepository,
+  index,
+  value,
+}: {
+  repositories: readonly string[]
+  mainRepository: string | null
+  index: number
+  value: string
+}): readonly string[] => {
+  if (!Number.isInteger(index) || index < 0 || index > repositories.length) return repositories
+  if (value.trim() === '' || additionalRepositoryProblem({ value }) !== null) return repositories
+  const taken = [mainRepository, ...repositories.filter((_, position) => position !== index)]
+  if (taken.some((name) => name?.toLowerCase() === value.toLowerCase())) return repositories
+  if (index < repositories.length) return editAdditionalRepository({ repositories, index, value })
+  return canAddAdditionalRepository({ repositories }) ? [...repositories, value] : repositories
+}
+
 export const overviewDraftsEqual = ({
   left,
   right,
