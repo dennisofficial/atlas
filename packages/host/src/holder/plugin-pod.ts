@@ -13,8 +13,6 @@ import {
 } from '@dltech/atlas-core'
 import {
   mergeHooks,
-  type ComposedPod,
-  type DaemonReady,
   type PluginPodContext,
   type PodCrew,
   type PodResources,
@@ -31,6 +29,8 @@ import { pluginCallOf } from './plugin-call'
 import { hostHooksOf, pluginHooksOf, resourceSyncOf } from './plugin-hooks'
 import { podControlOf } from './pod-control'
 import { reloadResource } from './plugin-resources'
+import { pluginRuntimeOf } from './plugin-runtime'
+import { watchDaemonReady } from './plugin-ready'
 import { analyticsOf, threadKindOf } from './pod-analytics'
 import { postNoticeToSession } from './pod-notice'
 import { podSessionsOf } from './plugin-sessions'
@@ -42,6 +42,8 @@ import { LeaseLostError } from './record/lease-lost-error'
 import { holdsLatestFact } from './record/latest-fact'
 import { hostStepOf } from './record/host-step'
 import type { InFlightSteps } from '../calls/step-detach'
+
+export { watchDaemonReady } from './plugin-ready'
 
 const teammateModelOf =
   (runtime: SessionRuntime): (() => RoleModelChoice) =>
@@ -141,6 +143,9 @@ export const pluginPodContextOf = (args: {
     }
   }
   const ctx: PluginPodContext = {
+    get runtime() {
+      return pluginRuntimeOf({ deps, runtime })
+    },
     sessionId: deps.sessionId,
     workspaceDirectory: runtime.launchDirectory,
     control: podControlOf({
@@ -232,25 +237,6 @@ const composedToolsOf = (args: {
     () => plugins.pod.tools(args.ctx),
     args.ctx.log,
   )
-}
-
-export const watchDaemonReady = (args: {
-  onReady: SessionRuntime['remoteCalls']['onReady']
-  bootId: () => string | undefined
-  pod: Pick<ComposedPod, 'onDaemonReady'>
-  ctx: PluginPodContext
-  signal: AbortSignal
-}): void => {
-  let announced: string | undefined
-  const announce = (hello: DaemonReady): void => {
-    if (hello.bootId === announced) return
-    announced = hello.bootId
-    args.pod.onDaemonReady({ ctx: args.ctx, hello })
-  }
-  const offReady = args.onReady(announce)
-  args.signal.addEventListener('abort', offReady, { once: true })
-  const booted = args.bootId()
-  if (booted !== undefined) announce({ bootId: booted, restart: false })
 }
 
 export type PluginPod = {

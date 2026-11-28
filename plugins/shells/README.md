@@ -54,7 +54,11 @@ its roster view.
 `shells.background` prompt fragment.
 - `shells-adopted-bash` (afterTool): drafts `background-shell-started` when a `bash` call returns
   a backgrounded shell, and records that the shell has a stdin.
-- The daemon listener: records a shell ending, and publishes the shell output as it arrives.
+- The thread-local daemon listener records shell endings only for shells owned by that thread.
+- One runtime-owned live publisher reads shell output and publishes it once for the whole session,
+  even when several sub-agent contexts listen to the same daemon. A late child does not replay old
+  bytes, and a child's exit does not stop publishing. Daemon replacement resets the live byte cursor
+  and UTF-8 decoder; tool read cursors remain thread-local.
 - The reconcile runs when a host takes the session over and when the daemon restarts under the same
   host. It adopts each open shell the daemon still lists and records one ending for a shell it does
   not, so a pod that only slept and woke posts no ending.
