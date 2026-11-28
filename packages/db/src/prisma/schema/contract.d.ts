@@ -23,7 +23,7 @@ import type {
 } from '@prisma/orm-postgres/contract/types';
 
 export type StorageHash =
-  StorageHashBase<'0afeeb830835c1a111e5003744b1fb67e0fa0e1f89e6213b0ef2535adc60966f'>;
+  StorageHashBase<'4b0efa032438b801aabe2792310769aac79b16a4c84805813929e9c776dbfc1a'>;
 export type ExecutionHash =
   ExecutionHashBase<'0e6f989bb6c7c489039e329d87ab4c7469f87c12c726c4dcf40ed6296bf343c1'>;
 export type ProfileHash =
@@ -2840,6 +2840,13 @@ type ContractBase = Omit<
               };
               uniques: readonly [{ readonly columns: readonly ['id'] }];
               indexes: readonly [
+                {
+                  readonly name: 'Event_skill_usage_777c0615';
+                  readonly prefix: 'Event_skill_usage';
+                  readonly columns: readonly ['threadId', 'at'];
+                  readonly where: '("type" IN (\'context-loaded\', \'tool-called\') AND (strpos("canonical", \'"skill"\') > 0 OR strpos("canonical", chr(92) || \'u\') > 0))';
+                  readonly unique: false;
+                },
                 {
                   readonly name: 'V2Event_threadId_type_seq_idx';
                   readonly columns: readonly ['threadId', 'type', 'seq'];
