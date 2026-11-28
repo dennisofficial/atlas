@@ -57,7 +57,7 @@ const inheritSizeOptionOf = (inherited: ISandboxSize): Agent37SizeOption => {
   return {
     value: INHERIT_VALUE,
     label: 'Default',
-    detail: `${shape.vcpus} vCPU · ${shape.memoryGb} GB RAM`,
+    detail: `${shape.vcpus} vCPU, ${shape.memoryGb} GB RAM`,
   }
 }
 

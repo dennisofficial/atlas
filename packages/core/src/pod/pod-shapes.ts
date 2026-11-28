@@ -36,7 +36,7 @@ export const podShapeEquals = (args: { left: PodShape; right: PodShape }): boole
   args.left.vcpus === args.right.vcpus && args.left.memoryGb === args.right.memoryGb
 
 export const podShapeLabel = (shape: PodShape): string =>
-  `${shape.vcpus} vCPU · ${shape.memoryGb} GB`
+  `${shape.vcpus} vCPU, ${shape.memoryGb} GB`
 
 const offerOf = (args: {
   cap: number

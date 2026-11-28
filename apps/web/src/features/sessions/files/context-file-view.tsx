@@ -53,7 +53,7 @@ function ImageBody(props: { file: Extract<ContextMirrorFile, { type: 'image' }> 
 function MediaCaption(props: { mime: string; bytes: number }) {
   return (
     <p className="text-xs text-muted-foreground">
-      {props.mime} · {fileSizeLabelOf(props.bytes)}
+      {props.mime}, {fileSizeLabelOf(props.bytes)}
     </p>
   )
 }
@@ -147,7 +147,7 @@ export function ContextFileView(props: { sessionId: string; path: string; onBack
           Back
         </Button>
         <p className="min-w-0 flex-1 truncate font-mono text-xs text-muted-foreground">
-          Context · {props.path}
+          Context, {props.path}
         </p>
         {file?.type !== 'text' || renderKind === null ? null : (
           <ContextViewToggle

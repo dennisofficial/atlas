@@ -198,7 +198,7 @@ export function serviceElapsedMs(args: { service: ServiceRowView; now: number })
   return Math.max(0, (settledAt(args.service) ?? args.now) - started)
 }
 
-const READOUT_SEPARATOR = ' · '
+const READOUT_SEPARATOR = '   '
 
 export function serviceReadout(args: { service: ServiceRowView; now: number }): string {
   const state = serviceStateLabel(args.service)

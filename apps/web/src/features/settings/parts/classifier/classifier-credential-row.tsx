@@ -34,7 +34,7 @@ export function ClassifierCredentialRow({
         ) : (
           <span className="flex items-center gap-2">
             <Mono className="text-foreground">
-              Key: {providerLabel} · {existing.label}
+              Key: {providerLabel}, {existing.label}
             </Mono>
           </span>
         )

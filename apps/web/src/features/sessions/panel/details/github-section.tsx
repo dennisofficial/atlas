@@ -2,57 +2,57 @@
 
 import { useState } from 'react'
 
-import { Table, TableBody } from '@dltech/atlas-ui/components/table'
-
 import { pullRequestRowOf } from '@/features/threads/data/pull-request-rows'
-import { PullRequestRowItem } from '@/features/threads/panel/details/pull-request-row'
-import { ToggleRow } from '@/features/threads/panel/details/table-parts'
+import {
+  EPullRequestRowLayout,
+  PullRequestRowItem,
+} from '@/features/threads/panel/details/pull-request-row'
 
 import { useSessionPaneValue } from '../pane-value'
 import { PullRequestBell } from './pull-request-bell'
-import { EmptyLine, SectionHead } from './rows'
+import { subscriptionOf } from './pull-request-bell-model'
+import { RowsToggle, SectionHead } from './rows'
+import { RetainedRows, Reveal } from './reveal'
 
 const VISIBLE_ROWS = 3
-const COLUMNS = 4
 
 export function SessionGithubSection() {
   const { view } = useSessionPaneValue()
   const [expanded, setExpanded] = useState(false)
-  if (view.entries.length === 0)
-    return (
-      <section data-session-pull-requests aria-label="Pull requests" className="flex flex-col">
-        <SectionHead title="Pull requests" />
-        <EmptyLine>No pull requests yet</EmptyLine>
-      </section>
-    )
   const visible = expanded ? view.entries : view.entries.slice(0, VISIBLE_ROWS)
   const handleToggle = () => setExpanded((held) => !held)
 
   return (
-    <section data-session-pull-requests aria-label="Pull requests" className="flex flex-col">
-      <SectionHead title="Pull requests" count={view.entries.length} />
-      <Table>
-        <TableBody>
-          {visible.map((entry) => {
-            const row = pullRequestRowOf(entry)
-            return (
-              <PullRequestRowItem
-                key={row.key}
-                row={row}
-                checkoutBranch={view.branch}
-                bell={<PullRequestBell entry={entry} />}
-              />
-            )
-          })}
-          {view.entries.length > VISIBLE_ROWS ? (
-            <ToggleRow
-              colSpan={COLUMNS}
-              label={expanded ? 'Show fewer' : `Show all (${view.entries.length})`}
-              onToggle={handleToggle}
-            />
-          ) : null}
-        </TableBody>
-      </Table>
-    </section>
+    <Reveal open={view.entries.length > 0} section>
+      <section data-session-pull-requests aria-label="Pull requests" className="flex flex-col">
+        <SectionHead title="Pull requests" count={view.entries.length} />
+        <div className="flex flex-col gap-0.5">
+          <RetainedRows
+            rows={visible}
+            rowKey={(entry) => `${entry.repo}#${entry.number}`}
+            render={({ row: entry, open, onExited }) => {
+              const row = pullRequestRowOf(entry)
+              return (
+                <Reveal open={open} onExited={onExited}>
+                  <PullRequestRowItem
+                    key={row.key}
+                    row={row}
+                    layout={EPullRequestRowLayout.Row}
+                    checkoutBranch={view.branch}
+                    watching={subscriptionOf({ entry, rows: view.subscriptionRows }) !== undefined}
+                    bell={<PullRequestBell entry={entry} />}
+                  />
+                </Reveal>
+              )
+            }}
+          />
+        </div>
+        {view.entries.length > VISIBLE_ROWS ? (
+          <RowsToggle expanded={expanded} onToggle={handleToggle}>
+            {expanded ? 'Show fewer' : `Show all (${view.entries.length})`}
+          </RowsToggle>
+        ) : null}
+      </section>
+    </Reveal>
   )
 }

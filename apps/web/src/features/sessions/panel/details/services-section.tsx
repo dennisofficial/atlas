@@ -22,7 +22,8 @@ import { restartService, stopService } from '../../data/service-actions'
 import { fetchServiceLog, serviceLogKey } from '../../data/service-log'
 import { sessionsApi } from '../../data/sessions-api'
 import { useSessionPaneValue } from '../pane-value'
-import { Dot, EmptyLine, FoldedRows, Row, SectionHead } from './rows'
+import { Dot, FoldedRows, Row, SectionHead } from './rows'
+import { Reveal } from './reveal'
 
 const TONE: Record<EServiceStatus, string> = {
   [EServiceStatus.Running]: 'bg-success',
@@ -30,7 +31,10 @@ const TONE: Record<EServiceStatus, string> = {
   [EServiceStatus.Killed]: 'bg-destructive',
 }
 
-const nameOf = (row: ServiceRow): string => (row.name ?? row.command).trim()
+const nameOf = (row: ServiceRow): string =>
+  row.name?.trim() ||
+  row.command.trim().split(/\s+/)[0] ||
+  (row.port === undefined ? 'Service' : `:${row.port}`)
 
 const pausedOf = (args: { row: ServiceRow; asleep: boolean }): boolean =>
   args.asleep && args.row.status === EServiceStatus.Running
@@ -67,7 +71,7 @@ function ServiceVerbs(props: { sessionId: string; service: ServiceRow }) {
       <Button
         type="button"
         variant="ghost"
-        size="row"
+        size="xs"
         data-service-stop={props.service.serviceId}
         onClick={handleStop}
       >
@@ -76,7 +80,7 @@ function ServiceVerbs(props: { sessionId: string; service: ServiceRow }) {
       <Button
         type="button"
         variant="ghost"
-        size="row"
+        size="xs"
         data-service-restart={props.service.serviceId}
         onClick={handleRestart}
       >
@@ -126,16 +130,15 @@ export function SessionServicesSection() {
   }
 
   return (
-    <section data-session-services aria-label="Services" className="flex flex-col">
-      <SectionHead
-        title="Services"
-        count={view.serviceRows.length === 0 ? undefined : view.serviceRows.length}
-      />
-      {view.serviceRows.length === 0 ? (
-        <EmptyLine>No services running</EmptyLine>
-      ) : (
+    <Reveal open={view.serviceRows.length > 0} section>
+      <section data-session-services aria-label="Services" className="flex flex-col">
+        <SectionHead
+          title="Services"
+          count={view.serviceRows.length === 0 ? undefined : view.serviceRows.length}
+        />
         <FoldedRows
           rows={view.serviceRows}
+          rowKey={(row) => row.serviceId}
           render={(row) => {
             const preview = previewOf(row.serviceId)
             const name = nameOf(row)
@@ -145,31 +148,33 @@ export function SessionServicesSection() {
                 key={row.serviceId}
                 leading={<Dot className={paused ? 'bg-warning' : TONE[row.status]} />}
                 title={
-                  <span className="flex items-baseline gap-1">
-                    {name}
-                    {row.port === undefined ? null : (
-                      <span className="font-mono text-[11px] text-muted-foreground">
+                  <span className="flex min-w-0 items-baseline gap-1">
+                    <span className="truncate">{name}</span>
+                    {row.port === undefined || name === `:${row.port}` ? null : (
+                      <span className="shrink-0 text-[11px] text-muted-foreground tabular-nums">
                         :{row.port}
                       </span>
                     )}
                   </span>
                 }
-                trailing={
-                  <span className="flex items-center gap-1">
-                    {paused ? <PausedTag /> : <ServiceVerbs sessionId={sessionId} service={row} />}
+                trailing={paused ? <PausedTag /> : undefined}
+                actions={
+                  <>
+                    {paused ? null : <ServiceVerbs sessionId={sessionId} service={row} />}
                     {preview === undefined ? null : (
-                      <button
+                      <Button
+                        variant="ghost"
+                        size="xs"
                         type="button"
                         aria-label={`Open ${preview.label}`}
                         title={preview.url}
                         onClick={() => openBrowser(preview.url)}
-                        className="flex items-center gap-0.5 rounded-sm outline-none hover:text-foreground focus-visible:ring-2 focus-visible:ring-ring/50"
                       >
                         open
-                        <ArrowUpRightIcon aria-hidden className="size-3" />
-                      </button>
+                        <ArrowUpRightIcon aria-hidden data-icon="inline-end" />
+                      </Button>
                     )}
-                  </span>
+                  </>
                 }
                 label={`Open the ${name} log`}
                 onSelect={() => setOpened(row.serviceId)}
@@ -177,29 +182,29 @@ export function SessionServicesSection() {
             )
           }}
         />
-      )}
-      <Sheet open={selected !== undefined} onOpenChange={handleOpenChange}>
-        <SheetContent className="data-[side=right]:w-full data-[side=right]:sm:max-w-xl">
-          {selected === undefined ? null : (
-            <>
-              <SheetHeader>
-                <SheetTitle className="truncate font-mono">{nameOf(selected)}</SheetTitle>
-                <SheetDescription className="truncate font-mono">
-                  {selected.command}
-                </SheetDescription>
-                {pausedOf({ row: selected, asleep }) ? (
-                  <p className="text-[11px] text-muted-foreground">
-                    Paused while the pod is asleep. It continues when the pod starts.
-                  </p>
-                ) : (
-                  <ServiceVerbs sessionId={sessionId} service={selected} />
-                )}
-              </SheetHeader>
-              <ServiceLog sessionId={sessionId} service={selected} />
-            </>
-          )}
-        </SheetContent>
-      </Sheet>
-    </section>
+        <Sheet open={selected !== undefined} onOpenChange={handleOpenChange}>
+          <SheetContent className="data-[side=right]:w-full data-[side=right]:sm:max-w-xl">
+            {selected === undefined ? null : (
+              <>
+                <SheetHeader>
+                  <SheetTitle className="truncate font-mono">{nameOf(selected)}</SheetTitle>
+                  <SheetDescription className="truncate font-mono">
+                    {selected.command}
+                  </SheetDescription>
+                  {pausedOf({ row: selected, asleep }) ? (
+                    <p className="text-[11px] text-muted-foreground">
+                      Paused while the pod is asleep. It continues when the pod starts.
+                    </p>
+                  ) : (
+                    <ServiceVerbs sessionId={sessionId} service={selected} />
+                  )}
+                </SheetHeader>
+                <ServiceLog sessionId={sessionId} service={selected} />
+              </>
+            )}
+          </SheetContent>
+        </Sheet>
+      </section>
+    </Reveal>
   )
 }

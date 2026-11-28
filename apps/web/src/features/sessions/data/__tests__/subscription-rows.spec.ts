@@ -47,7 +47,7 @@ describe('subscriptionRowsOf', () => {
       subscriptions: [subscriptionOf({ events: ['ci', 'comments'] })],
       pullRequests: [],
     })
-    expect(row?.presentation.meta).toEqual(['Pull request', 'comments · CI'])
+    expect(row?.presentation.meta).toEqual(['Pull request', 'comments, CI'])
   })
 
   it('takes the title and state of the linked pull request', () => {

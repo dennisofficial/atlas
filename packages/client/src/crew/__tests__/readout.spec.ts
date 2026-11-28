@@ -31,7 +31,10 @@ describe('subagentStateLabel', () => {
         subagent: { ...base, status: EAgentStatus.Blocked },
         now: NOW,
       }),
-    ).toBe('blocked · 1m 4s')
+    ).toBe('blocked, 1m 4s')
+    expect(
+      subagentStateLabel({ subagent: { ...base, status: EAgentStatus.Blocked }, now: NOW }),
+    ).not.toContain('\u00b7')
   })
   it('says nothing for finished and names failures', () => {
     const ended = { ...base, endedAt: STARTED }

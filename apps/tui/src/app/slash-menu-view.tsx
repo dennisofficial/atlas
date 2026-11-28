@@ -113,7 +113,7 @@ export function SlashMenu(props: {
           {' Commands '}
         </text>
       }
-      badge={<text fg={theme.hint} bg={theme.overlayBg}>{` ${counted} · ⇥ complete `}</text>}
+      badge={<text fg={theme.hint} bg={theme.overlayBg}>{` ${counted}   ⇥ complete `}</text>}
     >
       <box flexDirection="column" flexShrink={0}>
         {visible.map((entry, offset) => (

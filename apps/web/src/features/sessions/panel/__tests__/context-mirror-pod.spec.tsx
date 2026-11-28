@@ -164,7 +164,7 @@ describe('context reads on a parked session', () => {
     const host = await mount(sleeping())
 
     expect(host.textContent).toContain('plan.md')
-    expect(host.textContent).toContain('Context · plan.md')
+    expect(host.textContent).toContain('Context, plan.md')
     expect(host.textContent).toContain('# Plan')
     expect(podCallsMade()).toEqual([])
   })

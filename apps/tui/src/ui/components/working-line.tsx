@@ -75,7 +75,7 @@ export function WorkingLine(props: {
           {props.lastSeenAt === null || props.lastSeenAt === undefined ? null : (
             <span
               fg={theme.dim}
-            >{` · transcript last seen ${lastSeenLabel(props.lastSeenAt)}`}</span>
+            >{`   transcript last seen ${lastSeenLabel(props.lastSeenAt)}`}</span>
           )}
           {props.onReconnect === undefined ? null : (
             <>
@@ -125,7 +125,7 @@ export function WorkingLine(props: {
     )
   }
 
-  const tokens = props.outputTokens > 0 ? `↓ ${formatTokens(props.outputTokens)} tokens · ` : ''
+  const tokens = props.outputTokens > 0 ? `↓ ${formatTokens(props.outputTokens)} tokens   ` : ''
   const label = `${verb} for ${formatElapsed(props.elapsedMs)} (${tokens}esc to interrupt)`
 
   return (

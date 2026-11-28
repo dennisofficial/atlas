@@ -90,7 +90,9 @@ describe('SessionUsage', () => {
     const element = await render(<SessionUsage model={CLAUDE} working={false} />)
 
     const trigger = element.querySelector('[aria-label^="Plan usage"]')
-    expect(trigger?.textContent).toBe('5h 68% · 7d 41%')
+    expect(trigger?.textContent).toBe('5h 68%7d 41%')
+    expect(trigger?.textContent).not.toContain('\u00b7')
+    expect(trigger?.querySelector('.gap-2')).not.toBeNull()
   })
 
   it('hides the 5-hour window of a plan that has only a weekly limit', async () => {

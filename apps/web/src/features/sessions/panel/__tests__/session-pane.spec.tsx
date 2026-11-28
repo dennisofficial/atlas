@@ -82,7 +82,7 @@ describe('SessionPane', () => {
   it('renders the details of the streamed view on the Details tab', () => {
     const html = render(ESessionPaneTab.Details)
     expect(html).toContain('data-session-summary')
-    expect(html).toContain('Rebase ui on shadcn base-nova')
+    expect(html).not.toContain('Rebase ui on shadcn base-nova')
   })
 
   it('renders the terminal tab where the empty state used to be', () => {

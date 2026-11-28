@@ -29,37 +29,35 @@ const BOOT_STEP_SPECS: BootStepSpec[] = [
     label: 'Provisioning sandbox',
     startMs: 0,
     durationMs: 2800,
-    detail: (p) => (p < 1 ? 'Vercel · iad1 · 4 vCPU' : 'Vercel · iad1 · 4 vCPU · ready'),
+    detail: (p) => (p < 1 ? 'Vercel, iad1, 4 vCPU' : 'Vercel, iad1, 4 vCPU, ready'),
   },
   {
     id: 'serve',
     label: 'Downloading atlas-serve',
     startMs: 2800,
     durationMs: 4200,
-    detail: (p) => `atlas-serve 0.42.1 · ${Math.round(p * 61)} / 61 MB`,
+    detail: (p) => `atlas-serve 0.42.1, ${Math.round(p * 61)} / 61 MB`,
   },
   {
     id: 'clone',
     label: 'Cloning repository',
     startMs: 2800,
     durationMs: 6000,
-    detail: (p) => `dennisofficial/atlas · main · ${pct(p)}`,
+    detail: (p) => `dennisofficial/atlas, main, ${pct(p)}`,
   },
   {
     id: 'context',
     label: 'Fetching skills & instructions',
     startMs: 2800,
     durationMs: 2400,
-    detail: (p) =>
-      p < 1 ? `${Math.round(p * 14)} of 14 files` : '12 skills · ATLAS.md · AGENTS.md',
+    detail: (p) => (p < 1 ? `${Math.round(p * 14)} of 14 files` : '12 skills, ATLAS.md, AGENTS.md'),
   },
   {
     id: 'settings',
     label: 'Applying settings',
     startMs: 2800,
     durationMs: 1600,
-    detail: (p) =>
-      p < 1 ? 'workspace → user → project' : '31 settings · 9 secrets · 2 MCP servers',
+    detail: (p) => (p < 1 ? 'workspace → user → project' : '31 settings, 9 secrets, 2 MCP servers'),
   },
   {
     id: 'agent',

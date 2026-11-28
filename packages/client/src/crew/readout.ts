@@ -134,7 +134,7 @@ export function subagentElapsedMs(args: {
 
 const WAITING_CELLS = 24
 
-const READOUT_SEPARATOR = ' · '
+const READOUT_SEPARATOR = ', '
 
 const stateWord = (subagent: { status: EAgentStatus }): string => STATE_LABEL[subagent.status]
 

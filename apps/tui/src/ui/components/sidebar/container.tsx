@@ -26,7 +26,7 @@ const limitsLabel = (limits: NonNullable<SidebarContainer['limits']>): string =>
   [
     limits.cpus === 0 ? 'no cpu cap' : `${limits.cpus} cpu`,
     limits.memoryGb === 0 ? 'no memory cap' : `${limits.memoryGb} GB`,
-  ].join(' · ')
+  ].join('   ')
 
 export function ContainerSection(props: {
   container: SidebarContainer

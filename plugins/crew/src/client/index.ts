@@ -5,6 +5,7 @@ import type { ClientSlot } from '@dltech/atlas-plugin-sdk'
 import { CREW_VIEW, crewViewSchema, type CrewRow } from '../core'
 
 export { crewCoreSlots } from '../core'
+export { isActiveCrewStatus, orderedCrewRows } from './ordered-crew'
 export type { CrewRow } from '../core'
 
 export const crewClient: ClientSlot = {

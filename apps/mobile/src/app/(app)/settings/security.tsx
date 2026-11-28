@@ -86,9 +86,14 @@ const DeviceRows = ({
         {devices.map((device) => (
           <CardRow key={device.id}>
             <View style={styles.device}>
-              <Text size={ETextRole.Sm}>
-                {device.current ? `${device.name} · This device` : device.name}
-              </Text>
+              <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 8 }}>
+                <Text size={ETextRole.Sm}>{device.name}</Text>
+                {device.current ? (
+                  <Text size={ETextRole.Sm} tone={ETextTone.Muted}>
+                    This device
+                  </Text>
+                ) : null}
+              </View>
               <Text size={ETextRole.Sm} tone={ETextTone.Muted} style={styles.meta}>
                 {device.meta}
               </Text>

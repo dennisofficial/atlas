@@ -17,6 +17,8 @@ import { Button } from '@dltech/atlas-ui/components/button'
 import { Tooltip, TooltipContent, TooltipTrigger } from '@dltech/atlas-ui/components/tooltip'
 import { cn } from '@dltech/atlas-ui/lib/utils'
 
+import { Row } from '@/features/sessions/panel/details/rows'
+
 import { ChecksTally } from '../../checks-tally'
 import { PullRequestMergeMarker, mergeMarkerOf } from '../../pull-request-merge-marker'
 import type { PullRequestRow } from '../../data/pull-request-rows'
@@ -103,53 +105,108 @@ function ChecksAndConflicts({ row }: { row: PullRequestRow }) {
   )
 }
 
+export enum EPullRequestRowLayout {
+  Table = 'table',
+  Row = 'row',
+}
+
 export function PullRequestRowItem(props: {
   row: PullRequestRow
   checkoutBranch?: string
+  cellReveal?: (children: ReactNode) => ReactNode
   bell?: ReactNode
+  layout?: EPullRequestRowLayout
+  watching?: boolean
 }) {
   const { row } = props
+  const bodyCell = props.cellReveal === undefined ? BODY_CELL : 'px-1 py-0'
+  const cell = (children: ReactNode) => props.cellReveal?.(children) ?? children
   const branchShown = row.branch !== props.checkoutBranch
-  return (
-    <TableRow>
-      <TableCell className={`${BODY_CELL} w-6`}>
-        <span className="flex size-4 items-center justify-center">
-          <StateIcon state={row.state} queued={row.mergeQueued} />
-        </span>
-      </TableCell>
-      <TableCell className={`${BODY_CELL} w-full max-w-0`}>
-        <div className="flex min-w-0 items-baseline gap-1.5">
-          <a
-            href={row.url}
-            target="_blank"
-            rel="noreferrer"
-            className="block truncate rounded-sm text-sm font-medium tabular-nums outline-hidden hover:underline focus-visible:ring-2 focus-visible:ring-ring/50"
-          >
-            {row.label}
-          </a>
-          {row.polled ? (
-            <span className="shrink-0 text-xs text-muted-foreground">polled</span>
-          ) : null}
-        </div>
-        {branchShown ? (
-          <span className="block truncate font-mono text-xs text-muted-foreground">
-            {row.branch}
+  if (props.layout === EPullRequestRowLayout.Row) {
+    return (
+      <Row
+        leading={<StateIcon state={row.state} queued={row.mergeQueued} />}
+        title={
+          <span className="flex min-w-0 items-baseline gap-1.5">
+            <a
+              href={row.url}
+              target="_blank"
+              rel="noreferrer"
+              className="truncate rounded-sm tabular-nums outline-hidden hover:underline focus-visible:ring-2 focus-visible:ring-ring/50"
+            >
+              {row.label}
+            </a>
+            {row.polled ? (
+              <span className="shrink-0 text-xs text-muted-foreground">polled</span>
+            ) : null}
           </span>
-        ) : null}
-        {row.via === undefined ? null : (
-          <span className="block truncate text-xs text-muted-foreground">{row.via}</span>
+        }
+        meta={
+          branchShown || row.via !== undefined ? (
+            <>
+              {branchShown ? <span className="block truncate font-mono">{row.branch}</span> : null}
+              {row.via === undefined ? null : <span className="block truncate">{row.via}</span>}
+            </>
+          ) : undefined
+        }
+        trailing={<ChecksAndConflicts row={row} />}
+        actions={props.bell}
+        actionsVisible={props.watching}
+      />
+    )
+  }
+  return (
+    <TableRow className="group">
+      <TableCell className={`${bodyCell} w-5.5 [&>[data-details-reveal]]:min-w-max`}>
+        {cell(
+          <span className="flex size-3.5 items-center justify-center">
+            <StateIcon state={row.state} queued={row.mergeQueued} />
+          </span>,
         )}
       </TableCell>
-      <TableCell className={`${BODY_CELL} ${MID_COLUMN} text-right`}>
-        <ChecksAndConflicts row={row} />
+      <TableCell className={`${bodyCell} w-full max-w-0`}>
+        {cell(
+          <>
+            <div className="flex min-w-0 items-baseline gap-1.5">
+              <a
+                href={row.url}
+                target="_blank"
+                rel="noreferrer"
+                className="block truncate rounded-sm text-[13px] leading-4 tabular-nums outline-hidden hover:underline focus-visible:ring-2 focus-visible:ring-ring/50"
+              >
+                {row.label}
+              </a>
+              {row.polled ? (
+                <span className="shrink-0 text-xs text-muted-foreground">polled</span>
+              ) : null}
+            </div>
+            {branchShown ? (
+              <span className="block truncate font-mono text-[11px] leading-4 text-muted-foreground">
+                {row.branch}
+              </span>
+            ) : null}
+            {row.via === undefined ? null : (
+              <span className="block truncate text-[11px] leading-4 text-muted-foreground">
+                {row.via}
+              </span>
+            )}
+          </>,
+        )}
       </TableCell>
-      <TableCell className={`${BODY_CELL} text-right`}>
-        <span className="flex items-center justify-end gap-1">
-          <span className="@[480px]:hidden">
-            <ChecksAndConflicts row={row} />
-          </span>
-          {props.bell}
-        </span>
+      <TableCell
+        className={`${bodyCell} ${MID_COLUMN} text-right [&>[data-details-reveal]]:min-w-max`}
+      >
+        {cell(<ChecksAndConflicts row={row} />)}
+      </TableCell>
+      <TableCell className={`${bodyCell} text-right [&>[data-details-reveal]]:min-w-max`}>
+        {cell(
+          <span className="relative flex min-h-5 items-center justify-end gap-1 pr-6">
+            <span className="@[480px]:hidden">
+              <ChecksAndConflicts row={row} />
+            </span>
+            {props.bell}
+          </span>,
+        )}
       </TableCell>
     </TableRow>
   )

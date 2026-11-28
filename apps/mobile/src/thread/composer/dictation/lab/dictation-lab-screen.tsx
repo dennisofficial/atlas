@@ -17,7 +17,7 @@ enum EDictationVoice {
   Real = 'real',
 }
 
-const MODEL_LABEL = 'Opus 5.5 · Medium'
+const MODEL_LABEL = 'Opus 5.5, Medium'
 
 export const DictationLabScreen = () => {
   const theme = useTheme()

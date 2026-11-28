@@ -126,7 +126,7 @@ export function RoutineDetail({ routine }: { routine: Routine }) {
               <div className="flex flex-col gap-0.5">
                 <span className="text-sm">Current run</span>
                 <span className="text-xs text-muted-foreground">
-                  started {clockAt({ iso: routine.lastRunAt ?? routine.lastSessionId, timeZone })} ·{' '}
+                  started {clockAt({ iso: routine.lastRunAt ?? routine.lastSessionId, timeZone })},{' '}
                   {relativeOf({ from: now, to: routine.lastRunAt ?? routine.lastSessionId })}
                 </span>
               </div>

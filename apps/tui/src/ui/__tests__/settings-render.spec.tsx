@@ -92,7 +92,7 @@ describe('the settings page', () => {
     expect(rowWith(rows, 'TALLEST IMAGE')).not.toBe('')
     expect(rowWith(rows, 'How many rows a picture')).not.toBe('')
     expect(rowWith(rows, 'SET BY')).not.toBe('')
-    expect(rowWith(rows, 'environment · ATLAS_IMAGE_ROWS')).not.toBe('')
+    expect(rowWith(rows, 'environment   ATLAS_IMAGE_ROWS')).not.toBe('')
   })
 
   it('says where edits land, and says instead what went wrong', async () => {

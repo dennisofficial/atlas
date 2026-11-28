@@ -578,17 +578,17 @@ const HINTS: readonly Hint[] = [
 describe('the composer hints', () => {
   it('leads with the status and pushes the hints to the right', async () => {
     const frame = await frameOf(
-      <ComposerHints width={WIDTH} hints={HINTS} status="~/atlas · a-model" />,
+      <ComposerHints width={WIDTH} hints={HINTS} status="~/atlas   a-model" />,
       WIDTH,
     )
     const row = frame.split('\n').find((line) => line.includes('send'))
-    expect(row?.trimStart()).toStartWith('~/atlas · a-model')
+    expect(row?.trimStart()).toStartWith('~/atlas   a-model')
     expect(row?.trimEnd()).toEndWith('quit')
   })
 
   it('drops the status rather than colliding with the hints', async () => {
     const frame = await frameOf(
-      <ComposerHints width={24} hints={HINTS} status="~/atlas · a-model" />,
+      <ComposerHints width={24} hints={HINTS} status="~/atlas   a-model" />,
       24,
     )
     expect(frame).not.toContain('a-model')

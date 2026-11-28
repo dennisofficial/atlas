@@ -32,7 +32,7 @@ export const accessGrantMatchesQuery = ({
     .includes(query.toLowerCase())
 
 export const accessGrantSummary = (grant: AccessGrant): string =>
-  `${grant.secrets.length} ${grant.secrets.length === 1 ? 'secret' : 'secrets'} · ${grant.files.length} ${grant.files.length === 1 ? 'file' : 'files'}`
+  `${grant.secrets.length} ${grant.secrets.length === 1 ? 'secret' : 'secrets'}, ${grant.files.length} ${grant.files.length === 1 ? 'file' : 'files'}`
 
 export function scopeKeyOf(scope: AccessScope): string {
   if (scope.kind === EAccessScope.Personal) return EAccessScope.Personal

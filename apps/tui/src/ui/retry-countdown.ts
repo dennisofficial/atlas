@@ -26,5 +26,5 @@ export function retryLabel(args: { retry: RetryWait; now: number }): string {
   const countdown = seconds <= 0 ? 'Retrying now' : `Retrying in ${seconds}s`
   const attempt = `attempt ${args.retry.attempt}/${args.retry.maxAttempts}`
 
-  return `${REASON_LABEL[args.retry.reason]} · ${countdown} · ${attempt}`
+  return `${REASON_LABEL[args.retry.reason]}   ${countdown}   ${attempt}`
 }

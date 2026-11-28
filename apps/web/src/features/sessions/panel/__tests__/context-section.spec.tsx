@@ -107,10 +107,9 @@ const click = async (element: Element | null) =>
   })
 
 describe('SessionContextSection', () => {
-  it('says so when the context folder is empty', async () => {
+  it('omits the section when the context folder is empty', async () => {
     const container = await mountDetails({ value: paneValueFixture() })
-    expect(container.textContent).toContain('Context')
-    expect(container.textContent).toContain('No context files yet')
+    expect(container.querySelector('[data-session-context]')).toBeNull()
   })
 
   it('lists the context files and folders from the mirror', async () => {
@@ -138,11 +137,11 @@ describe('SessionContextSection', () => {
     expect(html).toContain('Context unavailable')
   })
 
-  it('says it is still reading while the mirror loads', () => {
+  it('renders nothing while the mirror loads', () => {
     const html = renderToStaticMarkup(
       <ContextMirrorBody state="loading" files={[]} open={[]} onToggle={noop} onOpenFile={noop} />,
     )
-    expect(html).toContain('Reading context…')
+    expect(html).toBe('')
   })
 
   it('expands a folder into its mirrored files', async () => {
@@ -182,7 +181,7 @@ describe('SessionContextSection', () => {
     await click(container.querySelector('[data-context-file] button'))
 
     expect(container.querySelector('[data-context-file]')).toBeNull()
-    expect(container.querySelector('[aria-label="Todo"]')).not.toBeNull()
+    expect(container.querySelector('[aria-label="Todo"]')).toBeNull()
     expect(container.textContent).toContain('01-store.md')
   })
 

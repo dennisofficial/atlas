@@ -58,7 +58,7 @@ describe('skillUsageViewOf', () => {
       usage: { tdd: { usedCount30d: 4, lastUsedAt: '2026-11-27T09:00:00Z' } },
     })
     expect(loaded.map((entry) => skillUsageViewOf({ skill: entry, now: NOW }))).toEqual([
-      { usageLabel: 'Used 4× · 30d', lastUsedLabel: 'last used 3h ago' },
+      { usageLabel: 'Used 4× in 30d', lastUsedLabel: 'last used 3h ago' },
     ])
   })
   it('reads never used when nothing loaded the skill in 30 days', () => {
@@ -73,12 +73,16 @@ describe('skillUsageViewOf', () => {
         skill: summary({ usedCount30d: 4, lastUsedAt: '2026-11-27T09:00:00Z' }),
         now: NOW,
       }),
-    ).toEqual({ usageLabel: 'Used 4× · 30d', lastUsedLabel: 'last used 3h ago' })
+    ).toEqual({ usageLabel: 'Used 4× in 30d', lastUsedLabel: 'last used 3h ago' })
   })
 
   it('leaves the last use out when the count is known but the time is not', () => {
     expect(
       skillUsageViewOf({ skill: summary({ usedCount30d: 2, lastUsedAt: null }), now: NOW }),
-    ).toEqual({ usageLabel: 'Used 2× · 30d', lastUsedLabel: null })
+    ).toEqual({ usageLabel: 'Used 2× in 30d', lastUsedLabel: null })
+    expect(
+      skillUsageViewOf({ skill: summary({ usedCount30d: 2, lastUsedAt: null }), now: NOW })
+        .usageLabel,
+    ).not.toContain('\u00b7')
   })
 })

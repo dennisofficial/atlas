@@ -118,7 +118,7 @@ export function ContextFileBody(props: { loaded: LoadedContextFile; path: string
   if (file.type === 'binary') {
     return (
       <ProseColumn>
-        <Notice>{`Binary file · ${fileSizeLabelOf(file.bytes)}`}</Notice>
+        <Notice>{`Binary file, ${fileSizeLabelOf(file.bytes)}`}</Notice>
         <DownloadButton file={file} path={path} labelled />
       </ProseColumn>
     )

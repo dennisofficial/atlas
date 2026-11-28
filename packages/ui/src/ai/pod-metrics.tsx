@@ -34,7 +34,7 @@ export interface PodMetricsProps {
   settingsHref?: string | undefined
 }
 
-const WINDOW_LABEL = 'Last 15 min · every 3 s'
+const WINDOW_LABEL = 'Last 15 min, every 3 s'
 
 const COMBINED_CONFIG = {
   cpu: { label: 'CPU', color: 'var(--primary)' },

@@ -55,10 +55,10 @@ const ACTIVE_LABELS: Record<EWorkspaceStep, string> = {
 }
 
 const INTERRUPTED_LABELS: Record<EWorkspaceStep, string> = {
-  [EWorkspaceStep.Sandbox]: 'Sandbox restarted · starting again',
-  [EWorkspaceStep.Daemon]: 'Daemon restarted · starting again',
-  [EWorkspaceStep.Clone]: 'Clone interrupted · running again',
-  [EWorkspaceStep.Setup]: 'Setup restarted · running again',
+  [EWorkspaceStep.Sandbox]: 'Sandbox restarted, starting again',
+  [EWorkspaceStep.Daemon]: 'Daemon restarted, starting again',
+  [EWorkspaceStep.Clone]: 'Clone interrupted, running again',
+  [EWorkspaceStep.Setup]: 'Setup restarted, running again',
 }
 
 const DONE_LABELS: Record<EWorkspaceStep, string> = {

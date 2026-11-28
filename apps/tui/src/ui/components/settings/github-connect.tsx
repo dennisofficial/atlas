@@ -38,11 +38,11 @@ const valueOf = (args: { signedIn: boolean; view: GithubAccountView }): Span[] =
   if (view.connection !== null) {
     return [
       { text: `@${view.connection.login}`, fg: theme.hover },
-      { text: ' · connected · ⏎ to disconnect', fg: theme.hint },
+      { text: '   connected   ⏎ to disconnect', fg: theme.hint },
     ]
   }
 
-  return [{ text: 'not connected · ⏎ to connect', fg: theme.hint }]
+  return [{ text: 'not connected   ⏎ to connect', fg: theme.hint }]
 }
 
 export function GithubRow(props: {

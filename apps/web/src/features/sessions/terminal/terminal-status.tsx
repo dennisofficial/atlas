@@ -53,7 +53,6 @@ export function TerminalStatusBar(props: { tab: TerminalTab | undefined; count: 
       ) : (
         <span className="flex min-w-0 items-center gap-1.5 font-mono text-[10px] text-muted-foreground">
           <span>{isLiveTab(props.tab) ? 'zsh' : 'shell'}</span>
-          <span className="text-muted-foreground/40">·</span>
           <span className="truncate">{shellStateOf(props.tab)}</span>
         </span>
       )}

@@ -28,12 +28,12 @@ export default meta
 type Story = StoryObj<typeof meta>
 
 const sessionRows = [
-  { title: 'fix flaky ws reconnect', detail: 'dennis/ws-reconnect · 14 turns' },
+  { title: 'fix flaky ws reconnect', detail: 'dennis/ws-reconnect, 14 turns' },
   {
     title: 'add storybook coverage spec',
-    detail: 'dennis/storybook-spec · 6 turns',
+    detail: 'dennis/storybook-spec, 6 turns',
   },
-  { title: 'trim sandbox image', detail: 'dennis/slim-image · 9 turns' },
+  { title: 'trim sandbox image', detail: 'dennis/slim-image, 9 turns' },
 ]
 
 export const Default: Story = {
@@ -41,7 +41,7 @@ export const Default: Story = {
     <Card className="w-96" {...args}>
       <CardHeader>
         <CardTitle>fix flaky ws reconnect</CardTitle>
-        <CardDescription>atlas · dennis/ws-reconnect · 14 turns</CardDescription>
+        <CardDescription>atlas, dennis/ws-reconnect, 14 turns</CardDescription>
         <CardAction>
           <Badge variant="secondary">Running</Badge>
         </CardAction>

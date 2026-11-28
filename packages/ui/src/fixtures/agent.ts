@@ -214,7 +214,7 @@ export const LONG_DIFF_LINES: DiffLine[] = [
 ]
 
 export const THREADS = [
-  { id: 't1', title: 'Rebase ui on shadcn base-nova', meta: 'running · 3m' },
+  { id: 't1', title: 'Rebase ui on shadcn base-nova', meta: 'running, 3m' },
   { id: 't2', title: 'Fix device auth redirect', meta: '2h ago' },
   { id: 't3', title: 'Storybook coverage spec', meta: 'yesterday' },
   { id: 't4', title: 'Sandbox image cache', meta: '2d ago' },

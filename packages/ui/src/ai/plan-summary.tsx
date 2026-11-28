@@ -28,7 +28,7 @@ function dockHeadline(steps: PlanStep[]): string {
 
 export function dockSummary(steps: PlanStep[]): DockSummary {
   const done = countDone(steps)
-  return { done, total: steps.length, label: `${done} of ${steps.length} · ${dockHeadline(steps)}` }
+  return { done, total: steps.length, label: `${done} of ${steps.length}, ${dockHeadline(steps)}` }
 }
 
 export function dockStatus(steps: PlanStep[]): EStepStatus {

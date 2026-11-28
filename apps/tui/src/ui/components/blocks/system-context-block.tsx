@@ -15,9 +15,9 @@ const NOTHING_OPEN: ReadonlySet<string> = new Set()
 
 const ignore = (): void => undefined
 
-const SUPERSEDED = ' · superseded'
+const SUPERSEDED = ', superseded'
 
-const REMOVED = ' · removed'
+const REMOVED = ', removed'
 
 const noteOf = (item: SystemContextItem): string => {
   if (item.removed) return REMOVED

@@ -3,7 +3,7 @@ import type { Span } from './components/spans'
 
 export type Hint = { key: string; label: string }
 
-export const HINT_SEPARATOR = ' · '
+export const HINT_SEPARATOR = '   '
 
 export const cellsOf = (text: string): number => [...text].length
 

@@ -46,7 +46,7 @@ describe('checkoutOptionsOf', () => {
       }),
     })
     expect(options).toHaveLength(1)
-    expect(options[0]?.label).toBe('owner/atlas · dennis/files-tab-checkouts')
+    expect(options[0]?.label).toBe('owner/atlas, dennis/files-tab-checkouts')
     expect(options[0]?.path).toBe('/work/atlas')
     expect(options[0]?.worktree).toBe('atlas')
   })
@@ -56,7 +56,7 @@ describe('checkoutOptionsOf', () => {
       checkouts: [checkout({ worktreePath: '/work/wt-alpha' })],
       view: view(),
     })
-    expect(options[0]?.label).toBe('owner/atlas · wt-alpha')
+    expect(options[0]?.label).toBe('owner/atlas, wt-alpha')
   })
 
   it('drops a checkout whose worktree the git inventory no longer holds', () => {

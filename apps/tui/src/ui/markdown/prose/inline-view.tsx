@@ -85,7 +85,7 @@ function InnerSpan(props: { node: InlineNode; ground: string; slab: string }): R
       <>
         <span fg={theme.court.external}>{`${glyph.image} `}</span>
         <span fg={props.ground}>{node.alt}</span>
-        <span fg={theme.hint}>{` · ${node.path}`}</span>
+        <span fg={theme.hint}>{`   ${node.path}`}</span>
       </>
     )
   }

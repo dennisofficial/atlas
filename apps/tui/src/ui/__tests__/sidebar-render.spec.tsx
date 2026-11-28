@@ -106,7 +106,7 @@ const FED: SidebarModel = {
       status: EAgentStatus.Blocked,
       startedAt: '2026-01-01T00:00:00.000Z',
       endedAt: null,
-      state: 'blocked · 12s',
+      state: 'blocked, 12s',
       model: null,
       selected: false,
       failureReason: null,
@@ -294,7 +294,7 @@ describe('what the sidebar says', () => {
     const frame = rows.join('\n')
 
     expect(frame).toContain('Refresh-token rotation')
-    expect(frame).toContain('14 turns · $1.42')
+    expect(frame).toContain('14 turns   $1.42')
     expect(rowWith({ rows, text: '↑ 34.0k' })).toContain('↓ 22.4k')
     expect(frame).not.toContain('claude-')
     expect(frame).not.toContain('branch rotation')
@@ -420,7 +420,7 @@ describe('what the sidebar says', () => {
     expect(rowWith({ rows, text: 'SUB-AGENTS' })).toContain('2')
     expect(rowWith({ rows, text: 'test-writer' })).toContain('1m 4s')
     expect(rowWith({ rows, text: 'test-writer' })).not.toContain('edit')
-    expect(rowWith({ rows, text: 'migration' })).toContain('blocked · 12s')
+    expect(rowWith({ rows, text: 'migration' })).toContain('blocked, 12s')
     expect(rowWith({ rows, text: 'dana' })).toContain('reviewing #412')
     expect(rowWith({ rows, text: 'omar' })).toContain('idle')
   }, 30_000)

@@ -88,7 +88,7 @@ export function oomSignalLabel({
 }
 
 export const commandMemorySuffix = (commandRamLimitGb: number | undefined): string =>
-  commandRamLimitGb === undefined ? '' : ` · commands ≤ ${gigabytes(commandRamLimitGb)} GB`
+  commandRamLimitGb === undefined ? '' : `commands ≤ ${gigabytes(commandRamLimitGb)} GB`
 
 export function podMetricViewOf({
   series,

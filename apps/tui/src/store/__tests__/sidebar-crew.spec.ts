@@ -118,7 +118,7 @@ describe('what the narrow value column says about a child', () => {
   })
 
   it('says how long a blocked child has been stuck, which is the whole question', () => {
-    expect(labelOf({ status: EAgentStatus.Blocked })).toBe('blocked · 1m 4s')
+    expect(labelOf({ status: EAgentStatus.Blocked })).toBe('blocked, 1m 4s')
   })
 
   it('says nothing for a child that finished, keeping the word for endings that need it', () => {

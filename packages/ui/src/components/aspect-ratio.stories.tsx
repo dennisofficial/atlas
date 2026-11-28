@@ -20,7 +20,7 @@ export const Default: Story = {
         {...args}
         className="flex items-center justify-center rounded-lg border border-border bg-muted font-mono text-sm text-muted-foreground"
       >
-        Preview · 16:9
+        Preview, 16:9
       </AspectRatio>
     </div>
   ),

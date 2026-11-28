@@ -21,10 +21,10 @@ const planDetailOf = providerAccountDetailOf
 const keyDetailOf = (args: { provider: ProviderInfo; account: Account }) => {
   const masked = providerKeyMaskOf(args)
   const added = `Added ${shortDate(args.account.createdAt)}`
-  if (masked === null) return <>API key · {added}</>
+  if (masked === null) return <>API key, {added}</>
   return (
     <>
-      API key · <Mono className="text-foreground">{masked}</Mono> · {added}
+      API key, <Mono className="text-foreground">{masked}</Mono>, {added}
     </>
   )
 }

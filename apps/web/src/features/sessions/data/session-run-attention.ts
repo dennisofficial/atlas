@@ -55,7 +55,7 @@ const metaOf = (args: {
   const parts = [args.accountLabel, args.failure.modelId].filter(
     (part): part is string => part !== undefined && part !== '',
   )
-  return parts.length === 0 ? undefined : parts.join(' · ')
+  return parts.length === 0 ? undefined : parts.join(', ')
 }
 
 const SWITCH_MODEL_LABEL = 'Switch model'

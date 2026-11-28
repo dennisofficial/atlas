@@ -42,7 +42,7 @@ function ModalFrame(props: { title: string; children: React.ReactNode }): React.
         <box height={1} />
         {props.children}
         <box height={1} />
-        <text fg={theme.meta}>{'↑↓ pick · ⏎ choose · esc back'}</text>
+        <text fg={theme.meta}>{'↑↓ pick   ⏎ choose   esc back'}</text>
       </box>
     </box>
   )
@@ -102,7 +102,7 @@ export function LoginPickerModal(props: {
                 {i === props.state.pick ? '▸ ' : '  '}
               </span>
               <span fg={expired ? theme.dim : theme.hover}>{account.label}</span>
-              {detail.length === 0 ? null : <span fg={theme.hint}>{` · ${detail}`}</span>}
+              {detail.length === 0 ? null : <span fg={theme.hint}>{`   ${detail}`}</span>}
             </text>
           </box>
         )

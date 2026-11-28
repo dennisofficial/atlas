@@ -28,7 +28,7 @@ describe('RoutineSchedulePreview', () => {
     const html = renderToStaticMarkup(
       <RoutineSchedulePreview cron="*/15 * * * *" timezone="Europe/London" />,
     )
-    expect(html).toContain('Every 15 minutes · Europe/London')
+    expect(html).toContain('Every 15 minutes, Europe/London')
     expect(html).toContain('Next three runs')
     expect(html).toContain('96 runs a day')
   })

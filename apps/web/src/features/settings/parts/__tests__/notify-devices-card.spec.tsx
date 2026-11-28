@@ -90,9 +90,9 @@ describe('NotifyDevicesCard', () => {
     await renderCard()
     const text = document.body.textContent ?? ''
     expect(text).toContain('Firefox on macOS')
-    expect(text).toContain('Web · Off')
+    expect(text).toContain('Web, Off')
     expect(text).toContain('Dennis’s Mac')
-    expect(text).toContain('Mac · On')
+    expect(text).toContain('Mac, On')
   })
 
   it('shows a paused device as off and turns it back on', async () => {

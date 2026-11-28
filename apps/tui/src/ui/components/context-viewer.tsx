@@ -248,7 +248,7 @@ export function ContextViewer(props: {
             {props.content.type === 'refused' ? (
               <text fg={theme.warn}>{props.content.reason}</text>
             ) : props.content.type === 'binary' ? (
-              <text fg={theme.warn}>{`the file is binary · ${props.content.bytes} bytes`}</text>
+              <text fg={theme.warn}>{`the file is binary   ${props.content.bytes} bytes`}</text>
             ) : props.content.type !== 'text' ? null : (
               <TextBody
                 content={props.content}
@@ -262,7 +262,7 @@ export function ContextViewer(props: {
         </scrollbox>
       )}
       <text fg={theme.hint} flexShrink={0}>
-        ↑↓ scroll · ←→ pan · pgup/pgdn page · esc to close
+        {'↑↓ scroll   ←→ pan   pgup/pgdn page   esc to close'}
       </text>
     </box>
   )

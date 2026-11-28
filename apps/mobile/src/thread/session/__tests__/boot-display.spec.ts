@@ -21,7 +21,7 @@ describe('bootDisplayOf', () => {
   it('titles a running boot and counts the steps done so far', () => {
     const display = bootDisplayOf({ view: viewOf({ startedAtMs: 1_000 }), now: 13_400 })
     expect(display.title).toBe('Starting sandbox')
-    expect(display.summary).toBe('2/4 · 12.4s')
+    expect(display.summary).toBe('2/4, 12.4s')
     expect(display.state).toBe(EBootStepState.Running)
     expect(display.open).toBe(true)
     expect(display.failed).toBe(false)
@@ -133,7 +133,7 @@ describe('bootDisplayOf', () => {
         steps: [
           {
             id: EBootStep.Setup,
-            label: 'Setup restarted · running again',
+            label: 'Setup restarted, running again',
             state: EWireBootStepState.Interrupted,
           },
         ],
@@ -141,7 +141,7 @@ describe('bootDisplayOf', () => {
       now: 0,
     })
     expect(display.state).toBe(EBootStepState.Interrupted)
-    expect(display.title).toBe('Setup restarted · running again')
+    expect(display.title).toBe('Setup restarted, running again')
     expect(display.open).toBe(true)
   })
 })

@@ -12,7 +12,8 @@ import { messageOf } from '@/features/threads/data/message-of'
 import { sessionsApi } from '../../data/sessions-api'
 import type { SubscriptionRow } from '../../data/subscription-rows'
 import { useSessionPaneValue } from '../pane-value'
-import { EmptyLine, Row, SectionHead } from './rows'
+import { Row, RowsToggle, SectionHead } from './rows'
+import { Reveal, RevealRows } from './reveal'
 import {
   iconNameOf,
   SUBSCRIPTION_TONE_CLASS,
@@ -50,13 +51,15 @@ function SubscriptionRowItem(props: { row: SubscriptionRow; onRemove: () => void
         leading={<SubscriptionIcon row={row} />}
         title={
           <span title={row.presentation.title}>
-            {title.number === undefined ? null : <span className="font-mono">{title.number}</span>}
+            {title.number === undefined ? null : (
+              <span className="tabular-nums">{title.number}</span>
+            )}
             {title.number === undefined || title.text.length === 0 ? null : ' '}
             {title.text}
           </span>
         }
         meta={<span>{meta}</span>}
-        trailing={
+        actions={
           <Button
             variant="ghost"
             size="icon-xs"
@@ -86,13 +89,6 @@ export function SessionSubscriptionsSection({ run = runThroughApi }: { run?: Uns
   }, [removing, rows])
 
   const shown = rows.filter((row) => !removing.has(row.id))
-  if (shown.length === 0)
-    return (
-      <section data-session-subscriptions aria-label="Subscriptions" className="flex flex-col">
-        <SectionHead title="Subscriptions" />
-        <EmptyLine>No subscriptions</EmptyLine>
-      </section>
-    )
   const visible = expanded ? shown : shown.slice(0, VISIBLE_ROWS)
   const handleToggle = () => setExpanded((held) => !held)
   const restore = (subscriptionId: string) =>
@@ -110,20 +106,22 @@ export function SessionSubscriptionsSection({ run = runThroughApi }: { run?: Uns
   }
 
   return (
-    <section data-session-subscriptions aria-label="Subscriptions" className="flex flex-col">
-      <SectionHead title="Subscriptions" count={shown.length} />
-      {visible.map((row) => (
-        <SubscriptionRowItem key={row.id} row={row} onRemove={() => handleRemove(row)} />
-      ))}
-      {shown.length > VISIBLE_ROWS ? (
-        <button
-          type="button"
-          onClick={handleToggle}
-          className="mt-0.5 ml-[1.625rem] w-fit rounded-sm text-[11px] leading-4 text-muted-foreground outline-none hover:text-foreground focus-visible:ring-2 focus-visible:ring-ring/50"
-        >
-          {expanded ? 'Show fewer' : `Show all (${shown.length})`}
-        </button>
-      ) : null}
-    </section>
+    <Reveal open={shown.length > 0} section>
+      <section data-session-subscriptions aria-label="Subscriptions" className="flex flex-col">
+        <SectionHead title="Subscriptions" count={shown.length} />
+        <RevealRows
+          rows={visible}
+          rowKey={(row) => row.id}
+          render={(row) => (
+            <SubscriptionRowItem key={row.id} row={row} onRemove={() => handleRemove(row)} />
+          )}
+        />
+        {shown.length > VISIBLE_ROWS ? (
+          <RowsToggle expanded={expanded} onToggle={handleToggle}>
+            {expanded ? 'Show fewer' : `Show all (${shown.length})`}
+          </RowsToggle>
+        ) : null}
+      </section>
+    </Reveal>
   )
 }

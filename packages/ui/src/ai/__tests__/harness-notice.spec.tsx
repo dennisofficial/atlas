@@ -30,7 +30,7 @@ describe('HarnessNotice', () => {
   })
 
   it('draws a single section as the notice itself, not a nested row', () => {
-    const label = 'skill suggestion · ui-design'
+    const label = 'skill suggestion, ui-design'
     const html = renderToStaticMarkup(
       <HarnessNotice
         title={label}

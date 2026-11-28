@@ -51,9 +51,10 @@ describe('toDevice', () => {
       current: true,
       kind: EDeviceKind.Cli,
       name: 'curl',
-      meta: '1.2.3.4 · Last active 5m ago',
+      meta: '1.2.3.4, Last active 5m ago',
     })
     expect(toDevice({ session, currentToken: 'other', now: NOW }).current).toBe(false)
+    expect(toDevice({ session, currentToken: 't', now: NOW }).meta).not.toContain('\u00b7')
   })
 
   it('leaves out an empty address', () => {

@@ -49,8 +49,9 @@ describe('system context entries', () => {
 
     expect(entries).toHaveLength(1)
     expect(entries[0]?.items).toHaveLength(1)
-    expect(entries[0]?.text).toBe('skill suggestion · aws-deployment')
-    expect(entries[0]?.items[0]?.label).toBe('skill suggestion · aws-deployment')
+    expect(entries[0]?.text).toBe('skill suggestion, aws-deployment')
+    expect(entries[0]?.text).not.toContain('\u00b7')
+    expect(entries[0]?.items[0]?.label).toBe('skill suggestion, aws-deployment')
     expect(entries[0]?.items[0]?.content).toContain('aws-deployment')
     expect(entries[0]?.items[0]?.superseded).toBe(false)
   })

@@ -9,7 +9,7 @@ describe('chipLabel', () => {
   })
 
   it('sizes a running pod by default', () => {
-    expect(chipLabel({ state: EPodState.Running, vcpus: 4 })).toBe('4 vCPU · 8 GB')
+    expect(chipLabel({ state: EPodState.Running, vcpus: 4 })).toBe('4 vCPU, 8 GB')
   })
 
   it('prefers a failed resize over the declared label', () => {

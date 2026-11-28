@@ -63,7 +63,7 @@ export function KeyDialog({
       <DialogContent>
         <DialogHeader>
           <DialogTitle>
-            {triggerLabel} · {providerName}
+            {triggerLabel} for {providerName}
           </DialogTitle>
           <DialogDescription>
             Stored encrypted and only sent to {providerName}. It is never shown again after saving.

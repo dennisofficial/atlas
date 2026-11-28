@@ -45,7 +45,7 @@ export function ErrorDetails({ error }: { error: Error & { digest?: string } }) 
   const reference =
     report.requestId === undefined
       ? report.referenceId
-      : `${report.referenceId} · Request ${report.requestId}`
+      : `${report.referenceId}, Request ${report.requestId}`
 
   return (
     <div className="flex flex-col gap-1.5 rounded-lg border border-border/60 bg-muted/40 p-2.5">

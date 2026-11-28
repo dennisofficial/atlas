@@ -46,7 +46,7 @@ export const describeDiagnostics = (report: DiagnosticsReport): string =>
     `nav ${report.navigations}`,
     `ready ${report.ready}`,
     report.lastUrl ?? 'no-url',
-  ].join(' · ')
+  ].join(', ')
 
 export function NativeDiagnostics({ frameKey }: { frameKey: string | undefined }) {
   const [report, setReport] = useState<DiagnosticsReport | undefined>(undefined)

@@ -33,7 +33,7 @@ export function deviceSummaryOf({
   if (viewport.kind === EViewportKind.Full) return ''
   const size = `${viewport.width}×${viewport.height}`
   if (fit.scale >= 1) return size
-  return `${size} · ${formatZoom(fit.scale)}`
+  return `${size}, ${formatZoom(fit.scale)}`
 }
 
 export interface PreviewDeviceMenuProps {

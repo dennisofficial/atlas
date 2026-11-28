@@ -33,7 +33,7 @@ export default function AccessGrantScreen() {
         api.projects.list.query(),
       ])
       return grantMoveBranchesOf({ scope, groups: groups.groups, projects }).flatMap((branch) =>
-        branch.targets.map((target) => ({ ...target, label: `${branch.label} · ${target.name}` })),
+        branch.targets.map((target) => ({ ...target, label: `${branch.label}, ${target.name}` })),
       )
     },
     deps: [api, scopeKeyOf(scope)],

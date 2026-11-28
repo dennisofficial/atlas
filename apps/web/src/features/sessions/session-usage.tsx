@@ -53,7 +53,7 @@ function WindowLine(args: {
       <span className="text-muted-foreground">{args.label}</span>
       <span className={`tabular-nums ${METER_TONE[band]}`}>
         {formatUtilization(utilization)}
-        {countdown === '' ? '' : ` · resets in ${countdown}`}
+        {countdown === '' ? '' : `, resets in ${countdown}`}
       </span>
     </span>
   )
@@ -91,12 +91,16 @@ export function SessionUsage(args: {
           />
         }
       >
-        {shown.map((key, index) => (
-          <span key={key}>
-            {index === 0 ? null : <span className="text-muted-foreground"> · </span>}
-            <WindowReading short={WINDOW_SHORT[key]} window={report[key]} windowKind={key} />
-          </span>
-        ))}
+        <span className="flex items-center gap-2">
+          {shown.map((key) => (
+            <WindowReading
+              key={key}
+              short={WINDOW_SHORT[key]}
+              window={report[key]}
+              windowKind={key}
+            />
+          ))}
+        </span>
       </HoverCardTrigger>
       <HoverCardContent>
         <div className="flex w-60 flex-col gap-2 text-xs">

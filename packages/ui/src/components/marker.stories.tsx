@@ -34,7 +34,7 @@ const renderVariantMarker: Story['render'] = (args) => (
     <MarkerIcon>
       <WrenchIcon />
     </MarkerIcon>
-    <MarkerContent>Context compacted · {args.variant}</MarkerContent>
+    <MarkerContent>Context compacted, {args.variant}</MarkerContent>
   </Marker>
 )
 
@@ -50,7 +50,7 @@ export const Variants: Story = {
           <MarkerIcon>
             <WrenchIcon />
           </MarkerIcon>
-          <MarkerContent>Context compacted · {variant}</MarkerContent>
+          <MarkerContent>Context compacted, {variant}</MarkerContent>
         </Marker>
       ))}
     </div>

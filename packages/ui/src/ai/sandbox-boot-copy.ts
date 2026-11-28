@@ -17,7 +17,7 @@ const TITLES = {
   [EBootStepState.Running]: 'Starting sandbox',
   [EBootStepState.Done]: 'Sandbox ready',
   [EBootStepState.Error]: 'Sandbox failed to start',
-  [EBootStepState.Interrupted]: 'Setup restarted · running again',
+  [EBootStepState.Interrupted]: 'Setup restarted, running again',
 } as const
 
 export function sandboxBootTitle(state: EBootStepState): string {
@@ -39,7 +39,7 @@ export function sandboxBootSummary({
   }
   const done = steps.filter((step) => step.state === EBootStepState.Done).length
   const progress = `${done}/${steps.length}`
-  return elapsedMs === undefined ? progress : `${progress} · ${formatElapsed(elapsedMs)}`
+  return elapsedMs === undefined ? progress : `${progress}, ${formatElapsed(elapsedMs)}`
 }
 
 type BootStepFacts = { state: EBootStepState; detail?: string | undefined }

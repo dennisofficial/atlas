@@ -25,7 +25,7 @@ const failure: RunFailure = {
 
 const repairCard = {
   title: 'Atlas could not call claude-opus-5-5',
-  detail: 'Anthropic · dennis@example.com · The sign-in is no longer accepted',
+  detail: 'Anthropic, dennis@example.com, The sign-in is no longer accepted',
   notes: [],
   actions: [{ id: 're-sign-in', label: 'Re-sign in', primary: true, onSelect: () => undefined }],
 }

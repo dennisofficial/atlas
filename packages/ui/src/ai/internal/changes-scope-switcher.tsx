@@ -2,7 +2,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '#
 import type { ChangeScopeOption } from './changes-types'
 
 function scopeLabel(scope: ChangeScopeOption): string {
-  return scope.detail ? `${scope.label} · ${scope.detail}` : scope.label
+  return scope.detail ? `${scope.label}, ${scope.detail}` : scope.label
 }
 
 interface ScopeSwitcherProps {

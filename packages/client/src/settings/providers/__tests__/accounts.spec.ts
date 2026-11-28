@@ -33,14 +33,15 @@ describe('provider groups and account details', () => {
     const provider = PROVIDER_CATALOGUE[0]
     if (provider === undefined) throw new Error('missing provider')
     expect(providerAccountDetailOf({ provider, account })).toBe(
-      'API key · sk-ant-…1234 · Added Nov 1',
+      'API key, sk-ant-…1234, Added Nov 1',
     )
+    expect(providerAccountDetailOf({ provider, account })).not.toContain('\u00b7')
     expect(
       providerAccountDetailOf({
         provider,
         account: { ...account, kind: 'oauth', subscription: 'max' },
       }),
-    ).toContain('Claude Max plan · Signed in')
+    ).toContain('Claude Max plan, Signed in')
     expect(
       providerAccountDetailOf({ provider, account: { ...account, keyHint: '' } }),
     ).not.toContain('…')

@@ -72,7 +72,7 @@ function ProviderSection({
         {accounts.map((account) => (
           <View key={account.id}>
             <NavRow
-              label={`${account.email ?? account.label}${account.id === active ? ' · In use' : ''}`}
+              label={`${account.email ?? account.label}${account.id === active ? ', In use' : ''}`}
               onPress={() =>
                 router.push({
                   pathname: '/settings/provider-account',

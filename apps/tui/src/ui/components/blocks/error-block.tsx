@@ -25,7 +25,7 @@ const STATIC_HINTS: Partial<Record<ERunRemedy, string>> = {
   [ERunRemedy.OpenAgent]: OPEN_AGENT_HINT,
 }
 
-const SEPARATOR = ' · '
+const SEPARATOR = '   '
 
 const RETRY: KeyDeclaration = {
   chord: 'ctrl+r',

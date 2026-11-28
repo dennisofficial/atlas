@@ -59,7 +59,7 @@ function diskTipOf(index: number): string {
 }
 
 function growButtonOf(html: string): string {
-  const button = html.match(/<button[^>]*aria-label="Increase disk"[^>]*>/)?.[0]
+  const button = html.match(/<button[^>]*aria-label="Disk size"[^>]*>/)?.[0]
   if (button === undefined) throw new Error('the grow control did not render')
   return button
 }
@@ -211,7 +211,7 @@ describe('pod disk row', () => {
   it('keeps the disk row with an empty value when the sample reports no disk', () => {
     const html = htmlOf()
     expect(html).toMatch(/Disk<\/span><span[^>]*>—<\/span>/)
-    expect(html).not.toContain('aria-label="Increase disk"')
+    expect(html).not.toContain('aria-label="Disk size"')
     expect(html).toContain('CPU and RAM over the last 15 minutes')
   })
 
@@ -237,7 +237,7 @@ describe('pod disk row', () => {
     expect(html).toContain('Disk')
     expect(html).toContain('/ 20 GB')
     expect(html).toContain('CPU, RAM and disk over the last 15 minutes')
-    expect(html).toContain('aria-label="Increase disk"')
+    expect(html).toContain('aria-label="Disk size"')
   })
 
   it('reads the disk of the pinned sample in the tip', () => {
@@ -252,7 +252,7 @@ describe('pod disk row', () => {
   it('keeps the grow control off a pod whose provider cannot grow its disk', () => {
     const html = htmlOf({ series: POD_SERIES_WITH_DISK })
     expect(html).toContain('Disk')
-    expect(html).not.toContain('aria-label="Increase disk"')
+    expect(html).not.toContain('aria-label="Disk size"')
   })
 
   it('reads the disk limit off the sample, over the limit the status pushes', () => {
@@ -285,7 +285,7 @@ describe('pod disk row', () => {
   it('hides the grow control when no bigger size is left', () => {
     const html = htmlOf({ series: POD_SERIES_DISK_FULL, diskGrow: true })
     expect(html).toContain('/ 100 GB')
-    expect(html).not.toContain('aria-label="Increase disk"')
+    expect(html).not.toContain('aria-label="Disk size"')
   })
 })
 
@@ -305,11 +305,11 @@ describe('pod size control', () => {
       current: POD_SECTION_SHAPE,
     })
     expect(options.map((option) => option.label)).toEqual([
-      '2 vCPU · 4 GB',
-      '4 vCPU · 8 GB',
-      '4 vCPU · 16 GB',
-      '4 vCPU · 32 GB',
-      '8 vCPU · 64 GB',
+      '2 vCPU, 4 GB',
+      '4 vCPU, 8 GB',
+      '4 vCPU, 16 GB',
+      '4 vCPU, 32 GB',
+      '8 vCPU, 64 GB',
     ])
     expect(new Set(options.map((option) => option.key)).size).toBe(POD_SECTION_SHAPES.length)
     expect(options.every((option) => option.disabled === false)).toBe(true)
@@ -322,7 +322,7 @@ describe('pod size control', () => {
       current: VERCEL_PRO_SHAPE,
     })
     const blocked = options.filter((option) => option.disabled)
-    expect(blocked.map((option) => option.label)).toEqual(['6 vCPU · 12 GB', '8 vCPU · 16 GB'])
+    expect(blocked.map((option) => option.label)).toEqual(['6 vCPU, 12 GB', '8 vCPU, 16 GB'])
     expect(blocked.map((option) => option.reason)).toEqual(['Needs Pro plan', 'Needs Pro plan'])
   })
 
@@ -340,11 +340,11 @@ describe('pod size control', () => {
 
   it('shows the pending shape in the dropdown without an echo caption', () => {
     const html = htmlOf({ pendingShape: { vcpus: 8, memoryGb: 64 } })
-    expect(html).toContain('8 vCPU · 64 GB')
+    expect(html).toContain('8 vCPU, 64 GB')
     expect(html).not.toContain('Resizing to')
     const offList = htmlOf({ pendingShape: { vcpus: 8, memoryGb: 32 } })
     expect(offList).toContain(
-      'data-slot="select-value" class="flex flex-1 text-left">8 vCPU · 32 GB<',
+      'data-slot="select-value" class="flex flex-1 text-left">8 vCPU, 32 GB<',
     )
   })
 
@@ -405,7 +405,7 @@ describe('pod resize waiting', () => {
 
   it('names the size it will move to and keeps the size control locked', () => {
     const html = htmlOf(WAITING)
-    expect(html).toContain('Resizes to 8 vCPU · 64 GB when the pod is idle.')
+    expect(html).toContain('Resizes to 8 vCPU, 64 GB when the pod is idle.')
     expect(sizeTriggerOf(html)).toContain('disabled')
   })
 

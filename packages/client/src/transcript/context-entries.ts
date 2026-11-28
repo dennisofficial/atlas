@@ -56,7 +56,7 @@ const slotLabelOf = (event: EventOfType<'context-loaded'>): string => {
   if (label !== undefined) return label
   if (event.slot === 'skill-suggestion') {
     const name = SKILL_SUGGESTION_NAME.exec(event.content)?.[1]
-    return name === undefined ? 'skill suggestion' : `skill suggestion · ${name}`
+    return name === undefined ? 'skill suggestion' : `skill suggestion, ${name}`
   }
   if (event.slot === 'plan') return 'plan mirror'
   if (event.slot === 'outside-project') return 'outside-project warning'

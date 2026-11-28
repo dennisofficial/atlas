@@ -42,6 +42,12 @@ The package ships TypeScript source with no build step.
 
 ## Capabilities
 
+### Popup motion
+
+- `lib/popup-motion`: `popupMotion` is the shared Base UI popup transition; `popupChevronMotion` rotates the built-in trigger chevron.
+- Popups enter in 150 ms with ease-out, a fade, a 0.96 scale and a 4 px slide. They exit in 100 ms with ease-in, a fade and a 0.96 scale. Reduced motion disables transitions and transforms.
+- Select keeps selected-item alignment by default. When the popup overlays its trigger (`data-side="none"`), it uses a vertical scale without a side slide. `alignItemWithTrigger={false}` uses the standard dropdown motion.
+
 ### Read the tokens
 
 - `semantic`, `EColorScheme`: the light and dark color maps.

@@ -52,6 +52,7 @@ export function PullRequestBell({
             aria-pressed={watching}
             disabled={busy}
             onClick={handleClick}
+            className={watching ? undefined : 'text-muted-foreground'}
           />
         }
       >

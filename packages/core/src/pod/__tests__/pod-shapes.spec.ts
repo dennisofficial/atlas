@@ -8,6 +8,7 @@ import {
   podShapeAllowed,
   podShapeEquals,
   podShapeOfVcpus,
+  podShapeLabel,
   podShapeWhyUnavailable,
   podSizingOf,
   VERCEL_POD_SHAPES,
@@ -15,6 +16,14 @@ import {
 
 const agent37 = podSizingOf({ sandboxProvider: AGENT37_SANDBOX_PROVIDER })
 const vercel = podSizingOf({ sandboxProvider: 'vercel' })
+
+describe('podShapeLabel', () => {
+  it('separates the CPU and memory with plain punctuation', () => {
+    const label = podShapeLabel({ vcpus: 4, memoryGb: 16 })
+    expect(label).toBe('4 vCPU, 16 GB')
+    expect(label).not.toContain('\u00b7')
+  })
+})
 
 describe('podSizingOf', () => {
   it('offers an Agent37 pod the five vm shapes, including three at 4 vCPU', () => {

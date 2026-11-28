@@ -2,6 +2,7 @@ import type { PlanTask, SpendTally } from '@dltech/atlas-core'
 import {
   crewOfView,
   crewRosterOf,
+  orderedCrewRows,
   type CrewRoster,
   type CrewRow,
 } from '@dltech/atlas-plugin-crew/client'
@@ -163,7 +164,7 @@ export const sessionViewModelOf = (view: SessionViewOutput | undefined): Session
     shellRows: orderedShellRows(shellsOfView(view.pluginViews)),
     serviceRows: groupedServiceRows(servicesOfView(view.pluginViews)),
     crew: crewRosterOf(view.pluginViews),
-    crewRows: crewOfView(view.pluginViews),
+    crewRows: orderedCrewRows(crewOfView(view.pluginViews)),
     previews: previewsOfView(view.pluginViews),
     plan: planOfView(view.pluginViews),
     context: contextOfView(view),

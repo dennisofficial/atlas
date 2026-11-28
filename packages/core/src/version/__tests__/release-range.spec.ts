@@ -92,7 +92,8 @@ describe('releaseNotesHeading', () => {
 
   it('names the range on an upgrade', () => {
     expect(releaseNotesHeading({ from: '1.28.0', to: '1.32.1' })).toBe(
-      'since your last launch · v1.28.0 → v1.32.1',
+      'since your last launch, v1.28.0 → v1.32.1',
     )
+    expect(releaseNotesHeading({ from: '1.28.0', to: '1.32.1' })).not.toContain('\u00b7')
   })
 })

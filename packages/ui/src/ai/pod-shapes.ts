@@ -36,7 +36,7 @@ export function podShapeKey(shape: PodShape): string {
 }
 
 export function podShapeLabel(shape: PodShape): string {
-  return `${shape.vcpus} vCPU · ${shape.memoryGb} GB`
+  return `${shape.vcpus} vCPU, ${shape.memoryGb} GB`
 }
 
 export function samePodShape({ a, b }: { a: PodShape; b: PodShape }): boolean {

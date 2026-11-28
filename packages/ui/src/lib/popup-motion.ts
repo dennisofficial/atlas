@@ -1,0 +1,5 @@
+export const popupMotion =
+  'origin-(--transform-origin) transition-[opacity,transform,translate] duration-150 ease-out data-starting-style:opacity-0 data-starting-style:[transform:scale(0.96)] data-ending-style:opacity-0 data-ending-style:[transform:scale(0.96)] data-ending-style:duration-100 data-ending-style:ease-in data-starting-style:data-[side=bottom]:-translate-y-1 data-starting-style:data-[side=top]:translate-y-1 data-starting-style:data-[side=left]:translate-x-1 data-starting-style:data-[side=right]:-translate-x-1 data-starting-style:data-[side=inline-start]:translate-x-1 data-starting-style:data-[side=inline-end]:-translate-x-1 data-[side=none]:data-starting-style:[transform:scaleY(0.96)] data-[side=none]:data-ending-style:[transform:scaleY(0.96)] motion-reduce:transition-none motion-reduce:transform-none! motion-reduce:translate-none!'
+
+export const popupChevronMotion =
+  'transition-transform duration-150 group-aria-expanded/popup-trigger:rotate-180 motion-reduce:transition-none'

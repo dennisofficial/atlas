@@ -2,6 +2,7 @@
 
 import { AlertDialog } from '#components/alert-dialog'
 import { MoonIcon, TriangleAlertIcon } from 'lucide-react'
+import type { ReactNode } from 'react'
 
 import { PodDiskSelect } from './internal/pod-disk-control'
 import { EPodAction, PodActionConfirm } from './internal/pod-action-confirm'
@@ -73,23 +74,25 @@ function PodSeriesRow({
   label,
   value,
   swatch,
-  row,
+  detail,
+  children,
 }: {
   label: string
   value: string
   swatch: string
-  row: string
+  detail?: string
+  children?: ReactNode
 }) {
   return (
-    <>
-      <span className={`col-start-1 ${row} flex justify-center`}>
-        <span className={`size-2 rounded-[2px] ${swatch}`} />
+    <div className="flex w-full items-center gap-2">
+      <span aria-hidden className={`size-2 shrink-0 rounded-[2px] ${swatch}`} />
+      <span className="w-8 shrink-0 text-muted-foreground">{label}</span>
+      <span className="min-w-0 flex-1 text-foreground tabular-nums wrap-anywhere">
+        {value}
+        {detail ? <span className="block text-[11px] text-muted-foreground">{detail}</span> : null}
       </span>
-      <span className={`col-start-2 ${row} flex min-w-0 items-center gap-1.5`}>
-        <span className="text-muted-foreground">{label}</span>
-        <span className="truncate tabular-nums">{value}</span>
-      </span>
-    </>
+      {children}
+    </div>
   )
 }
 
@@ -99,7 +102,7 @@ function PodUsageIdle({ state, unavailable }: { state: EPodState; unavailable: b
       <div
         role="img"
         aria-label="Usage unavailable"
-        className="flex h-10 w-28 items-center justify-center rounded-md border border-dashed border-border text-[11px] text-muted-foreground"
+        className="flex h-8 w-full items-center justify-center rounded-md border border-dashed border-border text-[11px] text-muted-foreground"
       >
         Usage unavailable
       </div>
@@ -112,7 +115,7 @@ function PodUsageIdle({ state, unavailable }: { state: EPodState; unavailable: b
           ? 'No live usage yet'
           : `No live usage — pod ${IDLE_TEXT[state].toLowerCase()}`
       }
-      className="flex h-10 w-28 items-center justify-center gap-1 rounded-md border border-dashed border-border text-[11px] text-muted-foreground"
+      className="flex h-8 w-full items-center justify-center gap-1 rounded-md border border-dashed border-border text-[11px] text-muted-foreground"
     >
       <MoonIcon aria-hidden className="size-3" />
       {IDLE_TEXT[state]}
@@ -196,46 +199,34 @@ export function PodSection(props: PodSectionProps) {
       {props.message === undefined ? null : (
         <p className="text-xs text-muted-foreground">{props.message}</p>
       )}
-      <div className="grid grid-cols-[1rem_minmax(0,1fr)_auto] items-center gap-x-2.5 gap-y-0.5 text-xs">
-        <PodSeriesRow
-          label="CPU"
-          value={running ? view.cpuLabel : '—'}
-          swatch="bg-primary"
-          row="row-start-1"
+      {sampling ? (
+        <PodUsageSpark
+          data={data}
+          limitGb={view.ramLimitGb}
+          defaultActiveIndex={props.defaultActiveIndex}
         />
+      ) : (
+        <PodUsageIdle state={props.state} unavailable={props.usageUnavailable === true} />
+      )}
+      <div className="flex flex-col gap-1 text-xs">
+        <PodSeriesRow label="CPU" value={running ? view.cpuLabel : '—'} swatch="bg-primary" />
         <PodSeriesRow
           label="RAM"
-          value={`${ramValue}${commandMemorySuffix(props.commandRamLimitGb)}`}
+          value={ramValue}
+          detail={commandMemorySuffix(props.commandRamLimitGb)}
           swatch="bg-muted-foreground"
-          row="row-start-2"
         />
-        <PodSeriesRow label="Disk" value={diskValue} swatch="bg-chart-2" row="row-start-3" />
-        <div
-          className={`col-start-3 row-start-1 flex items-center self-stretch ${
-            diskGrow ? 'row-span-2' : 'row-span-3'
-          }`}
-        >
-          {sampling ? (
-            <PodUsageSpark
-              data={data}
-              limitGb={view.ramLimitGb}
-              defaultActiveIndex={props.defaultActiveIndex}
-            />
-          ) : (
-            <PodUsageIdle state={props.state} unavailable={props.usageUnavailable === true} />
-          )}
-        </div>
-        {diskGrow ? (
-          <div className="col-start-3 row-start-3 flex justify-end">
+        <PodSeriesRow label="Disk" value={diskValue} swatch="bg-chart-2">
+          {diskGrow ? (
             <PodDiskSelect
               limitGb={diskLimitGb}
               disabled={sizeProps.disabled}
               onGrow={props.onGrowDisk}
             />
-          </div>
-        ) : null}
+          ) : null}
+        </PodSeriesRow>
       </div>
-      <div className="flex flex-col gap-2 pl-[1.625rem]">
+      <div className="flex flex-col gap-2 pl-4">
         <MetricSignals
           throttled={props.throttled === true}
           oomEvents={props.oomEvents}

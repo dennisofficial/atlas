@@ -58,7 +58,7 @@ export function MemoryRow({
         <>
           <span className="line-clamp-2">{entry.description}</span>
           <Mono className="mt-1 block truncate text-muted-foreground/80">
-            rev {entry.revision} · updated {formatMemoryDate(entry.updatedAt)}
+            rev {entry.revision}, updated {formatMemoryDate(entry.updatedAt)}
           </Mono>
         </>
       }

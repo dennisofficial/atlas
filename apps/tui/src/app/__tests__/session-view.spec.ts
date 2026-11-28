@@ -34,6 +34,21 @@ const serviceRow = (args: { serviceId: string; status: EServiceStatus; changedAt
 })
 
 describe('panesOfView', () => {
+  test('crew rows use the shared active-first ordering', () => {
+    const panes = panesOfView(
+      viewOf({
+        pluginViews: {
+          crew: [
+            { ...crewRow, agentId: 'ended', status: EAgentStatus.Finished },
+            { ...crewRow, agentId: 'paused', status: EAgentStatus.Paused },
+            { ...crewRow, agentId: 'running', status: EAgentStatus.Running },
+          ],
+        },
+      }),
+    )
+    expect(panes.crew.map((row) => row.agentId)).toEqual(['running', 'paused', 'ended'])
+  })
+
   test('an absent view yields every list empty', () => {
     const panes = panesOfView(undefined)
 

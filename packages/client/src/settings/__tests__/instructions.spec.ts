@@ -20,9 +20,12 @@ describe('instructions char count', () => {
 
   it('reports how far over the limit a document is', () => {
     expect(charCountOf({ length: 8020, limit: INSTRUCTIONS_CHAR_LIMIT })).toEqual({
-      text: '8,020 / 8,000 · 20 over',
+      text: '8,020 / 8,000, 20 over',
       over: true,
     })
+    expect(charCountOf({ length: 8020, limit: INSTRUCTIONS_CHAR_LIMIT }).text).not.toContain(
+      '\u00b7',
+    )
   })
 
   it('treats the limit itself as within it', () => {

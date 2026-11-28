@@ -52,7 +52,7 @@ describe('AgentsPanel', () => {
   it('shows the total in the section label and mounts only a window of rows', () => {
     const html = panel({ agents: MANY_CALLS_AGENTS, teammates: [], detailId: 'many-running' })
 
-    expect(html).toContain('Tool calls · 400')
+    expect(html).toContain('Tool calls: 400')
     expect((html.match(/data-index="/g) ?? []).length).toBeLessThan(40)
   })
 
@@ -75,10 +75,10 @@ describe('AgentsPanel', () => {
 describe('SubagentReports', () => {
   it('titles reported and failed lines', () => {
     expect(reportTitle({ agentType: 'explore', intent: 'map', failed: false })).toBe(
-      'explore · map reported',
+      'explore, map reported',
     )
     expect(reportTitle({ agentType: 'explore', intent: 'map', failed: true })).toBe(
-      'explore · map failed',
+      'explore, map failed',
     )
   })
 
@@ -105,8 +105,8 @@ describe('SubagentReports', () => {
       />,
     )
 
-    expect(html).toContain('explore · map reported')
-    expect(html).toContain('builder · fix failed')
+    expect(html).toContain('explore, map reported')
+    expect(html).toContain('builder, fix failed')
   })
 })
 

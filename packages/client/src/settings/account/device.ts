@@ -58,7 +58,7 @@ export const toDevice = ({
   })
   const meta = [session.ipAddress ? session.ipAddress : null, `Last active ${active}`]
     .filter((part) => part !== null)
-    .join(' · ')
+    .join(', ')
   return {
     id: session.token,
     kind: deviceKindOf(session.userAgent),

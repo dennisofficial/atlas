@@ -120,7 +120,7 @@ export const InheritedSandboxRows = ({
         .filter((value) => SANDBOX_SETTING_KEYS.includes(value.key))
         .map((value) => ({
           id: `${layer.layer}:${value.key}`,
-          label: `${TITLE_OF_LAYER[layer.layer] ?? layer.layer} · ${LABEL_OF_KEY[value.key] ?? value.key}`,
+          label: `${TITLE_OF_LAYER[layer.layer] ?? layer.layer}, ${LABEL_OF_KEY[value.key] ?? value.key}`,
           value: String(decodeSettingValue(value.value)),
         })),
     )

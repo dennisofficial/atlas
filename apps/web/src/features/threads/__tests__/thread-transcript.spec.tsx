@@ -555,7 +555,7 @@ describe('ThreadTranscript sandbox boot', () => {
           { id: EBootStep.Provision, label: 'Create sandbox', state: EBootStepState.Done },
           {
             id: EBootStep.Setup,
-            label: 'Setup restarted · running again',
+            label: 'Setup restarted, running again',
             state: EBootStepState.Interrupted,
             command: 'bun install',
           },
@@ -563,7 +563,7 @@ describe('ThreadTranscript sandbox boot', () => {
       },
     })
 
-    expect(document.body.textContent).toContain('Setup restarted · running again')
+    expect(document.body.textContent).toContain('Setup restarted, running again')
     expect(document.body.textContent).not.toContain('Sandbox failed to start')
     expect(document.body.querySelector('[data-slot="sandbox-boot-error"]')).toBeNull()
     expect(retryButton()).toBeNull()

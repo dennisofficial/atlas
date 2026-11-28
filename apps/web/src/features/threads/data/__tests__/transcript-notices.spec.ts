@@ -196,7 +196,7 @@ describe('prNoticeItemOf', () => {
       prEntry({ key: 'evt_3' }),
     ])
 
-    expect(item?.title).toBe('PR #42: 3 updates · 1 needs attention')
+    expect(item?.title).toBe('PR #42: 3 updates, 1 needs attention')
     expect(item?.tone).toBe(ENoticeTone.Failed)
     expect(item?.contexts?.map((context) => context.note)).toEqual([undefined, 'failed', undefined])
   })
@@ -207,6 +207,6 @@ describe('prNoticeItemOf', () => {
       prEntry({ key: 'evt_2', failed: true }),
     ])
 
-    expect(item?.title).toBe('PR #42: 2 updates · 2 need attention')
+    expect(item?.title).toBe('PR #42: 2 updates, 2 need attention')
   })
 })

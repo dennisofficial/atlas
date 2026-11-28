@@ -6,7 +6,7 @@ import { shimmerText, SHIMMER_TICK_MS } from '../shimmer-frames'
 import { shimmerColour, shimmerSpans } from '../shimmer-style'
 import { spinnerFrame, theme } from '../theme'
 
-const LABEL = 'Thinking for 12s (↓ 1.2k tokens · esc to interrupt)'
+const LABEL = 'Thinking for 12s (↓ 1.2k tokens   esc to interrupt)'
 
 const TEXT_OFFSET = 2
 

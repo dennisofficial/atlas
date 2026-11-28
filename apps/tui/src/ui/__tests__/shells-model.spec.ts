@@ -298,7 +298,7 @@ describe('how long a shell has been alive', () => {
 
 describe('what a shell row reads as', () => {
   it('follows the state with what it has cost', () => {
-    expect(shellReadout({ shell: running('bash_1'), now: AT(64) })).toBe('running · 1m 4s')
+    expect(shellReadout({ shell: running('bash_1'), now: AT(64) })).toBe('running   1m 4s')
   })
 
   it('leaves the whole row to the warning when nothing can answer the shell, since it will never finish', () => {
@@ -339,6 +339,6 @@ describe('what a sidebar shell row reads as', () => {
       endedAt: '2026-08-27T12:01:04.000Z',
     })
 
-    expect(shellSidebarReadout({ shell: settled, now: AT(64) })).toBe('done · 1m 4s')
+    expect(shellSidebarReadout({ shell: settled, now: AT(64) })).toBe('done   1m 4s')
   })
 })

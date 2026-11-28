@@ -21,8 +21,9 @@ describe('effort labels', () => {
   it('shows a budget beside the rung it stands for', () => {
     const budget = { [EEffort.High]: 16_000, [EEffort.Low]: 800 }
 
-    expect(effortLabelOf({ map: budget, rung: EEffort.High })).toBe('High · 16k tokens')
-    expect(effortLabelOf({ map: budget, rung: EEffort.Low })).toBe('Low · 800 tokens')
+    expect(effortLabelOf({ map: budget, rung: EEffort.High })).toBe('High, 16k tokens')
+    expect(effortLabelOf({ map: budget, rung: EEffort.Low })).toBe('Low, 800 tokens')
+    expect(effortLabelOf({ map: budget, rung: EEffort.High })).not.toContain('\u00b7')
   })
 
   it('falls back to the rung label when the model has no word for that rung', () => {

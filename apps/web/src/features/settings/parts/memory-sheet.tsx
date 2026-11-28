@@ -76,7 +76,7 @@ function MemoryView({
         </div>
         <SheetDescription>{entry.description}</SheetDescription>
         <Mono className="text-muted-foreground">
-          rev {entry.revision} · updated {formatMemoryDate(entry.updatedAt)}
+          rev {entry.revision}, updated {formatMemoryDate(entry.updatedAt)}
         </Mono>
       </SheetHeader>
       <div className="min-h-0 flex-1 overflow-y-auto">
@@ -140,7 +140,7 @@ function MemoryEdit({
       <SheetHeader>
         <SheetTitle>Edit memory</SheetTitle>
         <SheetDescription>
-          rev {entry.revision} · updated {formatMemoryDate(entry.updatedAt)}
+          rev {entry.revision}, updated {formatMemoryDate(entry.updatedAt)}
         </SheetDescription>
       </SheetHeader>
       <FieldGroup className="min-h-0 flex-1 overflow-y-auto">

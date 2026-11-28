@@ -12,7 +12,7 @@ export const isWaiting = (work: BackgroundWork): boolean => work.subagents + wor
 const tally = (args: { count: number; noun: string }): string =>
   `${args.count} ${args.noun}${args.count === 1 ? '' : 's'}`
 
-const WAITED_SEPARATOR = ' · '
+const WAITED_SEPARATOR = ', '
 
 const instantOf = (iso: string): number | null => {
   const at = Date.parse(iso)

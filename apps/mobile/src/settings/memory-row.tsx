@@ -48,7 +48,7 @@ export const MemoryRowView = ({
             {entry.description}
           </Text>
           <Text size={ETextRole.Sm} tone={ETextTone.Muted}>
-            {`rev ${entry.revision} · updated ${formatMemoryDate(entry.updatedAt)}`}
+            {`rev ${entry.revision}, updated ${formatMemoryDate(entry.updatedAt)}`}
           </Text>
         </View>
         {selecting ? null : <Icon icon={ChevronRight} color={theme.mutedForeground} size={16} />}

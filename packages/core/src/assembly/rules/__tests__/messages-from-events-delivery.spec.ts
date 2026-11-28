@@ -114,7 +114,7 @@ describe('delivering one picture per the model that reads it', () => {
 
     expect(content?.[0]).toEqual({
       type: 'text',
-      text: operatorSaidAs('look\n[image /atlas/home/uploads/shot.png · 4×3]'),
+      text: operatorSaidAs('look\n[image /atlas/home/uploads/shot.png, 4×3]'),
     })
   })
 
