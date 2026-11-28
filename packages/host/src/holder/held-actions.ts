@@ -110,7 +110,8 @@ export class HeldActions {
       this.args.request()
       return
     }
-    if (await ranQueuedCommand({ action, entries, turnRunning, runCommands: this.commands })) {
+    const ran = { action, entries, turnRunning, runCommands: this.commands, waiting }
+    if (await ranQueuedCommand({ ...ran, firstStep: this.args.takeOverFirstStep })) {
       this.args.request()
       return
     }
