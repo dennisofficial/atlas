@@ -58,6 +58,19 @@ const blue = {
   950: '#101c2c',
 } as const
 
+const sky = {
+  50: '#e3f8ff',
+  100: '#b3ecff',
+  200: '#81defd',
+  300: '#5ed0fa',
+  400: '#40c3f7',
+  500: '#2bb0ed',
+  600: '#1992d4',
+  700: '#127fbf',
+  800: '#0b69a3',
+  900: '#035388',
+} as const
+
 const steel = {
   200: '#c3d0ee',
   300: '#9db3e8',
@@ -128,6 +141,8 @@ const wash = {
 } as const
 
 const accentChoices = {
+  graphite: '#eaeaea',
+  sky: '#40c3f7',
   clay: clay[500],
   slate: '#7f9cc0',
   moss: '#7aa262',
@@ -151,6 +166,7 @@ export const primitives = {
     graphite,
     clay,
     blue,
+    sky,
     steel,
     red,
     amber,

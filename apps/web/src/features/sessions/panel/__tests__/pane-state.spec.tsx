@@ -9,6 +9,7 @@ import { SESSION_PANE_KEY } from '../pane-memory'
 import { EPaneOpen } from '../pane-open'
 import { type SessionPaneState, useSessionPane } from '../pane-state'
 import { ESessionPaneTab } from '../pane-tab'
+import { stubViewTransitions } from './view-transition-stub'
 
 beforeAll(() => {
   registerDom()
@@ -87,6 +88,24 @@ describe('useSessionPane', () => {
     expect(state().tab).toBe(ESessionPaneTab.Terminal)
     expect(state().sheetOpen).toBe(true)
     expect(state().collapsed).toBe(false)
+  })
+
+  it('switches the tab inside the morph that expands the pane', async () => {
+    resetCollapsed()
+    const state = await mount()
+    const transitions = stubViewTransitions()
+    try {
+      await act(async () => state().openTab(ESessionPaneTab.Terminal))
+      expect(state().tab).toBe(ESessionPaneTab.Details)
+
+      await act(async () => transitions.runPending())
+
+      expect(state().tab).toBe(ESessionPaneTab.Terminal)
+      expect(state().collapsed).toBe(false)
+      expect(transitions.started()).toBe(1)
+    } finally {
+      transitions.restore()
+    }
   })
 
   it('starts collapsed and keeps an expansion across a remount', async () => {

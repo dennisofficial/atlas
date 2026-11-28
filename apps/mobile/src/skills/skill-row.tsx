@@ -48,23 +48,25 @@ export const SkillRow = ({
   selecting,
   selected,
   onSelect,
+  onOpen,
 }: {
   skill: SkillSummary
   selecting: boolean
   selected: boolean
   onSelect: () => void
+  onOpen: () => void
 }) => {
   const theme = useTheme()
   const builtIn = !skillIsSelectable(skill)
-  const interactive = selecting && !builtIn
+  const interactive = !selecting || !builtIn
 
   return (
     <Pressable
-      accessibilityRole={selecting ? 'checkbox' : 'text'}
+      accessibilityRole={selecting ? 'checkbox' : 'button'}
       accessibilityLabel={skill.name}
       accessibilityState={{ checked: selected, disabled: !interactive }}
       disabled={!interactive}
-      onPress={onSelect}
+      onPress={selecting ? onSelect : onOpen}
     >
       <View style={[styles.row, selecting && builtIn ? styles.unselectable : null]}>
         {selecting ? (

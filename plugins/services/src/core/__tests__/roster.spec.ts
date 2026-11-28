@@ -66,6 +66,19 @@ describe('services view', () => {
     ])
   })
 
+  it('keeps readiness and the later timestamp when a start follows ready', () => {
+    const rows = servicesOfEvents([ready(3), started(2, { name: 'web' })])
+    expect(rows).toMatchObject([
+      { name: 'web', ready: true, status: EServiceStatus.Running, changedAt: at(3) },
+    ])
+  })
+
+  it('keeps an ending that beat the start append', () => {
+    expect(servicesOfEvents([ended(3), started(2, { name: 'web' })])).toMatchObject([
+      { name: 'web', ready: false, status: EServiceStatus.Killed, changedAt: at(3) },
+    ])
+  })
+
   it('keeps other services untouched when one changes', () => {
     const rows = servicesOfEvents([
       started(1),

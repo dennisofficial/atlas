@@ -1,6 +1,7 @@
 @import "@dltech/atlas-ui/theme.css";
 @import "@dltech/atlas-ui/base.css";
 @import "./desktop.css";
+@import "./view-transitions.css";
 
 @source "../../../../packages/ui/src";
 @source "../../../../packages/ui/node_modules/streamdown/dist/*.js";

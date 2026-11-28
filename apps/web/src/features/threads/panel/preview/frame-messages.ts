@@ -10,12 +10,24 @@ export enum EFrameMessage {
 }
 
 const frameMessageSchema = z.discriminatedUnion('kind', [
-  z.object({ kind: z.literal(LOCATION_KIND), url: z.string().min(1), title: z.string() }),
+  z.object({
+    kind: z.literal(LOCATION_KIND),
+    url: z.string().min(1),
+    title: z.string(),
+    startingPage: z.boolean().optional(),
+    loaded: z.boolean().optional(),
+  }),
   z.object({ kind: z.literal(LOADING_KIND) }),
 ])
 
 export type FrameMessage =
-  | { kind: EFrameMessage.Location; url: string; title: string }
+  | {
+      kind: EFrameMessage.Location
+      url: string
+      title: string
+      startingPage?: boolean
+      loaded?: boolean
+    }
   | { kind: EFrameMessage.Loading }
 
 export type FrameReport = { key: string; message: FrameMessage }
@@ -24,7 +36,13 @@ export function parseFrameMessage(data: unknown): FrameMessage | null {
   const parsed = frameMessageSchema.safeParse(data)
   if (!parsed.success) return null
   if (parsed.data.kind === LOADING_KIND) return { kind: EFrameMessage.Loading }
-  return { kind: EFrameMessage.Location, url: parsed.data.url, title: parsed.data.title }
+  return {
+    kind: EFrameMessage.Location,
+    url: parsed.data.url,
+    title: parsed.data.title,
+    ...(parsed.data.startingPage === undefined ? {} : { startingPage: parsed.data.startingPage }),
+    ...(parsed.data.loaded === undefined ? {} : { loaded: parsed.data.loaded }),
+  }
 }
 
 export function isPreviewOrigin(origin: string): boolean {

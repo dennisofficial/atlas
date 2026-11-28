@@ -215,7 +215,7 @@ export const createSessionRuntimeFactory = (
     }
     const onWake = async (report: WakeReport): Promise<void> => {
       const { endpoint, wakeMs } = report
-      lifecycle.woke({ start: endpoint.start, wakeMs })
+      lifecycle.woke({ start: endpoint.start, wakeMs, stages: endpoint.stages })
       await recordDisk(endpoint)
       await recordApplied(endpoint)
       await recordRun(endpoint)

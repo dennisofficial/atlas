@@ -1,5 +1,6 @@
 'use client'
 
+import { providerGroupsOf } from '@dltech/atlas-client/settings'
 import { useCallback } from 'react'
 import { toast } from 'sonner'
 
@@ -171,8 +172,13 @@ function ProvidersContent({
     onRemove: (accountId) => void handleRemove({ accountId, success: removedToastOf(accountId) }),
   })
 
-  const connected = PROVIDERS.filter((provider) => accountsOf(provider).length > 0)
-  const unconnected = PROVIDERS.filter((provider) => accountsOf(provider).length === 0)
+  const groups = providerGroupsOf(data.accounts)
+  const connected = PROVIDERS.filter((provider) =>
+    groups.some((group) => group.provider.id === provider.id && group.accounts.length > 0),
+  )
+  const unconnected = PROVIDERS.filter((provider) =>
+    groups.some((group) => group.provider.id === provider.id && group.accounts.length === 0),
+  )
 
   return (
     <SettingsPage title={TITLE} description={DESCRIPTION}>

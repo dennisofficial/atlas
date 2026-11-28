@@ -15,6 +15,7 @@ export type DaemonEndpoint = {
   memoryGb?: number | undefined
   diskGb?: number | undefined
   start?: EPodStart | undefined
+  stages?: { instanceStartMs?: number | undefined; daemonReadyMs?: number | undefined } | undefined
 }
 
 /** How the pod came to answer this wake. `Running` is a pod that was already up. */

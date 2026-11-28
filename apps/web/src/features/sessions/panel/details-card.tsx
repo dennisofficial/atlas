@@ -6,6 +6,7 @@ import { Button } from '@dltech/atlas-ui/components/button'
 import { useIsMobile } from '@dltech/atlas-ui/hooks/use-mobile'
 
 import { ChangeTotalsLabel } from './change-totals-label'
+import { DETAILS_MORPH_CLASS, EDetailsMorphSurface } from './details-morph'
 
 import { SessionDetailsTab } from './details-tab'
 
@@ -28,7 +29,10 @@ export function SessionDetailsCard({ open, onOpenChanges }: SessionDetailsCardPr
       data-session-details-card
       className="pointer-events-none absolute inset-y-3 right-3 z-10 hidden w-80 flex-col @min-[64rem]:flex"
     >
-      <div className="pointer-events-auto flex max-h-full min-h-0 flex-col overflow-hidden rounded-xl bg-popover text-popover-foreground shadow-lg ring-1 ring-border">
+      <div
+        data-details-morph={EDetailsMorphSurface.Card}
+        className={`pointer-events-auto flex max-h-full min-h-0 flex-col overflow-hidden rounded-xl bg-popover text-popover-foreground shadow-lg ring-1 ring-border ${DETAILS_MORPH_CLASS}`}
+      >
         <Button
           variant="ghost"
           data-details-changes

@@ -18,7 +18,7 @@ export const CrashScreen = ({ error, retry }: ErrorBoundaryProps) => {
       <Text size={ETextRole.Lg} weight={EFontWeight.Medium}>
         Atlas hit an error
       </Text>
-      <ScrollView style={styles.detail}>
+      <ScrollView scrollsToTop={false} style={styles.detail}>
         <Text size={ETextRole.Xs} tone={ETextTone.Destructive} selectable>
           {error.message}
         </Text>

@@ -52,6 +52,7 @@ The package ships TypeScript source with no build step.
   `READING_MEASURE_REM`: the measure, the leading and the sizes of transcript text. Native
   body text uses `ETextRole.Reading`, Apple's 17pt body. Web body text stays 16px. Both have a
   26px line.
+- `primitives.color.accentChoices` includes the shipped graphite (`#eaeaea`) accent and the sky, clay, slate, moss and plum alternatives.
 - `buildThemeCss()`: the stylesheet text for the tokens.
 
 ### Mark a brand

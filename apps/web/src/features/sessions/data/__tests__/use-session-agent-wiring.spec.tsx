@@ -6,6 +6,7 @@ import type { Root } from 'react-dom/client'
 
 import { RIGHT_PANEL_COLLAPSED_KEY } from '@/features/threads/panel/right-panel-collapsed'
 
+import { stubViewTransitions } from '../../panel/__tests__/view-transition-stub'
 import type { SessionAgentWiring } from '../use-session-agent-wiring'
 
 const pushed: string[] = []
@@ -162,6 +163,25 @@ describe('useSessionAgentWiring', () => {
 
     await act(async () => read().openAgent('agent-2'))
     expect(pushed).toEqual(['/sessions/ses-1?tab=files&agent=agent-2'])
+  })
+
+  it('shows the agent inside the one morph that opens the pane', async () => {
+    window.localStorage.setItem(RIGHT_PANEL_COLLAPSED_KEY, 'true')
+    const { read } = await mount()
+    const transitions = stubViewTransitions()
+    try {
+      await act(async () => read().openAgent('agent-2'))
+      expect(read().panel.agentId).toBeUndefined()
+      expect(read().pane.collapsed).toBe(true)
+
+      await act(async () => transitions.runPending())
+
+      expect(read().panel.agentId).toBe('agent-2')
+      expect(read().pane.collapsed).toBe(false)
+      expect(transitions.started()).toBe(1)
+    } finally {
+      transitions.restore()
+    }
   })
 
   it('stays collapsed as the operator left it', async () => {

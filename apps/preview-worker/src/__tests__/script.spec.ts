@@ -4,14 +4,22 @@ import { SCRIPT_SOURCE } from '../script'
 
 type Listener = (event: unknown) => void
 
-function boot(args: { framed: boolean }) {
+function boot(args: { framed: boolean; startingPage?: boolean }) {
   const posted: unknown[] = []
   const calls: string[] = []
   const listeners: Record<string, Listener[]> = {}
   const parent = { postMessage: (message: unknown) => posted.push(message) }
   const fake: Record<string, unknown> = {
     location: { href: 'https://3000-abcdefghij.byatlas.dev/a', reload: () => calls.push('reload') },
-    document: { title: 'Page', head: null },
+    document: {
+      title: 'Page',
+      head: null,
+      readyState: 'complete',
+      documentElement: {
+        hasAttribute: (name: string) =>
+          name === 'data-atlas-preview-starting' && args.startingPage === true,
+      },
+    },
     history: {
       pushState: () => undefined,
       replaceState: () => undefined,
@@ -45,6 +53,8 @@ describe('injected script', () => {
         kind: 'atlas-preview:location',
         url: 'https://3000-abcdefghij.byatlas.dev/a',
         title: 'Page',
+        startingPage: false,
+        loaded: true,
       },
     ])
     emit('load')
@@ -55,6 +65,23 @@ describe('injected script', () => {
     emit('popstate')
     emit('hashchange')
     expect(posted).toHaveLength(2)
+  })
+
+  it('distinguishes the starting page from real content', () => {
+    const { emit, posted } = boot({ framed: true, startingPage: true })
+    emit('load')
+    expect(posted[0]).toMatchObject({ startingPage: true, loaded: true })
+  })
+
+  it('reports the load even when the URL and title were already reported at DOM readiness', () => {
+    const { fake, emit, posted } = boot({ framed: true })
+    const document = fake.document as { readyState: string }
+    document.readyState = 'interactive'
+    emit('DOMContentLoaded')
+    expect(posted[0]).toMatchObject({ loaded: false })
+    document.readyState = 'complete'
+    emit('load')
+    expect(posted[1]).toMatchObject({ loaded: true })
   })
 
   it('tells the parent a navigation started when the page unloads', () => {

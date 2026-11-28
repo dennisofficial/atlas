@@ -29,7 +29,6 @@ export const LIST_GAP = space(1)
 export const LIST_TEXT_INDENT = space(1)
 export const BLOCK_GAP = space(4)
 export const INLINE_CODE_SCALE = 0.9
-export const INLINE_CODE_LEADING = 1.625
 
 export const FALLBACK_HEADING = {
   size: ETextRole.Xs,

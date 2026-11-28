@@ -49,7 +49,7 @@ export const CommandListSheet = ({
           <Text size={ETextRole.Xs} tone={ETextTone.Muted} style={styles.title}>
             Type a name in the message box to run it.
           </Text>
-          <ScrollView keyboardShouldPersistTaps="handled">
+          <ScrollView scrollsToTop={false} keyboardShouldPersistTaps="handled">
             {commandSectionsOf(entries).map((section) => (
               <View key={section.group}>
                 <Text size={ETextRole.Xs} tone={ETextTone.Muted} style={styles.group}>

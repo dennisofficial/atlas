@@ -56,7 +56,6 @@ describe('partitionSessions with v2 sessions', () => {
           primaryBranch: 'dennis/mobile',
         }),
       ],
-      now: NOW,
     })
     const entry = partition.groups[0]?.sessions[0]
     expect(entry).toMatchObject({
@@ -74,7 +73,6 @@ describe('partitionSessions with v2 sessions', () => {
         summaryOf({ sessionId: 'ses_old', updatedAt: hoursAgo(100) }),
         summaryOf({ sessionId: 'ses_archived', archivedAt: hoursAgo(2) }),
       ],
-      now: NOW,
     })
     expect(partition.groups[0]?.sessions.map((entry) => entry.id)).toEqual(['ses_old'])
     expect(partition.archived[0]?.sessions.map((entry) => entry.id)).toEqual(['ses_archived'])
@@ -97,7 +95,6 @@ describe('partitionSessions with v2 sessions', () => {
           },
         }),
       ],
-      now: NOW,
     })
     const entry = partition.groups[0]?.sessions[0]
     expect(entry?.title).toBe('Untitled')

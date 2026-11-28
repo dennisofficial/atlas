@@ -43,9 +43,15 @@ export const controlOf = (args: { url: string; tunnelToken?: string }): PodContr
 })
 
 export const rig = (
-  options: { control?: PodControl; env?: Record<string, string>; reap?: EServiceReapOutcome } = {},
+  options: {
+    control?: PodControl
+    env?: Record<string, string>
+    reap?: EServiceReapOutcome
+    subAgent?: string
+  } = {},
 ) => {
   const log: RecordEvent[] = []
+  const parentLog: (EventDraft | RecordBody | PluginEventBody)[] = []
   const listeners = new Set<(frame: DaemonEventFrame) => void>()
   const calls: CallOp[] = []
   const fs = new MemoryFileSystem()
@@ -113,6 +119,16 @@ export const rig = (
     worktrees: EMPTY_WORKTREES,
     sessionId: 's1',
     append,
+    ...(options.subAgent === undefined
+      ? {}
+      : {
+          subAgent: {
+            agentId: options.subAgent,
+            appendToParent: async (drafts) => {
+              parentLog.push(...drafts)
+            },
+          },
+        }),
     notify: async (event, options) => {
       notices.push({ event, key: options.key })
     },
@@ -127,7 +143,7 @@ export const rig = (
     ...(options.env === undefined ? {} : { env: async () => options.env ?? {} }),
   }
 
-  return { ctx, log, calls, listeners, fs, notices, forgetDaemonRecords }
+  return { ctx, log, parentLog, calls, listeners, fs, notices, forgetDaemonRecords }
 }
 
 export const movedHolderOf = (harness: ReturnType<typeof rig>): PluginPodContext => ({

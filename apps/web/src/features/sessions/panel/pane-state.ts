@@ -15,6 +15,7 @@ import {
   rememberDetailsOpen,
   rememberPaneTab,
 } from './pane-memory'
+import { morphSessionDetails } from './details-morph'
 import { EPaneOpen, type PaneOpenRequest } from './pane-open'
 import { ESessionPaneTab } from './pane-tab'
 
@@ -27,6 +28,8 @@ export type SessionPaneState = {
   setCollapsed: (collapsed: boolean) => void
   toggleCollapsed: () => void
   openPane: () => void
+  expandPane: (update: () => void) => void
+  revealPane: () => void
   openTab: (tab: ESessionPaneTab) => void
   openRequest: PaneOpenRequest | undefined
   requestOpen: (request: { kind: EPaneOpen; path: string }) => void
@@ -72,43 +75,62 @@ export function useSessionPane(sessionId: string): SessionPaneState {
   const { collapsed, setCollapsed } = useRightPanelCollapsed()
   useEffect(() => rememberPaneTab({ sessionId, tab }), [sessionId, tab])
 
-  const openPane = useCallback(() => {
+  const expandPane = useCallback(
+    (update: () => void) => {
+      setSheetOpen(true)
+      morphSessionDetails(() => {
+        update()
+        setCollapsed(false)
+      })
+    },
+    [setCollapsed],
+  )
+
+  const openPane = useCallback(() => expandPane(() => undefined), [expandPane])
+
+  const revealPane = useCallback(() => {
     setSheetOpen(true)
     setCollapsed(false)
   }, [setCollapsed])
 
-  const toggleCollapsed = useCallback(() => setCollapsed(!collapsed), [collapsed, setCollapsed])
+  const toggleCollapsed = useCallback(
+    () => morphSessionDetails(() => setCollapsed(!collapsed)),
+    [collapsed, setCollapsed],
+  )
 
   const detailsShown = detailsOpen && collapsed
   const toggleDetails = useCallback(() => {
-    if (detailsShown) return setDetailsOpen(false)
-    setDetailsOpen(true)
-    setCollapsed(true)
+    if (detailsShown) return morphSessionDetails(() => setDetailsOpen(false))
+    morphSessionDetails(() => {
+      setDetailsOpen(true)
+      setCollapsed(true)
+    })
   }, [detailsShown, setDetailsOpen, setCollapsed])
 
   const openDetails = useCallback(() => {
-    setDetailsOpen(true)
-    setCollapsed(true)
     setTab(ESessionPaneTab.Details)
     setSheetOpen(true)
+    morphSessionDetails(() => {
+      setDetailsOpen(true)
+      setCollapsed(true)
+    })
   }, [setDetailsOpen, setCollapsed])
 
   const openTab = useCallback(
-    (next: ESessionPaneTab) => {
-      setTab(next)
-      openPane()
-    },
-    [openPane],
+    (next: ESessionPaneTab) => expandPane(() => setTab(next)),
+    [expandPane],
   )
 
   const requestOpen = useCallback(
     (request: { kind: EPaneOpen; path: string }) => {
       nextOpenId.current += 1
-      setOpenRequest({ ...request, id: nextOpenId.current })
-      setTab(request.kind === EPaneOpen.Changes ? ESessionPaneTab.Changes : ESessionPaneTab.Files)
-      openPane()
+      const id = nextOpenId.current
+      expandPane(() => {
+        setOpenRequest({ ...request, id })
+        setTab(request.kind === EPaneOpen.Changes ? ESessionPaneTab.Changes : ESessionPaneTab.Files)
+      })
     },
-    [openPane],
+    [expandPane],
   )
 
   const consumeOpenRequest = useCallback((id: number) => {
@@ -124,6 +146,8 @@ export function useSessionPane(sessionId: string): SessionPaneState {
     setCollapsed,
     toggleCollapsed,
     openPane,
+    expandPane,
+    revealPane,
     openTab,
     openRequest,
     requestOpen,

@@ -90,9 +90,9 @@ describe('MessageResponse', () => {
     expect(html).not.toContain('data-slot="code-block"')
   })
 
-  it('spends the accent on h2 and inline code, as the TUI does', () => {
-    expect(render('## Title')).toMatch(/<h2[^>]*text-primary/)
-    expect(render('Use `bun test` here')).toMatch(/<code[^>]*text-primary/)
+  it('keeps h2 and inline code in the reading colours, not the accent', () => {
+    expect(render('## Title')).not.toMatch(/<h2[^>]*text-primary/)
+    expect(render('Use `bun test` here')).toMatch(/<code[^>]*bg-code-background[^>]*text-code/)
   })
 
   it('colors links with the link token, not the accent', () => {

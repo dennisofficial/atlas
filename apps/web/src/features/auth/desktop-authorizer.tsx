@@ -1,11 +1,12 @@
 'use client'
 
+import { googleReauthCallbackPath } from '@dltech/atlas-client/settings'
 import { isAuthorizableRedirectUri } from '@dltech/atlas-wire/web'
 import { usePathname, useRouter, useSearchParams } from 'next/navigation'
 import { useEffect, useState } from 'react'
 
 import { cloudCall, api } from '@/lib/api-client'
-import { sessionUser } from '@/lib/auth-api'
+import { sessionUser, googleSignInUrl } from '@/lib/auth-api'
 import { withNext } from '@/lib/auth-redirect'
 
 import { FormError } from './auth-controls'
@@ -21,6 +22,8 @@ export function DesktopAuthorizer() {
   const state = params.get('state') ?? ''
   const codeChallenge = params.get('code_challenge') ?? ''
   const method = params.get('code_challenge_method')
+  const googleReauth = params.get('google_reauth') ?? undefined
+  const googleStart = params.get('google_start') === '1'
   const valid = isAuthorizableRedirectUri(redirectUri) && state.length > 0 && method === 'S256'
   const returnPath = `${pathname}?${params.toString()}`
 
@@ -29,6 +32,17 @@ export function DesktopAuthorizer() {
     let cancelled = false
     const run = async () => {
       try {
+        if (googleReauth !== undefined && googleStart) {
+          const url = await googleSignInUrl({
+            origin: window.location.origin,
+            next: googleReauthCallbackPath({
+              pathname,
+              params: new URLSearchParams(returnPath.split('?')[1]),
+            }),
+          })
+          if (!cancelled) window.location.assign(url)
+          return
+        }
         const user = await sessionUser()
         if (cancelled) return
         if (user === null) {
@@ -40,6 +54,7 @@ export function DesktopAuthorizer() {
             redirectUri,
             codeChallenge,
             codeChallengeMethod: 'S256',
+            ...(googleReauth === undefined ? {} : { googleReauth }),
           }),
         )
         if (cancelled) return
@@ -55,7 +70,17 @@ export function DesktopAuthorizer() {
     return () => {
       cancelled = true
     }
-  }, [valid, redirectUri, state, codeChallenge, returnPath, router])
+  }, [
+    valid,
+    redirectUri,
+    state,
+    codeChallenge,
+    returnPath,
+    router,
+    pathname,
+    googleReauth,
+    googleStart,
+  ])
 
   if (!valid || failed) {
     return (

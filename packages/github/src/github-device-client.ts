@@ -155,6 +155,32 @@ export class GithubDeviceClient {
     }
   }
 
+  async exchangeRedirectToken(args: {
+    clientId: string
+    clientSecret: string
+    code: string
+    redirectUri: string
+  }): Promise<{ accessToken: string; scope: string }> {
+    const response = await this.send(ACCESS_TOKEN_URL, {
+      method: 'POST',
+      headers: { Accept: 'application/json', 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        client_id: args.clientId,
+        client_secret: args.clientSecret,
+        code: args.code,
+        redirect_uri: args.redirectUri,
+      }),
+    })
+    const body = await readJson(response)
+    if (!response.ok || typeof body.error === 'string') {
+      throw gatewayFailure('github redirect exchange', body, response.status)
+    }
+    return {
+      accessToken: requireString(body, 'access_token'),
+      scope: typeof body.scope === 'string' ? body.scope : '',
+    }
+  }
+
   async verifyToken(args: { accessToken: string }): Promise<{ login: string }> {
     const response = await this.send(USER_URL, {
       method: 'GET',

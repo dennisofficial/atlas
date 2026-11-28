@@ -7,22 +7,24 @@ export enum EColorScheme {
   Light = 'light',
 }
 
+const READING_TEXT = '#dcdcdc'
+
 const dark = {
   background: graphite[900],
-  foreground: graphite[100],
+  foreground: READING_TEXT,
   card: graphite[950],
-  cardForeground: graphite[100],
+  cardForeground: READING_TEXT,
   popover: graphite[925],
-  popoverForeground: graphite[100],
+  popoverForeground: READING_TEXT,
   primary: graphite[100],
   primaryForeground: graphite[925],
   secondary: wash.user,
-  secondaryForeground: graphite[100],
+  secondaryForeground: READING_TEXT,
   muted: graphite[850],
   skeleton: '#303030',
   mutedForeground: graphite[500],
   accent: wash.selected,
-  accentForeground: graphite[100],
+  accentForeground: READING_TEXT,
   destructive: red[400],
   border: graphite[800],
   input: graphite[800],
@@ -35,11 +37,11 @@ const dark = {
   chart5: violet[400],
 
   sidebar: graphite[950],
-  sidebarForeground: graphite[100],
+  sidebarForeground: READING_TEXT,
   sidebarPrimary: graphite[100],
   sidebarPrimaryForeground: graphite[925],
   sidebarAccent: wash.selected,
-  sidebarAccentForeground: graphite[100],
+  sidebarAccentForeground: READING_TEXT,
   sidebarBorder: graphite[800],
   sidebarRing: graphite[500],
 
@@ -53,7 +55,8 @@ const dark = {
   warning: amber[300],
   warningForeground: graphite[925],
 
-  code: blue[300],
+  code: '#d0d0d0',
+  codeBackground: '#ffffff12',
   link: blue[300],
 
   diffAdd: diff.addDark,
@@ -125,7 +128,8 @@ const light: SemanticTheme = {
   warning: amber[600],
   warningForeground: '#fcfcfc',
 
-  code: blue[700],
+  code: '#333333',
+  codeBackground: '#0000000d',
   link: blue[700],
 
   diffAdd: diff.addLight,

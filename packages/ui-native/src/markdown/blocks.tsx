@@ -27,7 +27,7 @@ const CodeBlock = ({ block }: { block: { language?: string; value: string } }) =
           {block.language === undefined || block.language.length === 0 ? 'text' : block.language}
         </Text>
       </View>
-      <ScrollView horizontal showsHorizontalScrollIndicator={false}>
+      <ScrollView scrollsToTop={false} horizontal showsHorizontalScrollIndicator={false}>
         <Text
           size={ETextRole.Xs}
           family={EFontFamily.Mono}

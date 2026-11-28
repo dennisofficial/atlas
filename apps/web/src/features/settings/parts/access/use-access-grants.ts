@@ -1,13 +1,9 @@
 'use client'
 
 import { useCallback, useMemo } from 'react'
+import { accessGrantSaveOf, type AccessGrantDraft } from '@dltech/atlas-client/settings'
 
-import type {
-  AccessGrant,
-  AccessGrantMember,
-  AccessGrantSave,
-  AccessScope,
-} from '@dltech/atlas-wire/web'
+import type { AccessGrant, AccessGrantMember, AccessScope } from '@dltech/atlas-wire/web'
 
 import { api, cloudCall } from '@/lib/api-client'
 import { useCloudQuery, type CloudQuery } from '@/lib/use-cloud-query'
@@ -17,11 +13,7 @@ import { scopeKeyOf } from './access-grant-helpers'
 
 export type AccessGrantsSnapshot = { grants: AccessGrant[]; fetchedAt: number }
 
-export type AccessGrantDraft = {
-  id?: string
-  name: string
-  instruction: string
-}
+export type { AccessGrantDraft } from '@dltech/atlas-client/settings'
 
 export type AccessGrantsActions = AccessMemberApi & {
   save: (draft: AccessGrantDraft) => Promise<void>
@@ -39,13 +31,6 @@ export async function listAccessGrants(scope: AccessScope): Promise<AccessGrant[
   const body = await cloudCall(api.accessGrants.list.query({ scope }))
   return body.grants
 }
-
-const saveBodyOf = (args: { scope: AccessScope; draft: AccessGrantDraft }): AccessGrantSave => ({
-  scope: args.scope,
-  name: args.draft.name,
-  instruction: args.draft.instruction,
-  ...(args.draft.id === undefined ? {} : { id: args.draft.id }),
-})
 
 export function useAccessGrants({
   scope,
@@ -71,7 +56,7 @@ export function useAccessGrants({
     return {
       ...members,
       save: async (draft) => {
-        await cloudCall(api.accessGrants.save.mutate(saveBodyOf({ scope, draft })))
+        await cloudCall(api.accessGrants.save.mutate(accessGrantSaveOf({ scope, draft })))
         reload()
       },
       remove: (id) => write(() => cloudCall(api.accessGrants.remove.mutate({ scope, id }))),

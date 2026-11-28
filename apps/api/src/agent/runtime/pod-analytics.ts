@@ -1,4 +1,4 @@
-import { EPodStart } from '@dltech/atlas-pods/sandbox/sandbox-provider'
+import { EPodStart, type DaemonEndpoint } from '@dltech/atlas-pods/sandbox/sandbox-provider'
 import type { PodAnalytics } from '@dltech/atlas-plugin-sdk'
 import type { ProductAnalytics } from '@dltech/atlas-observability'
 
@@ -12,6 +12,7 @@ export const podStartedOf = (args: {
   provider: string
   sessionId: string
   wakeMs: number
+  stages?: DaemonEndpoint['stages']
 }): PodAnalyticsEvent | undefined => {
   if (args.start === undefined || args.start === EPodStart.Running) return undefined
   return {
@@ -21,6 +22,12 @@ export const podStartedOf = (args: {
       provider: args.provider,
       session_id: args.sessionId,
       wake_ms: args.wakeMs,
+      ...(args.stages?.instanceStartMs === undefined
+        ? {}
+        : { instance_start_ms: args.stages.instanceStartMs }),
+      ...(args.stages?.daemonReadyMs === undefined
+        ? {}
+        : { daemon_ready_ms: args.stages.daemonReadyMs }),
     },
   }
 }
@@ -38,7 +45,11 @@ export const podLifecycleCaptureOf = (args: {
   provider: string
   sessionId: string
 }): {
-  woke(report: { start: EPodStart | undefined; wakeMs: number }): void
+  woke(report: {
+    start: EPodStart | undefined
+    wakeMs: number
+    stages?: DaemonEndpoint['stages']
+  }): void
   greeted(hello: { restart: boolean }): void
 } => {
   const capture = (event: PodAnalyticsEvent | undefined): void => {
@@ -46,7 +57,7 @@ export const podLifecycleCaptureOf = (args: {
   }
   const { provider, sessionId } = args
   return {
-    woke: ({ start, wakeMs }) => capture(podStartedOf({ start, provider, sessionId, wakeMs })),
+    woke: (report) => capture(podStartedOf({ ...report, provider, sessionId })),
     greeted: ({ restart }) => {
       if (restart) capture(daemonRestartedOf({ provider, sessionId }))
     },

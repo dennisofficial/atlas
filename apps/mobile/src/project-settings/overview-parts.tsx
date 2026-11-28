@@ -1,8 +1,5 @@
 import {
-  addAdditionalRepository,
-  additionalRepositoryProblem,
   canAddAdditionalRepository,
-  editAdditionalRepository,
   removeAdditionalRepository,
   type IProjectOverviewDraft,
 } from '@dltech/atlas-client/settings'
@@ -14,16 +11,16 @@ import {
   EButtonVariant,
   ETextRole,
   ETextTone,
-  Input,
   Text,
 } from '@dltech/atlas-ui-native'
 import { space } from '@dltech/atlas-ui/tokens'
+import { router } from 'expo-router'
 import { StyleSheet, View } from 'react-native'
 
 import { useAuth } from '../auth/auth-provider'
 import { assignProjectGroup } from '../groups/use-groups'
 import { ChoiceRow } from '../settings/choice-row'
-import { Section } from '../settings/settings-parts'
+import { NavRow, Section } from '../settings/settings-parts'
 
 const NO_GROUP = 'none'
 const GROUP_DESCRIPTION =
@@ -73,43 +70,45 @@ export const GroupChoice = ({
 
 export const RepositoryFields = ({
   draft,
+  projectId,
+  mainRepository,
   onDraft,
 }: {
   draft: IProjectOverviewDraft
+  projectId: string
+  mainRepository: string | null
   onDraft: (next: IProjectOverviewDraft) => void
 }) => {
   const repositories = draft.additionalRepositories
 
-  const handleAdd = () =>
-    onDraft({ ...draft, additionalRepositories: addAdditionalRepository(repositories) })
   const handleRemove = (index: number) =>
     onDraft({
       ...draft,
       additionalRepositories: removeAdditionalRepository({ repositories, index }),
     })
-  const handleEdit = ({ index, value }: { index: number; value: string }) =>
-    onDraft({
-      ...draft,
-      additionalRepositories: editAdditionalRepository({ repositories, index, value }),
+  const handlePick = (index: number) =>
+    router.push({
+      pathname: '/project-settings/[projectId]/repository-picker',
+      params: {
+        projectId,
+        index: String(index),
+        current: repositories[index] ?? '',
+        taken: [
+          ...(mainRepository === null ? [] : [mainRepository]),
+          ...repositories.filter((_, position) => position !== index),
+        ].join(','),
+      },
     })
 
   return (
     <Section title="Additional repositories">
       {repositories.map((repository, index) => (
         <View key={`additional-${String(index)}`} style={styles.repository}>
-          <Input
+          <NavRow
+            label={`Additional repository ${String(index + 1)}`}
             value={repository}
-            onChangeText={(value) => handleEdit({ index, value })}
-            accessibilityLabel={`Additional repository ${String(index + 1)}`}
-            placeholder="owner/name"
-            autoCapitalize="none"
-            autoCorrect={false}
+            onPress={() => handlePick(index)}
           />
-          {additionalRepositoryProblem({ value: repository }) === null ? null : (
-            <Text size={ETextRole.Sm} tone={ETextTone.Destructive}>
-              Use owner/name.
-            </Text>
-          )}
           <Button
             label="Remove repository"
             variant={EButtonVariant.Ghost}
@@ -124,7 +123,7 @@ export const RepositoryFields = ({
           variant={EButtonVariant.Outline}
           size={EButtonSize.Sm}
           disabled={!canAddAdditionalRepository({ repositories })}
-          onPress={handleAdd}
+          onPress={() => handlePick(repositories.length)}
         />
       </CardRow>
     </Section>

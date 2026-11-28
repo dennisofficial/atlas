@@ -10,7 +10,6 @@ import {
   SearchBar,
   type SearchBarCommands,
 } from 'react-native-screens'
-import { ScrollToTopGuard } from 'react-native-screens/experimental'
 
 import { usePosture } from '../layout/use-posture'
 import { AccountButton } from '../navigation/account-button'
@@ -85,18 +84,14 @@ const DrawerScreen = ({ activeId, onOpen }: TDrawerScreenProps) => {
           <>
             {glass ? (
               <ScreenStackHeaderLeftView hidesSharedBackground={false} visibilityPriority="high">
-                <ScrollToTopGuard>
-                  <View style={[styles.glassTitle, styles.glassTitleWithLead]}>
-                    <AccountButton />
-                    <TabHeaderTitle title={SESSIONS_TITLE} />
-                  </View>
-                </ScrollToTopGuard>
+                <View style={[styles.glassTitle, styles.glassTitleWithLead]}>
+                  <AccountButton />
+                  <TabHeaderTitle title={SESSIONS_TITLE} />
+                </View>
               </ScreenStackHeaderLeftView>
             ) : (
               <ScreenStackHeaderLeftView>
-                <ScrollToTopGuard>
-                  <AccountButton />
-                </ScrollToTopGuard>
+                <AccountButton />
               </ScreenStackHeaderLeftView>
             )}
             {nativeSearch ? (

@@ -52,9 +52,12 @@ The headless client library that web, the TUI and the mobile app share.
   `browserNetworkSignal`: the ports that a surface supplies.
 - `nestPeers(rows)` nests each teammate under its spawner. `peerBucketOf({ row })` and
   `EPeerBucket` give a row's bucket; `splitTeammates(rows)` gives its active and done teammates.
-  `isRecentProject(args)`, `lastActivityAt(args)` and `RECENT_PROJECT_WINDOW_MS` keep new projects.
 
 ### List settings
+
+- `accessFileEditorOf`, `loadAccessFileEditor`, `accessFileEditorDirty` and `clearAccessFileEditor`: keep file editing separate from its reveal preview, preserve unsaved contents or mode changes until confirmed, and clear plaintext when editing ends.
+- `accessGrantNameValid`, `accessGrantDraftValid`, `secretNameInvalid` and `secretDraftValid`: shared grant and secret form predicates. The grant draft adds length limits to the web form's name predicate.
+- `beginRevealRequest`, `cancelRevealRequest`, `revealRequestPending` and `acceptRevealRequest`: the reveal request state machine. Cancelled or superseded results cannot be accepted.
 
 - `ESettingsPage`, `SETTINGS_NAV`, `labelOfPage(page)`, `filterNav({ groups, query })`: the user-level
   settings pages, in nav groups, labelled and searchable. `filterNav` keeps whatever a surface adds
@@ -92,7 +95,9 @@ The headless client library that web, the TUI and the mobile app share.
   `buildMemoryGroups({ memories, groupNames })`, `memoryMatchesFilter({ entry, query, type })`,
   `memoryScopeOptionsOf(groups)`, `memoryScopeHintOf(group)`, `memoryClearDescriptionOf(group)`,
   `memoryKeyInput(key)`, `formatMemoryDate(updatedAt)`: the memory scopes, their rows, and the copy
-  around them.
+  around them. `selectedMemoryNamesOf({ selected, memories })`, `memorySelectionOf({ selectedNames, name, selected })` and `memoryDeleteTitleOf(count)` share bulk selection and deletion copy.
+- `pickedAdditionalRepository({ repositories, mainRepository, index, value })` applies a repository picker result to an overview draft, rejects duplicate or malformed names, and keeps the additional-repository limit.
+- `repoChoices({ repos, query })`, `parseRepoInput(raw)`, `additionalRepoChoices({ repos, query, taken })` and `repositoryPickerChoices({ repos, query, taken })`: search GitHub repositories, accept pasted GitHub links, and exclude repositories already used by a project. The picker excludes all taken names, even when they match the search exactly.
 
 ### Read skills
 
@@ -111,6 +116,9 @@ The headless client library that web, the TUI and the mobile app share.
   built-in skills no delete can reach.
 - `skillUsageViewOf({ skill, now })`, `skillRelativeTimeOf({ iso, now })`, `SkillUsageView`: a row's
   usage text, its last use as a relative time, and "Never used". Pending or failed usage reads "—".
+- `buildSkillTree(paths)`, `defaultSkillPath({ metas })`, `skillFileTargetOf`, `skillFilePathProblem`, `skillPathContains`, `skillRenamePlan`: the skill file tree, initial selection and validated file operations shared by web and iOS.
+- `skillFileWriteOf`, `saveSkillTextWith`, `isSkillConflict`: hashed file writes and revision-conflict recovery through surface-supplied read, write and hash ports.
+- `initialSkillEditorState`, `skillEditorReducer`, `ESkillEditorAction`, `skillDetailIsReadOnly`: the text draft, discard/save/conflict transitions and built-in protection.
 - `toBase64Utf8`, `fromBase64Utf8`, `base64OfBytes`, `bytesOfBase64`: a skill file's payload.
 - `formatBytes(bytes)`, `formatSkillDate(updatedAt)`, `fileKindOf(path)`, `ESkillFileKind`,
   `SKILL_PRECEDENCE_COPY`: how a skill row reads.
@@ -126,6 +134,25 @@ The headless client library that web, the TUI and the mobile app share.
 - `timezoneNames()`, `timezoneChoicesOf({ query, selected })`, `deviceTimezone()`: the time-zone
   list, common zones first, searched as a user types.
 
+### Provider accounts and classifier
+
+- `PROVIDER_CATALOGUE`, `providerGroupsOf`, `providerAccountDetailOf`, `providerKeyMaskOf`, `planNameOf`: provider choices, account groups and account labels.
+- `EKeyDialogMode`, `providerKeyReady`, `providerKeyResult`: API-key form validation and trimmed save values.
+- `createProviderSignIn`, `EProviderSignInState`, `pollSignInUntilSettled`: the paste-code and device-code sign-in state machine, with surface-supplied API, browser and clock ports.
+- `providerUsageWindowsOf`, `providerUsageAgeOf`: plan usage meter values and stale-read text.
+- `classifierSettingsFrom`, `classifierChanges`, `classifierModelItems`, `classifierAvailabilityIn`, `classifierStatusOf`, `classifierSuggestionOf`, `classifierFeaturesOf`, `classifierTestLineOf`: classifier drafts, availability, suggestions and status text.
+
+### Access grants, secrets and file mounts
+
+- `accessFileValidation`, `AccessFileDraft`, `EditingFile`: shared file draft validation and save payload, including scope path rules, byte limit and permissions.
+- `parseFileMode`, `formatFileMode`, `DEFAULT_MODE_TEXT`, `pickerChoices`, `TreeEntry`: octal mode labels and ranked repository path suggestions.
+
+- `createAccessMemberApi({ api, scope })`: select personal, group or project secret and file operations using a surface-supplied transport.
+- `scopeKeyOf`, `moveTargetsOf`, `grantMoveBranchesOf`, `deleteGrantDescription`: grant identity, move destinations and delete confirmation copy.
+- `accessGrantSaveOf`, `accessGrantMatchesQuery`, `accessGrantSummary`: grant save payloads, case-insensitive search and member count labels.
+- `SECRET_NAME`, `parseEnvLines`, `SecretPair`: secret name validation and .env bulk parsing, with invalid line numbers.
+- `accessScopeOfParams`, `accessParamsOfScope`: round-trip scope through settings routes.
+
 ### Read an account and its signed-in devices
 
 - `createAuthAccountApi({ baseUrl, token, fetchFn })`: the better-auth REST calls a surface makes
@@ -137,6 +164,8 @@ The headless client library that web, the TUI and the mobile app share.
 - `signInMethodsOf(accounts)`, `signInMethodRowsOf({ methods, busy })`, `ESignInMethodAction` and
   `ESignInMethodProvider`: which methods a user has, and the two rows a settings page shows.
 - `linkReturnOf(params)`, `ELinkReturnKind`: the outcome a Google link came back with.
+- `googleLinkMessageOf(outcome)`, `googleReauthCallbackPath(args)`, `confirmationMethodsOf(methods)` and `GoogleReauthBegin`: the shared browser-return copy, forced Google handoff callback and available confirmation methods.
+- `revealWithTemporarySession(args)`: reveal only while a request is pending and always revoke the temporary password or Google session, including failures and cancelled requests.
 - `unlinkRefusalOf(args)`, `SESSION_NOT_FRESH`, `UNREACHABLE`: the refusals a settings page names.
 
 ### Read MCP and GitHub settings
@@ -183,6 +212,9 @@ The headless client library that web, the TUI and the mobile app share.
 - `derivedViewOf`, `deriveViewOf`, `deriveStatusOf`, `frameFactsOf`: the view of a followed session.
   `sessionDisplayOf`, `isSessionUnreadOf`, `startFailureOf`: the status, unread mark, start failure;
   `blockingCommandOf`, `elapsedClockOf`: the command that holds the next turn, and its clock.
+  `requestedCommandOf`, `acceptedCommandOf`, `failedCommandOf`, `requestedCommandDone` and
+  `shownBlockingOf` show a blocking command from the moment the operator requests it, before the
+  server lists it.
 
 ### Read the pod channel
 

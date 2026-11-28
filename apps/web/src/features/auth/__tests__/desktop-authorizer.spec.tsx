@@ -28,8 +28,21 @@ const query = (redirect = REDIRECT) =>
 
 beforeAll(() => {
   registerDom()
-  globalThis.IS_REACT_ACT_ENVIRONMENT = true
-  Object.defineProperty(window, 'location', { value: { assign }, configurable: true })
+  Object.assign(globalThis, { IS_REACT_ACT_ENVIRONMENT: true })
+  Object.defineProperty(window, 'location', {
+    value: {
+      assign,
+      origin: 'https://byatlas.io',
+      href: 'https://byatlas.io/desktop/authorize',
+      protocol: 'https:',
+      hostname: 'byatlas.io',
+      host: 'byatlas.io',
+      pathname: '/desktop/authorize',
+      search: '',
+      hash: '',
+    },
+    configurable: true,
+  })
 })
 afterAll(async () => {
   await unregisterDom()
@@ -81,6 +94,33 @@ describe('DesktopAuthorizer', () => {
       { redirectUri: REDIRECT, codeChallenge: 'c'.repeat(43), codeChallengeMethod: 'S256' },
     ])
     expect(assign).toHaveBeenCalledWith(`${REDIRECT}?code=the-code&state=st`)
+  })
+
+  it('forces a Google sign-in even with an existing browser session', async () => {
+    search = `${query()}&google_reauth=${'n'.repeat(43)}&google_start=1`
+    signedIn = true
+    const fetchBefore = globalThis.fetch
+    let requested: unknown
+    globalThis.fetch = mock(async (input: Parameters<typeof fetch>[0], init?: RequestInit) => {
+      if (String(input).endsWith('/api/auth/sign-in/social')) {
+        requested = JSON.parse(String(init?.body))
+        return Response.json({ url: 'https://accounts.google.com/authorize' })
+      }
+      return fetchBefore(input, init)
+    }) as unknown as typeof fetch
+    await mount(nextCall(assign))
+    expect(minted).toEqual([])
+    expect(requested).toMatchObject({ provider: 'google' })
+    expect(JSON.stringify(requested)).toContain('google_reauth=')
+    expect(JSON.stringify(requested)).not.toContain('google_start=')
+    expect(assign).toHaveBeenCalledWith('https://accounts.google.com/authorize')
+  })
+
+  it('passes Google confirmation to the API on the return leg', async () => {
+    search = `${query()}&google_reauth=${'n'.repeat(43)}`
+    signedIn = true
+    await mount(nextCall(assign))
+    expect(minted[0]).toMatchObject({ googleReauth: 'n'.repeat(43) })
   })
 
   it('sends a signed-out visitor to sign-in with next back to itself', async () => {

@@ -30,7 +30,7 @@ const TONE: Record<EServiceStatus, string> = {
   [EServiceStatus.Killed]: 'bg-destructive',
 }
 
-const nameOf = (row: ServiceRow): string => (row.name ?? row.command).trim()
+const nameOf = (row: ServiceRow): string => row.name?.trim() || row.command.trim() || row.serviceId
 
 const pausedOf = (args: { row: ServiceRow; asleep: boolean }): boolean =>
   args.asleep && args.row.status === EServiceStatus.Running

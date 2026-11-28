@@ -13,6 +13,10 @@ export default (): ExpoConfig => ({
   scheme: 'atlas',
   userInterfaceStyle: 'automatic',
   ios: {
+    icon: {
+      light: './assets/images/icon.png',
+      dark: './assets/images/icon-dark.png',
+    },
     bundleIdentifier: 'io.byatlas.atlas',
     appleTeamId: '9H7HK25CVR',
     config: { usesNonExemptEncryption: false },
@@ -48,12 +52,12 @@ export default (): ExpoConfig => ({
     [
       'expo-splash-screen',
       {
-        backgroundColor: '#fbf7f2',
-        image: './assets/images/splash-mark.png',
+        backgroundColor: '#f9f9f9',
+        image: './assets/images/splash-mark-light.png',
         imageWidth: 120,
         dark: {
-          backgroundColor: '#1e1a17',
-          image: './assets/images/splash-mark.png',
+          backgroundColor: '#1b1b1b',
+          image: './assets/images/splash-mark-dark.png',
         },
       },
     ],

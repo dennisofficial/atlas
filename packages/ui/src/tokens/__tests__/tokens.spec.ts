@@ -2,6 +2,7 @@ import { describe, expect, test } from 'bun:test'
 import { readFileSync } from 'node:fs'
 
 import { buildThemeCss, toKebab } from '../css'
+import { primitives } from '../primitives'
 import { semantic, EColorScheme, type SemanticTheme } from '../semantic'
 
 const SHADCN_VARIABLES = [
@@ -146,5 +147,61 @@ describe('theme.css', () => {
     expect(css).toContain('--font-sans: "Geist"')
     expect(css).toContain('--font-mono: "JetBrains Mono"')
     expect(css).toContain('--font-display: "Space Grotesk"')
+  })
+})
+
+const relativeLuminance = (hex: string): number => {
+  const channels = [1, 3, 5].map((start) => Number.parseInt(hex.slice(start, start + 2), 16) / 255)
+  const [red = 0, green = 0, blue = 0] = channels.map((channel) =>
+    channel <= 0.03928 ? channel / 12.92 : ((channel + 0.055) / 1.055) ** 2.4,
+  )
+  return 0.2126 * red + 0.7152 * green + 0.0722 * blue
+}
+
+const contrastOf = ({ text, surface }: { text: string; surface: string }): number => {
+  const [lighter, darker] = [relativeLuminance(text), relativeLuminance(surface)].sort(
+    (left, right) => right - left,
+  )
+  return ((lighter ?? 0) + 0.05) / ((darker ?? 0) + 0.05)
+}
+
+describe('named accents', () => {
+  test('offers graphite and sky alongside every existing named accent', () => {
+    expect(primitives.color.accentChoices).toEqual({
+      graphite: '#eaeaea',
+      sky: '#40c3f7',
+      clay: '#d97757',
+      slate: '#7f9cc0',
+      moss: '#7aa262',
+      plum: '#b08cd0',
+    })
+  })
+})
+
+const isNeutral = (hex: string): boolean =>
+  hex.slice(1, 3) === hex.slice(3, 5) && hex.slice(3, 5) === hex.slice(5, 7)
+
+describe('monochrome primary', () => {
+  test('primary, ring and the sidebar primary are greys, not an accent hue', () => {
+    for (const scheme of Object.values(EColorScheme)) {
+      const theme = semantic[scheme]
+      for (const token of [theme.primary, theme.ring, theme.sidebarPrimary, theme.sidebarRing]) {
+        expect(isNeutral(token), `${scheme} ${token}`).toBe(true)
+      }
+    }
+  })
+
+  test('label on a primary fill and primary text on the page meet AA', () => {
+    for (const scheme of Object.values(EColorScheme)) {
+      const theme = semantic[scheme]
+      expect(
+        contrastOf({ text: theme.primaryForeground, surface: theme.primary }),
+        `${scheme} primary fill`,
+      ).toBeGreaterThanOrEqual(4.5)
+      expect(
+        contrastOf({ text: theme.primary, surface: theme.background }),
+        `${scheme} primary text`,
+      ).toBeGreaterThanOrEqual(4.5)
+    }
   })
 })

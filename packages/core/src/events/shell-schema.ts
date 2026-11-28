@@ -81,6 +81,7 @@ export const shellEventSchemas = [
   z.object({
     type: z.literal('service-started'),
     serviceId: z.string().min(1),
+    agentId: z.string().min(1).optional(),
     name: z.string().min(1).optional(),
     pid: z.number().int().positive().optional(),
     port: z.number().int().optional(),
@@ -97,6 +98,7 @@ export const shellEventSchemas = [
   z.object({
     type: z.literal('service-ended'),
     serviceId: z.string().min(1),
+    agentId: z.string().min(1).optional(),
     command: z.string(),
     description: z.string().optional(),
     bootId: z.string().min(1).optional(),

@@ -24,10 +24,12 @@ function buildSource(domain: string): string {
   function report() {
     var url = w.location.href;
     var title = w.document.title;
-    var key = url + '\\n' + title;
+    var startingPage = w.document.documentElement.hasAttribute('data-atlas-preview-starting');
+    var loaded = w.document.readyState === 'complete';
+    var key = url + '\\n' + title + '\\n' + startingPage + '\\n' + loaded;
     if (key === last) return;
     last = key;
-    w.parent.postMessage({ kind: '${LOCATION_KIND}', url: url, title: title }, '*');
+    w.parent.postMessage({ kind: '${LOCATION_KIND}', url: url, title: title, startingPage: startingPage, loaded: loaded }, '*');
   }
   ['pushState', 'replaceState'].forEach(function (name) {
     var original = w.history[name];

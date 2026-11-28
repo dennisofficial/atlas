@@ -32,8 +32,6 @@ export const shellsPod: PodSlot = {
     const state = stateFor(ctx)
     ctx.onDaemonEvent((frame) => {
       void recordShellEnding({ ctx, state, frame })
-      if (frame.event.type === 'shells.output') void state.live.note(frame.event.shellId)
-      if (frame.event.type === 'shells.ended') state.live.forget(frame.event.shellId)
     })
     reconcileShells({ ctx, state }).catch((error: unknown) =>
       ctx.log(`shells: reconcile failed: ${String(error)}`),

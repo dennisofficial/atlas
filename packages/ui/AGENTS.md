@@ -84,7 +84,7 @@ files is expected.
 - `drawer.tsx`: `DrawerContent` owns `p-4 gap-4`. `DrawerHeader`/`DrawerFooter` carry no padding.
 - `attachment.tsx`: content padding sits on the base of each size, not behind `has-data-[slot=attachment-content]`. The media override stays.
 - `input.tsx`: `size: 'default' | 'sm' | 'lg'` (lg = `h-9`, matching Button `lg`; sm = `h-7`, the height of Button `sm`).
-- `input-group.tsx`: `InputGroupButton` `sm` is an explicit `h-7`. It inherited Button's `h-8`. `shape: 'default' | 'round'`. `InputGroupInput` accepts Input's `size`. The group's disabled dimming keys on a disabled `input-group-control`, not on any disabled descendant, so a disabled addon button (an empty composer's Send) does not grey out the whole field.
+- `input-group.tsx`: `InputGroupButton` `sm` is an explicit `h-7`. It inherited Button's `h-8`. `shape: 'default' | 'round'`. `InputGroupInput` accepts Input's `size`. The group's disabled dimming keys on a disabled `input-group-control`, not on any disabled descendant, so a disabled addon button (an empty composer's Send) does not grey out the whole field. `focus: 'ring' | 'caret'`: `caret` draws no focus border or ring, so a text control shows focus with its caret alone (the composer, like ChatGPT and Codex). The invalid ring stays.
 - `input-otp.tsx`: `size: 'default' | 'lg'` on `InputOTP`, read by every slot.
 - `radio-group.tsx`: `layout: 'default' | 'rows'`. `rows` sets `gap-0 divide-y`, so a list of selectable account rows runs edge to edge with a hairline between rows.
 - `slider.tsx`: a scalar `value`/`defaultValue` renders one thumb. The upstream thumb count treats a

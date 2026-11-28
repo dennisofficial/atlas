@@ -100,7 +100,7 @@ export function SessionUsage(args: {
       </HoverCardTrigger>
       <HoverCardContent>
         <div className="flex w-60 flex-col gap-2 text-xs">
-          <span className="text-sm font-medium">{report.label ?? 'Plan'}</span>
+          <span className="text-sm font-medium break-all">{report.label ?? 'Plan'}</span>
           {shown.map((key) => (
             <WindowLine
               key={key}

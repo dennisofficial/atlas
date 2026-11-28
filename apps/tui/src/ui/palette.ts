@@ -1,4 +1,4 @@
-export const ACCENT = '#d97757'
+export const ACCENT = '#eaeaea'
 
 export const CODE_BLUE = '#7cbdff'
 
@@ -52,31 +52,31 @@ export type Palette = {
 }
 
 export const theme: Palette = {
-  appBg: '#282422',
+  appBg: '#252525',
   accent: ACCENT,
-  dim: '#6b625c',
-  hover: '#e6e0da',
-  bright: '#f0e9e3',
-  body: '#c8b5ad',
-  rule: '#3a3532',
-  hint: '#6b625c',
-  meta: '#8a8078',
-  hoverBg: '#2b2724',
-  selectedBg: '#3a332e',
+  dim: '#646464',
+  hover: '#eaeaea',
+  bright: '#eaeaea',
+  body: '#b9b9b9',
+  rule: '#363636',
+  hint: '#646464',
+  meta: '#828282',
+  hoverBg: '#282828',
+  selectedBg: '#343434',
   error: '#e5534b',
   warn: '#e3b341',
   ok: '#57ab5a',
   okBright: '#7ee787',
-  userBg: '#332e2a',
-  userFg: '#f0e9e3',
-  userBand: '#2b2724',
-  harnessBg: '#3d2318',
-  harnessFg: '#f3e3d8',
+  userBg: '#2f2f2f',
+  userFg: '#eaeaea',
+  userBand: '#282828',
+  harnessBg: '#282828',
+  harnessFg: '#eaeaea',
   caretBg: ACCENT,
-  caretFg: '#241f1c',
-  overlayBg: '#241f1c',
-  panelBg: '#1e1a17',
-  panelBand: '#241f1c',
+  caretFg: '#202020',
+  overlayBg: '#202020',
+  panelBg: '#1b1b1b',
+  panelBand: '#202020',
   code: CODE_BLUE,
   link: CODE_BLUE,
   codeInline: ACCENT,
@@ -84,18 +84,14 @@ export const theme: Palette = {
     agent: ACCENT,
     yours: ACCENT,
     external: '#b392f0',
-    none: '#6b625c',
+    none: '#646464',
   },
-  /**
-   * A terminal cell has no alpha, so the design's `rgba(87,171,90,.13)` over `#1e1a17` is stored
-   * pre-composited against the panel ground it is specified over.
-   */
   diff: {
     addBg: '#252d20',
     removeBg: '#322020',
     wordBg: '#335030',
-    bandBg: '#241f1c',
-    gutterFg: '#8a8078',
+    bandBg: '#202020',
+    gutterFg: '#828282',
   },
 }
 

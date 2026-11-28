@@ -14,6 +14,22 @@ import { CLOUD_SETTING_REGISTRY, validateCloudSetting } from '../settings-regist
 const encoded = (value: unknown): string => encodeSettingValue(value)
 
 describe('CLIENT_SETTING_IDS', () => {
+  it('ships graphite and accepts every accent through the account registry', () => {
+    const accent = definitionOf(ESettingId.Accent)
+    expect(accent.fallback).toBe('graphite')
+    if (accent.kind !== ESettingKind.Choice) throw new Error('accent is no longer a choice')
+    expect(accent.options.map((option) => option.value)).toEqual([
+      'graphite',
+      'sky',
+      'clay',
+      'slate',
+      'moss',
+      'plum',
+    ])
+    for (const option of accent.options) {
+      expect(validateCloudSetting({ key: accent.id, stored: encoded(option.value) }).ok).toBe(true)
+    }
+  })
   it('names the seven look keys the new TUI reads, each with a definition the registry keeps', () => {
     expect(CLIENT_SETTING_IDS).toHaveLength(7)
     for (const id of CLIENT_SETTING_IDS) {

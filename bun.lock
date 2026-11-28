@@ -145,7 +145,7 @@
     },
     "apps/mac": {
       "name": "@dltech/atlas-mac",
-      "version": "0.1.0",
+      "version": "2.0.0",
       "dependencies": {
         "@dltech/atlas-api-router": "workspace:*",
         "@dltech/atlas-client": "workspace:*",
@@ -340,7 +340,7 @@
     },
     "apps/tui": {
       "name": "@dltech/atlas",
-      "version": "0.1.0",
+      "version": "2.0.0",
       "bin": {
         "atlas": "./bin/atlas",
         "atlas-dev": "./bin/atlas-dev",
@@ -379,7 +379,7 @@
     },
     "apps/web": {
       "name": "web",
-      "version": "0.1.0",
+      "version": "2.0.0",
       "dependencies": {
         "@ai-sdk/react": "^4.0.185",
         "@dltech/atlas-api-router": "workspace:*",
@@ -535,6 +535,7 @@
       "name": "@dltech/atlas-client",
       "version": "0.1.0",
       "dependencies": {
+        "@dltech/atlas-classifier": "workspace:*",
         "@dltech/atlas-core": "workspace:*",
         "@dltech/atlas-models": "workspace:*",
         "@dltech/atlas-protocol": "workspace:*",

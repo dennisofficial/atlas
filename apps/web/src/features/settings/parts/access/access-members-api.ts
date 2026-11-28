@@ -1,100 +1,21 @@
-import { EAccessScope, type AccessScope } from '@dltech/atlas-wire/web'
+import {
+  createAccessMemberApi,
+  type AccessMemberApi,
+  type AccessScope,
+} from '@dltech/atlas-client/settings'
 
 import { api, cloudCall } from '@/lib/api-client'
 
-export type AccessMemberApi = {
-  setSecret: (args: { grantId: string; name: string; value: string }) => Promise<void>
-  removeSecret: (name: string) => Promise<void>
-  revealSecret: (name: string) => Promise<string>
-  setFile: (args: {
-    grantId: string
-    path: string
-    contents: string
-    mode: number
-  }) => Promise<void>
-  removeFile: (path: string) => Promise<void>
-  revealFile: (path: string) => Promise<string>
-}
-
-const personalApi: AccessMemberApi = {
-  setSecret: (args) =>
-    cloudCall(
-      api.secrets.set.mutate({ name: args.name, value: args.value, grantId: args.grantId }),
-    ),
-  removeSecret: (name) => cloudCall(api.secrets.remove.mutate({ name })),
-  revealSecret: async (name) => (await cloudCall(api.secrets.reveal.query({ name }))).value,
-  setFile: (args) =>
-    cloudCall(
-      api.personalFileMounts.set.mutate({
-        path: args.path,
-        contents: args.contents,
-        mode: args.mode,
-        grantId: args.grantId,
-      }),
-    ),
-  removeFile: (path) => cloudCall(api.personalFileMounts.remove.mutate({ path })),
-  revealFile: async (path) =>
-    (await cloudCall(api.personalFileMounts.reveal.query({ path }))).contents,
-}
-
-const projectApiOf = (projectId: string): AccessMemberApi => ({
-  setSecret: (args) =>
-    cloudCall(
-      api.projectResources.setSecret.mutate({
-        projectId,
-        name: args.name,
-        value: args.value,
-        grantId: args.grantId,
-      }),
-    ),
-  removeSecret: (name) => cloudCall(api.projectResources.removeSecret.mutate({ projectId, name })),
-  revealSecret: async (name) =>
-    (await cloudCall(api.projectResources.revealSecret.query({ projectId, name }))).value,
-  setFile: (args) =>
-    cloudCall(
-      api.projectResources.setFileMount.mutate({
-        projectId,
-        path: args.path,
-        contents: args.contents,
-        mode: args.mode,
-        grantId: args.grantId,
-      }),
-    ),
-  removeFile: (path) => cloudCall(api.projectResources.removeFileMount.mutate({ projectId, path })),
-  revealFile: async (path) =>
-    (await cloudCall(api.projectResources.revealFileMount.query({ projectId, path }))).contents,
-})
-
-const groupApiOf = (groupId: string): AccessMemberApi => ({
-  setSecret: (args) =>
-    cloudCall(
-      api.groupResources.setSecret.mutate({
-        groupId,
-        name: args.name,
-        value: args.value,
-        grantId: args.grantId,
-      }),
-    ),
-  removeSecret: (name) => cloudCall(api.groupResources.removeSecret.mutate({ groupId, name })),
-  revealSecret: async (name) =>
-    (await cloudCall(api.groupResources.revealSecret.query({ groupId, name }))).value,
-  setFile: (args) =>
-    cloudCall(
-      api.groupResources.setFileMount.mutate({
-        groupId,
-        path: args.path,
-        contents: args.contents,
-        mode: args.mode,
-        grantId: args.grantId,
-      }),
-    ),
-  removeFile: (path) => cloudCall(api.groupResources.removeFileMount.mutate({ groupId, path })),
-  revealFile: async (path) =>
-    (await cloudCall(api.groupResources.revealFileMount.query({ groupId, path }))).contents,
-})
+export type { AccessMemberApi } from '@dltech/atlas-client/settings'
 
 export function accessMemberApiOf(scope: AccessScope): AccessMemberApi {
-  if (scope.kind === EAccessScope.Personal) return personalApi
-  if (scope.kind === EAccessScope.Group) return groupApiOf(scope.groupId)
-  return projectApiOf(scope.projectId)
+  const members = createAccessMemberApi({ api, scope })
+  return {
+    setSecret: (args) => cloudCall(members.setSecret(args)),
+    removeSecret: (name) => cloudCall(members.removeSecret(name)),
+    revealSecret: (name) => cloudCall(members.revealSecret(name)),
+    setFile: (args) => cloudCall(members.setFile(args)),
+    removeFile: (path) => cloudCall(members.removeFile(path)),
+    revealFile: (path) => cloudCall(members.revealFile(path)),
+  }
 }

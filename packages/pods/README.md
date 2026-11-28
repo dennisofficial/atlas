@@ -49,7 +49,10 @@ they read. `apps/api` and `apps/trigger` both use it. It has no framework import
   credential.
 - `sandboxLiveCpuMs({ sessionId })` reads the Vercel CPU series from a 30 s cache.
 - A `DaemonEndpoint` carries `start`: `EPodStart` says the wake created the pod, woke it,
-  repaired a crash loop, or found it already `running`.
+  repaired a crash loop, or found it already `running`. Agent37 also returns optional `stages`:
+  `instanceStartMs` measures start to running (zero if already running), and `daemonReadyMs`
+  measures running to a compatible daemon response, including a daemon restart. Both use a
+  monotonic clock.
 
 ### Read the sandbox config
 

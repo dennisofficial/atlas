@@ -62,7 +62,7 @@ describe('pull request entries', () => {
   test('a failing check outranks an open state in the chip', () => {
     const entries = pullRequestEntriesOf({ row: row(), linked: [], branch: null })
     expect(pullRequestChipOf(entries[0]!)).toEqual({
-      spans: [{ text: '#12', fg: '#282422' }],
+      spans: [{ text: '#12', fg: '#252525' }],
       ground: '#e5534b',
     })
   })

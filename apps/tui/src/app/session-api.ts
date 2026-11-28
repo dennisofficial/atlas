@@ -124,6 +124,7 @@ export type SessionApi = {
   registerSigningKey(input: { privateKey: string }): Promise<SigningKeyStatus>
   revokeSigningKey(): Promise<void>
   githubState(): Promise<GithubState>
+  beginGithubRedirect(): Promise<{ url: string }>
   beginGithubConnect(): Promise<GithubDeviceCodes>
   pollGithubConnect(input: { deviceCode: string }): Promise<GithubPollResult>
   disconnectGithub(): Promise<void>
@@ -264,6 +265,7 @@ export const sessionApiOf = (args: {
       await guarded(() => args.api.sshSigningKey.revoke.mutate())
     },
     githubState: () => guarded(() => args.api.github.get.query()),
+    beginGithubRedirect: () => guarded(() => args.api.github.beginRedirect.mutate()),
     beginGithubConnect: () => guarded(() => args.api.github.beginConnect.mutate()),
     pollGithubConnect: (input) => guarded(() => args.api.github.pollConnect.mutate(input)),
     disconnectGithub: async () => {
