@@ -123,7 +123,7 @@ export function ShellSkeleton({ label = 'Loading' }: { label?: string }) {
           <FooterSkeleton />
         </Sidebar>
         <SidebarInset className="h-full min-h-0 overflow-hidden md:h-auto">
-          <div className="flex h-12 shrink-0 items-center gap-2 border-b px-2 md:hidden">
+          <div className="flex h-12 shrink-0 items-center gap-2 px-2 md:hidden">
             <Skeleton className="size-9" />
             <Skeleton className="h-5 w-16" />
           </div>

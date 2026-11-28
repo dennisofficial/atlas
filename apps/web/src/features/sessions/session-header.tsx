@@ -38,7 +38,10 @@ const BADGE_VARIANT: Record<EHeaderState, 'destructive' | 'default' | 'secondary
 
 function HeaderPullRequest({ pinned, count }: { pinned: PullRequestEntry; count: number }) {
   return (
-    <span data-session-pr className="flex shrink-0 items-center gap-1.5 text-xs">
+    <span
+      data-session-pr
+      className="flex h-5 shrink-0 items-center gap-1.5 rounded-full bg-secondary px-2 text-xs text-muted-foreground"
+    >
       <PullRequestIcon entry={pinned} />
       <a
         href={pinned.url}
@@ -184,7 +187,7 @@ export function SessionHeader({
   return (
     <header
       data-chrome="titlebar"
-      className="flex h-12 shrink-0 items-center justify-between gap-3 border-b px-2 md:px-4"
+      className="flex h-14 shrink-0 items-center justify-between gap-3 px-2 md:px-4"
     >
       <div className="flex min-w-0 items-center gap-2">
         <SidebarTrigger aria-label="Open navigation" />
@@ -193,14 +196,18 @@ export function SessionHeader({
         </h1>
         <RenameAction sessionId={sessionId} title={title} />
         {routineId === null ? null : (
-          <Badge variant="outline" data-session-routine>
+          <Badge variant="secondary" data-session-routine className="text-muted-foreground">
             routine
           </Badge>
         )}
       </div>
-      <div className="flex min-w-0 shrink-0 items-center gap-3">
+      <div className="flex min-w-0 shrink-0 items-center gap-2">
         {branch === undefined ? null : (
-          <Badge variant="outline" data-session-branch className="hidden max-w-48 sm:inline-flex">
+          <Badge
+            variant="secondary"
+            data-session-branch
+            className="hidden max-w-48 text-muted-foreground sm:inline-flex"
+          >
             <GitBranch aria-hidden />
             <span className="truncate font-mono">{branch}</span>
           </Badge>
@@ -218,7 +225,16 @@ export function SessionHeader({
         {previews.length === 0 ? null : (
           <HeaderPreviews previews={previews} onOpenPreview={onOpenPreview} />
         )}
-        <Badge variant={BADGE_VARIANT[state]}>{STATE_LABEL[state]}</Badge>
+        <Badge
+          variant={BADGE_VARIANT[state]}
+          className={
+            state === EHeaderState.Idle || state === EHeaderState.Running
+              ? 'text-muted-foreground'
+              : undefined
+          }
+        >
+          {STATE_LABEL[state]}
+        </Badge>
         <Button
           variant="ghost"
           size="icon-sm"
