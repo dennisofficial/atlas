@@ -1,4 +1,6 @@
 import { createApiClient } from '@dltech/atlas-api-router'
+import { EProviderSignInFlow } from '@dltech/atlas-wire'
+import { createProviderSignInRoutes } from './provider-sign-in-routes'
 import { ENotifyDeviceKind } from '@dltech/atlas-notifications'
 import type { MacClientFrame } from '@dltech/atlas-protocol/mac-link'
 
@@ -26,6 +28,7 @@ export interface ICreateDesktopHostOptions {
   secret: string
   apiOrigin?: string
   auth?: Omit<IAuthConfig, 'home'> & { home?: string }
+  openExternal?: (url: string) => unknown
   updates?: IDesktopUpdatesPort | undefined
   window?: IDesktopWindowPort
   app?: IDesktopAppInfo
@@ -58,6 +61,7 @@ export async function createDesktopHost({
   previewViews,
   pane,
   macMcp,
+  openExternal,
 }: ICreateDesktopHostOptions): Promise<IDesktopHost> {
   const origin = apiOrigin ?? resolveApiOrigin(process.env)
   const appOriginOf = typeof appOrigin === 'function' ? appOrigin : () => appOrigin
@@ -103,9 +107,31 @@ export async function createDesktopHost({
       })
     },
   })
+  const providerApi = () => {
+    const token = bearer()
+    if (token === undefined) throw new Error('Sign in to Atlas first')
+    return createApiClient({ baseUrl: origin, token }).providerSignIn
+  }
+  const providerSignIn = createProviderSignInRoutes({
+    begin: async ({ provider, redirectUri }) => {
+      const begun = await providerApi().begin.mutate({
+        provider,
+        flow: EProviderSignInFlow.Loopback,
+        redirectUri,
+      })
+      if (begun.flow !== EProviderSignInFlow.Loopback)
+        throw new Error('The API did not begin a loopback sign-in')
+      return begun
+    },
+    complete: (input) => providerApi().complete.mutate(input),
+    open: openExternal ?? auth?.openExternal ?? (() => false),
+  })
   const syncLink = (): void => {
     if (authService.status().state === 'signed-in') link.start()
-    else link.stop()
+    else {
+      link.stop()
+      providerSignIn.stop()
+    }
     void apns.sync()
   }
   authService.onChange(syncLink)
@@ -117,6 +143,7 @@ export async function createDesktopHost({
     pane,
     auth: createAuthHandler({ auth: authService }),
     apns: apns.handler,
+    providerSignIn: providerSignIn.handler,
   })
 
   const handle = createHostHandler({
@@ -171,6 +198,7 @@ export async function createDesktopHost({
     certFingerprint: tls.fingerprint,
     stop: async () => {
       link.stop()
+      providerSignIn.stop()
       await Promise.all([server.stop(true), secure.stop()])
     },
   }

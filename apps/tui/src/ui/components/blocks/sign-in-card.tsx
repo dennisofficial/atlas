@@ -5,7 +5,7 @@ import { EReturnResult, stateOfStartLink, type ReturnOutcome } from '@dltech/atl
 
 import { openBrowserReturn } from '../../../app/browser-return/open'
 import { useReturnOutcome } from '../../../app/browser-return/use-return-outcome'
-import type { LoopbackCopy } from '../../../app/browser-return/loopback-page'
+import type { LoopbackCopy } from '@dltech/atlas-client/loopback'
 import { createUrlOpener } from '../../../app/open-url'
 import { useClickRegion } from '../../hooks/use-click-region'
 import { glyph, theme, TRANSCRIPT_INSET } from '../../theme'

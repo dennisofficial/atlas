@@ -1,6 +1,6 @@
 import type { SessionApi } from './session-api'
-import type { LoopbackCopy } from './browser-return/loopback-page'
-import { startLoopbackReturn } from './browser-return/loopback-server'
+import { startLoopbackReturn, type LoopbackCopy } from '@dltech/atlas-client/loopback'
+
 import { createBrowserReturnOpener, type BrowserReturnOpener } from './browser-return/open'
 
 export type GithubConnectApi = Pick<

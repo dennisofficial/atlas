@@ -17,7 +17,7 @@ import {
 } from '@dltech/atlas-plugin-mcp/core'
 
 import type { ListPanelRow } from '../ui/components/list-panel'
-import type { LoopbackCopy } from './browser-return/loopback-page'
+import type { LoopbackCopy } from '@dltech/atlas-client/loopback'
 import { openBrowserReturn, type OpenBrowserReturn } from './browser-return/open'
 import { useReturnOutcome } from './browser-return/use-return-outcome'
 import type { McpOauthServer, SessionApi } from './session-api'

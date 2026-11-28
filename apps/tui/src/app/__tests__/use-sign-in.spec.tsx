@@ -3,7 +3,7 @@ import { createRoot } from '@opentui/react'
 import { describe, expect, it } from 'bun:test'
 import React, { act } from 'react'
 
-import type { LoopbackReturn, LoopbackWait } from '../browser-return/loopback-server'
+import type { LoopbackReturn, LoopbackWait } from '@dltech/atlas-client/loopback'
 import type { LoginReturn } from '../account/login-loopback'
 import { useSignIn, type SignInControl } from '../account/use-sign-in'
 
