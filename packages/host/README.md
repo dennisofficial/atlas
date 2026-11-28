@@ -54,6 +54,10 @@ only what it can rebuild or drop.
   held session, wired into `ctx.classifier` for a plugin. The runtime factory builds the client.
 - `SessionRuntime.analytics`: the `PodAnalytics` a plugin reaches as `ctx.analytics`. The host adds
   `session_id` and `thread_id` to every capture; the runtime factory binds the user id.
+- `SessionRuntime.pluginScope`: the host-created ephemeral `PodRuntimeScope` shared by the main
+  and sub-agent plugin contexts through `ctx.runtime`. It owns session-level daemon listeners,
+  resets resources when the daemon boot changes, and disposes them on runtime close or teardown.
+  Thread aborts do not stop these resources; durable facts still belong in the record.
 - `SessionRuntime.hooks`: session-owned hooks (the access notice), merged into the plugin hook chain.
 - `placeContextFiles`, `contextFilesPlacerOf`: write the files a spawner attached into the context
   folder of a session, before its first turn.

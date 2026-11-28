@@ -21,7 +21,7 @@ import type {
   ToolRegistry,
 } from '@dltech/atlas-agent'
 import type { TracePort } from '@dltech/atlas-observability'
-import type { ComposedPlugins, PodAnalytics } from '@dltech/atlas-plugin-sdk'
+import type { ComposedPlugins, PodAnalytics, PodRuntimeScope } from '@dltech/atlas-plugin-sdk'
 import type { LiveFrame } from '@dltech/atlas-protocol'
 
 import type { RemoteCalls } from '../calls/remote-calls'
@@ -87,6 +87,7 @@ export type RoleModelRequest = { role: ModelRole; root?: ModelChoice | undefined
 export type RoleModelChoice = ModelChoice & { unavailable?: ModelRef | undefined }
 
 export type SessionRuntime = {
+  pluginScope?: PodRuntimeScope | undefined
   remoteCalls: RemoteCalls
   workspaceGate?: WorkspaceGate | undefined
   trace?: TracePort | undefined
