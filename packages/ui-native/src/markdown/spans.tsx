@@ -28,10 +28,10 @@ export const Spans = ({
           key={key}
           size={style.size}
           family={EFontFamily.Mono}
-          color={theme.primary}
+          color={theme.foreground}
           selectable={selectable}
           style={{
-            backgroundColor: theme.muted,
+            backgroundColor: theme.secondary,
             borderRadius: radius(0.4),
             fontSize: codeSize,
             lineHeight: codeSize * INLINE_CODE_LEADING,
