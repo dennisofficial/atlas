@@ -6,12 +6,11 @@
   "main": "main.js",
   "scripts": {
     "start": "electron .",
-    "check": "node --check main.js && node --check host-trust.js && node --check host-launch.js && node --check window-chrome.js && node --check apns.js && node --check preload.cjs && node --check host-paths.js && node --check host-process.js && node --check web-payload.js && node --check panes.js && node --check links.js && node --check deep-links.js && node --check context-menu.js && node --check desktop-server.js && node --check notification-clicks.js && node --check native-picker.js",
+    "check": "node --check main.js && node --check host-trust.js && node --check host-launch.js && node --check window-chrome.js && node --check apns.js && node --check preload.cjs && node --check host-paths.js && node --check host-process.js && node --check web-payload.js && node --check panes.js && node --check links.js && node --check deep-links.js && node --check context-menu.js && node --check desktop-server.js && node --check notification-clicks.js",
     "bundle:payload": "bun scripts/bundle-payload.ts",
     "pack:host": "bun scripts/pack-host.ts",
-    "build:native": "bun scripts/build-native.ts",
     "test": "bun run bundle:payload && bun test",
-    "dist:mac": "bun run bundle:payload && bun run pack:host && bun run build:native && electron-builder --mac dmg --arm64",
+    "dist:mac": "bun run bundle:payload && bun run pack:host && electron-builder --mac dmg --arm64",
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {
@@ -26,9 +25,7 @@
   "devDependencies": {
     "@types/bun": "latest",
     "electron": "45.2.3",
-    "electron-builder": "26.18.0",
-    "node-addon-api": "^8.9.2",
-    "node-gyp": "^12.4.0"
+    "electron-builder": "26.18.0"
   },
   "repository": {
     "type": "git",

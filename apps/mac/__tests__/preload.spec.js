@@ -2,7 +2,6 @@ import { describe, expect, mock, test } from 'bun:test'
 
 const exposed = {}
 const sent = []
-const invoked = []
 const handlers = new Map()
 let state = false
 
@@ -19,10 +18,6 @@ mock.module('electron', () => ({
     sendSync: (channel) => {
       sent.push(channel)
       return state
-    },
-    invoke: (channel, payload) => {
-      invoked.push([channel, payload])
-      return Promise.resolve({ ok: true })
     },
   },
 }))
@@ -77,33 +72,5 @@ describe('the atlasDesktop bridge', () => {
     const report = { id: 'pane:thread-1:tab-1', title: 'Inbox' }
     emit('atlas-desktop:pane-titled', report)
     expect(seen).toEqual([report])
-  })
-
-  test('reports the native model picker capability the web gates on', () => {
-    expect(exposed.atlasDesktop.nativeModelPicker).toBe(true)
-  })
-
-  test('asks the main process to open the native model picker with the request', async () => {
-    invoked.length = 0
-    const request = { anchor: { x: 1, y: 2, width: 3, height: 4 }, models: [] }
-    const answer = await exposed.atlasDesktop.showModelPicker(request)
-    expect(invoked).toEqual([['atlas-desktop:model-picker-show', request]])
-    expect(answer).toEqual({ ok: true })
-  })
-
-  test('asks the main process to close the native model picker', async () => {
-    invoked.length = 0
-    await exposed.atlasDesktop.hideModelPicker()
-    expect(invoked).toEqual([['atlas-desktop:model-picker-hide', undefined]])
-  })
-
-  test('forwards every native picker event to the listeners it was given, once each', () => {
-    const { seen, listener } = listen('onModelPickerEvent')
-    const event = { kind: 'select', generation: 3, modelId: 'openai/gpt-5.6' }
-    emit('atlas-desktop:model-picker-event', event)
-    expect(seen).toEqual([event])
-    exposed.atlasDesktop.offModelPickerEvent(listener)
-    emit('atlas-desktop:model-picker-event', event)
-    expect(seen).toEqual([event])
   })
 })
