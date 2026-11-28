@@ -37,12 +37,12 @@ web spinner), never `ActivityIndicator`.
   it through. Keep the patch, or confirm upstream passes the prop, when expo-router is upgraded.
 - **Header taps:** from iOS 27 on iPhone, a tap anywhere on the native bar scrolls the screen's
   scroll view to the top, a tap on a header button included (facebook/react-native#56061). The
-  only fix that holds on the iPhone Duo is `scrollsToTop={false}` on the scroll view under the bar,
-  as the transcript (#2939) and the sessions list (#3163) set. Set it on every list under a bar
-  with tappable header views, and never remove it. The cost is that a status-bar tap no longer
-  scrolls that list. Two header-side fixes did not stop the scroll on the Duo, so do not add them
-  again: react-native-screens' `ScrollToTopGuard` (#3147) and a `UIControl` overlay from
-  `react-native-touch-control` (#3157).
+  only fix that holds on the iPhone Duo is `scrollsToTop={false}` on the scroll view itself, so
+  every `ScrollView`, `FlatList` and `SectionList` in the app and in `ui-native` sets it, and
+  `src/__tests__/scroll-to-top.spec.ts` fails on one that does not. Never remove it. The cost is
+  that a status-bar tap no longer scrolls any list. Two header-side fixes did not stop the scroll
+  on the Duo, so do not add them again: react-native-screens' `ScrollToTopGuard` (#3147) and a
+  `UIControl` overlay from `react-native-touch-control` (#3157).
 - **Back:** the native back button and the swipe-back gesture. Do not add a JS back button on iOS.
   A pushed screen (Settings, Sub-agent, Project settings) uses `pushedHeaderOptionsOf`: the native
   back button followed by the same glass leading title as the tab screens.

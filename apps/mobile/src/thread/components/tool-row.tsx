@@ -109,6 +109,7 @@ export const ToolRowView = ({
       >
         {hasOutput ? (
           <ScrollView
+            scrollsToTop={false}
             nestedScrollEnabled
             style={[styles.output, { backgroundColor: theme.muted }]}
             contentContainerStyle={styles.outputContent}

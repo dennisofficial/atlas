@@ -34,7 +34,11 @@ export const DictationLabScreen = () => {
 
   return (
     <View style={[styles.screen, { backgroundColor: theme.background }]}>
-      <ScrollView contentInsetAdjustmentBehavior="automatic" contentContainerStyle={styles.content}>
+      <ScrollView
+        scrollsToTop={false}
+        contentInsetAdjustmentBehavior="automatic"
+        contentContainerStyle={styles.content}
+      >
         <Text size={ETextRole.Sm} tone={ETextTone.Muted}>
           The composer row while dictating. Turn on the real microphone, then start the mic.
         </Text>

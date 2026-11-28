@@ -46,6 +46,7 @@ export const OperatorAnswerSheet = ({
       onRequestClose={onClose}
     >
       <ScrollView
+        scrollsToTop={false}
         keyboardShouldPersistTaps="handled"
         style={{ backgroundColor: theme.background }}
         contentContainerStyle={[styles.sheet, { paddingBottom: insets.bottom + space(4) }]}

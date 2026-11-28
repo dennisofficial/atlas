@@ -121,6 +121,7 @@ export const AttachmentChips = ({
   if (held.length === 0) return null
   return (
     <ScrollView
+      scrollsToTop={false}
       horizontal
       showsHorizontalScrollIndicator={false}
       contentContainerStyle={styles.row}
