@@ -48,9 +48,33 @@ const ticketSchema = z.object({
 
 const replySchema = z.object({ data: z.array(ticketSchema) })
 
+const refusalSchema = z.object({ errors: z.array(z.object({ code: z.string().min(1) })).min(1) })
+
 type ExpoTicket = z.infer<typeof ticketSchema>
 
 const defaultFetch: ExpoFetch = async (input, init) => fetch(input, init)
+
+export enum EExpoSendError {
+  Unreachable = 'unreachable',
+  UnexpectedReply = 'unexpected-reply',
+  TicketError = 'ticket-error',
+}
+
+const refusalCodeOf = async (response: {
+  status: number
+  json(): Promise<unknown>
+}): Promise<string> => {
+  const fallback = `http-${response.status}`
+  try {
+    const parsed = refusalSchema.safeParse(await response.json())
+    return parsed.success ? (parsed.data.errors[0]?.code ?? fallback) : fallback
+  } catch {
+    return fallback
+  }
+}
+
+const ticketErrorOf = (ticket: ExpoTicket): string =>
+  ticket.details?.error ?? EExpoSendError.TicketError
 
 const isGone = (ticket: ExpoTicket): boolean =>
   ticket.status === 'error' && ticket.details?.error === 'DeviceNotRegistered'
@@ -101,12 +125,8 @@ export const expoTransport = (args: {
       : { authorization: `Bearer ${args.accessToken}` }),
   }
 
-  const unsent = (entries: readonly ExpoEntry[], gone: boolean): NotifyResult[] =>
-    entries.map((entry) => ({
-      deviceId: entry.device.id,
-      sent: false,
-      ...(gone ? { gone: true } : {}),
-    }))
+  const unsent = (entries: readonly ExpoEntry[], error: string): NotifyResult[] =>
+    entries.map((entry) => ({ deviceId: entry.device.id, sent: false, error }))
 
   const postBatch = async (entries: readonly ExpoEntry[]): Promise<readonly NotifyResult[]> => {
     let reply: unknown
@@ -116,18 +136,22 @@ export const expoTransport = (args: {
         headers,
         body: JSON.stringify(entries.map((entry) => entry.message)),
       })
-      if (response.status >= 300) return unsent(entries, false)
+      if (response.status >= 300) return unsent(entries, await refusalCodeOf(response))
       reply = await response.json()
     } catch {
-      return unsent(entries, false)
+      return unsent(entries, EExpoSendError.Unreachable)
     }
     const parsed = replySchema.safeParse(reply)
-    if (!parsed.success || parsed.data.data.length !== entries.length) return unsent(entries, false)
+    if (!parsed.success || parsed.data.data.length !== entries.length)
+      return unsent(entries, EExpoSendError.UnexpectedReply)
     return entries.map((entry, index) => {
       const ticket = parsed.data.data[index]
-      if (ticket === undefined) return { deviceId: entry.device.id, sent: false }
-      if (isGone(ticket)) return { deviceId: entry.device.id, sent: false, gone: true }
-      return { deviceId: entry.device.id, sent: ticket.status === 'ok' }
+      if (ticket === undefined)
+        return { deviceId: entry.device.id, sent: false, error: EExpoSendError.UnexpectedReply }
+      if (isGone(ticket))
+        return { deviceId: entry.device.id, sent: false, gone: true, error: ticketErrorOf(ticket) }
+      if (ticket.status === 'ok') return { deviceId: entry.device.id, sent: true }
+      return { deviceId: entry.device.id, sent: false, error: ticketErrorOf(ticket) }
     })
   }
 

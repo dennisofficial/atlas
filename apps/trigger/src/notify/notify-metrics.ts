@@ -107,6 +107,7 @@ export const captureNotificationSent = (args: {
         device_kind: kindOf.get(result.deviceId) ?? null,
         accepted: result.sent,
         gone: result.gone === true,
+        ...(result.error === undefined ? {} : { error: result.error }),
         sound: args.sound,
         held_ms: args.payload.holdMs ?? 0,
         ...latencyOf({ payload: args.payload, now: args.now }),

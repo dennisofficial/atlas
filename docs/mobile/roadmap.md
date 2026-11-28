@@ -49,7 +49,7 @@ in the same PR.
   - [x] 1. Presence: surface, open session and foreground on `notifications.reportPresence`
   - [x] 2. Expo token registration that always settles, retries on foreground and shows its
     outcome in Settings and PostHog (`push_registration`)
-  - [ ] 3. The iPhone registers an Expo device in production and receives a push (read the
+  - [x] 3. The iPhone registers an Expo device in production and receives a push (read the
     Settings row or the `push_registration` event, fix what it names)
 - [ ] Message actions on chat bubbles, as on web (`transcript-user-turn.tsx`): copy, edit a
   queued message, rewind, summarise up to here; and the time, which `SentAt` in

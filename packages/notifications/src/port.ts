@@ -1,6 +1,6 @@
 import type { AtlasNotification, ENotifyDeviceKind, NotifyDevice } from './model'
 
-export type NotifyResult = { deviceId: string; sent: boolean; gone?: boolean }
+export type NotifyResult = { deviceId: string; sent: boolean; gone?: boolean; error?: string }
 
 export interface NotificationTransport {
   readonly kind: ENotifyDeviceKind
