@@ -3,8 +3,6 @@ import { afterAll, afterEach, beforeAll, describe, expect, it } from 'bun:test'
 import { act } from 'react'
 import type { Root } from 'react-dom/client'
 
-import { RIGHT_PANEL_COLLAPSED_KEY } from '@/features/threads/panel/right-panel-collapsed'
-
 import { SESSION_PANE_KEY } from '../pane-memory'
 import { EPaneOpen } from '../pane-open'
 import { type SessionPaneState, useSessionPane } from '../pane-state'
@@ -28,8 +26,7 @@ afterEach(async () => {
 })
 
 function resetCollapsed() {
-  window.localStorage.removeItem(RIGHT_PANEL_COLLAPSED_KEY)
-  window.dispatchEvent(new StorageEvent('storage', { key: null }))
+  window.localStorage.removeItem(SESSION_PANE_KEY)
 }
 
 let mounts = 0
@@ -67,7 +64,7 @@ describe('useSessionPane', () => {
     await act(async () => first().setTab(ESessionPaneTab.Files))
     await first.unmount()
     const stored = JSON.parse(window.localStorage.getItem(SESSION_PANE_KEY) ?? '{}')
-    expect(stored.remembered).toEqual({ tab: ESessionPaneTab.Files })
+    expect(stored.remembered.tab).toBe(ESessionPaneTab.Files)
     const again = await mount('remembered')
     expect(again().tab).toBe(ESessionPaneTab.Files)
   })
@@ -117,6 +114,55 @@ describe('useSessionPane', () => {
     await first.unmount()
     const again = await mount('collapsed')
     expect(again().collapsed).toBe(false)
+  })
+
+  it('keeps each session panel open or closed on its own', async () => {
+    const a = await mount('open-a')
+    await act(async () => a().openTab(ESessionPaneTab.Browser))
+    const b = await mount('open-b')
+    expect(b().collapsed).toBe(true)
+    await act(async () => b().openTab(ESessionPaneTab.Terminal))
+    await act(async () => b().toggleDetails())
+    await a.unmount()
+    await b.unmount()
+
+    const againA = await mount('open-a')
+    expect(againA().collapsed).toBe(false)
+    expect(againA().tab).toBe(ESessionPaneTab.Browser)
+    const againB = await mount('open-b')
+    expect(againB().collapsed).toBe(true)
+    expect(againB().detailsShown).toBe(true)
+    expect(againB().tab).toBe(ESessionPaneTab.Terminal)
+  })
+
+  it('returns to the floating card when the agent it opened is left', async () => {
+    const state = await mount()
+    expect(state().detailsShown).toBe(true)
+    await act(async () => state().enterAgentPane(() => undefined))
+    expect(state().collapsed).toBe(false)
+    await act(async () => state().enterAgentPane(() => undefined))
+    await act(async () => state().leaveAgentPane(() => undefined))
+    expect(state().collapsed).toBe(true)
+    expect(state().detailsShown).toBe(true)
+  })
+
+  it('keeps the tools panel open when the agent was opened from it', async () => {
+    const state = await mount()
+    await act(async () => state().openTab(ESessionPaneTab.Browser))
+    await act(async () => state().enterAgentPane(() => undefined))
+    await act(async () => state().leaveAgentPane(() => undefined))
+    expect(state().collapsed).toBe(false)
+    expect(state().tab).toBe(ESessionPaneTab.Browser)
+  })
+
+  it('remembers where to return from an agent across a session switch', async () => {
+    const first = await mount('agent-return')
+    await act(async () => first().enterAgentPane(() => undefined))
+    await first.unmount()
+    const again = await mount('agent-return')
+    expect(again().collapsed).toBe(false)
+    await act(async () => again().settleAgentPane())
+    expect(again().collapsed).toBe(true)
   })
 
   it('restores the pane layout per session', async () => {
