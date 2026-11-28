@@ -13,6 +13,27 @@ export const previewsStatusOpSchema = z.object({ op: z.literal('previews.status'
 
 export const previewTunnelStateSchema = z.enum(['stopped', 'starting', 'up', 'failed'])
 
+export enum EPreviewRedialReason {
+  Freeze = 'freeze',
+  Gap = 'gap',
+}
+
+export const previewTunnelRedialSchema = z
+  .object({
+    id: z.string().min(1),
+    reason: z.enum(EPreviewRedialReason),
+    gapMs: z.number().min(0),
+    skewMs: z.number(),
+    stopMs: z.number().min(0),
+    registerMs: z.number().min(0),
+    ok: z.boolean(),
+  })
+  .strict()
+
+export const previewsEventSchemas = [
+  previewTunnelRedialSchema.extend({ type: z.literal('previews.redialed') }),
+] as const
+
 export const previewTunnelStatusSchema = z
   .object({
     state: previewTunnelStateSchema,
@@ -21,6 +42,7 @@ export const previewTunnelStatusSchema = z
     upAt: z.string().min(1).optional(),
     lastError: z.string().optional(),
     tail: z.string(),
+    lastRedial: previewTunnelRedialSchema.optional(),
   })
   .strict()
 
@@ -34,4 +56,5 @@ export const previewsResultSchemas = [
 export type PreviewsEnsureOp = z.infer<typeof previewsEnsureOpSchema>
 export type PreviewsStatusOp = z.infer<typeof previewsStatusOpSchema>
 export type PreviewTunnelState = z.infer<typeof previewTunnelStateSchema>
+export type PreviewTunnelRedial = z.infer<typeof previewTunnelRedialSchema>
 export type PreviewTunnelStatus = z.infer<typeof previewTunnelStatusSchema>

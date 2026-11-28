@@ -3,6 +3,8 @@ import { chmodSync, mkdtempSync, readFileSync, rmSync, unlinkSync, writeFileSync
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 
+import type { PreviewTunnelRedial } from '@dltech/atlas-protocol'
+
 import { TunnelSupervisor } from '../tunnel-supervisor'
 
 const HEARTBEAT_MS = 10
@@ -22,6 +24,7 @@ describe('tunnel freeze detection', () => {
   let wallMs: number
   let monotonicMs: number
   const logs: string[] = []
+  const redials: PreviewTunnelRedial[] = []
 
   beforeEach(() => {
     dir = mkdtempSync(join(tmpdir(), 'atlas-tunnel-clocks-'))
@@ -40,6 +43,7 @@ describe('tunnel freeze detection', () => {
     wallMs = 100_000
     monotonicMs = 10_000
     logs.length = 0
+    redials.length = 0
     const args = {
       binary,
       env: {
@@ -52,6 +56,7 @@ describe('tunnel freeze detection', () => {
       heartbeatMs: HEARTBEAT_MS,
       wallNow: () => wallMs,
       monotonicNow: () => monotonicMs,
+      onRedial: (result: PreviewTunnelRedial) => redials.push(result),
       log: (line: string) => logs.push(line),
     }
     supervisor = new TunnelSupervisor(args)
@@ -77,6 +82,16 @@ describe('tunnel freeze detection', () => {
     expect(supervisor.status().restarts).toBe(1)
     expect(readFileSync(join(dir, 'starts'), 'utf8').trim().split('\n')).toHaveLength(2)
     expect(logs).toHaveLength(1)
+    expect(redials).toHaveLength(1)
+    expect(redials[0]).toMatchObject({
+      reason: 'freeze',
+      gapMs: 16_000,
+      skewMs: 15_000,
+      stopMs: 0,
+      registerMs: 0,
+      ok: true,
+    })
+    expect(supervisor.status().lastRedial).toEqual(redials[0])
   })
 
   it('coalesces another freeze heartbeat while a redial is in flight', async () => {
@@ -98,6 +113,33 @@ describe('tunnel freeze detection', () => {
     expect(logs).toHaveLength(1)
   })
 
+  it('measures registration with the monotonic clock instead of the wall clock', async () => {
+    await supervisor.start('token')
+    writeFileSync(join(dir, 'hold'), '')
+    advanceClocks({ wallDeltaMs: 16_000, monotonicDeltaMs: 1_000 })
+    for (let attempt = 0; attempt < 100; attempt += 1) {
+      if (readFileSync(join(dir, 'starts'), 'utf8').trim().split('\n').length === 2) break
+      await Bun.sleep(20)
+    }
+    advanceClocks({ wallDeltaMs: 9_000, monotonicDeltaMs: 321 })
+    unlinkSync(join(dir, 'hold'))
+    await waitForRedial(supervisor)
+    expect(redials).toHaveLength(1)
+    expect(redials[0]?.registerMs).toBe(321)
+  })
+
+  it('reports a failed registration once and retains it for a later host', async () => {
+    await supervisor.start('token')
+    writeFileSync(join(dir, 'cloudflared'), '#!/bin/sh\nexit 7\n')
+    advanceClocks({ wallDeltaMs: 16_000, monotonicDeltaMs: 1_000 })
+    for (let attempt = 0; attempt < 100 && redials.length === 0; attempt += 1) {
+      await Bun.sleep(20)
+    }
+    expect(redials).toHaveLength(1)
+    expect(redials[0]).toMatchObject({ reason: 'freeze', ok: false })
+    expect(supervisor.status().lastRedial).toEqual(redials[0])
+  })
+
   it('leaves a six-second event-loop stall alone when both clocks advance equally', async () => {
     const first = await supervisor.start('token')
     advanceClocks({ wallDeltaMs: 6_000, monotonicDeltaMs: 6_000 })
@@ -112,6 +154,7 @@ describe('tunnel freeze detection', () => {
     advanceClocks({ wallDeltaMs: 35_000, monotonicDeltaMs: 35_000 })
     await waitForRedial(supervisor)
     expect(supervisor.status().restarts).toBe(1)
+    expect(redials[0]).toMatchObject({ reason: 'gap', gapMs: 35_000, skewMs: 0, ok: true })
   })
 
   it('leaves ordinary heartbeat jitter below the skew threshold alone', async () => {

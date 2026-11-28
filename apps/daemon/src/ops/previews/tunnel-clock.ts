@@ -1,3 +1,5 @@
+import { EPreviewRedialReason, type PreviewTunnelRedial } from '@dltech/atlas-protocol'
+
 const SUSPEND_GAP_MS = 30_000
 const FREEZE_SKEW_MS = 2_000
 
@@ -20,15 +22,24 @@ export class TunnelClock {
     this.lastMonotonic = this.monotonicNow()
   }
 
-  suspendGap(): number | undefined {
+  now(): number {
+    return this.monotonicNow()
+  }
+
+  suspendGap(): Pick<PreviewTunnelRedial, 'reason' | 'gapMs' | 'skewMs'> | undefined {
     const wall = this.wallNow()
     const monotonic = this.monotonicNow()
     const wallDelta = wall - this.lastWall
     const monotonicDelta = monotonic - this.lastMonotonic
     this.lastWall = wall
     this.lastMonotonic = monotonic
-    if (wallDelta - monotonicDelta >= FREEZE_SKEW_MS) return wallDelta
-    if (wallDelta >= (this.args.suspendGapMs ?? SUSPEND_GAP_MS)) return wallDelta
+    const skewMs = wallDelta - monotonicDelta
+    if (skewMs >= FREEZE_SKEW_MS) {
+      return { reason: EPreviewRedialReason.Freeze, gapMs: wallDelta, skewMs }
+    }
+    if (wallDelta >= (this.args.suspendGapMs ?? SUSPEND_GAP_MS)) {
+      return { reason: EPreviewRedialReason.Gap, gapMs: wallDelta, skewMs }
+    }
     return undefined
   }
 }
