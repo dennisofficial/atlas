@@ -43,12 +43,13 @@ html[data-desktop]:not([data-fullscreen]) header[data-chrome="titlebar-start"] {
   padding-left: var(--desktop-traffic-lights-inset);
 }
 
-/* An expanded sidebar reserves the traffic lights itself, so the header beside it starts at 0. */
+/* An expanded sidebar reserves the traffic lights itself, so the header beside it keeps only the
+   same inset as its right edge. */
 html[data-desktop]:not([data-fullscreen])
   [data-slot="sidebar"]:not([data-state="collapsed"])
   ~ [data-slot="sidebar-inset"]
   header[data-chrome="titlebar"] {
-  padding-left: 0;
+  padding-left: calc(var(--spacing) * 4);
 }
 
 html[data-desktop]

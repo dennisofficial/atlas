@@ -1,6 +1,6 @@
 import { primitives } from './primitives'
 
-const { graphite, steel, blue, red, amber, green, violet, wash, diff } = primitives.color
+const { graphite, sky, steel, blue, red, amber, green, violet, wash, diff } = primitives.color
 
 export enum EColorScheme {
   Dark = 'dark',
@@ -14,7 +14,7 @@ const dark = {
   cardForeground: graphite[100],
   popover: graphite[925],
   popoverForeground: graphite[100],
-  primary: graphite[100],
+  primary: sky[400],
   primaryForeground: graphite[925],
   secondary: wash.user,
   secondaryForeground: graphite[100],
@@ -26,7 +26,7 @@ const dark = {
   destructive: red[400],
   border: graphite[800],
   input: graphite[800],
-  ring: graphite[500],
+  ring: sky[400],
 
   chart1: steel[400],
   chart2: blue[400],
@@ -36,12 +36,12 @@ const dark = {
 
   sidebar: graphite[950],
   sidebarForeground: graphite[100],
-  sidebarPrimary: graphite[100],
+  sidebarPrimary: sky[400],
   sidebarPrimaryForeground: graphite[925],
   sidebarAccent: wash.selected,
   sidebarAccentForeground: graphite[100],
   sidebarBorder: graphite[800],
-  sidebarRing: graphite[500],
+  sidebarRing: sky[400],
 
   success: green[400],
   successForeground: graphite[925],
@@ -86,7 +86,7 @@ const light: SemanticTheme = {
   cardForeground: '#262626',
   popover: '#fcfcfc',
   popoverForeground: '#262626',
-  primary: '#262626',
+  primary: sky[800],
   primaryForeground: '#fcfcfc',
   secondary: '#e7e7e7',
   secondaryForeground: '#262626',
@@ -98,7 +98,7 @@ const light: SemanticTheme = {
   destructive: red[700],
   border: '#d5d5d5',
   input: '#d5d5d5',
-  ring: graphite[500],
+  ring: sky[800],
 
   chart1: steel[600],
   chart2: blue[600],
@@ -108,12 +108,12 @@ const light: SemanticTheme = {
 
   sidebar: '#f9f9f9',
   sidebarForeground: '#262626',
-  sidebarPrimary: '#262626',
+  sidebarPrimary: sky[800],
   sidebarPrimaryForeground: '#fcfcfc',
   sidebarAccent: '#dddddd',
   sidebarAccentForeground: '#262626',
   sidebarBorder: '#d5d5d5',
-  sidebarRing: graphite[500],
+  sidebarRing: sky[800],
 
   success: green[600],
   successForeground: '#fcfcfc',
