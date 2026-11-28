@@ -10,9 +10,9 @@ import {
   type AccessScope,
   type RevealRequest,
 } from '@dltech/atlas-client/settings'
-import { Input } from '@dltech/atlas-ui-native'
+import { EFontFamily, ETextRole, Input, Text } from '@dltech/atlas-ui-native'
 import { useEffect, useRef, useState } from 'react'
-import { View } from 'react-native'
+import { ScrollView, View } from 'react-native'
 
 import { useAuth } from '../../auth/auth-provider'
 import { revokeSession, signInWithPassword } from '../../auth/session'
@@ -27,12 +27,14 @@ export const SecretReveal = ({
   scope,
   name,
   kind = EAccessMemberKind.Secret,
-  onRevealed,
+  onEdit,
+  onHidden,
 }: {
   scope: AccessScope
   name: string
   kind?: EAccessMemberKind
-  onRevealed?: (value: string) => void
+  onEdit?: (value: string) => void
+  onHidden?: () => void
 }) => {
   const { api, user } = useAuth()
   const account = useAccountApi()
@@ -70,13 +72,13 @@ export const SecretReveal = ({
     if (!pending(id)) return
     request.current = acceptRevealRequest({ request: request.current, id })
     setValue(revealed)
-    onRevealed?.(revealed)
     setNeedsPassword(false)
   }
   const handleReveal = async () => {
     if (api === undefined || busy) return
     if (value !== null) {
       setValue(null)
+      onHidden?.()
       return
     }
     request.current = beginRevealRequest(request.current)
@@ -139,12 +141,23 @@ export const SecretReveal = ({
   }
   return (
     <>
-      <AccessNote>{value ?? '••••••••••••'}</AccessNote>
+      {value !== null && kind === EAccessMemberKind.File ? (
+        <ScrollView style={{ maxHeight: 160 }} nestedScrollEnabled>
+          <Text family={EFontFamily.Mono} size={ETextRole.Sm} style={accessStyles.note} selectable>
+            {value}
+          </Text>
+        </ScrollView>
+      ) : (
+        <AccessNote>{value ?? '••••••••••••'}</AccessNote>
+      )}
       <ActionRow
         label={`${value === null ? 'Reveal' : 'Hide'} ${name}`}
         loading={busy}
         onPress={() => void handleReveal()}
       />
+      {value !== null && onEdit !== undefined ? (
+        <ActionRow label="Edit file" onPress={() => onEdit(value)} loading={busy} />
+      ) : null}
       {needsPassword ? (
         <View style={accessStyles.field}>
           <AccessNote text="Confirm it’s you. Enter your password to reveal this value." />

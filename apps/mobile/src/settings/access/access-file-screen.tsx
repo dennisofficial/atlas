@@ -1,4 +1,8 @@
 import {
+  accessFileEditorOf,
+  accessFileEditorDirty,
+  clearAccessFileEditor,
+  loadAccessFileEditor,
   accessFileValidation,
   createAccessMemberApi,
   accessScopeOfParams,
@@ -14,7 +18,7 @@ import {
 import { Button, Input } from '@dltech/atlas-ui-native'
 import { Stack, router, useLocalSearchParams } from 'expo-router'
 import { useState } from 'react'
-import { View } from 'react-native'
+import { Alert, Platform, View } from 'react-native'
 
 import { useAuth } from '../../auth/auth-provider'
 import { ChoiceRow } from '../choice-row'
@@ -40,11 +44,13 @@ const FileEditor = ({
   const file = grant?.files.find((entry) => entry.path === params.name)
   const editing = params.name !== undefined
   const [path, setPath] = useState(params.name ?? '')
-  const [contents, setContents] = useState('')
-  const [modeText, setModeText] = useState(
-    file === undefined ? DEFAULT_MODE_TEXT : formatFileMode(file.mode),
+  const [editor, setEditor] = useState(() =>
+    accessFileEditorOf({
+      editing,
+      modeText: file === undefined ? DEFAULT_MODE_TEXT : formatFileMode(file.mode),
+    }),
   )
-  const [loaded, setLoaded] = useState(!editing)
+  const { contents, modeText, loaded } = editor
   const [failure, setFailure] = useState('')
   const [busy, setBusy] = useState(false)
   const personal = scope.kind === EAccessScope.Personal
@@ -55,6 +61,25 @@ const FileEditor = ({
     loaded &&
     validation.draft !== null &&
     !busy
+  const handleEdit = (contents: string) => {
+    setEditor((state) => loadAccessFileEditor({ state, contents }))
+  }
+  const handleHide = () => {
+    const handleDiscard = () => setEditor((state) => clearAccessFileEditor(state))
+    if (!accessFileEditorDirty(editor)) {
+      handleDiscard()
+      return
+    }
+    const message = 'Discard your unsaved changes to hide the editor, or keep editing.'
+    if (Platform.OS === 'web') {
+      if (window.confirm(message)) handleDiscard()
+      return
+    }
+    Alert.alert('Hide file contents?', message, [
+      { text: 'Keep editing', style: 'cancel' },
+      { text: 'Discard changes', style: 'destructive', onPress: handleDiscard },
+    ])
+  }
   const handleWrite = async (work: () => Promise<void>) => {
     if (busy) return
     setBusy(true)
@@ -137,11 +162,8 @@ const FileEditor = ({
                 scope={scope}
                 name={path}
                 kind={EAccessMemberKind.File}
-                onRevealed={(value) => {
-                  if (loaded) return
-                  setContents(value)
-                  setLoaded(true)
-                }}
+                onEdit={loaded ? undefined : handleEdit}
+                onHidden={handleHide}
               />
             </Section>
           ) : null}
@@ -152,7 +174,7 @@ const FileEditor = ({
                   <Input
                     accessibilityLabel="File contents"
                     value={contents}
-                    onChangeText={setContents}
+                    onChangeText={(contents) => setEditor((state) => ({ ...state, contents }))}
                     editable={!busy}
                     multiline
                     autoCapitalize="none"
@@ -174,7 +196,7 @@ const FileEditor = ({
                   <Input
                     accessibilityLabel="File mode"
                     value={modeText}
-                    onChangeText={setModeText}
+                    onChangeText={(modeText) => setEditor((state) => ({ ...state, modeText }))}
                     editable={!busy}
                     autoCapitalize="none"
                     autoCorrect={false}
@@ -192,7 +214,7 @@ const FileEditor = ({
               <Button label="Save file" disabled={!canSave} loading={busy} onPress={handleSave} />
             </>
           ) : (
-            <AccessNote text="Reveal the file to load its contents before editing." />
+            <AccessNote text="Reveal the file, then choose Edit file to change its contents." />
           )}
           {editing ? (
             <>

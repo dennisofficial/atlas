@@ -55,6 +55,7 @@ The headless client library that web, the TUI and the mobile app share.
 
 ### List settings
 
+- `accessFileEditorOf`, `loadAccessFileEditor`, `accessFileEditorDirty` and `clearAccessFileEditor`: keep file editing separate from its reveal preview, preserve unsaved contents or mode changes until confirmed, and clear plaintext when editing ends.
 - `accessGrantNameValid`, `accessGrantDraftValid`, `secretNameInvalid` and `secretDraftValid`: shared grant and secret form predicates. The grant draft adds length limits to the web form's name predicate.
 - `beginRevealRequest`, `cancelRevealRequest`, `revealRequestPending` and `acceptRevealRequest`: the reveal request state machine. Cancelled or superseded results cannot be accepted.
 
