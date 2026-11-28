@@ -109,7 +109,12 @@ describeHandoff({
         const spawned = (await rowsOf(ctx)).find((row) => row.type === 'agent-spawned')
         const agentId = (spawned?.event as { agentId?: string } | undefined)?.agentId
         if (agentId === undefined) return false
-        const page = await ctx.rig.plane.readEvents({ threadId: agentId, afterSeq: 0, limit: 100 })
+        const page = await ctx.rig.plane.readEvents({
+          threadId: agentId,
+          afterSeq: 0,
+          limit: 100,
+          visible: false,
+        })
         return page.events.some((event) => event.type === 'tool-dispatched')
       },
     })
