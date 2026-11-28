@@ -146,10 +146,13 @@ export const readHeldAction = async (args: {
   const bookkeepingPending = actionable.some(
     (entry) => isBookkeepingEntry(entry) && !startsNoTurn(entry) && !heldEndings.has(entry.inboxId),
   )
+  const commandPending = actionable.some(
+    (entry) => isCommandEntry(entry) && !heldEndings.has(entry.inboxId),
+  )
   const quiet = idleReleaseDue({
     turnRunning: args.turnRunning,
     runtime: args.runtime,
-    pendingInput: messagePending,
+    pendingInput: messagePending || commandPending,
     runningShells: 0,
     runningChildren: args.childrenRunning,
     terminalStreams: args.runtime?.terminalStreams?.() ?? 0,
