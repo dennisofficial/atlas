@@ -4,8 +4,12 @@ import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 
 import type { SessionModelChoice, StreamSessionRow } from '@dltech/atlas-protocol'
 
-import { isSettlingLogin } from '../ui/settings-login-model'
-import { DEFAULT_LAUNCH, EMPTY_SESSION_LIST, isEnter, problemOf } from './app-next-support'
+import {
+  accountFlowArgsOf,
+  DEFAULT_LAUNCH,
+  EMPTY_SESSION_LIST,
+  problemOf,
+} from './app-next-support'
 import {
   EScreen,
   screenOfAccount,
@@ -51,14 +55,7 @@ export function AppNext(props: AppNextProps): React.ReactNode {
     handleRememberSession,
     signIn,
     handleSignOut,
-  } = useAccountFlow({
-    accountPath: props.accountPath,
-    apiUrl: props.apiUrl,
-    initialAccount: props.initialAccount,
-    openUrl: props.openUrl,
-    ...(props.fetchFn === undefined ? {} : { fetchFn: props.fetchFn }),
-    onScreen: setScreen,
-  })
+  } = useAccountFlow({ ...accountFlowArgsOf(props), onScreen: setScreen })
 
   const makeClient = useMemo(() => props.createClient ?? createSessionClient, [props.createClient])
   const apiUrl = account?.apiUrl ?? null
@@ -119,6 +116,8 @@ export function AppNext(props: AppNextProps): React.ReactNode {
     openUrl: props.openUrl,
     onChanged: models.reload,
     onProblem: problemOf,
+    env: props.env,
+    platform: props.platform,
     resolution: panel.drawer.resolution,
     onChooseModel: pick.chooseSetting,
     settingsOpen: panel.drawer.state !== null,
@@ -188,8 +187,7 @@ export function AppNext(props: AppNextProps): React.ReactNode {
 
       switch (screen.screen) {
         case EScreen.SignIn:
-          if (isEnter(key) && !isSettlingLogin(signIn.state.status)) signIn.begin()
-          else if (key.name === 'escape') signIn.stop()
+          signIn.handleKey(key)
           return
         case EScreen.AwaitingAccess:
           if (key.name === 's') void handleSignOut()

@@ -14,6 +14,23 @@ export type LoopbackReply = { accepted: true; outcome: ReturnOutcome } | { accep
 
 const REJECTED: LoopbackReply = { accepted: false }
 
+export const loopbackRequestOk = (args: {
+  method: string
+  address: string | undefined
+  url: string
+  port: number
+  path: string
+  hosts?: readonly string[] | undefined
+}): boolean => {
+  if (args.method !== 'GET') return false
+  if (args.address === undefined || !LOOPBACK_ADDRESSES.has(args.address)) return false
+  const parsed = parsedUrlOf(args.url)
+  if (parsed === undefined) return false
+  const hosts = args.hosts ?? [LOOPBACK_HOST]
+  if (!hosts.includes(parsed.hostname) || Number(parsed.port) !== args.port) return false
+  return parsed.pathname === args.path
+}
+
 export const loopbackReplyOf = (args: {
   method: string
   address: string | undefined
@@ -21,12 +38,8 @@ export const loopbackReplyOf = (args: {
   port: number
   state: string
 }): LoopbackReply => {
-  if (args.method !== 'GET') return REJECTED
-  if (args.address === undefined || !LOOPBACK_ADDRESSES.has(args.address)) return REJECTED
-  const parsed = parsedUrlOf(args.url)
-  if (parsed === undefined) return REJECTED
-  if (parsed.hostname !== LOOPBACK_HOST || Number(parsed.port) !== args.port) return REJECTED
-  if (parsed.pathname !== LOOPBACK_PATH) return REJECTED
+  const requestOk = loopbackRequestOk({ ...args, path: LOOPBACK_PATH })
+  if (!requestOk) return REJECTED
   const returned = browserReturnOf(args.url)
   if (returned === undefined || returned.state !== args.state) return REJECTED
   return { accepted: true, outcome: returned.outcome }

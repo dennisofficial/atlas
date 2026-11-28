@@ -19,12 +19,12 @@ import {
 } from '@/features/threads/panel/pane-split'
 import { PanelCollapsedProvider } from '@/features/threads/panel/panel-collapsed-context'
 
-import type { ESessionPaneTab } from './pane-tab'
+import { DESKTOP_PANE_TABS, type ESessionPaneTab } from './pane-tab'
 import { SessionPane } from './session-pane'
 
 export type SessionSplitProps = {
   children: ReactNode
-  tab: ESessionPaneTab
+  tab: ESessionPaneTab | undefined
   onTabChange: (tab: ESessionPaneTab) => void
   layout: PaneLayout | undefined
   onLayoutChange: (layout: PaneLayout) => void
@@ -83,7 +83,7 @@ export function SessionSplit(props: SessionSplitProps) {
       <ResizablePanel id={TRANSCRIPT_PANE} minSize="25%">
         <div className="flex h-full min-w-0 flex-col">{children}</div>
       </ResizablePanel>
-      <ResizableHandle disableDoubleClick={collapsed} />
+      <ResizableHandle className="bg-transparent" disableDoubleClick={collapsed} />
       <ResizablePanel
         id={RIGHT_PANE}
         defaultSize="50%"
@@ -93,7 +93,11 @@ export function SessionSplit(props: SessionSplitProps) {
         inert={collapsed}
       >
         <PanelCollapsedProvider value={collapsed}>
-          <SessionPane tab={tab} onTabChange={onTabChange} />
+          <div className="h-full min-h-0 p-2 pl-0">
+            <div className="flex h-full min-h-0 flex-col overflow-hidden rounded-xl bg-card ring-1 ring-border">
+              <SessionPane tab={tab} onTabChange={onTabChange} tabs={DESKTOP_PANE_TABS} />
+            </div>
+          </div>
         </PanelCollapsedProvider>
       </ResizablePanel>
     </ResizablePanelGroup>

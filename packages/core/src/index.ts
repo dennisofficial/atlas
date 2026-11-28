@@ -267,6 +267,7 @@ export * from './credentials/adoption'
 export * from './credentials/credential-availability'
 export * from './credentials/credential-availability-policy'
 export * from './credentials/refresh'
+export * from './credentials/provider-loopback'
 export * from './credentials/providers'
 export * from './credentials/selection'
 

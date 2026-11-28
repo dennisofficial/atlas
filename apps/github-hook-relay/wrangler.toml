@@ -1,0 +1,10 @@
+name = "atlas-github-hook-relay"
+main = "src/worker.ts"
+compatibility_date = "2026-11-01"
+account_id = "042ea0a078628cea286f0c984ceccedf"
+workers_dev = false
+
+routes = [{ pattern = "hooks.byatlas.io", custom_domain = true }]
+
+[vars]
+API_ORIGIN = "https://api.byatlas.io"

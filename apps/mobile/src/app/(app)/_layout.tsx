@@ -100,8 +100,16 @@ const AppStack = () => {
           key={screen.name}
           name={screen.name}
           options={{
+            ...(screen.sheet === undefined
+              ? {}
+              : {
+                  presentation: 'formSheet' as const,
+                  sheetAllowedDetents: screen.sheet.detents,
+                  sheetGrabberVisible: true,
+                }),
             ...pushedHeaderOptions,
             ...pushedHeaderOptionsOf({ title: screen.title, barWidth }),
+            ...(screen.presentation === undefined ? {} : { presentation: screen.presentation }),
           }}
         />
       ))}

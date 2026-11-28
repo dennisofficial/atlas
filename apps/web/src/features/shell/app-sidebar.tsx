@@ -51,7 +51,7 @@ export function AppSidebar({
 
   return (
     <>
-      <Sidebar collapsible="icon">
+      <Sidebar collapsible="icon" variant="inset">
         <ShellTopBar nav={activeNav} onSearch={handleOpenSearch} />
         <SidebarContent className="group-data-[collapsible=icon]:hidden">
           {activeNav === EAppNav.Routines ? (

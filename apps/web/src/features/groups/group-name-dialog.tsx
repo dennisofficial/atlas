@@ -2,7 +2,7 @@
 
 import { useState } from 'react'
 
-import { PROJECT_GROUP_NAME_MAX } from '@dltech/atlas-wire/web'
+import { groupNameProblem } from '@dltech/atlas-client/settings'
 import { Button } from '@dltech/atlas-ui/components/button'
 import {
   Dialog,
@@ -35,7 +35,7 @@ export function GroupNameDialog({
   const [name, setName] = useState(initialName)
   const [busy, setBusy] = useState(false)
   const trimmed = name.trim()
-  const valid = trimmed.length > 0 && trimmed.length <= PROJECT_GROUP_NAME_MAX
+  const valid = groupNameProblem({ name }) === null
 
   const handleOpenChange = (next: boolean) => {
     if (next) setName(initialName)

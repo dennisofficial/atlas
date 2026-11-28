@@ -4,6 +4,11 @@ import { useCallback, useState } from 'react'
 import { CheckIcon, CopyIcon } from 'lucide-react'
 
 import { EMarkdownEditorVariant, MarkdownEditor } from '@dltech/atlas-ui/ai/markdown-editor'
+import {
+  INSTRUCTIONS_DESCRIPTION,
+  canSaveInstructions,
+  charCountOf,
+} from '@dltech/atlas-client/settings'
 import { Button } from '@dltech/atlas-ui/components/button'
 import { cn } from '@dltech/atlas-ui/lib/utils'
 
@@ -24,17 +29,16 @@ import { useDraft } from '../use-draft'
 const COPIED_RESET_MS = 1500
 
 function CharCount({ length }: { length: number }) {
-  const over = length - INSTRUCTIONS_CHAR_LIMIT
+  const count = charCountOf({ length, limit: INSTRUCTIONS_CHAR_LIMIT })
   return (
     <span
       role="status"
       className={cn(
         'font-mono text-xs tabular-nums',
-        over > 0 ? 'text-destructive' : 'text-muted-foreground',
+        count.over ? 'text-destructive' : 'text-muted-foreground',
       )}
     >
-      {length.toLocaleString('en-US')} / {INSTRUCTIONS_CHAR_LIMIT.toLocaleString('en-US')}
-      {over > 0 ? ` · ${over.toLocaleString('en-US')} over` : null}
+      {count.text}
     </span>
   )
 }
@@ -61,7 +65,6 @@ function InstructionsEditor({ doc, onSaved }: { doc: InstructionsDoc; onSaved: (
   const { saving, run } = useSaveAction()
   const [copied, setCopied] = useState(false)
   const [revision, setRevision] = useState(doc.revision)
-  const overLimit = draft.value.length > INSTRUCTIONS_CHAR_LIMIT
 
   const handleCopy = () => {
     void navigator.clipboard?.writeText(draft.value)
@@ -90,7 +93,7 @@ function InstructionsEditor({ doc, onSaved }: { doc: InstructionsDoc; onSaved: (
   return (
     <SettingsPage
       title="Instructions"
-      description="Loaded into every thread, before the repository's AGENTS.md files."
+      description={INSTRUCTIONS_DESCRIPTION}
       actions={
         <>
           <CharCount length={draft.value.length} />
@@ -109,7 +112,14 @@ function InstructionsEditor({ doc, onSaved }: { doc: InstructionsDoc; onSaved: (
           ) : null}
           <Button
             size="sm"
-            disabled={!draft.dirty || overLimit || saving}
+            disabled={
+              !canSaveInstructions({
+                dirty: draft.dirty,
+                length: draft.value.length,
+                limit: INSTRUCTIONS_CHAR_LIMIT,
+                saving,
+              })
+            }
             onClick={() => void handleSave()}
           >
             Save

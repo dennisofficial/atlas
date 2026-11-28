@@ -14,20 +14,20 @@ export const InAppBanner = (props: {
   const insets = useSafeAreaInsets()
   return (
     <View style={[styles.layer, bannerFrameOf(insets)]} pointerEvents="box-none">
-      <Pressable
-        accessibilityRole="button"
-        accessibilityLabel={`${props.notice.title}. ${props.notice.body}`}
-        onPress={props.onOpen}
-        style={[styles.banner, { backgroundColor: theme.card, borderColor: theme.border }]}
-      >
-        <View style={styles.copy}>
+      <View style={[styles.banner, { backgroundColor: theme.card, borderColor: theme.border }]}>
+        <Pressable
+          accessibilityRole="button"
+          accessibilityLabel={`${props.notice.title}. ${props.notice.body}`}
+          onPress={props.onOpen}
+          style={styles.copy}
+        >
           <Text size={ETextRole.Sm} weight={EFontWeight.Semibold} numberOfLines={1}>
             {props.notice.title}
           </Text>
           <Text size={ETextRole.Sm} tone={ETextTone.Muted} numberOfLines={2}>
             {props.notice.body}
           </Text>
-        </View>
+        </Pressable>
         <Pressable
           accessibilityRole="button"
           accessibilityLabel="Dismiss notification"
@@ -38,7 +38,7 @@ export const InAppBanner = (props: {
             Dismiss
           </Text>
         </Pressable>
-      </Pressable>
+      </View>
     </View>
   )
 }

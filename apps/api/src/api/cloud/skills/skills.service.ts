@@ -21,7 +21,7 @@ import {
   type SkillFileMeta,
   type SkillLayers,
   type SkillSummary,
-  type SkillUsage,
+  type SkillUsageReply,
 } from '@dltech/atlas-wire'
 import { PERSONAL_LAYER_OWNER } from '../../../_lib/config-layers/layer-owner'
 import { layeredItemsOf } from '../layers/layered-items'
@@ -201,42 +201,37 @@ export class SkillsService {
     return derived
   }
 
+  async usageFor(args: Scope & { userId: string }): Promise<SkillUsageReply> {
+    const skills = await db.orm.public.Skill.where(await this.ownerOf(args)).all()
+    const names = new Set(skills.map((skill) => skill.name))
+    if (args.scope === ESkillScope.Personal) {
+      for (const skill of builtInSkills()) names.add(skill.name)
+    }
+    const usage = await this.usage.usageFor({ ...args, skillNames: [...names] })
+    return {
+      usage: Object.fromEntries(
+        [...names].map((name) => [name, usage.get(name) ?? { usedCount30d: 0, lastUsedAt: null }]),
+      ),
+    }
+  }
+
   async list(args: Scope & { userId: string }): Promise<SkillSummary[]> {
     const rows = await this.summariesOf({
       owner: await this.ownerOf(args),
-      userId: args.userId,
       scope: args.scope,
-      projectId: args.projectId,
-      groupId: args.groupId,
     })
     if (args.scope !== ESkillScope.Personal) return rows
     const ownedNames = new Set(rows.map((row) => row.name))
-    return [...rows, ...this.builtInSummaries({ usage: new Map(), ownedNames })]
+    return [...rows, ...this.builtInSummaries(ownedNames)]
   }
 
-  private async summariesOf(args: {
-    owner: Owner
-    userId: string
-    scope: ESkillScope
-    projectId?: string | undefined
-    groupId?: string | undefined
-  }): Promise<SkillSummary[]> {
+  private async summariesOf(args: { owner: Owner; scope: ESkillScope }): Promise<SkillSummary[]> {
     const skills = await db.orm.public.Skill.where(args.owner)
       .orderBy((skill) => skill.name.asc())
       .all()
-    const names = skills.map((skill) => skill.name)
-    const [files, usage] = await Promise.all([
-      db.orm.public.SkillFile.where((file) =>
-        file.skillId.in(skills.map((skill) => skill.id)),
-      ).all(),
-      this.usage.usageFor({
-        userId: args.userId,
-        scope: args.scope,
-        ...(args.projectId === undefined ? {} : { projectId: args.projectId }),
-        ...(args.groupId === undefined ? {} : { groupId: args.groupId }),
-        skillNames: names,
-      }),
-    ])
+    const files = await db.orm.public.SkillFile.where((file) =>
+      file.skillId.in(skills.map((skill) => skill.id)),
+    ).all()
     const descriptions = await Promise.all(skills.map((skill) => this.fillDescription(skill)))
     const descriptionById = new Map(skills.map((skill, index) => [skill.id, descriptions[index]]))
     const origin = ORIGIN_OF_SCOPE[args.scope]
@@ -248,7 +243,8 @@ export class SkillsService {
         fileCount: own.length,
         sizeBytes: own.reduce((total, file) => total + file.size, 0),
         updatedAt: skill.updatedAt.toISOString(),
-        usage: usage.get(skill.name) ?? { usedCount30d: 0, lastUsedAt: null },
+        usage: { usedCount30d: 0, lastUsedAt: null },
+        usagePending: true,
         origin,
         overridesBuiltIn: isBuiltInSkillName(skill.name),
       }
@@ -260,13 +256,12 @@ export class SkillsService {
     const layers: LayerItems<SkillSummary>[] = [
       {
         layer: EConfigLayer.BuiltIn,
-        items: this.builtInSummaries({ usage: new Map(), ownedNames: new Set() }),
+        items: this.builtInSummaries(new Set()),
       },
       {
         layer: EConfigLayer.Personal,
         items: await this.summariesOf({
           owner: { userId: args.userId },
-          userId: args.userId,
           scope: ESkillScope.Personal,
         }),
       },
@@ -276,9 +271,7 @@ export class SkillsService {
         layer: EConfigLayer.Group,
         items: await this.summariesOf({
           owner: { groupId: placement.group.id },
-          userId: args.userId,
           scope: ESkillScope.Group,
-          groupId: placement.group.id,
         }),
       })
     }
@@ -287,9 +280,7 @@ export class SkillsService {
         layer: EConfigLayer.Project,
         items: await this.summariesOf({
           owner: { projectId: placement.project.id },
-          userId: args.userId,
           scope: ESkillScope.Project,
-          projectId: placement.project.id,
         }),
       })
     }
@@ -312,20 +303,13 @@ export class SkillsService {
     }
   }
 
-  private builtInSummaries(args: {
-    usage: ReadonlyMap<string, SkillUsage>
-    ownedNames: ReadonlySet<string>
-  }): SkillSummary[] {
+  private builtInSummaries(ownedNames: ReadonlySet<string>): SkillSummary[] {
     return builtInSkills()
-      .filter((skill) => !args.ownedNames.has(skill.name))
-      .map((skill) => this.builtInSummary({ skill, usage: args.usage }))
+      .filter((skill) => !ownedNames.has(skill.name))
+      .map((skill) => this.builtInSummary(skill))
   }
 
-  private builtInSummary(args: {
-    skill: ReturnType<typeof builtInSkills>[number]
-    usage: ReadonlyMap<string, SkillUsage>
-  }): SkillSummary {
-    const { skill } = args
+  private builtInSummary(skill: ReturnType<typeof builtInSkills>[number]): SkillSummary {
     return {
       name: skill.name,
       description: skill.description,
@@ -333,7 +317,8 @@ export class SkillsService {
       sizeBytes:
         skill.entry.sizeBytes + skill.files.reduce((total, file) => total + file.sizeBytes, 0),
       updatedAt: skill.updatedAt,
-      usage: args.usage.get(skill.name) ?? { usedCount30d: 0, lastUsedAt: null },
+      usage: { usedCount30d: 0, lastUsedAt: null },
+      usagePending: true,
       origin: ESkillOrigin.BuiltIn,
       overridesBuiltIn: false,
     }

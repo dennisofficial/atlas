@@ -135,6 +135,14 @@
         "@vscode/ripgrep": "^1.18.0",
       },
     },
+    "apps/github-hook-relay": {
+      "name": "@dltech/atlas-github-hook-relay",
+      "version": "0.1.0",
+      "devDependencies": {
+        "@dotenvx/dotenvx": "^1.71.0",
+        "@types/bun": "latest",
+      },
+    },
     "apps/mac": {
       "name": "@dltech/atlas-mac",
       "version": "0.1.0",
@@ -170,6 +178,7 @@
         "@dltech/atlas-plugin-github": "workspace:*",
         "@dltech/atlas-plugin-mcp": "workspace:*",
         "@dltech/atlas-plugin-operator": "workspace:*",
+        "@dltech/atlas-plugin-quality": "workspace:*",
         "@dltech/atlas-plugin-sdk": "workspace:*",
         "@dltech/atlas-plugin-services": "workspace:*",
         "@dltech/atlas-plugin-sessions": "workspace:*",
@@ -528,6 +537,7 @@
       "version": "0.1.0",
       "dependencies": {
         "@dltech/atlas-core": "workspace:*",
+        "@dltech/atlas-models": "workspace:*",
         "@dltech/atlas-protocol": "workspace:*",
         "@dltech/atlas-wire": "workspace:*",
         "ai": "^7.0.180",
@@ -1593,6 +1603,8 @@
     "@dltech/atlas-evals": ["@dltech/atlas-evals@workspace:evals"],
 
     "@dltech/atlas-github": ["@dltech/atlas-github@workspace:packages/github"],
+
+    "@dltech/atlas-github-hook-relay": ["@dltech/atlas-github-hook-relay@workspace:apps/github-hook-relay"],
 
     "@dltech/atlas-host": ["@dltech/atlas-host@workspace:packages/host"],
 

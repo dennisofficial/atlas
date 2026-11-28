@@ -6,6 +6,7 @@ import { EOauthProvider } from './oauth-connection-wire'
 export enum EProviderSignInFlow {
   PasteCode = 'paste-code',
   DeviceCode = 'device-code',
+  Loopback = 'loopback',
 }
 
 export enum EProviderSignInPoll {
@@ -16,6 +17,8 @@ export enum EProviderSignInPoll {
 
 export const providerSignInBeginInputSchema = z.strictObject({
   provider: z.enum(EOauthProvider),
+  flow: z.literal(EProviderSignInFlow.Loopback).optional(),
+  redirectUri: z.string().min(1).optional(),
 })
 export type ProviderSignInBeginInput = z.infer<typeof providerSignInBeginInputSchema>
 
@@ -32,6 +35,13 @@ export const providerSignInBeginSchema = z.discriminatedUnion('flow', [
     userCode: z.string().min(1),
     verificationUrl: z.string().min(1),
     intervalMs: z.number().int().positive(),
+    expiresInMs: z.number().int().positive(),
+  }),
+  z.object({
+    flow: z.literal(EProviderSignInFlow.Loopback),
+    attemptId: z.string().min(1),
+    authorizeUrl: z.string().min(1),
+    state: z.string().min(1),
     expiresInMs: z.number().int().positive(),
   }),
 ])

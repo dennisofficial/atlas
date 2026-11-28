@@ -2,14 +2,10 @@
 
 import { useCallback, useEffect, useRef, useState } from 'react'
 
-import {
-  EGithubPollStatus,
-  type GithubDeviceCodes,
-  type GithubPollResult,
-} from '@dltech/atlas-wire/web'
+import { EGithubPollStatus, type GithubDeviceCodes } from '@dltech/atlas-wire/web'
+import { githubFailureOf, pollUntilSettled } from '@dltech/atlas-client/settings'
 
 import { beginGithubConnect, disconnectGithub, pollGithubConnect } from './github-api'
-import { pollUntilSettled } from './github-poll'
 
 export enum EGithubFlow {
   Idle = 'idle',
@@ -38,16 +34,6 @@ const sleep = (ms: number): Promise<void> => new Promise((resolve) => setTimeout
 
 const messageOf = (error: unknown): string =>
   error instanceof Error ? error.message : 'Something went wrong'
-
-function failureOf(
-  result: Exclude<GithubPollResult, { status: EGithubPollStatus.Connected }>,
-): string {
-  if (result.status === EGithubPollStatus.Denied) return 'GitHub access was refused'
-  if (result.status === EGithubPollStatus.MissingScopes) {
-    return `GitHub didn't grant ${result.missing.join(', ')}. Approve every permission to continue.`
-  }
-  return 'That code expired'
-}
 
 export function useGithubConnect(args: { onChanged: () => void }): GithubConnectControl {
   const { onChanged } = args
@@ -91,7 +77,7 @@ export function useGithubConnect(args: { onChanged: () => void }): GithubConnect
           onChanged()
           return
         }
-        setFlow({ status: EGithubFlow.Failed, message: failureOf(result) })
+        setFlow({ status: EGithubFlow.Failed, message: githubFailureOf(result) })
       } catch (error) {
         if (isCurrent()) setFlow({ status: EGithubFlow.Failed, message: messageOf(error) })
       }

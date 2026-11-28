@@ -3,47 +3,30 @@
 import { useState } from 'react'
 
 import { Button } from '@dltech/atlas-ui/components/button'
-import { VcpuSizeSelect, type VcpuSizeOption } from '@dltech/atlas-ui/ai/vcpu-size-select'
-import { DEFAULT_SANDBOX_DISK_GB, SANDBOX_DISK_GB_SIZES } from '@dltech/atlas-wire/web'
+import { VcpuSizeSelect } from '@dltech/atlas-ui/ai/vcpu-size-select'
+import { DEFAULT_SANDBOX_DISK_GB } from '@dltech/atlas-wire/web'
+import {
+  INHERIT_VALUE,
+  defaultDiskGbOf,
+  diskValueToSave,
+  SANDBOX_DISK_DESCRIPTION,
+  SANDBOX_DISK_OPTIONS,
+  SANDBOX_DISK_TITLE,
+  sandboxDiskOptionsOf,
+  savedDiskValueOf,
+} from '@dltech/atlas-client/settings'
 
 import { SettingsCard, SettingsSection } from '../settings-layout'
 import { UnsavedHint } from '@/features/project-settings/settings-layout'
 
-export const SANDBOX_DISK_TITLE = 'Sandbox disk'
-
-const SECTION_DESCRIPTION =
-  'Disk size for new pods. Pods grow automatically when they fill up. Agent37 pods only.'
-
-const INHERIT_VALUE = 'default'
-
-export const defaultDiskGbOf = (personalDiskGb: number | undefined): number =>
-  personalDiskGb ?? DEFAULT_SANDBOX_DISK_GB
-
-const inheritOptionOf = (diskGb: number): VcpuSizeOption => ({
-  value: INHERIT_VALUE,
-  label: 'Default',
-  detail: `${diskGb} GB`,
-})
-
-export const SANDBOX_DISK_OPTIONS: readonly VcpuSizeOption[] = SANDBOX_DISK_GB_SIZES.map(
-  (diskGb) => ({ value: String(diskGb), label: `${diskGb} GB` }),
-)
-
-export const savedDiskValueOf = (args: {
-  diskGb: number | null
-  withAccountDefault: boolean
-}): string => {
-  if (args.diskGb === null) {
-    return args.withAccountDefault ? INHERIT_VALUE : String(DEFAULT_SANDBOX_DISK_GB)
-  }
-  return String(args.diskGb)
+export {
+  defaultDiskGbOf,
+  INHERIT_VALUE,
+  SANDBOX_DISK_OPTIONS,
+  SANDBOX_DISK_TITLE,
+  savedDiskValueOf,
+  diskValueToSave,
 }
-
-export const diskValueToSave = (args: {
-  selected: string
-  withAccountDefault: boolean
-}): number | null =>
-  args.withAccountDefault && args.selected === INHERIT_VALUE ? null : Number(args.selected)
 
 export function SandboxDiskSection({
   value,
@@ -60,9 +43,10 @@ export function SandboxDiskSection({
   const [selected, setSelected] = useState(saved)
   const [saving, setSaving] = useState(false)
   const dirty = selected !== saved
-  const options = withAccountDefault
-    ? [inheritOptionOf(inheritedDiskGb), ...SANDBOX_DISK_OPTIONS]
-    : SANDBOX_DISK_OPTIONS
+  const options = sandboxDiskOptionsOf({
+    inheritedDiskGb,
+    withAccountDefault: withAccountDefault === true,
+  })
   const handleSave = async () => {
     setSaving(true)
     try {
@@ -72,7 +56,7 @@ export function SandboxDiskSection({
     }
   }
   return (
-    <SettingsSection title={SANDBOX_DISK_TITLE} description={SECTION_DESCRIPTION}>
+    <SettingsSection title={SANDBOX_DISK_TITLE} description={SANDBOX_DISK_DESCRIPTION}>
       <SettingsCard
         footer={
           <>
