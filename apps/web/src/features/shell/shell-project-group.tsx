@@ -17,7 +17,7 @@ import { projectNameOf, type ProjectThreads } from './thread-partition'
 const COUNT_CLASS = 'font-mono text-xs text-muted-foreground tabular-nums'
 
 const HEADER_CLASS =
-  'group/project flex h-7 items-center gap-1.5 rounded-md px-2 hover:bg-sidebar-accent data-popup-open:bg-sidebar-accent'
+  'group/project flex h-7 items-center gap-1.5 rounded-lg px-2 text-muted-foreground hover:bg-sidebar-accent/50 data-popup-open:bg-sidebar-accent/50'
 
 function GroupHeader({ entry, children }: { entry: ProjectThreads; children: ReactNode }) {
   if (entry.project === null) return <div className={HEADER_CLASS}>{children}</div>
@@ -45,7 +45,7 @@ export function ProjectGroup({ entry, open, onOpenChange, activeThreadId }: Proj
           type="button"
           onClick={handleToggle}
           aria-expanded={open}
-          className="flex min-w-0 items-center gap-1.5 text-sm font-medium outline-hidden"
+          className="flex min-w-0 items-center gap-1.5 text-xs outline-hidden"
         >
           {project === null ? (
             <FolderX className="size-4 shrink-0 text-muted-foreground" />
@@ -54,7 +54,7 @@ export function ProjectGroup({ entry, open, onOpenChange, activeThreadId }: Proj
           )}
           <span className="truncate">{projectNameOf(project)}</span>
         </button>
-        <span className="h-px min-w-3 flex-1 bg-sidebar-border" />
+        <span className="min-w-3 flex-1" />
         {!open && (
           <span
             className={cn(

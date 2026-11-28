@@ -120,8 +120,9 @@ export function ThreadRowBody({
         ) : null
       }
       className={cn(
-        'group/thread @container relative grid min-w-0 w-full grid-cols-[minmax(0,1fr)_auto] items-start rounded-md hover:bg-sidebar-accent data-popup-open:bg-sidebar-accent has-[[data-popup-open]]:bg-sidebar-accent',
-        active && 'bg-sidebar-accent',
+        'group/thread @container relative my-0.5 grid min-w-0 w-full grid-cols-[minmax(0,1fr)_auto] items-start rounded-lg hover:bg-sidebar-accent/50 data-popup-open:bg-sidebar-accent/50 has-[[data-popup-open]]:bg-sidebar-accent/50',
+        active &&
+          'bg-sidebar-accent hover:bg-sidebar-accent data-popup-open:bg-sidebar-accent has-[[data-popup-open]]:bg-sidebar-accent',
       )}
     >
       <Link
@@ -131,7 +132,7 @@ export function ThreadRowBody({
         aria-current={active ? 'page' : undefined}
         data-density={density}
         className={cn(
-          'col-span-2 col-start-1 row-start-1 grid min-w-0 grid-cols-subgrid rounded-md text-sm outline-hidden focus-visible:ring-2 focus-visible:ring-sidebar-ring group-data-[collapsible=icon]:size-8 group-data-[collapsible=icon]:overflow-hidden',
+          'col-span-2 col-start-1 row-start-1 grid min-w-0 grid-cols-subgrid rounded-lg text-sm outline-hidden focus-visible:ring-2 focus-visible:ring-sidebar-ring group-data-[collapsible=icon]:size-8 group-data-[collapsible=icon]:overflow-hidden',
           compact ? 'py-2' : 'py-1.5',
         )}
       >

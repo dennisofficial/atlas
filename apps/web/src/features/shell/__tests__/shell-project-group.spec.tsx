@@ -22,6 +22,14 @@ const render = (args: { open: boolean; sessions?: typeof entry.sessions }) =>
 const visibleCountPattern = /<span class="[^"]*group-hover\/project:hidden[^"]*">\d+<\/span>/
 
 describe('ProjectGroup', () => {
+  it('uses a quiet small header without a divider', () => {
+    const html = render({ open: true, sessions: [] })
+    expect(html).toContain('text-xs outline-hidden')
+    expect(html).toContain('px-2 text-muted-foreground')
+    expect(html).not.toContain('bg-sidebar-border')
+    expect(html).not.toContain('font-medium')
+  })
+
   it('shows the session count without hover when collapsed', () => {
     expect(render({ open: false })).toMatch(visibleCountPattern)
   })
