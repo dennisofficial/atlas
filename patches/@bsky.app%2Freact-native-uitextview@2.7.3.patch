@@ -1,0 +1,133 @@
+diff --git a/node_modules/@bsky.app/react-native-uitextview/.bun-tag-227fc84b141b776d b/.bun-tag-227fc84b141b776d
+new file mode 100644
+index 0000000000000000000000000000000000000000..e69de29bb2d1d6434b8b29ae775ad8c2e48c5391
+diff --git a/ios/RNUITextView.mm b/ios/RNUITextView.mm
+index 5902b4f77930f94ba10de914ca9d6401041a6196..f81e5bd40c95c300a2c2c0d8d3d6731edd337e91 100644
+--- a/ios/RNUITextView.mm
++++ b/ios/RNUITextView.mm
+@@ -20,6 +20,91 @@ static const CFTimeInterval RNUITextViewMinimumPressHighlightDuration = 0.13;
+ static const CFTimeInterval RNUITextViewLongPressDelay = 0.5;
+ static const CGFloat RNUITextViewPressMovementThreshold = 10;
+ 
++// Text backgrounds are drawn like CSS inline boxes: as tall as the font, not
++// the line, rounded only where the run starts and ends, and clipped to the
++// glyphs on each line. NSLayoutManager otherwise fills the whole line height
++// and extends a run that wraps to the right edge of the line.
++static const CGFloat RNUITextViewBackgroundCornerRadius = 4;
++static const CGFloat RNUITextViewBackgroundVerticalPadding = 2;
++
++@interface RNUITextViewLayoutManager : NSLayoutManager
++@end
++
++@implementation RNUITextViewLayoutManager {
++  CGPoint _backgroundOrigin;
++}
++
++- (void)drawBackgroundForGlyphRange:(NSRange)glyphsToShow atPoint:(CGPoint)origin
++{
++  _backgroundOrigin = origin;
++  [super drawBackgroundForGlyphRange:glyphsToShow atPoint:origin];
++}
++
++- (void)fillBackgroundRectArray:(const CGRect *)rectArray
++                          count:(NSUInteger)rectCount
++              forCharacterRange:(NSRange)charRange
++                          color:(UIColor *)color
++{
++  if (CGColorGetAlpha(color.CGColor) == 0) {
++    return;
++  }
++  NSTextStorage *storage = self.textStorage;
++  if (storage == nil || charRange.length == 0 || NSMaxRange(charRange) > storage.length) {
++    [super fillBackgroundRectArray:rectArray count:rectCount forCharacterRange:charRange color:color];
++    return;
++  }
++
++  NSRange runRange;
++  [storage attribute:NSBackgroundColorAttributeName
++                atIndex:charRange.location
++  longestEffectiveRange:&runRange
++                inRange:NSMakeRange(0, storage.length)];
++  const NSRange runGlyphRange = [self glyphRangeForCharacterRange:runRange actualCharacterRange:NULL];
++  const NSRange glyphRange = [self glyphRangeForCharacterRange:charRange actualCharacterRange:NULL];
++  UIFont *font = [storage attribute:NSFontAttributeName atIndex:charRange.location effectiveRange:NULL];
++  const CGFloat boxHeight = font == nil
++      ? CGFLOAT_MAX
++      : font.ascender - font.descender + 2 * RNUITextViewBackgroundVerticalPadding;
++  const CGPoint origin = _backgroundOrigin;
++
++  [color setFill];
++  [self enumerateLineFragmentsForGlyphRange:glyphRange
++                                 usingBlock:^(CGRect lineRect,
++                                              CGRect usedRect,
++                                              NSTextContainer *_Nonnull textContainer,
++                                              NSRange lineGlyphRange,
++                                              BOOL *_Nonnull stop) {
++    const NSRange piece = NSIntersectionRange(lineGlyphRange, glyphRange);
++    if (piece.length == 0) {
++      return;
++    }
++    const CGRect glyphBounds = [self boundingRectForGlyphRange:piece inTextContainer:textContainer];
++    const CGFloat minX = CGRectGetMinX(glyphBounds);
++    const CGFloat maxX = MIN(CGRectGetMaxX(glyphBounds), CGRectGetMaxX(usedRect));
++    if (maxX <= minX) {
++      return;
++    }
++    const CGFloat height = MIN(boxHeight, CGRectGetHeight(lineRect));
++    const CGRect box = CGRectMake(origin.x + minX,
++                                  origin.y + CGRectGetMidY(lineRect) - height / 2,
++                                  maxX - minX,
++                                  height);
++    UIRectCorner corners = 0;
++    if (piece.location == runGlyphRange.location) {
++      corners |= UIRectCornerTopLeft | UIRectCornerBottomLeft;
++    }
++    if (NSMaxRange(piece) == NSMaxRange(runGlyphRange)) {
++      corners |= UIRectCornerTopRight | UIRectCornerBottomRight;
++    }
++    const CGFloat radius = MIN(RNUITextViewBackgroundCornerRadius, height / 2);
++    [[UIBezierPath bezierPathWithRoundedRect:box
++                           byRoundingCorners:corners
++                                 cornerRadii:CGSizeMake(radius, radius)] fill];
++  }];
++}
++
++@end
++
+ static NSLineBreakMode RCTNSLineBreakModeFromEllipsizeMode(RNUITextViewEllipsizeMode ellipsizeMode)
+ {
+   switch (ellipsizeMode) {
+@@ -114,6 +199,7 @@ static NSLineBreakMode RCTNSLineBreakModeFromEllipsizeMode(RNUITextViewEllipsize
+ @implementation RNUITextView{
+   UIView * _view;
+   UITextView * _textView;
++  NSTextStorage * _textStorage;
+   RNUITextViewShadowNode::ConcreteState::Shared _state;
+   UITapGestureRecognizer * _outsideTapRecognizer;
+   RNUITextViewPressGestureRecognizer * _pressGestureRecognizer;
+@@ -155,14 +241,17 @@ static NSLineBreakMode RCTNSLineBreakModeFromEllipsizeMode(RNUITextViewEllipsize
+     // attachments to paint outside the measured text bounds. Explicit
+     // `overflow: hidden` styles are still handled by RCTViewComponentView.
+ 
+-    if (@available(iOS 16.0, *)) {
+-      // This component relies on NSLayoutManager for measurement, hit-testing,
+-      // and press-highlight geometry. Opt into TextKit 1 up front instead of
+-      // making UITextView create TextKit 2 and fall back on first access.
+-      _textView = [UITextView textViewUsingTextLayoutManager:NO];
+-    } else {
+-      _textView = [[UITextView alloc] init];
+-    }
++    // This component relies on NSLayoutManager for measurement, hit-testing,
++    // and press-highlight geometry. A text view built on our own TextKit 1
++    // stack never creates TextKit 2, and it draws rounded text backgrounds.
++    // UITextView does not retain its text storage, so this view does.
++    _textStorage = [[NSTextStorage alloc] init];
++    RNUITextViewLayoutManager *layoutManager = [[RNUITextViewLayoutManager alloc] init];
++    [_textStorage addLayoutManager:layoutManager];
++    NSTextContainer *textContainer = [[NSTextContainer alloc] initWithSize:CGSizeMake(0, CGFLOAT_MAX)];
++    textContainer.widthTracksTextView = YES;
++    [layoutManager addTextContainer:textContainer];
++    _textView = [[UITextView alloc] initWithFrame:CGRectZero textContainer:textContainer];
+     _textView.scrollEnabled = false;
+     // UITextView is a UIScrollView, so UIKit treats it as one when it overlaps
+     // a safe area: it insets the text and, on iOS 26+, draws a scroll edge

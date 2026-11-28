@@ -6,7 +6,11 @@ import { Text, TextSpan } from '../text'
 import { EFontFamily, EFontWeight, ETextTone, RELAXED_LEADING } from '../text-style'
 import { useTheme } from '../use-theme'
 import { EMdSpan, type MdSpan } from './parse'
-import { inlineCodeTextOf } from './inline-code-text'
+import {
+  INLINE_CODE_LEADING_PAD,
+  INLINE_CODE_RADIUS,
+  INLINE_CODE_TRAILING_PAD,
+} from './inline-code-text'
 import { INLINE_CODE_SCALE, type IInlineStyle, styles } from './styles'
 
 export const Spans = ({
@@ -32,10 +36,17 @@ export const Spans = ({
           selectable={selectable}
           style={{
             backgroundColor: theme.codeBackground,
+            borderRadius: INLINE_CODE_RADIUS,
             fontSize: typeScale[style.size].fontSize * INLINE_CODE_SCALE,
           }}
         >
-          {inlineCodeTextOf(span.value)}
+          <InlineCodePad size={style.size} selectable={selectable}>
+            {INLINE_CODE_LEADING_PAD}
+          </InlineCodePad>
+          {span.value}
+          <InlineCodePad size={style.size} selectable={selectable}>
+            {INLINE_CODE_TRAILING_PAD}
+          </InlineCodePad>
         </Text>
       )
     }
@@ -99,6 +110,20 @@ export const Spans = ({
     )
   })
 }
+
+const InlineCodePad = ({
+  size,
+  selectable,
+  children,
+}: {
+  size: IInlineStyle['size']
+  selectable: boolean
+  children: string
+}) => (
+  <Text size={size} family={EFontFamily.Sans} selectable={selectable}>
+    {children}
+  </Text>
+)
 
 export const Inline = ({
   spans,

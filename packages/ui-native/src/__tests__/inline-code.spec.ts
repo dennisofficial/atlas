@@ -1,9 +1,17 @@
 import { describe, expect, it } from 'bun:test'
 
-import { inlineCodeTextOf } from '../markdown/inline-code-text'
+import { INLINE_CODE_LEADING_PAD, INLINE_CODE_TRAILING_PAD } from '../markdown/inline-code-text'
 
-describe('inlineCodeTextOf', () => {
-  it('pads inline code with thin spaces, since iOS ignores padding on a nested span', () => {
-    expect(inlineCodeTextOf('setup.sh')).toBe('\u2009setup.sh\u2009')
+const WORD_JOINER = '\u2060'
+
+describe('inline code padding', () => {
+  it('pads with a thin space, since iOS ignores padding on a nested span', () => {
+    expect(INLINE_CODE_LEADING_PAD.startsWith('\u2009')).toBe(true)
+    expect(INLINE_CODE_TRAILING_PAD.endsWith('\u2009')).toBe(true)
+  })
+
+  it('joins each pad to the code, so a line never breaks between them', () => {
+    expect(INLINE_CODE_LEADING_PAD.endsWith(WORD_JOINER)).toBe(true)
+    expect(INLINE_CODE_TRAILING_PAD.startsWith(WORD_JOINER)).toBe(true)
   })
 })
