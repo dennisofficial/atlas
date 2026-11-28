@@ -12,6 +12,7 @@ its roster and its preview URLs.
 - The public URL of a service port: the control plane mints the hostname and the token, and the pod
   ensures its one tunnel runs (`previews.ensure`).
 - The resume of declared services after the daemon restarts the pod.
+- Sub-agent starts are mirrored to the main thread for the Services panel with the owning `agentId`. Only the starting sub-agent receives its ending notice; the main thread records the ending without a notice and does not resume that declared service.
 - `preview_tunnel_redial` product analytics from daemon redials, including the last redial retained
   while no host was linked. The hook deduplicates direct and retained delivery by redial id within
   a plugin context, and carries `redial_id` for correlation across holder changes. It writes no

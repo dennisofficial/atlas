@@ -33,6 +33,7 @@ export const outcomeOf = (args: { info: ServiceInfo; stoppedByModel: boolean }):
 }
 
 export type StartedService = {
+  agentId?: string | undefined
   description?: string | undefined
   command: string
 }
@@ -43,7 +44,7 @@ export const startedOf = (args: {
 }): StartedService | undefined => {
   for (const event of args.events) {
     if (event.type === 'service-started' && event.serviceId === args.serviceId) {
-      return { command: event.command, description: event.description }
+      return { command: event.command, description: event.description, agentId: event.agentId }
     }
   }
   return undefined

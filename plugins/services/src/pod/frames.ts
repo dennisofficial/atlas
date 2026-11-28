@@ -1,8 +1,10 @@
+import type { EventDraft } from '@dltech/atlas-core'
 import type { PluginPodContext } from '@dltech/atlas-plugin-sdk'
 import type { DaemonEventFrame } from '@dltech/atlas-protocol'
 
 import { readServiceLog } from './daemon'
 import { capturePreviewRedial } from './preview-analytics'
+import { sessionLaunchOf } from './session-launches'
 import type { ServicePodState } from './state'
 import { hasEnded, hasReady, outcomeOf, startedOf } from './status'
 
@@ -27,6 +29,14 @@ const tailOf = async (args: { ctx: PluginPodContext; serviceId: string }): Promi
   return Buffer.from(read.value.bytes, 'base64').toString('utf8')
 }
 
+const launchOf = (args: {
+  ctx: PluginPodContext
+  state: ServicePodState
+  serviceId: string
+}): Promise<void> | undefined =>
+  args.state.starting.get(args.serviceId) ??
+  sessionLaunchOf({ sessionId: args.ctx.sessionId, serviceId: args.serviceId })
+
 export const recordServiceFrame = async (args: {
   ctx: PluginPodContext
   state: ServicePodState
@@ -37,12 +47,19 @@ export const recordServiceFrame = async (args: {
     capturePreviewRedial({ ctx, redial: frame.event })
     return
   }
+  if (
+    ctx.subAgent !== undefined &&
+    (frame.event.type === 'services.ready' || frame.event.type === 'services.ended') &&
+    !state.starting.has(frame.event.serviceId) &&
+    startedOf({ events: ctx.events(), serviceId: frame.event.serviceId }) === undefined
+  )
+    return
   if (frame.event.type === 'services.ready') {
     const { serviceId } = frame.event
     if (state.readies.has(serviceId)) return
     state.readies.add(serviceId)
     try {
-      await state.starting.get(serviceId)
+      await launchOf({ ctx, state, serviceId })
       if (hasReady({ events: ctx.events(), serviceId })) return
       await ctx.append([{ type: 'service-ready', serviceId }])
     } catch (error) {
@@ -56,7 +73,7 @@ export const recordServiceFrame = async (args: {
   if (state.endings.has(serviceId)) return
   state.endings.add(serviceId)
   try {
-    await state.starting.get(serviceId)
+    await launchOf({ ctx, state, serviceId })
     if (hasEnded({ events: ctx.events(), serviceId })) return
     const started = startedOf({ events: ctx.events(), serviceId })
     const outcome = outcomeOf({
@@ -64,21 +81,23 @@ export const recordServiceFrame = async (args: {
       stoppedByModel: state.stopping.has(serviceId),
     })
     const tail = await tailOf({ ctx, serviceId })
-    await ctx.notify(
-      {
-        type: 'service-ended',
-        serviceId,
-        command: started?.command ?? info.command,
-        ...(started?.description === undefined ? {} : { description: started.description }),
-        status: outcome.status,
-        ...(outcome.killedBy === undefined ? {} : { killedBy: outcome.killedBy }),
-        ...(outcome.exitCode === undefined ? {} : { exitCode: outcome.exitCode }),
-        ...(outcome.memory === undefined ? {} : { memory: outcome.memory }),
-        tail,
-        ...(state.restarting.has(serviceId) ? { restarting: true as const } : {}),
-      },
-      { key: `service-ended:${serviceId}` },
-    )
+    const ending: Extract<EventDraft, { type: 'service-ended' }> = {
+      type: 'service-ended',
+      serviceId,
+      command: started?.command ?? info.command,
+      ...(started?.description === undefined ? {} : { description: started.description }),
+      status: outcome.status,
+      ...(outcome.killedBy === undefined ? {} : { killedBy: outcome.killedBy }),
+      ...(outcome.exitCode === undefined ? {} : { exitCode: outcome.exitCode }),
+      ...(outcome.memory === undefined ? {} : { memory: outcome.memory }),
+      tail,
+      ...(state.restarting.has(serviceId) ? { restarting: true as const } : {}),
+    }
+    if (started?.agentId !== undefined) {
+      await ctx.append([{ ...ending, agentId: started.agentId }])
+      return
+    }
+    await ctx.notify(ending, { key: `service-ended:${serviceId}` })
   } catch (error) {
     state.endings.delete(serviceId)
     ctx.log(`services: recording the ending of ${serviceId} failed: ${String(error)}`)

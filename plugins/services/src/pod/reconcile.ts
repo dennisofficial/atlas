@@ -3,6 +3,7 @@ import {
   EShellEndCause,
   EServiceStatus,
   type Event,
+  type EventDraft,
   lostServicesOf,
   type ServiceLifecycle,
 } from '@dltech/atlas-core'
@@ -26,20 +27,22 @@ export const recordQuietEnding = async (args: {
   try {
     if (hasEnded({ events: ctx.events(), serviceId })) return
     const journal = startedOf({ events: ctx.events(), serviceId })
-    await ctx.notify(
-      {
-        type: 'service-ended',
-        serviceId,
-        command: journal?.command ?? started.command,
-        ...(journal?.description === undefined ? {} : { description: journal.description }),
-        ...(started.bootId === undefined ? {} : { bootId: started.bootId }),
-        status: EServiceStatus.Killed,
-        killedBy: EKilledBy.Unrecorded,
-        cause: EShellEndCause.PodRestarted,
-        tail: '',
-      },
-      { key: `service-ended:${serviceId}` },
-    )
+    const ending: Extract<EventDraft, { type: 'service-ended' }> = {
+      type: 'service-ended',
+      serviceId,
+      command: journal?.command ?? started.command,
+      ...(journal?.description === undefined ? {} : { description: journal.description }),
+      ...(started.bootId === undefined ? {} : { bootId: started.bootId }),
+      status: EServiceStatus.Killed,
+      killedBy: EKilledBy.Unrecorded,
+      cause: EShellEndCause.PodRestarted,
+      tail: '',
+    }
+    if (journal?.agentId !== undefined) {
+      await ctx.append([{ ...ending, agentId: journal.agentId }])
+      return
+    }
+    await ctx.notify(ending, { key: `service-ended:${serviceId}` })
   } catch (error) {
     state.endings.delete(serviceId)
     ctx.log(`services: recording the lost ending of ${serviceId} failed: ${String(error)}`)

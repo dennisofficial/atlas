@@ -70,6 +70,12 @@ describe('transcript events for notices stamped at arrival and delivery', () => 
     expect(kindsOf(log([agentEnded(stamp('n3', 'arrived'))]))).toEqual([])
   })
 
+  it('hides mirrored service endings without splitting tool runs', () => {
+    const events = log([serviceEnded({ agentId: 'child-1' })])
+    expect(kindsOf(events)).toEqual([])
+    expect(brokenBy(events[0] as Event)).toBe(false)
+  })
+
   it('renders legacy rows exactly as before', () => {
     const events = log([agentEnded(), serviceEnded()])
 

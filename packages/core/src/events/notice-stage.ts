@@ -52,8 +52,15 @@ export const isNoticeDelivery = (event: EventDraft): boolean =>
 const isRestartingService = (event: EventDraft): boolean =>
   event.type === 'service-ended' && event.restarting === true
 
+const isSubAgentService = (event: EventDraft): boolean =>
+  (event.type === 'service-started' || event.type === 'service-ended') &&
+  event.agentId !== undefined
+
 export const reachesModel = (event: EventDraft): boolean =>
-  !isNoticeArrival(event) && !isBookkeepingEnding(event) && !isRestartingService(event)
+  !isNoticeArrival(event) &&
+  !isBookkeepingEnding(event) &&
+  !isRestartingService(event) &&
+  !isSubAgentService(event)
 
 export const recordsLifecycle = (event: EventDraft): boolean => !isNoticeDelivery(event)
 

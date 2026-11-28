@@ -6,7 +6,9 @@ import { newServiceId, startService } from './daemon'
 import { exposeService } from './expose'
 import { EServiceFailure, failureOutcome, serviceFailed, type ServiceFailed } from './failure'
 import { renderStarted } from './render'
+import { appendStarted } from './record-started'
 import { serviceEnvOf } from './service-env'
+import { forgetSessionLaunch, trackSessionLaunch } from './session-launches'
 import type { ServicePodState } from './state'
 
 export type LaunchArgs = {
@@ -43,12 +45,11 @@ export const launchTracked = async (
   const { ctx, state } = args
   const requested = newServiceId()
   let settled: () => void = () => undefined
-  state.starting.set(
-    requested,
-    new Promise<void>((resolve) => {
-      settled = resolve
-    }),
-  )
+  const launching = new Promise<void>((resolve) => {
+    settled = resolve
+  })
+  state.starting.set(requested, launching)
+  trackSessionLaunch({ sessionId: ctx.sessionId, serviceId: requested, settled: launching })
   try {
     const launched = await startService({
       ctx,
@@ -73,8 +74,9 @@ export const launchTracked = async (
       ctx.log(`services: publishing ${serviceId} failed: ${exposure.reason}`)
     }
     const url = exposure?.ok === true ? exposure.url : undefined
-    await ctx.append([
-      {
+    await appendStarted({
+      ctx,
+      started: {
         type: 'service-started',
         serviceId,
         command: args.command,
@@ -89,7 +91,7 @@ export const launchTracked = async (
         ...(args.port === undefined ? {} : { port: args.port }),
         ...(url === undefined ? {} : { url }),
       },
-    ])
+    })
     return {
       ok: true,
       value: {
@@ -104,6 +106,7 @@ export const launchTracked = async (
   } finally {
     settled()
     state.starting.delete(requested)
+    forgetSessionLaunch({ sessionId: ctx.sessionId, serviceId: requested })
   }
 }
 
