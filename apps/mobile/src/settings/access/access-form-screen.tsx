@@ -2,7 +2,9 @@ import {
   ACCESS_GRANT_INSTRUCTION_MAX,
   ACCESS_GRANT_NAME_MAX,
   EAccessMemberKind,
-  SECRET_NAME,
+  accessGrantDraftValid,
+  secretNameInvalid,
+  secretDraftValid,
   createAccessMemberApi,
   accessGrantSaveOf,
   accessScopeOfParams,
@@ -43,12 +45,10 @@ const AccessEditor = ({ scope, params, grants }: FormProps) => {
     !busy &&
     (params.grantId === undefined || grant !== undefined) &&
     (isGrant
-      ? name.trim() !== '' &&
-        name.trim().length <= ACCESS_GRANT_NAME_MAX &&
-        value.length <= ACCESS_GRANT_INSTRUCTION_MAX
+      ? accessGrantDraftValid({ name, instruction: value })
       : isBulk
         ? parsed.pairs.length > 0
-        : SECRET_NAME.test(name) && value !== '')
+        : secretDraftValid({ name, value }))
   const title = isGrant
     ? grant
       ? 'Edit grant'
@@ -147,7 +147,7 @@ const AccessEditor = ({ scope, params, grants }: FormProps) => {
                   autoCorrect={false}
                   maxLength={isGrant ? ACCESS_GRANT_NAME_MAX : undefined}
                 />
-                {!isGrant && name !== '' && !SECRET_NAME.test(name) ? (
+                {!isGrant && secretNameInvalid(name) ? (
                   <AccessNote
                     error
                     text="Letters, digits, and underscores; not starting with a digit."

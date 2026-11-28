@@ -18,7 +18,12 @@ import { Field, FieldDescription, FieldError, FieldLabel } from '@dltech/atlas-u
 import { Input } from '@dltech/atlas-ui/components/input'
 import { Textarea } from '@dltech/atlas-ui/components/textarea'
 
-import { SECRET_NAME, parseEnvLines, type SecretPair } from '@dltech/atlas-client/settings'
+import {
+  secretNameInvalid,
+  secretDraftValid,
+  parseEnvLines,
+  type SecretPair,
+} from '@dltech/atlas-client/settings'
 export { parseEnvLines, type SecretPair } from '@dltech/atlas-client/settings'
 
 export function AddSecretDialog({
@@ -47,8 +52,8 @@ export function AddSecretDialog({
   const [open, setOpen] = useState(defaultOpen)
   const [name, setName] = useState(initialName)
   const [value, setValue] = useState('')
-  const nameInvalid = name !== '' && !SECRET_NAME.test(name)
-  const canSave = SECRET_NAME.test(name) && value !== ''
+  const nameInvalid = secretNameInvalid(name)
+  const canSave = secretDraftValid({ name, value })
 
   const handleOpenChange = (next: boolean) => {
     setOpen(next)

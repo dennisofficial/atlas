@@ -1,4 +1,6 @@
 export * from './grants'
+export * from './drafts'
+export * from './reveal-request'
 export * from './secrets'
 export * from './members-api'
 export * from './routes'
