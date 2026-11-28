@@ -55,6 +55,9 @@ The headless client library that web, the TUI and the mobile app share.
 
 ### List settings
 
+- `accessGrantNameValid`, `accessGrantDraftValid`, `secretNameInvalid` and `secretDraftValid`: shared grant and secret form predicates. The grant draft adds length limits to the web form's name predicate.
+- `beginRevealRequest`, `cancelRevealRequest`, `revealRequestPending` and `acceptRevealRequest`: the reveal request state machine. Cancelled or superseded results cannot be accepted.
+
 - `ESettingsPage`, `SETTINGS_NAV`, `labelOfPage(page)`, `filterNav({ groups, query })`: the user-level
   settings pages, in nav groups, labelled and searchable. `filterNav` keeps whatever a surface adds
   to an item, such as its icon.

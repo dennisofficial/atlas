@@ -1,11 +1,17 @@
 import { createApiClient } from '@dltech/atlas-api-router'
 import {
+  acceptRevealRequest,
+  beginRevealRequest,
+  cancelRevealRequest,
   createAccessMemberApi,
   EAccessMemberKind,
+  ERevealRequestStatus,
+  revealRequestPending,
   type AccessScope,
+  type RevealRequest,
 } from '@dltech/atlas-client/settings'
 import { Input } from '@dltech/atlas-ui-native'
-import { useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { View } from 'react-native'
 
 import { useAuth } from '../../auth/auth-provider'
@@ -35,14 +41,37 @@ export const SecretReveal = ({
   const [needsPassword, setNeedsPassword] = useState(false)
   const [failure, setFailure] = useState('')
   const [busy, setBusy] = useState(false)
+  const request = useRef<RevealRequest>({ id: 0, status: ERevealRequestStatus.Cancelled })
 
-  const reveal = async (client: ReturnType<typeof createApiClient>) => {
+  useEffect(
+    () => () => {
+      request.current = cancelRevealRequest(request.current)
+    },
+    [],
+  )
+
+  const pending = (id: number) => revealRequestPending({ request: request.current, id })
+  const finish = (id: number) => {
+    if (request.current.id === id && request.current.status !== ERevealRequestStatus.Cancelled) {
+      setBusy(false)
+    }
+  }
+  const reveal = async ({
+    client,
+    id,
+  }: {
+    client: ReturnType<typeof createApiClient>
+    id: number
+  }) => {
     const members = createAccessMemberApi({ api: client, scope })
     const revealed = await (kind === EAccessMemberKind.File
       ? members.revealFile(name)
       : members.revealSecret(name))
+    if (!pending(id)) return
+    request.current = acceptRevealRequest({ request: request.current, id })
     setValue(revealed)
     onRevealed?.(revealed)
+    setNeedsPassword(false)
   }
   const handleReveal = async () => {
     if (api === undefined || busy) return
@@ -50,39 +79,45 @@ export const SecretReveal = ({
       setValue(null)
       return
     }
+    request.current = beginRevealRequest(request.current)
+    const { id } = request.current
     setBusy(true)
     setFailure('')
     try {
-      await reveal(api)
+      await reveal({ client: api, id })
     } catch (error) {
+      if (!pending(id)) return
       if (error instanceof Error && error.message.includes('REAUTH_REQUIRED')) {
         try {
           const methods = await account?.listSignInMethods()
+          if (!pending(id)) return
           if (methods?.password) setNeedsPassword(true)
           else setFailure('Sign out and sign back in to reveal values.')
         } catch {
-          setFailure('Your sign-in methods could not be loaded. Try again.')
+          if (pending(id)) setFailure('Your sign-in methods could not be loaded. Try again.')
         }
       } else setFailure('The value could not be revealed. Try again.')
     } finally {
-      setBusy(false)
+      finish(id)
     }
   }
   const handleConfirm = async () => {
     if (user === undefined || busy || password === '') return
+    request.current = beginRevealRequest(request.current)
+    const { id } = request.current
     setBusy(true)
     setFailure('')
     try {
       const signedIn = await signInWithPassword({ apiOrigin, email: user.email, password })
       if (!signedIn.ok) {
-        setFailure(signedIn.error)
+        if (pending(id)) setFailure(signedIn.error)
         return
       }
-      setPassword('')
       try {
+        if (!pending(id)) return
+        setPassword('')
         const freshApi = createApiClient({ baseUrl: apiOrigin, token: signedIn.token })
-        await reveal(freshApi)
-        setNeedsPassword(false)
+        await reveal({ client: freshApi, id })
       } finally {
         await revokeOrPersist({
           storage: createPendingRevokeStorage(),
@@ -91,10 +126,16 @@ export const SecretReveal = ({
         })
       }
     } catch {
-      setFailure('The value could not be revealed. Try again.')
+      if (pending(id)) setFailure('The value could not be revealed. Try again.')
     } finally {
-      setBusy(false)
+      finish(id)
     }
+  }
+  const handleCancel = () => {
+    request.current = cancelRevealRequest(request.current)
+    setNeedsPassword(false)
+    setPassword('')
+    setBusy(false)
   }
   return (
     <>
@@ -115,13 +156,7 @@ export const SecretReveal = ({
             autoComplete="current-password"
           />
           <ActionRow label="Confirm password" loading={busy} onPress={() => void handleConfirm()} />
-          <ActionRow
-            label="Cancel confirmation"
-            onPress={() => {
-              setNeedsPassword(false)
-              setPassword('')
-            }}
-          />
+          <ActionRow label="Cancel confirmation" onPress={handleCancel} />
         </View>
       ) : null}
       {failure ? <AccessNote error>{failure}</AccessNote> : null}
