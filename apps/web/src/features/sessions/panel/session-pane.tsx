@@ -9,20 +9,20 @@ import { useOptionalThreadPanel } from '@/features/threads/panel/thread-panel-co
 
 import { SessionAgentPanel } from '../agents/session-agent-panel'
 import { BrowserTab } from './browser/browser-tab'
-import { CheckoutChoiceProvider } from '../checkouts/checkout-choice-context'
-import { currentWorktreePathOf } from '../checkouts/checkout-options'
 import { FilesTab } from '../files/files-tab'
 import { TerminalTab } from '../terminal/terminal-tab'
 import { SessionDetailsTab } from './details-tab'
 import { PaneEmptyBody } from './pane-empty-body'
-import { ESessionPaneTab, isSessionPaneTab } from './pane-tab'
+import { ALL_PANE_TABS, ESessionPaneTab, isSessionPaneTab } from './pane-tab'
 import { PaneTabStrip } from './pane-tab-strip'
 import { useSessionPaneValue } from './pane-value'
 import { previewPortsOf } from './preview-ports'
+import { ToolLauncher } from './tool-launcher'
 
 export type SessionPaneProps = {
-  tab: ESessionPaneTab
+  tab: ESessionPaneTab | undefined
   onTabChange: (tab: ESessionPaneTab) => void
+  tabs?: readonly ESessionPaneTab[]
   tabBarClassName?: string
 }
 
@@ -40,8 +40,13 @@ function PaneBody({ tab }: { tab: ESessionPaneTab }) {
   return <PaneEmptyBody tab={tab} />
 }
 
-export function SessionPane({ tab, onTabChange, tabBarClassName }: SessionPaneProps) {
-  const { sessionId, status, checkouts, threadWorktreePath } = useSessionPaneValue()
+export function SessionPane({
+  tab,
+  onTabChange,
+  tabs = ALL_PANE_TABS,
+  tabBarClassName,
+}: SessionPaneProps) {
+  const { sessionId } = useSessionPaneValue()
   const panel = useOptionalThreadPanel()
   const openTabs = openPageCount(usePreviewBrowser(sessionId).state)
   const handleTabChange = (value: unknown) => {
@@ -58,26 +63,22 @@ export function SessionPane({ tab, onTabChange, tabBarClassName }: SessionPanePr
     )
   }
 
+  if (tab === undefined) return <ToolLauncher onPick={onTabChange} />
+
   return (
     <div className="flex h-full min-h-0 min-w-0 flex-1 flex-col bg-card">
-      <CheckoutChoiceProvider
-        sessionId={sessionId}
-        status={status}
-        view={checkouts}
-        currentWorktreePath={threadWorktreePath ?? currentWorktreePathOf(checkouts)}
-      >
-        <Tabs value={tab} onValueChange={handleTabChange} className="min-h-0 flex-1">
-          <PaneTabStrip
-            className={tabBarClassName}
-            counts={{ [ESessionPaneTab.Browser]: openTabs }}
-          />
-          {Object.values(ESessionPaneTab).map((value) => (
-            <TabsContent key={value} value={value} className="min-h-0 flex-1 overflow-auto">
-              <PaneBody tab={value} />
-            </TabsContent>
-          ))}
-        </Tabs>
-      </CheckoutChoiceProvider>
+      <Tabs value={tab} onValueChange={handleTabChange} className="min-h-0 flex-1">
+        <PaneTabStrip
+          tabs={tabs}
+          className={tabBarClassName}
+          counts={{ [ESessionPaneTab.Browser]: openTabs }}
+        />
+        {tabs.map((value) => (
+          <TabsContent key={value} value={value} className="min-h-0 flex-1 overflow-auto">
+            <PaneBody tab={value} />
+          </TabsContent>
+        ))}
+      </Tabs>
     </div>
   )
 }

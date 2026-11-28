@@ -53,24 +53,24 @@ function buttonIn(container: Element): HTMLButtonElement {
 }
 
 describe('right panel collapsed', () => {
-  it('defaults to expanded', async () => {
-    expect((await mount()).textContent).toBe('main:false')
-  })
-
-  it('persists the collapsed flag for reloads', async () => {
-    const main = await mount()
-    await act(async () => buttonIn(main).click())
-    expect(main.textContent).toBe('main:true')
-    expect(window.localStorage.getItem(RIGHT_PANEL_COLLAPSED_KEY)).toBe('true')
-    for (const root of roots.splice(0)) await act(async () => root.unmount())
+  it('defaults to collapsed', async () => {
     expect((await mount()).textContent).toBe('main:true')
   })
 
-  it('hydrates expanded server markup to a stored collapse without mismatch', async () => {
+  it('persists an expansion for reloads', async () => {
+    const main = await mount()
+    await act(async () => buttonIn(main).click())
+    expect(main.textContent).toBe('main:false')
+    expect(window.localStorage.getItem(RIGHT_PANEL_COLLAPSED_KEY)).toBe('false')
+    for (const root of roots.splice(0)) await act(async () => root.unmount())
+    expect((await mount()).textContent).toBe('main:false')
+  })
+
+  it('hydrates collapsed server markup to a stored expansion without mismatch', async () => {
     const { hydrateRoot } = await import('react-dom/client')
-    window.localStorage.setItem(RIGHT_PANEL_COLLAPSED_KEY, 'true')
+    window.localStorage.setItem(RIGHT_PANEL_COLLAPSED_KEY, 'false')
     const html = renderToString(<Probe />)
-    expect(html).toContain('false')
+    expect(html).toContain('true')
     const container = document.createElement('div')
     container.innerHTML = html
     document.body.append(container)
@@ -81,21 +81,21 @@ describe('right panel collapsed', () => {
       )
     })
     expect(errors).toEqual([])
-    expect(container.textContent).toBe('main:true')
+    expect(container.textContent).toBe('main:false')
   })
 
-  it('follows a collapse from another tab', async () => {
+  it('follows a change from another tab', async () => {
     const main = await mount()
     await act(async () => {
-      window.localStorage.setItem(RIGHT_PANEL_COLLAPSED_KEY, 'true')
+      window.localStorage.setItem(RIGHT_PANEL_COLLAPSED_KEY, 'false')
       window.dispatchEvent(new StorageEvent('storage', { key: RIGHT_PANEL_COLLAPSED_KEY }))
     })
-    expect(main.textContent).toBe('main:true')
+    expect(main.textContent).toBe('main:false')
     await act(async () => {
       window.localStorage.clear()
       window.dispatchEvent(new StorageEvent('storage', { key: null }))
     })
-    expect(main.textContent).toBe('main:false')
+    expect(main.textContent).toBe('main:true')
   })
 
   it('keeps toggling in memory when storage reads and writes throw', async () => {
@@ -109,8 +109,8 @@ describe('right panel collapsed', () => {
       const main = await mount()
       const teammate = await mount(<Probe label="teammate" />)
       await act(async () => buttonIn(main).click())
-      expect(main.textContent).toBe('main:true')
-      expect(teammate.textContent).toBe('teammate:true')
+      expect(main.textContent).toBe('main:false')
+      expect(teammate.textContent).toBe('teammate:false')
     } finally {
       getItem.mockRestore()
       setItem.mockRestore()

@@ -108,6 +108,13 @@ const ALLOWED: AllowedOverride[] = [
     reason:
       'the collapsible root carries no layout of its own, so the rotation divider spaces its rule row above the handoff brief (#2645)',
   },
+  {
+    file: 'features/sessions/panel/session-split.tsx',
+    component: 'ResizableHandle',
+    token: 'bg-transparent',
+    reason:
+      'the tools panel is its own rounded card with a gap around it, so the separator is only a resize target and draws no full-height rule',
+  },
   ...['Avatar', 'AvatarImage', 'AvatarFallback'].map((component) => ({
     file: 'features/projects/project-avatar.tsx',
     component,

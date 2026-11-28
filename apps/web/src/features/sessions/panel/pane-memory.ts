@@ -9,6 +9,7 @@ export const SESSION_PANE_KEY = 'atlas:session-pane'
 const sessionPaneSchema = z.object({
   tab: z.enum(ESessionPaneTab).optional(),
   contextOpen: z.array(z.string()).optional(),
+  detailsOpen: z.boolean().optional(),
 })
 
 export type SessionPaneMemory = z.infer<typeof sessionPaneSchema>
@@ -36,4 +37,16 @@ export const recallContextOpen = (sessionId: string): readonly string[] =>
 
 export function rememberContextOpen(args: { sessionId: string; open: readonly string[] }): void {
   mergePaneMemory({ sessionId: args.sessionId, memory: { contextOpen: [...args.open] } })
+}
+
+export const DETAILS_CARD_OPEN_BY_DEFAULT = true
+
+export const detailsCardOpenOf = (stored: boolean | undefined): boolean =>
+  stored ?? DETAILS_CARD_OPEN_BY_DEFAULT
+
+export const recallDetailsOpen = (sessionId: string): boolean =>
+  detailsCardOpenOf(panes.recall(sessionId)?.detailsOpen)
+
+export function rememberDetailsOpen(args: { sessionId: string; open: boolean }): void {
+  mergePaneMemory({ sessionId: args.sessionId, memory: { detailsOpen: args.open } })
 }

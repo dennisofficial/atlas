@@ -6,7 +6,7 @@ import type { LucideIcon } from 'lucide-react'
 import { TabsList, TabsTrigger } from '@dltech/atlas-ui/components/tabs'
 import { cn } from '@dltech/atlas-ui/lib/utils'
 
-import { ESessionPaneTab, PANE_TAB_LABEL } from './pane-tab'
+import { ALL_PANE_TABS, ESessionPaneTab, PANE_TAB_LABEL } from './pane-tab'
 
 export const PANE_TAB_ICON: Record<ESessionPaneTab, LucideIcon> = {
   [ESessionPaneTab.Details]: InfoIcon,
@@ -17,15 +17,16 @@ export const PANE_TAB_ICON: Record<ESessionPaneTab, LucideIcon> = {
 }
 
 export type PaneTabStripProps = {
+  tabs?: readonly ESessionPaneTab[]
   counts: Partial<Record<ESessionPaneTab, number>>
   className?: string
 }
 
-export function PaneTabStrip({ counts, className }: PaneTabStripProps) {
+export function PaneTabStrip({ tabs = ALL_PANE_TABS, counts, className }: PaneTabStripProps) {
   return (
     <div className={cn('@container flex h-10 shrink-0 items-end border-b px-3', className)}>
       <TabsList variant="line" className="justify-start">
-        {Object.values(ESessionPaneTab).map((value) => {
+        {tabs.map((value) => {
           const Icon = PANE_TAB_ICON[value]
           const count = counts[value] ?? 0
           return (

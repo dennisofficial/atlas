@@ -115,14 +115,14 @@ export function ShellSkeleton({ label = 'Loading' }: { label?: string }) {
   return (
     <div role="status" aria-label={label}>
       <SidebarProvider className="h-svh min-h-0" style={SIDEBAR_STYLE}>
-        <Sidebar collapsible="icon">
+        <Sidebar collapsible="icon" variant="inset">
           <TopBarSkeleton />
           <SidebarContent className="group-data-[collapsible=icon]:hidden">
             <ThreadsSkeleton />
           </SidebarContent>
           <FooterSkeleton />
         </Sidebar>
-        <SidebarInset className="h-full min-h-0 overflow-hidden">
+        <SidebarInset className="h-full min-h-0 overflow-hidden md:h-auto">
           <div className="flex h-12 shrink-0 items-center gap-2 border-b px-2 md:hidden">
             <Skeleton className="size-9" />
             <Skeleton className="h-5 w-16" />
