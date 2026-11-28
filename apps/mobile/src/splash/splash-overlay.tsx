@@ -13,10 +13,9 @@ import Animated, {
 import { scheduleOnRN } from 'react-native-worklets'
 
 import { splashBackgroundOf } from './splash-look'
+import { SPLASH_MARK_ASPECT, splashMarkOf } from './splash-mark'
 
 const MARK_WIDTH = 120
-const MARK_ASPECT = 1024 / 830
-const mark = require('../../assets/images/splash-mark.png')
 
 export const SplashOverlay = ({ ready }: { ready: boolean }) => {
   const dark = useIsDark()
@@ -49,7 +48,7 @@ export const SplashOverlay = ({ ready }: { ready: boolean }) => {
       style={[styles.backdrop, { backgroundColor: splashBackgroundOf({ dark }) }, backdropStyle]}
     >
       <Animated.View style={markStyle}>
-        <Image source={mark} style={styles.mark} contentFit="contain" />
+        <Image source={splashMarkOf({ dark })} style={styles.mark} contentFit="contain" />
       </Animated.View>
     </Animated.View>
   )
@@ -62,7 +61,7 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   mark: {
-    height: MARK_WIDTH / MARK_ASPECT,
+    height: MARK_WIDTH / SPLASH_MARK_ASPECT,
     width: MARK_WIDTH,
   },
 })
