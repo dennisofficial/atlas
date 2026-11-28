@@ -28,6 +28,7 @@ on:
       - 'plugins/shells/**'
       - 'plugins/skills/**'
       - 'bun.lock'
+      - 'patches/**'
 
 jobs:
   fingerprint:
