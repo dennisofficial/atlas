@@ -7,6 +7,8 @@ import type {
   SkillUsageReply,
 } from '@dltech/atlas-wire/web'
 
+export * from './skills/index'
+
 export function skillUsageKeyOf(target: SkillScopeInput): string {
   return `skill-usage:${target.scope}:${target.projectId ?? target.groupId ?? ''}`
 }

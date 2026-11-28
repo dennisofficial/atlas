@@ -120,9 +120,11 @@ export const tabHeaderOptionsOf = ({
 export const pushedHeaderOptionsOf = ({
   title,
   barWidth,
+  buttons = 1,
 }: {
   title: string
   barWidth: number
+  buttons?: number
 }): NativeStackNavigationOptions => ({
   title,
   headerBackVisible: true,
@@ -130,7 +132,7 @@ export const pushedHeaderOptionsOf = ({
   ...leadingHeaderOptionsOf({
     title: <TabHeaderTitle title={title} />,
     glassTitle: true,
-    titleButtons: 1,
+    titleButtons: buttons,
     barWidth,
   }),
 })

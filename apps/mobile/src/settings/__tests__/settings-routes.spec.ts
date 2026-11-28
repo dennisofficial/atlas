@@ -70,10 +70,11 @@ describe('ios project sections', () => {
     }
   })
 
-  it('routes overview, sandbox, mcp and pull requests in nav order', () => {
+  it('routes overview, sandbox, skills, mcp and pull requests in nav order', () => {
     expect(routedProjectSections().map((item) => item.section)).toEqual([
       EProjectSettingsSection.Overview,
       EProjectSettingsSection.Sandbox,
+      EProjectSettingsSection.Skills,
       EProjectSettingsSection.Mcp,
       EProjectSettingsSection.PullRequests,
     ])
@@ -88,12 +89,13 @@ describe('ios group sections', () => {
     }
   })
 
-  it('routes group overview, instructions, sandbox and mcp in nav order', () => {
+  it('routes group overview, instructions, sandbox, skills and mcp in nav order', () => {
     expect(IOS_PENDING_GROUP_SECTIONS.has(EGroupSettingsSection.Instructions)).toBe(false)
     expect(routedGroupSections().map((item) => item.section)).toEqual([
       EProjectSettingsSection.Overview,
       EGroupSettingsSection.Instructions,
       EProjectSettingsSection.Sandbox,
+      EProjectSettingsSection.Skills,
       EProjectSettingsSection.Mcp,
     ])
   })
@@ -111,6 +113,12 @@ describe('settings stack screens', () => {
       name: 'settings/model-role',
       title: 'Model',
     })
+  })
+
+  it('counts both bar buttons of the skills list screens in the title width', () => {
+    const skillsLists = SETTINGS_STACK_SCREENS.filter((screen) => screen.name.endsWith('/skills'))
+    expect(skillsLists.length).toBe(3)
+    for (const screen of skillsLists) expect(screen.titleButtons).toBe(2)
   })
 
   it('names a route file that exists', () => {

@@ -9,7 +9,7 @@ import { Badge } from '@dltech/atlas-ui/components/badge'
 import { Button } from '@dltech/atlas-ui/components/button'
 import { Card, CardRow } from '@dltech/atlas-ui/components/card'
 
-import { inheritedTitleOf, overriddenLabelOf, type LayerRef } from './layer-copy'
+import { inheritedTitleOf, overriddenLabelOf, type LayerRef } from '@dltech/atlas-client/settings'
 
 export type LayeredGroup<T> = LayerRef & { items: readonly T[] }
 
