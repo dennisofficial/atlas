@@ -76,7 +76,8 @@ The headless client library that web, the TUI and the mobile app share.
   `choiceOf`, `staleOwnerOf`, `ownsModel`, `affectedOf`: the model roles a Models & Effort page
   lists, the copy it shows and the model, effort and fast each role resolves to.
 - `modelsDraftFrom(values)`, `modelsChanges({ saved, draft })`, `pickedModelDraft`, `effortDraft`,
-  `fastDraft`, `followedDraft`: the per-role draft and the flat changes it saves.
+  `fastDraft`, `followedDraft`, `unfollowedDraft`: the per-role draft and the flat changes it saves.
+  `unfollowedDraft({ draft, role, inherited })` keeps the resolved model, effort and fast when a role stops following.
 - `settingValue`, `settingString`, `settingBool`, `diffChanges({ saved, draft })`: read a flat setting
   from its registry entry, and diff two flat records into the keys to patch.
 - `INSTRUCTIONS_CHAR_LIMIT`, `instructionsOf({ files, path?, decode })`, `charCountOf({ length, limit })`,

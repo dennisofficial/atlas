@@ -108,6 +108,13 @@ describe('settings stack screens', () => {
     for (const screen of SETTINGS_STACK_SCREENS) expect(screen.title.length).toBeGreaterThan(0)
   })
 
+  it('pushes the model role editor with a default title', () => {
+    expect(SETTINGS_STACK_SCREENS.find((screen) => screen.name === 'settings/model-role')).toEqual({
+      name: 'settings/model-role',
+      title: 'Model',
+    })
+  })
+
   it('counts both bar buttons of the skills list screens in the title width', () => {
     const skillsLists = SETTINGS_STACK_SCREENS.filter((screen) => screen.name.endsWith('/skills'))
     expect(skillsLists.length).toBe(3)

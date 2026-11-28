@@ -1,21 +1,16 @@
 import {
   ROLE_GROUPS,
   choiceOf,
-  effortDraft,
-  fastDraft,
-  followedDraft,
-  modelsChanges,
   modelsDraftFrom,
   ownsModel,
-  pickedModelDraft,
   resolveRoles,
   roleTitleOf,
   staleOwnerOf,
-  type IModelsDraft,
 } from '@dltech/atlas-client/settings'
 import { CardRow, ETextRole, ETextTone, Text } from '@dltech/atlas-ui-native'
 import { space } from '@dltech/atlas-ui/tokens'
-import type { ModelRole } from '@dltech/atlas-core'
+import { roleKey } from '@dltech/atlas-core'
+import { router } from 'expo-router'
 import { StyleSheet } from 'react-native'
 
 import { useModels } from '../../../composer/use-models'
@@ -31,27 +26,6 @@ export default function ModelsEffortScreen() {
   const draft = modelsDraftFrom(settings.values)
   const choices = resolveRoles({ draft, models })
   const owner = staleOwnerOf(choices)
-
-  const save = (next: IModelsDraft) => {
-    void settings.save(modelsChanges({ saved: draft, draft: next })).catch(() => undefined)
-  }
-
-  const handleChooseModel = (args: { role: ModelRole; model: string }) =>
-    save(
-      pickedModelDraft({
-        draft,
-        role: args.role,
-        model: args.model,
-        option: models.find((candidate) => candidate.id === args.model),
-        inherited: choiceOf({ choices, role: args.role }),
-      }),
-    )
-  const handleChooseEffort = (args: { role: ModelRole; effort: string }) =>
-    save(effortDraft({ draft, role: args.role, effort: args.effort }))
-  const handleToggleFast = (args: { role: ModelRole; fast: boolean }) =>
-    save(fastDraft({ draft, role: args.role, fast: args.fast }))
-  const handleFollow = (args: { role: ModelRole }) =>
-    save(followedDraft({ draft, role: args.role }))
 
   if (failed && models.length === 0) {
     return (
@@ -106,10 +80,9 @@ export default function ModelsEffortScreen() {
               choice={choiceOf({ choices, role })}
               models={models}
               following={!ownsModel(choiceOf({ choices, role }))}
-              onChooseModel={(model) => handleChooseModel({ role, model })}
-              onChooseEffort={(effort) => handleChooseEffort({ role, effort })}
-              onToggleFast={(fast) => handleToggleFast({ role, fast })}
-              onFollow={() => handleFollow({ role })}
+              onPress={() =>
+                router.push({ pathname: '/settings/model-role', params: { role: roleKey(role) } })
+              }
             />
           ))}
         </Section>
