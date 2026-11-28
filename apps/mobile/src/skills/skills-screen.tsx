@@ -30,7 +30,7 @@ import { SettingsScroll } from '../settings/settings-scroll'
 import { confirmDelete } from './confirm-delete'
 import { InheritedSkills } from './inherited-skills'
 import { SkillRow } from './skill-row'
-import { newSkillRouteOf } from './skill-routes'
+import { newSkillRouteOf, skillDetailRouteOf } from './skill-routes'
 import {
   deleteConfirmCopyOf,
   deleteConfirmTitleOf,
@@ -229,6 +229,7 @@ export const SkillsScreen = ({ target }: { target: SkillScopeTarget }) => {
               selecting={selecting}
               selected={liveSelected.includes(skill.name)}
               onSelect={() => handleSelect(skill.name)}
+              onOpen={() => router.push(skillDetailRouteOf({ target, skill: skill.name }))}
             />
           ))}
         </Section>

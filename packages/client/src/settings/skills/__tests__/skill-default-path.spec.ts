@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'bun:test'
 import type { SkillFileMeta } from '@dltech/atlas-wire/web'
 
-import { defaultSkillPath } from '../skill-default-path'
+import { defaultSkillPath } from '../skill-file-path'
 
 function meta(path: string, isText = true): SkillFileMeta {
   return {
