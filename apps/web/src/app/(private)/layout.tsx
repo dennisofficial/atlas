@@ -6,6 +6,7 @@ import { AnalyticsIdentity } from '@/features/auth/analytics-identity'
 import { BrowserReturnReader } from '@/features/auth/browser-return'
 import { InAppNotices } from '@/features/notifications/in-app-notices'
 import { SessionGate } from '@/features/auth/session-gate'
+import { SettingsFileIconsProvider } from '@/features/settings/file-icons-provider'
 import { PaneReports } from '@/features/threads/panel/preview/desktop/pane-reports'
 import { PreviewFrameLayer } from '@/features/threads/panel/preview/preview-frame-layer'
 import { QueryProvider } from '@/lib/query-provider'
@@ -14,12 +15,14 @@ export default function PrivateLayout({ children }: { children: ReactNode }) {
   return (
     <QueryProvider>
       <BrowserReturnReader />
-      <SessionGate>
-        <AnalyticsIdentity />
-        {children}
-        <PreviewFrameLayer />
-        <PaneReports />
-      </SessionGate>
+      <SettingsFileIconsProvider>
+        <SessionGate>
+          <AnalyticsIdentity />
+          {children}
+          <PreviewFrameLayer />
+          <PaneReports />
+        </SessionGate>
+      </SettingsFileIconsProvider>
       <Toaster />
       <InAppNotices />
     </QueryProvider>

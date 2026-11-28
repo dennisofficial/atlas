@@ -1,7 +1,9 @@
 'use client'
 
-import { ChevronDownIcon, ChevronRightIcon, FileIcon } from 'lucide-react'
+import { ChevronDownIcon, ChevronRightIcon } from 'lucide-react'
 import { useState } from 'react'
+
+import { FileTypeIcon } from '@dltech/atlas-ui/ai/file-type-icon'
 
 import { contextTreeOf, useContextMirror, useContextMirrorRefresh } from '../../data/context-files'
 import { recallContextOpen, rememberContextOpen } from '../pane-memory'
@@ -27,11 +29,17 @@ function ContextDirectory(props: {
       {entries.map((entry) => {
         const path = props.directory === '' ? entry.name : `${props.directory}/${entry.name}`
         const expanded = props.open.includes(path)
-        const Icon = entry.isDirectory ? (expanded ? ChevronDownIcon : ChevronRightIcon) : FileIcon
+        const Icon = expanded ? ChevronDownIcon : ChevronRightIcon
         return (
           <div key={path} style={{ paddingLeft: props.depth * INDENT_PER_DEPTH }}>
             <Row
-              leading={<Icon aria-hidden className="size-3.5" />}
+              leading={
+                entry.isDirectory ? (
+                  <Icon aria-hidden className="size-3.5" />
+                ) : (
+                  <FileTypeIcon name={entry.name} className="size-3.5" />
+                )
+              }
               title={<span className="font-mono">{entry.name}</span>}
               label={entry.isDirectory ? `Expand ${entry.name}` : `Open ${entry.name}`}
               onSelect={

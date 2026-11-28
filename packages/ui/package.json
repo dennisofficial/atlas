@@ -17,6 +17,7 @@
     ".": "./src/index.ts",
     "./tokens": "./src/tokens/index.ts",
     "./brand": "./src/brand/index.ts",
+    "./file-icons": "./src/file-icons/index.ts",
     "./sandbox-boot-copy": "./src/ai/sandbox-boot-copy.ts",
     "./components/*": "./src/components/*.tsx",
     "./ai/*": "./src/ai/*.tsx",
@@ -84,6 +85,7 @@
     "react": "19.3.0",
     "react-dom": "19.3.0",
     "storybook": "10.6.0",
+    "svgo": "^4.1.0",
     "tailwindcss": "^4.1.18"
   }
 }

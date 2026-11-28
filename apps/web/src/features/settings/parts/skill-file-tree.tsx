@@ -3,14 +3,13 @@
 import { useState } from 'react'
 import {
   ChevronRightIcon,
-  FileIcon,
   FilePlusIcon,
   FileUpIcon,
-  FolderIcon,
   FolderPlusIcon,
   MoreHorizontalIcon,
 } from 'lucide-react'
 
+import { FileTypeIcon } from '@dltech/atlas-ui/ai/file-type-icon'
 import { Button } from '@dltech/atlas-ui/components/button'
 import {
   Collapsible,
@@ -120,7 +119,7 @@ function TreeNode({
             <ChevronRightIcon
               className={cn('size-3.5 shrink-0 transition-transform', open && 'rotate-90')}
             />
-            <FolderIcon className="size-3.5 shrink-0" />
+            <FileTypeIcon name={node.name} folder open={open} className="size-3.5 shrink-0" />
             <span className="truncate">{node.name}</span>
           </CollapsibleTrigger>
           {readOnly ? null : <TreeRowActions node={node} onAction={onAction} />}
@@ -157,7 +156,7 @@ function TreeNode({
         className="flex min-w-0 flex-1 items-center gap-1 outline-none"
       >
         <span className="size-3.5 shrink-0" />
-        <FileIcon className="size-3.5 shrink-0" />
+        <FileTypeIcon name={node.name} className="size-3.5 shrink-0" />
         <span className="truncate">{node.name}</span>
       </button>
       {readOnly ? null : <TreeRowActions node={node} onAction={onAction} />}

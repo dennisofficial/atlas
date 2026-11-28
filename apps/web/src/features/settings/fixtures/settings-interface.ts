@@ -1,5 +1,6 @@
 export {
   EDensity,
+  EFileIconStyle,
   ETheme,
   CODE_FONT_SIZES,
   type IAppearanceSettings as AppearanceSettings,

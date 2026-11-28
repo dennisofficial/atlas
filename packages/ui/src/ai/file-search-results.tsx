@@ -1,11 +1,10 @@
 'use client'
 
-import { FileIcon } from 'lucide-react'
-
 import { Button } from '#components/button'
 import { cn } from '#lib/utils'
 
 import { EFileChange, nameClassOf } from './file-tree'
+import { FileTypeIcon } from './file-type-icon'
 
 export interface FileSearchHit {
   path: string
@@ -101,7 +100,7 @@ export function FileSearchResults({
             onClick={handleSelect}
             onMouseMove={handleHover}
           >
-            <FileIcon />
+            <FileTypeIcon name={name} />
             <span className={cn(nameClassOf(hit), 'shrink-0')}>
               <Highlighted text={name} offset={nameStart} positions={positions} />
             </span>
