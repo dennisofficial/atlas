@@ -365,100 +365,102 @@ export function SessionView({ sessionId }: { sessionId: string }) {
                 collapsed={pane.collapsed}
                 setCollapsed={pane.setCollapsed}
               >
-                <div className="@container relative min-h-0 flex-1">
+                <div className="@container relative flex min-h-0 flex-1 flex-col">
                   <SessionDetailsCard
                     open={pane.detailsShown}
                     onOpenChanges={() => pane.openTab(ESessionPaneTab.Changes)}
                   />
-                  <div className={`h-full ${detailsCardReserveOf(pane.detailsShown)}`}>
-                    <SessionDiagramRepairProvider repairDiagram={repairDiagram}>
-                      <ThreadTranscript
-                        sessionId={sessionId}
-                        items={queuedTranscript.transcript}
-                        failureCard={failure.card}
-                        repairCard={failure.repairCard}
-                        failedLabel={failure.failedLabel}
-                        pod={null}
-                        working={isTurnRunning(snapshot.status)}
-                        turnStartedAt={turnStartedAt}
-                        background={background}
-                        onRetryBoot={() => void handleRetry()}
-                        onOpenPodSize={handleOpenPodSize}
-                        rewind={rewind}
-                        summarise={summarise.transcript}
-                        resume={resume}
-                        boot={boot}
-                        queued={{ ...queuedTranscript.queued, waitLabel: blocking?.copy.queued }}
-                        onLoadOlder={loadOlder}
-                      />
-                    </SessionDiagramRepairProvider>
-                  </div>
-                </div>
-                <div className="@container shrink-0">
-                  <div className={detailsCardReserveOf(pane.detailsShown)}>
-                    <div
-                      className={`mx-auto flex w-full ${readingClasses.measure} shrink-0 flex-col gap-2 px-4 pb-[max(1rem,var(--safe-area-bottom))]`}
-                    >
-                      <OperatorRequestDock sessionId={sessionId} request={operatorRequest} />
-                      <RepairStrip strip={repair.strip} />
-                      {snapshot.skipped > 0 ? (
-                        <SessionUpdateCard
-                          skipped={snapshot.skipped}
-                          writerAhead={snapshot.writerAhead}
+                  <div className="@container min-h-0 flex-1">
+                    <div className={`h-full ${detailsCardReserveOf(pane.detailsShown)}`}>
+                      <SessionDiagramRepairProvider repairDiagram={repairDiagram}>
+                        <ThreadTranscript
+                          sessionId={sessionId}
+                          items={queuedTranscript.transcript}
+                          failureCard={failure.card}
+                          repairCard={failure.repairCard}
+                          failedLabel={failure.failedLabel}
+                          pod={null}
+                          working={isTurnRunning(snapshot.status)}
+                          turnStartedAt={turnStartedAt}
+                          background={background}
+                          onRetryBoot={() => void handleRetry()}
+                          onOpenPodSize={handleOpenPodSize}
+                          rewind={rewind}
+                          summarise={summarise.transcript}
+                          resume={resume}
+                          boot={boot}
+                          queued={{ ...queuedTranscript.queued, waitLabel: blocking?.copy.queued }}
+                          onLoadOlder={loadOlder}
                         />
-                      ) : null}
-                      <ConnectionLine
-                        snapshot={snapshot}
-                        onReconnect={() => sessionStream().reconnect()}
-                      />
-                      {startFailure === undefined ? null : (
-                        <StartFailedCard reason={startFailure.reason} onRetry={handleRetry} />
-                      )}
-                      <RefusalRows refusals={refusals} onDismiss={dismissRefusals} />
-                      <RepairSignInDialog {...repair.dialogs.signIn} />
-                      <RepairKeyDialog {...repair.dialogs.key} />
-                      <SummariseDialog {...summarise.dialog} />
-                      <RewindDialog {...rewind.dialog} />
-                      <CommandListDialog
-                        open={commandListOpen}
-                        onOpenChange={setCommandListOpen}
-                        entries={composerEntries}
-                      />
-                      <BlockingDock blocking={blocking} commands={snapshot.status?.commands}>
-                        <ThreadComposer
-                          value={composer.draft}
-                          onValueChange={composer.setDraft}
-                          onSubmit={(text) =>
-                            void composer.handleSubmit({
-                              text,
-                              stage: stagedRun.stage,
-                              onSent: drafts.handleSent,
-                            })
-                          }
+                      </SessionDiagramRepairProvider>
+                    </div>
+                  </div>
+                  <div className="@container shrink-0">
+                    <div className={detailsCardReserveOf(pane.detailsShown)}>
+                      <div
+                        className={`mx-auto flex w-full ${readingClasses.measure} shrink-0 flex-col gap-2 px-4 pb-[max(1rem,var(--safe-area-bottom))]`}
+                      >
+                        <OperatorRequestDock sessionId={sessionId} request={operatorRequest} />
+                        <RepairStrip strip={repair.strip} />
+                        {snapshot.skipped > 0 ? (
+                          <SessionUpdateCard
+                            skipped={snapshot.skipped}
+                            writerAhead={snapshot.writerAhead}
+                          />
+                        ) : null}
+                        <ConnectionLine
+                          snapshot={snapshot}
+                          onReconnect={() => sessionStream().reconnect()}
+                        />
+                        {startFailure === undefined ? null : (
+                          <StartFailedCard reason={startFailure.reason} onRetry={handleRetry} />
+                        )}
+                        <RefusalRows refusals={refusals} onDismiss={dismissRefusals} />
+                        <RepairSignInDialog {...repair.dialogs.signIn} />
+                        <RepairKeyDialog {...repair.dialogs.key} />
+                        <SummariseDialog {...summarise.dialog} />
+                        <RewindDialog {...rewind.dialog} />
+                        <CommandListDialog
+                          open={commandListOpen}
+                          onOpenChange={setCommandListOpen}
                           entries={composerEntries}
-                          clientActions={composerActions}
-                          sending={composer.sending}
-                          {...composer.attachments.composerProps}
-                          sendsAttachmentsAlone
-                          working={working}
-                          onStop={handleStop}
-                          placeholder="Message Atlas…"
-                        >
-                          {listed === undefined ? null : (
-                            <ModelPickerControls
-                              picker={choice.picker}
-                              selection={choice.selection}
-                              onSelectionChange={choice.onSelectionChange}
-                              open={choice.open}
-                              onOpenChange={choice.onOpenChange}
-                              native
-                            />
-                          )}
-                          <span aria-hidden className="flex-1" />
-                          <SessionContext context={model.context} spend={model.spend} />
-                          <SessionUsage model={listed?.model} working={working} />
-                        </ThreadComposer>
-                      </BlockingDock>
+                        />
+                        <BlockingDock blocking={blocking} commands={snapshot.status?.commands}>
+                          <ThreadComposer
+                            value={composer.draft}
+                            onValueChange={composer.setDraft}
+                            onSubmit={(text) =>
+                              void composer.handleSubmit({
+                                text,
+                                stage: stagedRun.stage,
+                                onSent: drafts.handleSent,
+                              })
+                            }
+                            entries={composerEntries}
+                            clientActions={composerActions}
+                            sending={composer.sending}
+                            {...composer.attachments.composerProps}
+                            sendsAttachmentsAlone
+                            working={working}
+                            onStop={handleStop}
+                            placeholder="Message Atlas…"
+                          >
+                            {listed === undefined ? null : (
+                              <ModelPickerControls
+                                picker={choice.picker}
+                                selection={choice.selection}
+                                onSelectionChange={choice.onSelectionChange}
+                                open={choice.open}
+                                onOpenChange={choice.onOpenChange}
+                                native
+                              />
+                            )}
+                            <span aria-hidden className="flex-1" />
+                            <SessionContext context={model.context} spend={model.spend} />
+                            <SessionUsage model={listed?.model} working={working} />
+                          </ThreadComposer>
+                        </BlockingDock>
+                      </div>
                     </div>
                   </div>
                 </div>
