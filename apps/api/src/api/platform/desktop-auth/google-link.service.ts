@@ -58,16 +58,28 @@ export class GoogleLinkService {
   }
 
   async start(state: string): Promise<Response> {
-    const { internalAdapter } = await auth.$context
-    const row = await internalAdapter.consumeVerificationValue(`google-link-start:${state}`)
+    const context = await auth.$context
+    const row = await context.internalAdapter.consumeVerificationValue(`google-link-start:${state}`)
     if (row === null) throw new BadRequestException('Google linking expired. Try again.')
     const ticket = ticketSchema.parse(JSON.parse(this.cipher.decrypt(row.value)))
     const callbackURL = `${this.env.get('BETTER_AUTH_URL')}${CALLBACK_PATH}?state=${encodeURIComponent(state)}`
-    return auth.api.linkSocialAccount({
+    const started = await auth.api.linkSocialAccount({
       headers: new Headers({ authorization: `Bearer ${ticket.token}` }),
       body: { provider: 'google', callbackURL, errorCallbackURL: callbackURL },
       asResponse: true,
     })
+    if (!started.ok) throw new BadRequestException('Google linking failed. Try again.')
+    const { url } = z.object({ url: z.url() }).parse(await started.json())
+    const stateCookieName = context.createAuthCookie(
+      context.oauthConfig.storeStateStrategy === 'cookie' ? 'oauth_state' : 'state',
+    ).name
+    const headers = new Headers()
+    for (const cookie of started.headers.getSetCookie()) {
+      if (cookie.slice(0, cookie.indexOf('=')) === stateCookieName) {
+        headers.append('set-cookie', cookie)
+      }
+    }
+    return Response.json({ url }, { headers })
   }
 
   async callback(args: {

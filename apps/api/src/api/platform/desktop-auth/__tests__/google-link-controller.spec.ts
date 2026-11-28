@@ -22,6 +22,9 @@ describe('Google link browser endpoints', () => {
   let service: GoogleLinkService
   let auth: typeof import('../../auth/auth.server').auth
   let state: string
+  let token: string
+  let userId: string
+  let sessionId: string
   beforeAll(async () => {
     ;({ auth } = await import('../../auth/auth.server'))
   }, 30_000)
@@ -49,7 +52,10 @@ describe('Google link browser endpoints', () => {
     const session = await auth.api.getSession({
       headers: new Headers({ authorization: `Bearer ${signed.token}` }),
     })
-    if (session === null) throw new Error('missing session')
+    if (session === null || signed.token === null) throw new Error('missing session')
+    token = signed.token
+    userId = signed.user.id
+    sessionId = session.session.id
     const url = new URL(
       await service.begin({ userId: signed.user.id, sessionId: session.session.id }),
     )
@@ -66,6 +72,77 @@ describe('Google link browser endpoints', () => {
     const duplicate = await request(app.getHttpServer()).get(`/google-link/start?state=${state}`)
     expect(duplicate.status).toBe(302)
     expect(new URL(duplicate.headers.location ?? '').searchParams.get('atlasReturn')).toBe('failed')
+  })
+
+  it.each([
+    { ageDays: 0, foreignBrowser: false },
+    { ageDays: 2, foreignBrowser: false },
+    { ageDays: 0, foreignBrowser: true },
+    { ageDays: 2, foreignBrowser: true },
+  ])('does not disclose or replace a session for %j', async ({ ageDays, foreignBrowser }) => {
+    const context = await auth.$context
+    if (ageDays > 0) {
+      const ageMs = ageDays * 24 * 60 * 60_000
+      await context.internalAdapter.updateSession(token, {
+        createdAt: new Date(Date.now() - ageMs),
+        updatedAt: new Date(Date.now() - ageMs),
+        expiresAt: new Date(Date.now() + context.sessionConfig.expiresIn * 1000 - ageMs),
+      })
+    }
+    const browser = foreignBrowser
+      ? await auth.api.signUpEmail({
+          body: {
+            name: 'Other user',
+            email: `${randomUUID()}@test.local`,
+            password: 'another-long-enough-password',
+          },
+          asResponse: true,
+        })
+      : undefined
+    const browserCookie = browser?.headers
+      .getSetCookie()
+      .map((value) => value.split(';')[0])
+      .join('; ')
+    const before = browserCookie
+      ? await auth.api.getSession({ headers: new Headers({ cookie: browserCookie }) })
+      : null
+    if (foreignBrowser) {
+      expect(before).not.toBeNull()
+      expect(before?.user.id).not.toBe(userId)
+    }
+    const pending = request(app.getHttpServer()).get(`/google-link/start?state=${state}`)
+    if (browserCookie) pending.set('Cookie', browserCookie)
+    const response = await pending
+    expect(response.status).toBe(302)
+    const location = z.string().parse(response.headers.location)
+    const google = new URL(location)
+    expect(google.hostname).toBe('accounts.google.com')
+    const cookies = z.array(z.string()).parse(response.headers['set-cookie'])
+    const exposed = [...cookies, location, response.text]
+    for (const value of exposed) {
+      expect(value).not.toContain(token)
+      for (const encoded of value.match(/[A-Za-z0-9_-]{16,}/g) ?? []) {
+        expect(Buffer.from(encoded, 'base64url').toString()).not.toContain(token)
+      }
+    }
+    const stateCookie = context.createAuthCookie(
+      context.oauthConfig.storeStateStrategy === 'cookie' ? 'oauth_state' : 'state',
+    ).name
+    expect(cookies.map((cookie) => cookie.slice(0, cookie.indexOf('=')))).toEqual([stateCookie])
+    expect(response.headers['set-auth-token']).toBeUndefined()
+    const oauthState = google.searchParams.get('state')
+    if (oauthState === null) throw new Error('missing OAuth state')
+    const verification = await context.internalAdapter.findVerificationValue(oauthState)
+    expect(JSON.parse(verification?.value ?? '{}')).toMatchObject({ link: { userId } })
+    expect(await db.orm.public.AuthSession.first({ id: sessionId })).toMatchObject({
+      token,
+      userId,
+    })
+    if (browserCookie) {
+      const after = await auth.api.getSession({ headers: new Headers({ cookie: browserCookie }) })
+      expect(after?.session.id).toBe(before?.session.id)
+      expect(after?.user.id).toBe(before?.user.id)
+    }
   })
 
   it('returns a refused Google link through the existing iOS framework target', async () => {
