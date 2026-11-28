@@ -46,6 +46,7 @@ const StepMark = ({ state }: { state: EBootStepState }) => {
 
 const MonoBlock = ({ text, background }: { text: string; background: string }) => (
   <ScrollView
+    scrollsToTop={false}
     nestedScrollEnabled
     style={[styles.code, { backgroundColor: background }]}
     contentContainerStyle={styles.codeContent}

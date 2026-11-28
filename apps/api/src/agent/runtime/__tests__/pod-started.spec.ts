@@ -71,7 +71,7 @@ const recorderOf = () => {
 class StartingPodSandbox extends SandboxProvider {
   wakes = 0
 
-  constructor(private readonly start: EPodStart) {
+  constructor(private readonly args: { start: EPodStart; stages?: DaemonEndpoint['stages'] }) {
     super()
   }
 
@@ -83,7 +83,8 @@ class StartingPodSandbox extends SandboxProvider {
       sandboxName: 'n',
       vcpus: 2,
       memoryGb: 4,
-      start: this.start,
+      start: this.args.start,
+      stages: this.args.stages,
     }
   }
 
@@ -130,7 +131,7 @@ const until = async (check: () => boolean): Promise<void> => {
 describe('pod_started', () => {
   it('reports a pod the wake created, with its provider, its session and how long the wake took', async () => {
     const { captured, analytics } = recorderOf()
-    const sandbox = new StartingPodSandbox(EPodStart.Created)
+    const sandbox = new StartingPodSandbox({ start: EPodStart.Created })
     const runtime = await startOf({ sandbox, analytics })
     await until(() => captured.length > 0)
     await runtime.stop()
@@ -147,9 +148,24 @@ describe('pod_started', () => {
     })
   })
 
+  it('forwards provider wake stages through the runtime lifecycle capture', async () => {
+    const { captured, analytics } = recorderOf()
+    const sandbox = new StartingPodSandbox({
+      start: EPodStart.Woke,
+      stages: { instanceStartMs: 1_234, daemonReadyMs: 2_345 },
+    })
+    const runtime = await startOf({ sandbox, analytics })
+    await until(() => captured.length > 0)
+    await runtime.stop()
+    expect(captured[0]?.properties).toMatchObject({
+      instance_start_ms: 1_234,
+      daemon_ready_ms: 2_345,
+    })
+  })
+
   it('stays quiet for a pod that was already running', async () => {
     const { captured, analytics } = recorderOf()
-    const sandbox = new StartingPodSandbox(EPodStart.Running)
+    const sandbox = new StartingPodSandbox({ start: EPodStart.Running })
     const runtime = await startOf({ sandbox, analytics })
     await until(() => sandbox.wakes >= 2)
     await runtime.stop()

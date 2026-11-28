@@ -4,6 +4,7 @@ import { service } from '../core/commands'
 import { serviceHandlerOf } from './commands'
 import { ServicesFragment } from './fragment'
 import { recordServiceFrame } from './frames'
+import { captureLastPreviewRedial } from './preview-analytics'
 import { reconcileServices } from './reconcile'
 import { resumeDeclaredServices } from './resume'
 import { stateFor } from './state'
@@ -19,10 +20,12 @@ export const servicesPod: PodSlot = {
   hooks: (ctx) => {
     const state = stateFor(ctx)
     ctx.onDaemonEvent((frame) => void recordServiceFrame({ ctx, state, frame }))
+    void captureLastPreviewRedial(ctx)
     void reconcileServices({ ctx, state })
     return {}
   },
   onDaemonReady: ({ ctx }) => {
+    void captureLastPreviewRedial(ctx)
     void resumeDeclaredServices({ ctx, state: stateFor(ctx) })
   },
   commands: (ctx) => new Map([[service.inboxKind, serviceHandlerOf(ctx)]]),

@@ -1,4 +1,5 @@
 import { createParser, type EventSourceParser } from 'eventsource-parser'
+import { fetch } from 'expo/fetch'
 
 export enum EReadyState {
   Connecting = 0,
@@ -22,10 +23,10 @@ export type XhrEventSourceInit = {
 
 type Listener = (event: XhrSourceEvent) => void
 
-const HEADERS_RECEIVED = 2
-const DONE = 4
 const DEFAULT_RETRY_MS = 3000
 const JSON_RPC_SERVER_ERROR = -32000
+const MAX_FRAME_CHARS = 4 * 1024 * 1024
+const DECODE_CHUNK_BYTES = 16 * 1024
 
 const refusalOf = (status: number): RefusalBody => ({
   message: `the stream answered ${status}`,
@@ -43,11 +44,14 @@ export class XhrEventSource {
   private readonly withCredentials: boolean
   private readonly listeners = new Map<string, Set<Listener>>()
   private readonly parser: EventSourceParser
-  private request: XMLHttpRequest | undefined
+  private request: AbortController | undefined
   private reopenTimer: ReturnType<typeof setTimeout> | undefined
   private retryMs = DEFAULT_RETRY_MS
   private lastEventId = ''
-  private consumed = 0
+  private decoder = new TextDecoder()
+  private frameChars = 0
+  private trailingLf = false
+  private skipLf = false
 
   constructor(url: string | URL, init?: XhrEventSourceInit) {
     this.url = String(url)
@@ -55,6 +59,7 @@ export class XhrEventSource {
     this.withCredentials = init?.credentials === 'include'
     this.parser = createParser({
       onEvent: (message) => {
+        if (this.readyState !== EReadyState.Open) return
         if (message.id !== undefined) this.lastEventId = message.id
         this.emit({
           type: message.event ?? 'message',
@@ -86,47 +91,93 @@ export class XhrEventSource {
     const request = this.request
     this.request = undefined
     request?.abort()
+    this.parser.reset()
   }
 
   private open(): void {
-    const request = new XMLHttpRequest()
+    const request = new AbortController()
     this.request = request
-    this.consumed = 0
+    this.decoder = new TextDecoder()
+    this.frameChars = 0
+    this.trailingLf = false
+    this.skipLf = false
     this.parser.reset()
-    request.open('GET', this.url, true)
-    request.withCredentials = this.withCredentials
-    request.setRequestHeader('Accept', 'text/event-stream')
-    request.setRequestHeader('Cache-Control', 'no-store')
-    for (const [name, value] of Object.entries(this.headers)) request.setRequestHeader(name, value)
-    if (this.lastEventId !== '') request.setRequestHeader('Last-Event-ID', this.lastEventId)
-    request.onreadystatechange = () => this.handleProgress(request)
-    request.onerror = () => this.handleDrop(request)
-    request.send()
+    void this.read(request)
   }
 
-  private handleProgress(request: XMLHttpRequest): void {
-    if (request !== this.request || request.readyState < HEADERS_RECEIVED) return
-    if (request.status === 0) return
-    if (request.status !== 200) {
-      this.fail(request.status)
-      return
+  private async read(request: AbortController): Promise<void> {
+    const headers = { Accept: 'text/event-stream', 'Cache-Control': 'no-store', ...this.headers }
+    if (this.lastEventId !== '') Object.assign(headers, { 'Last-Event-ID': this.lastEventId })
+    try {
+      const response = await fetch(this.url, {
+        headers,
+        credentials: this.withCredentials ? 'include' : 'omit',
+        signal: request.signal,
+      })
+      if (request !== this.request) {
+        await response.body?.cancel()
+        return
+      }
+      if (response.status !== 200) {
+        this.fail(response.status)
+        return
+      }
+      const reader = response.body?.getReader()
+      if (reader === undefined) throw new Error('the stream has no body')
+      try {
+        this.readyState = EReadyState.Open
+        this.emit({ type: 'open' })
+        while (request === this.request) {
+          const { done, value } = await reader.read()
+          if (request !== this.request || done) break
+          this.feed(value)
+        }
+      } finally {
+        void reader.cancel().catch(() => undefined)
+        reader.releaseLock()
+      }
+      this.handleDrop(request)
+    } catch {
+      this.handleDrop(request)
     }
-    if (this.readyState === EReadyState.Connecting) {
-      this.readyState = EReadyState.Open
-      this.emit({ type: 'open' })
-    }
-    const text = request.responseText
-    if (text.length > this.consumed) {
-      const fresh = text.slice(this.consumed)
-      this.consumed = text.length
-      this.parser.feed(fresh)
-    }
-    if (request.readyState === DONE) this.handleDrop(request)
   }
 
-  private handleDrop(request: XMLHttpRequest): void {
+  private feed(bytes: Uint8Array): void {
+    for (
+      let offset = 0;
+      offset < bytes.length && this.readyState === EReadyState.Open;
+      offset += DECODE_CHUNK_BYTES
+    ) {
+      const chunk = bytes.subarray(offset, offset + DECODE_CHUNK_BYTES)
+      const text = this.decoder.decode(chunk, { stream: true })
+      this.checkFrame(text)
+      this.parser.feed(text)
+    }
+  }
+
+  private checkFrame(text: string): void {
+    if (text === '') return
+    const fresh = this.skipLf && text.startsWith('\n') ? text.slice(1) : text
+    this.skipLf = text.endsWith('\r')
+    const normalized = (this.trailingLf ? '\n' : '') + fresh.replace(/\r\n?/g, '\n')
+    const buffered = this.frameChars - (this.trailingLf ? 1 : 0)
+    const firstBoundary = normalized.indexOf('\n\n')
+    if (firstBoundary === -1) {
+      this.frameChars = buffered + normalized.length
+    } else {
+      if (buffered + firstBoundary + 2 > MAX_FRAME_CHARS)
+        throw new Error('the stream frame is too large')
+      this.frameChars = normalized.length - normalized.lastIndexOf('\n\n') - 2
+    }
+    if (this.frameChars > MAX_FRAME_CHARS) throw new Error('the stream frame is too large')
+    this.trailingLf = this.frameChars > 0 && normalized.endsWith('\n')
+  }
+
+  private handleDrop(request: AbortController): void {
     if (request !== this.request) return
     this.request = undefined
+    request.abort()
+    this.parser.reset()
     this.readyState = EReadyState.Connecting
     this.emit({ type: 'error' })
     if (this.readyState !== EReadyState.Connecting) return
@@ -137,10 +188,7 @@ export class XhrEventSource {
   }
 
   private fail(status: number): void {
-    const request = this.request
-    this.request = undefined
-    this.readyState = EReadyState.Closed
-    request?.abort()
+    this.close()
     this.emit({ type: 'error', error: refusalOf(status) })
   }
 

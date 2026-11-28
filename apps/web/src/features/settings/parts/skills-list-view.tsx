@@ -41,28 +41,20 @@ import { useSkills, type SkillScopeTarget } from '../data/shared/use-skills'
 import { LibraryConfirmDialog } from './library-confirm-dialog'
 import { MemorySelectionBar } from './memory-selection-bar'
 import { NewSkillDialog } from './new-skill-dialog'
-import { SKILL_PRECEDENCE_COPY, formatBytes, formatSkillDate } from './skill-format'
 import {
   cycleSkillSort,
   ESkillSortKey,
-  ESortDirection,
-  orderSkills,
+  formatBytes,
+  formatSkillDate,
+  liveSelectedOf,
+  SKILL_PRECEDENCE_COPY,
+  skillIsSelectable,
   type SkillSort,
-} from './skill-list-order'
+  visibleSkillsOf,
+} from '@dltech/atlas-client/settings'
 import { SortableHead, UsageCell } from './skills-table-cells'
 import { SettingsPage } from '../settings-layout'
 import { SkillsTableSkeleton } from '../skeletons/skill-skeletons'
-
-export { ESkillSortKey, ESortDirection, orderSkills }
-
-function matches({ skill, query }: { skill: SkillSummary; query: string }) {
-  const needle = query.trim().toLowerCase()
-  return (
-    needle.length === 0 ||
-    skill.name.toLowerCase().includes(needle) ||
-    skill.description.toLowerCase().includes(needle)
-  )
-}
 
 export function SkillsListPage({
   target,
@@ -122,11 +114,8 @@ export function SkillsTable({
   const [pendingDelete, setPendingDelete] = useState<string[] | null>(null)
   const [busy, setBusy] = useState(false)
 
-  const visible = orderSkills({
-    skills: skills.filter((skill) => matches({ skill, query: search })),
-    sort,
-  })
-  const liveSelected = selected.filter((name) => visible.some((skill) => skill.name === name))
+  const visible = visibleSkillsOf({ skills, query: search, sort })
+  const liveSelected = liveSelectedOf({ selected, visible })
 
   const handleSelectedChange = ({ name, checked }: { name: string; checked: boolean }) =>
     setSelected((current) =>
@@ -229,7 +218,7 @@ export function SkillsTable({
                   onClick={() => router.push(detailHref(skill.name))}
                 >
                   <TableCell onClick={(event) => event.stopPropagation()}>
-                    {skill.origin === ESkillOrigin.BuiltIn ? (
+                    {!skillIsSelectable(skill) ? (
                       <TooltipProvider>
                         <Tooltip>
                           <TooltipTrigger

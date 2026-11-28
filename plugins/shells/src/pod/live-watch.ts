@@ -1,69 +1,77 @@
 import { StringDecoder } from 'node:string_decoder'
 
-import type { PluginPodContext } from '@dltech/atlas-plugin-sdk'
+import type { PodRuntimeContext } from '@dltech/atlas-plugin-sdk'
 
 import { readShell } from './daemon'
 
 export const LIVE_READ_LIMIT = 16_384
 
 type ShellStream = {
-  generation: number
   readOffset: number
   published: number
   decoder: StringDecoder
+  pumping: boolean
+  dirty: boolean
 }
 
 export class ShellLive {
   private readonly streams = new Map<string, ShellStream>()
-  private readonly generations = new Map<string, number>()
-  private readonly pumping = new Set<string>()
-  private readonly dirty = new Set<string>()
+  private disposed = false
 
-  constructor(private readonly ctx: PluginPodContext) {}
+  constructor(private readonly ctx: Pick<PodRuntimeContext, 'call' | 'live' | 'log'>) {}
 
   note(shellId: string): void {
-    this.dirty.add(shellId)
-    if (this.pumping.has(shellId)) return
-    this.pumping.add(shellId)
-    void this.drain(shellId)
+    if (this.disposed) return
+    const stream = this.streamOf(shellId)
+    stream.dirty = true
+    if (stream.pumping) return
+    stream.pumping = true
+    void this.drain({ shellId, stream })
   }
 
   forget(shellId: string): void {
-    this.generations.set(shellId, this.generationOf(shellId) + 1)
     this.streams.delete(shellId)
-    this.dirty.delete(shellId)
   }
 
-  private generationOf(shellId: string): number {
-    return this.generations.get(shellId) ?? 0
+  reset(): void {
+    this.streams.clear()
+  }
+
+  dispose(): void {
+    this.disposed = true
+    this.reset()
   }
 
   private streamOf(shellId: string): ShellStream {
     const kept = this.streams.get(shellId)
     if (kept !== undefined) return kept
     const stream: ShellStream = {
-      generation: this.generationOf(shellId),
       readOffset: 0,
       published: 0,
       decoder: new StringDecoder('utf8'),
+      pumping: false,
+      dirty: false,
     }
     this.streams.set(shellId, stream)
     return stream
   }
 
-  private async drain(shellId: string): Promise<void> {
+  private async drain(args: { shellId: string; stream: ShellStream }): Promise<void> {
+    const { shellId, stream } = args
     try {
-      while (this.dirty.delete(shellId)) await this.pump(shellId)
+      while (stream.dirty && this.streams.get(shellId) === stream) {
+        stream.dirty = false
+        await this.pump(args)
+      }
     } catch (error) {
       this.ctx.log(`shells: streaming ${shellId} stopped: ${String(error)}`)
     } finally {
-      this.pumping.delete(shellId)
+      stream.pumping = false
     }
   }
 
-  private async pump(shellId: string): Promise<void> {
-    const stream = this.streamOf(shellId)
-    const generation = stream.generation
+  private async pump(args: { shellId: string; stream: ShellStream }): Promise<void> {
+    const { shellId, stream } = args
     for (;;) {
       const read = await readShell({
         ctx: this.ctx,
@@ -71,7 +79,7 @@ export class ShellLive {
         offset: stream.readOffset,
         limit: LIVE_READ_LIMIT,
       })
-      if (generation !== this.generationOf(shellId)) return
+      if (this.streams.get(shellId) !== stream) return
       if (!read.ok) {
         this.ctx.log(`shells: streaming ${shellId} failed: ${read.reason}`)
         return
@@ -86,4 +94,15 @@ export class ShellLive {
       this.ctx.live({ type: 'shell-output', shellId, offset, text })
     }
   }
+}
+
+export const shellLiveOf = (ctx: PodRuntimeContext): ShellLive => {
+  const live = new ShellLive(ctx)
+  ctx.onDaemonEvent((frame) => {
+    if (frame.event.type === 'shells.output') live.note(frame.event.shellId)
+    if (frame.event.type === 'shells.ended') live.forget(frame.event.shellId)
+  })
+  ctx.onReset(() => live.reset())
+  ctx.onDispose(() => live.dispose())
+  return live
 }

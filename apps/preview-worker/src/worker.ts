@@ -9,6 +9,7 @@ import { rewriteResponseHeaders } from './headers'
 import { DEFAULT_PREVIEW_DOMAIN, isPreviewHost } from './origins'
 import { scriptHashOf, scriptTagOf } from './script'
 import { startingPage } from './starting-page'
+import { trackTunnelHold, type PreviewAnalytics } from './tunnel-analytics'
 import {
   DEFAULT_TUNNEL_WAIT,
   discardResponse,
@@ -19,7 +20,8 @@ import {
 
 export type { Upstream }
 
-export type PreviewEnv = { PREVIEW_DOMAIN?: string | undefined }
+export type PreviewEnv = { PREVIEW_DOMAIN?: string | undefined; POSTHOG_KEY?: string | undefined }
+type PreviewContext = { waitUntil: (promise: Promise<unknown>) => void }
 
 const notFound = (): Response => new Response('Not found', { status: 404 })
 const SWITCHING_PROTOCOLS_STATUS = 101
@@ -76,6 +78,7 @@ export async function handlePreviewRequest(args: {
   upstream: Upstream
   domain?: string | undefined
   tunnelWait?: TunnelWait | undefined
+  analytics?: PreviewAnalytics | undefined
 }): Promise<Response> {
   const { request, upstream } = args
   const domain = args.domain ?? DEFAULT_PREVIEW_DOMAIN
@@ -87,10 +90,12 @@ export async function handlePreviewRequest(args: {
     upstream,
     wait: args.tunnelWait ?? DEFAULT_TUNNEL_WAIT,
   })
+  const document = loadsDocument(request)
+  trackTunnelHold({ analytics: args.analytics, answer, hostname, request, document })
   if (isWebSocketUpgrade(request) || answer.response.status === SWITCHING_PROTOCOLS_STATUS) {
     return answer.response
   }
-  const waiting = answer.tunnelError && loadsDocument(request)
+  const waiting = answer.tunnelError && document
   if (waiting) await discardResponse(answer.response)
   const response = waiting ? startingPage() : answer.response
   const html = isHtml(response)
@@ -111,11 +116,15 @@ export async function handlePreviewRequest(args: {
 }
 
 export default {
-  fetch(request: Request, env: PreviewEnv = {}): Promise<Response> {
+  fetch(request: Request, env: PreviewEnv = {}, ctx?: PreviewContext): Promise<Response> {
     return handlePreviewRequest({
       request,
       upstream: (outgoing) => fetch(outgoing),
       domain: env.PREVIEW_DOMAIN,
+      analytics:
+        env.POSTHOG_KEY === undefined || ctx === undefined
+          ? undefined
+          : { key: env.POSTHOG_KEY, waitUntil: (promise) => ctx.waitUntil(promise) },
     })
   },
 }

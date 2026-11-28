@@ -98,9 +98,8 @@ export const useSessions = () => {
               sessions: live ?? loaded.sessions,
               overrides: archiveOverrides,
             }),
-            now,
           }),
-    [loaded, live, now, archiveOverrides],
+    [loaded, live, archiveOverrides],
   )
 
   return { partition, loadState, refreshing, refresh, reload: load, now, setArchiveOverride }

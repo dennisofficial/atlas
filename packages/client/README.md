@@ -21,21 +21,21 @@ The headless client library that web, the TUI and the mobile app share.
 
 ## Entry points
 
-| Import                                          | Use it for                                                                                                                                                     |
-| ----------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `@dltech/atlas-client/stream`                   | The stream connection, the session follower, the log, the window and the overlay.                                                                              |
-| `@dltech/atlas-client/channel`                  | The pod delta channel, the frame codecs and the tool requests.                                                                                                 |
-| `@dltech/atlas-client/chat`                     | The chat transport, the step chunks and the step messages.                                                                                                     |
-| `@dltech/atlas-client/crew`                     | The crew readout, the sub-agent state and the background work.                                                                                                 |
-| `@dltech/atlas-client/session`                  | The session create input, the rewind, the summarise, the image upload, the composer attachments, the message input, the draft sync and the sandbox start view. |
-| `@dltech/atlas-client/account`                  | The Atlas Cloud device-code login and the PKCE pair a browser sign-in needs.                                                                                   |
-| `@dltech/atlas-client/settings`                 | The settings page and section lists, and the agent, models, appearance, instructions, memory, project, group, sandbox and pull-request settings logic.         |
-| `@dltech/atlas-client/browser-return`           | The outcomes a browser sign-in brought back, held by the state of its start link.                                                                              |
-| `@dltech/atlas-client/transcript`               | The transcript rows, the tool runs and the turn rows.                                                                                                          |
-| `@dltech/atlas-client/stream-fixture`           | A fake scheduler and transport, and the event factories, for a spec.                                                                                           |
-| `@dltech/atlas-client/transcript-fixture`       | The event drafts and the step signals of a transcript, for a spec.                                                                                             |
-| `@dltech/atlas-client/transcript-tool-fixture`  | The tool call and result drafts, for a spec.                                                                                                                   |
-| `@dltech/atlas-client/transcript-tools-fixture` | A sample tool call and shell call, for a spec or a prototype.                                                                                                  |
+| Import                                          | Use it for                                                                                                                                                                    |
+| ----------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `@dltech/atlas-client/stream`                   | The stream connection, the session follower, the log, the window and the overlay.                                                                                             |
+| `@dltech/atlas-client/channel`                  | The pod delta channel, the frame codecs and the tool requests.                                                                                                                |
+| `@dltech/atlas-client/chat`                     | The chat transport, the step chunks and the step messages.                                                                                                                    |
+| `@dltech/atlas-client/crew`                     | The crew readout, the sub-agent state and the background work.                                                                                                                |
+| `@dltech/atlas-client/session`                  | The session create input, the rewind, the summarise, the image upload, the composer attachments, the message input, the draft sync and the sandbox start view.                |
+| `@dltech/atlas-client/account`                  | The Atlas Cloud device-code login and the PKCE pair a browser sign-in needs.                                                                                                  |
+| `@dltech/atlas-client/settings`                 | The settings page and section lists, and the agent, models, appearance, instructions, memory, skills, notifications, project, group, sandbox and pull-request settings logic. |
+| `@dltech/atlas-client/browser-return`           | The outcomes a browser sign-in brought back, held by the state of its start link.                                                                                             |
+| `@dltech/atlas-client/transcript`               | The transcript rows, the tool runs and the turn rows.                                                                                                                         |
+| `@dltech/atlas-client/stream-fixture`           | A fake scheduler and transport, and the event factories, for a spec.                                                                                                          |
+| `@dltech/atlas-client/transcript-fixture`       | The event drafts and the step signals of a transcript, for a spec.                                                                                                            |
+| `@dltech/atlas-client/transcript-tool-fixture`  | The tool call and result drafts, for a spec.                                                                                                                                  |
+| `@dltech/atlas-client/transcript-tools-fixture` | A sample tool call and shell call, for a spec or a prototype.                                                                                                                 |
 
 ## Capabilities
 
@@ -51,9 +51,12 @@ The headless client library that web, the TUI and the mobile app share.
   `browserNetworkSignal`: the ports that a surface supplies.
 - `nestPeers(rows)` nests each teammate under its spawner. `peerBucketOf({ row })` and
   `EPeerBucket` give a row's bucket; `splitTeammates(rows)` gives its active and done teammates.
-  `isRecentProject(args)`, `lastActivityAt(args)` and `RECENT_PROJECT_WINDOW_MS` keep new projects.
 
 ### List settings
+
+- `accessFileEditorOf`, `loadAccessFileEditor`, `accessFileEditorDirty` and `clearAccessFileEditor`: keep file editing separate from its reveal preview, preserve unsaved contents or mode changes until confirmed, and clear plaintext when editing ends.
+- `accessGrantNameValid`, `accessGrantDraftValid`, `secretNameInvalid` and `secretDraftValid`: shared grant and secret form predicates. The grant draft adds length limits to the web form's name predicate.
+- `beginRevealRequest`, `cancelRevealRequest`, `revealRequestPending` and `acceptRevealRequest`: the reveal request state machine. Cancelled or superseded results cannot be accepted.
 
 - `ESettingsPage`, `SETTINGS_NAV`, `labelOfPage(page)`, `filterNav({ groups, query })`: the user-level
   settings pages, in nav groups, labelled and searchable. `filterNav` keeps whatever a surface adds
@@ -76,17 +79,78 @@ The headless client library that web, the TUI and the mobile app share.
   `choiceOf`, `staleOwnerOf`, `ownsModel`, `affectedOf`: the model roles a Models & Effort page
   lists, the copy it shows and the model, effort and fast each role resolves to.
 - `modelsDraftFrom(values)`, `modelsChanges({ saved, draft })`, `pickedModelDraft`, `effortDraft`,
-  `fastDraft`, `followedDraft`: the per-role draft and the flat changes it saves.
+  `fastDraft`, `followedDraft`, `unfollowedDraft`: the per-role draft and the flat changes it saves.
+  `unfollowedDraft({ draft, role, inherited })` keeps the resolved model, effort and fast when a role stops following.
 - `settingValue`, `settingString`, `settingBool`, `diffChanges({ saved, draft })`: read a flat setting
   from its registry entry, and diff two flat records into the keys to patch.
 - `INSTRUCTIONS_CHAR_LIMIT`, `instructionsOf({ files, path?, decode })`, `charCountOf({ length, limit })`,
   `canSaveInstructions(args)`: one instructions document, its character budget, and whether a save is
   allowed. The page descriptions travel with them.
+- `skillUsageKeyOf(target)`, `skillUsageTargetOf(layer)`, `withSkillUsage({ skills, usage })`:
+  cache keys and scope mapping for the separate `skills.usage` query. Merge counts without
+  blocking the list or losing inherited-layer metadata. Pending or failed usage leaves each
+  summary's `usagePending` marker intact; a received count clears it. Built-ins use personal usage.
 - `EMemoryScope`, `EMemoryType`, `MemoryEntry`, `MemoryScopeGroup`, `MEMORY_TYPE_LABELS`,
   `buildMemoryGroups({ memories, groupNames })`, `memoryMatchesFilter({ entry, query, type })`,
   `memoryScopeOptionsOf(groups)`, `memoryScopeHintOf(group)`, `memoryClearDescriptionOf(group)`,
   `memoryKeyInput(key)`, `formatMemoryDate(updatedAt)`: the memory scopes, their rows, and the copy
-  around them.
+  around them. `selectedMemoryNamesOf({ selected, memories })`, `memorySelectionOf({ selectedNames, name, selected })` and `memoryDeleteTitleOf(count)` share bulk selection and deletion copy.
+- `pickedAdditionalRepository({ repositories, mainRepository, index, value })` applies a repository picker result to an overview draft, rejects duplicate or malformed names, and keeps the additional-repository limit.
+- `repoChoices({ repos, query })`, `parseRepoInput(raw)`, `additionalRepoChoices({ repos, query, taken })` and `repositoryPickerChoices({ repos, query, taken })`: search GitHub repositories, accept pasted GitHub links, and exclude repositories already used by a project. The picker excludes all taken names, even when they match the search exactly.
+
+### Read skills
+
+- `matchesSkill({ skill, query })`, `orderSkills({ skills, sort })`, `cycleSkillSort({ current, key })`,
+  `ariaSortOf({ sort, key })`: search, order and the ascending, descending, off cycle of a skills list.
+  `ESkillSortKey`, `ESortDirection` and `SkillSort` are its model.
+- `personalSkillTarget`, `projectSkillTarget({ projectId })`, `groupSkillTarget({ groupId })`,
+  `skillsDescriptionOf(target)`: the `skills.*` router input for each scope, and the copy that says
+  where that scope's skills load.
+- `skillNameIsValid({ name })`, `SKILL_NAME_PATTERN`, `MAX_SKILL_NAME_LENGTH`, `EMPTY_SKILL_MD`,
+  `SKILL_ENTRY_PATH`: a new skill's name rule, and the bare `SKILL.md` it starts as.
+- `newSkillFileOf({ target, name, hashOf })`: the `skills.put` payload that creates a skill as its
+  bare `SKILL.md`, hashed by the surface's own SHA-256.
+- `visibleSkillsOf({ skills, query, sort })`, `liveSelectedOf({ selected, visible })`,
+  `skillIsSelectable(skill)`: the rows a list shows, the selection that still matches them, and the
+  built-in skills no delete can reach.
+- `skillUsageViewOf({ skill, now })`, `skillRelativeTimeOf({ iso, now })`, `SkillUsageView`: a row's
+  usage text, its last use as a relative time, and "Never used". Pending or failed usage reads "—".
+- `buildSkillTree(paths)`, `defaultSkillPath({ metas })`, `skillFileTargetOf`, `skillFilePathProblem`, `skillPathContains`, `skillRenamePlan`: the skill file tree, initial selection and validated file operations shared by web and iOS.
+- `skillFileWriteOf`, `saveSkillTextWith`, `isSkillConflict`: hashed file writes and revision-conflict recovery through surface-supplied read, write and hash ports.
+- `initialSkillEditorState`, `skillEditorReducer`, `ESkillEditorAction`, `skillDetailIsReadOnly`: the text draft, discard/save/conflict transitions and built-in protection.
+- `toBase64Utf8`, `fromBase64Utf8`, `base64OfBytes`, `bytesOfBase64`: a skill file's payload.
+- `formatBytes(bytes)`, `formatSkillDate(updatedAt)`, `fileKindOf(path)`, `ESkillFileKind`,
+  `SKILL_PRECEDENCE_COPY`: how a skill row reads.
+- `inheritedTitleOf(ref)`, `overriddenLabelOf(layer)`, `overridesLabelOf(layer)`, `originNounOf(ref)`,
+  `layersBelowOf(layer)`, `shadowedBelowOf(args)`, `inheritedIdsOf(args)`, `LayerRef`: how an inherited
+  layer, its owner and its shadow are named.
+
+- `NOTIFY_MOMENTS`, `notifyEventKey(moment)`, `NotificationSettings`, `notificationsFrom(values)`,
+  `notificationChanges({ saved, draft })`, `withDeviceZone(settings)`, `QUIET_HOUR_OPTIONS`,
+  `NOTIFY_TIMEZONE_KEY` and the quiet-hour keys: the notification moments, quiet hours and their
+  time zone. `NOTIFY_DEVICE_KIND_LABELS`, `notifyDeviceDetailOf({ kind, enabled })`,
+  `withDeviceEnabled(args)`: a registered device's row and its pending switch.
+- `timezoneNames()`, `timezoneChoicesOf({ query, selected })`, `deviceTimezone()`: the time-zone
+  list, common zones first, searched as a user types.
+
+### Provider accounts and classifier
+
+- `PROVIDER_CATALOGUE`, `providerGroupsOf`, `providerAccountDetailOf`, `providerKeyMaskOf`, `planNameOf`: provider choices, account groups and account labels.
+- `EKeyDialogMode`, `providerKeyReady`, `providerKeyResult`: API-key form validation and trimmed save values.
+- `createProviderSignIn`, `EProviderSignInState`, `pollSignInUntilSettled`: the paste-code and device-code sign-in state machine, with surface-supplied API, browser and clock ports.
+- `providerUsageWindowsOf`, `providerUsageAgeOf`: plan usage meter values and stale-read text.
+- `classifierSettingsFrom`, `classifierChanges`, `classifierModelItems`, `classifierAvailabilityIn`, `classifierStatusOf`, `classifierSuggestionOf`, `classifierFeaturesOf`, `classifierTestLineOf`: classifier drafts, availability, suggestions and status text.
+
+### Access grants, secrets and file mounts
+
+- `accessFileValidation`, `AccessFileDraft`, `EditingFile`: shared file draft validation and save payload, including scope path rules, byte limit and permissions.
+- `parseFileMode`, `formatFileMode`, `DEFAULT_MODE_TEXT`, `pickerChoices`, `TreeEntry`: octal mode labels and ranked repository path suggestions.
+
+- `createAccessMemberApi({ api, scope })`: select personal, group or project secret and file operations using a surface-supplied transport.
+- `scopeKeyOf`, `moveTargetsOf`, `grantMoveBranchesOf`, `deleteGrantDescription`: grant identity, move destinations and delete confirmation copy.
+- `accessGrantSaveOf`, `accessGrantMatchesQuery`, `accessGrantSummary`: grant save payloads, case-insensitive search and member count labels.
+- `SECRET_NAME`, `parseEnvLines`, `SecretPair`: secret name validation and .env bulk parsing, with invalid line numbers.
+- `accessScopeOfParams`, `accessParamsOfScope`: round-trip scope through settings routes.
 
 ### Read an account and its signed-in devices
 
@@ -99,6 +163,8 @@ The headless client library that web, the TUI and the mobile app share.
 - `signInMethodsOf(accounts)`, `signInMethodRowsOf({ methods, busy })`, `ESignInMethodAction` and
   `ESignInMethodProvider`: which methods a user has, and the two rows a settings page shows.
 - `linkReturnOf(params)`, `ELinkReturnKind`: the outcome a Google link came back with.
+- `googleLinkMessageOf(outcome)`, `googleReauthCallbackPath(args)`, `confirmationMethodsOf(methods)` and `GoogleReauthBegin`: the shared browser-return copy, forced Google handoff callback and available confirmation methods.
+- `revealWithTemporarySession(args)`: reveal only while a request is pending and always revoke the temporary password or Google session, including failures and cancelled requests.
 - `unlinkRefusalOf(args)`, `SESSION_NOT_FRESH`, `UNREACHABLE`: the refusals a settings page names.
 
 ### Read MCP and GitHub settings
@@ -145,6 +211,9 @@ The headless client library that web, the TUI and the mobile app share.
 - `derivedViewOf`, `deriveViewOf`, `deriveStatusOf`, `frameFactsOf`: the view of a followed session.
   `sessionDisplayOf`, `isSessionUnreadOf`, `startFailureOf`: the status, unread mark, start failure;
   `blockingCommandOf`, `elapsedClockOf`: the command that holds the next turn, and its clock.
+  `requestedCommandOf`, `acceptedCommandOf`, `failedCommandOf`, `requestedCommandDone` and
+  `shownBlockingOf` show a blocking command from the moment the operator requests it, before the
+  server lists it.
 
 ### Read the pod channel
 

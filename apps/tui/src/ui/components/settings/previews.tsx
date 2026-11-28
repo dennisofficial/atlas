@@ -70,10 +70,10 @@ const PATCH = [
   `--- a/${DIFF_PATH}`,
   `+++ b/${DIFF_PATH}`,
   '@@ -11,6 +11,6 @@ export const theme: Palette = {',
-  "   appBg: '#282422',",
+  "   appBg: '#252525',",
   '-  accent: ACCENT,',
   '+  accent: accentHex(chosen),',
-  "   dim: '#6b625c',",
+  "   dim: '#646464',",
 ].join('\n')
 
 const DENSITY_DIFF: DiffFile | undefined = parseUnifiedDiff(PATCH)[0]

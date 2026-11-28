@@ -12,6 +12,7 @@ import {
 import { useIsMobile } from '@dltech/atlas-ui/hooks/use-mobile'
 
 import type { SessionPaneState } from './pane-state'
+import { desktopPaneTab } from './pane-tab'
 import { SessionPane } from './session-pane'
 import { SessionSplit } from './session-split'
 
@@ -56,7 +57,7 @@ export function SessionPaneLayout(props: SessionPaneLayoutProps) {
 
   return (
     <SessionSplit
-      tab={props.tab}
+      tab={desktopPaneTab(props.tab)}
       onTabChange={props.setTab}
       layout={props.layout}
       onLayoutChange={props.rememberLayout}

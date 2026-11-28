@@ -65,6 +65,21 @@ describe('DesktopAuthService', () => {
     ).rejects.toThrow('invalid')
   })
 
+  it('refuses a normal browser-cookie grant when the app requires Google confirmation', async () => {
+    const { code, verifier } = await grant()
+    await expect(
+      service.exchange({
+        code,
+        codeVerifier: verifier,
+        redirectUri: REDIRECT,
+        requireGoogleReauth: true,
+      }),
+    ).rejects.toThrow('Google confirmation is required')
+    await expect(
+      service.exchange({ code, codeVerifier: verifier, redirectUri: REDIRECT }),
+    ).rejects.toThrow('invalid')
+  })
+
   it('rejects a wrong verifier and burns the code', async () => {
     const { code, verifier } = await grant()
     const wrong = randomBytes(32).toString('base64url')

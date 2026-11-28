@@ -1,9 +1,18 @@
 'use client'
 
 import { useCallback } from 'react'
+import { skillUsageKeyOf, withSkillUsage } from '@dltech/atlas-client/settings'
+import { useSkillUsage } from './use-skill-usage'
 import type { SkillFileMeta, SkillSummary } from '@dltech/atlas-wire/web'
 
-import { useCloudQuery } from '@/lib/use-cloud-query'
+import {
+  newSkillFileOf,
+  skillPathContains,
+  skillRenamePlan,
+  skillFileWriteOf,
+} from '@dltech/atlas-client/settings'
+
+import { EQueryState, useCloudQuery } from '@/lib/use-cloud-query'
 
 import {
   fileToBase64,
@@ -15,13 +24,12 @@ import {
   removeSkill,
   removeSkillFile,
   sha256HexOfBase64,
+  sha256HexOfText,
   toBase64Utf8,
   type SkillScopeTarget,
 } from './skills-api'
 
 export type { SkillScopeTarget }
-
-export const EMPTY_SKILL_MD = `---\nname: \ndescription: \n---\n\n`
 
 export const keyOfSkills = (target: SkillScopeTarget): string => {
   if (target.groupId !== undefined) return `skills:group:${target.groupId}`
@@ -33,11 +41,14 @@ const putBase64 = async (
   target: SkillScopeTarget & { skill: string; path: string; baseRevision?: number },
   content: string,
 ): Promise<number> =>
-  putSkillFile({
-    ...target,
-    content,
-    contentHash: await sha256HexOfBase64(content),
-  })
+  putSkillFile(
+    await skillFileWriteOf({
+      target,
+      content,
+      baseRevision: target.baseRevision,
+      hashOf: sha256HexOfBase64,
+    }),
+  )
 
 export type SkillsSnapshot = { skills: SkillSummary[]; fetchedAt: number }
 
@@ -50,11 +61,12 @@ export function useSkills(target: SkillScopeTarget) {
     [target.scope, target.projectId, target.groupId],
   )
   const query = useCloudQuery<SkillsSnapshot>({ key: keyOfSkills(target), load })
+  const usage = useSkillUsage(query.state === EQueryState.Ready ? [target] : [])
   const { reload } = query
 
   const createSkill = useCallback(
     async (name: string) => {
-      await putBase64({ ...target, skill: name, path: 'SKILL.md' }, toBase64Utf8(EMPTY_SKILL_MD))
+      await putSkillFile(await newSkillFileOf({ target, name, hashOf: sha256HexOfText }))
       reload()
     },
     [reload, target.scope, target.projectId, target.groupId],
@@ -68,7 +80,20 @@ export function useSkills(target: SkillScopeTarget) {
     [reload, target.scope, target.projectId, target.groupId],
   )
 
-  return { query, createSkill, deleteSkills }
+  const enriched =
+    query.state !== EQueryState.Ready
+      ? query
+      : {
+          ...query,
+          data: {
+            ...query.data,
+            skills: withSkillUsage({
+              skills: query.data.skills,
+              usage: usage.get(skillUsageKeyOf(target))?.usage,
+            }),
+          },
+        }
+  return { query: enriched, createSkill, deleteSkills }
 }
 
 export function useSkillFiles(target: SkillScopeTarget & { skill: string }) {
@@ -93,7 +118,7 @@ export function useSkillFiles(target: SkillScopeTarget & { skill: string }) {
   const deletePath = useCallback(
     async (path: string) => {
       const files = await listSkillFiles(target)
-      const doomed = files.filter((file) => file.path === path || file.path.startsWith(`${path}/`))
+      const doomed = files.filter((file) => skillPathContains({ parent: path, path: file.path }))
       for (const file of doomed) {
         await removeSkillFile({ ...target, path: file.path, baseRevision: file.revision })
       }
@@ -121,9 +146,8 @@ export function useSkillFiles(target: SkillScopeTarget & { skill: string }) {
   const renamePath = useCallback(
     async ({ from, to }: { from: string; to: string }) => {
       const files = await listSkillFiles(target)
-      const moving = files.filter((file) => file.path === from || file.path.startsWith(`${from}/`))
-      for (const file of moving) {
-        const nextPath = to + file.path.slice(from.length)
+      const moving = skillRenamePlan({ files, from, to })
+      for (const { file, path: nextPath } of moving) {
         const current = await getSkillFile({ ...target, path: file.path })
         await putSkillFile({
           ...target,

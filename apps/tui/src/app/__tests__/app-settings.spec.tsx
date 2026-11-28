@@ -180,13 +180,13 @@ describe('the settings drawer', () => {
 
       expect(mounted.client()?.calls.setSetting[0]).toEqual({
         key: 'appearance.accent',
-        value: 'atlas-setting:v1:"slate"',
+        value: 'atlas-setting:v1:"sky"',
       })
-      await settled(mounted, () => theme.accent === accentHex('slate'))
+      await settled(mounted, () => theme.accent === accentHex('sky'))
       await settled(
         mounted,
         () =>
-          readAccount({ path: mounted.accountPath })?.preferences['appearance.accent'] === 'slate',
+          readAccount({ path: mounted.accountPath })?.preferences['appearance.accent'] === 'sky',
       )
     } finally {
       await teardown(mounted.setup)

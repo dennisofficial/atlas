@@ -19,6 +19,9 @@ import {
   memoryClearDescriptionOf,
   memoryMatchesFilter,
   memoryScopeHintOf,
+  selectedMemoryNamesOf,
+  memorySelectionOf,
+  memoryDeleteTitleOf,
 } from '@dltech/atlas-client/settings'
 import {
   EMemoryScope,
@@ -82,9 +85,7 @@ function MemoryContent({ groups, memory }: { groups: MemoryScopeGroup[]; memory:
   if (!group) return null
 
   const visible = group.memories.filter((entry) => memoryMatchesFilter({ entry, query, type }))
-  const liveSelected = selectedNames.filter((name) =>
-    group.memories.some((entry) => entry.name === name),
-  )
+  const liveSelected = selectedMemoryNamesOf({ selected: selectedNames, memories: group.memories })
 
   const handleGroupChange = (id: string) => {
     setGroupId(id)
@@ -96,11 +97,7 @@ function MemoryContent({ groups, memory }: { groups: MemoryScopeGroup[]; memory:
     if (isMemoryTypeFilter(next)) setType(next)
   }
   const handleSelectedChange = ({ name, selected }: { name: string; selected: boolean }) =>
-    setSelectedNames((current) =>
-      selected
-        ? [...current.filter((value) => value !== name), name]
-        : current.filter((value) => value !== name),
-    )
+    setSelectedNames((current) => memorySelectionOf({ selectedNames: current, name, selected }))
   const handleOpen = (entry: MemoryEntry) => {
     setSheetMode(EMemorySheetMode.View)
     setOpenName(entry.name)
@@ -118,7 +115,7 @@ function MemoryContent({ groups, memory }: { groups: MemoryScopeGroup[]; memory:
   const handleDeleteSelected = () =>
     setPending({
       names: liveSelected,
-      title: `Delete ${liveSelected.length} ${liveSelected.length === 1 ? 'memory' : 'memories'}?`,
+      title: memoryDeleteTitleOf(liveSelected.length),
       description: MEMORY_DELETE_TAIL,
     })
   const handleConfirmDelete = async () => {

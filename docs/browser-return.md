@@ -98,19 +98,28 @@ sign-in results for flows, not tokens.
   back to the device code on its own. While the browser is open the waiting screen keeps the
   device code one keypress away, so a session that looks local still has a way through.
 
+### Google settings on iOS
+
+Account linking calls `googleAccount.beginLink`, then opens the returned browser-return start link. The one-use `/google-link/start` bootstrap calls better-auth with the initiating user's sealed bearer and forwards the OAuth state cookies before redirecting to Google. `/google-link/callback` verifies the expected account gained Google and answers the framework. A different browser account cannot select the account being linked.
+
+Access confirmation calls `desktopAuth.beginGoogleReauth` with the existing PKCE binding. `/desktop/authorize` starts Google sign-in even when an Atlas browser session already exists, then returns to itself to authorize the handoff. The API requires the same user, redirect and challenge, a session created after begin, and a one-use proof written only when the Google callback creates that session. An old Atlas cookie or a fresh password session cannot confirm Google. The app exchanges the code through `desktopAuth.exchange` with `requireGoogleReauth: true`, which rejects a normal login grant before minting a session even if the browser strips the re-auth nonce. It reveals the value with that temporary bearer and revokes it, including cancellation and reveal failures. Normal web, Mac and TUI login does not send the optional Google confirmation nonce and is unchanged.
+
+This settings UI is mobile-only; web already has Google linking and confirmation. Mac and TUI retain their existing login flow. Native browser-sheet rendering and Google consent need a real-device check; the Expo web bundle does not prove them.
+
 ## Flows on the framework
 
-| Flow     | Start                                                 | Return path                                                                                            | Durable result                        |
-| -------- | ----------------------------------------------------- | ------------------------------------------------------------------------------------------------------ | ------------------------------------- |
-| `mcp`    | the MCP transcript card's sign-in, or a settings page | `/sessions/<id>`, `/settings/integrations`, `/projects/<id>/settings/mcp`, `/groups/<id>/settings/mcp` | the roster row, read by the next turn |
-| `github` | `github.beginRedirect` from integrations settings     | `/settings/integrations`                                                                               | `github.get` connection               |
+| Flow          | Start                                                 | Return path                                                                                            | Durable result                        |
+| ------------- | ----------------------------------------------------- | ------------------------------------------------------------------------------------------------------ | ------------------------------------- |
+| `github`      | `github.beginRedirect` from integrations settings     | `/settings/integrations`                                                                               | `github.get` connection               |
+| `google-link` | the iOS Account settings Link Google button           | `/settings/account`                                                                                    | the linked sign-in methods            |
+| `mcp`         | the MCP transcript card's sign-in, or a settings page | `/sessions/<id>`, `/settings/integrations`, `/projects/<id>/settings/mcp`, `/groups/<id>/settings/mcp` | the roster row, read by the next turn |
 
 GitHub connect opens a browser on web, Mac, iOS and a local TUI. The iOS integrations screen calls
 `github.beginRedirect`, passes its `{url}` to `openBrowserReturn`, and reads `useReturnOutcome` to
 refresh the connection or show the failure reason. The provider callback is exactly
 `https://api.byatlas.io/v1/github/oauth/callback` in production; local and test configurations derive
 `/v1/github/oauth/callback` from their public API origin. The callback exchanges the authorization
-code with the OAuth App secret and finds the operator from the open `github` state, not a cookie.
+code with the OAuth App secret and finds the operator by claiming the open `github` state once, before the exchange, never from a cookie.
 The TUI uses `loginFlowOf` to keep device codes for SSH or headless sessions. While it waits for a
 browser, Enter on the GitHub row switches to a code. A loopback bind or launch failure and a timed-out
 browser attempt also fall back to a code. Web and Mac have no device-code UI or polling loop.

@@ -10,18 +10,27 @@ import { useCallback, useMemo } from 'react'
 import { Alert } from 'react-native'
 
 import type { MessageRow } from '../rows'
+import type { RequestedCommandState } from './use-requested-command'
+
+const NO_POINTS: ReadonlyMap<string, SummariseReach> = new Map()
 
 export const useMessageSummarise = (args: {
   sessionId: string
   events: readonly RecordEvent[]
   api: SummariseApi | undefined
+  requested: RequestedCommandState
   onNotice: (notice: string) => void
 }): {
   summarisePoints: ReadonlyMap<string, SummariseReach>
   handleSummarise: (row: MessageRow) => void
 } => {
-  const { sessionId, events, api, onNotice } = args
-  const summarisePoints = useMemo(() => summarisePointsOf(events), [events])
+  const { sessionId, events, api, requested, onNotice } = args
+  const { blocking, track } = requested
+  const busy = blocking !== undefined
+  const summarisePoints = useMemo(
+    () => (busy ? NO_POINTS : summarisePointsOf(events)),
+    [busy, events],
+  )
 
   const handleSummarise = useCallback(
     (row: MessageRow) => {
@@ -34,14 +43,15 @@ export const useMessageSummarise = (args: {
         {
           text: 'Summarise',
           onPress: () => {
-            requestSummarise({ api, sessionId, throughSeq: pick.throughSeq }).catch(() =>
-              onNotice('Summarise failed. Try again.'),
-            )
+            track({
+              name: 'summarise',
+              request: () => requestSummarise({ api, sessionId, throughSeq: pick.throughSeq }),
+            }).catch(() => onNotice('Summarise failed. Try again.'))
           },
         },
       ])
     },
-    [api, summarisePoints, sessionId, onNotice],
+    [api, summarisePoints, sessionId, track, onNotice],
   )
 
   return { summarisePoints, handleSummarise }

@@ -19,7 +19,10 @@ describe('wrangler.toml', () => {
     ])
   })
 
-  it('declares only the preview domain as a var', () => {
-    expect(fieldOf({ value: config, key: 'vars' })).toEqual({ PREVIEW_DOMAIN: 'byatlas.dev' })
+  it('declares the preview domain and public capture key as vars', () => {
+    expect(fieldOf({ value: config, key: 'vars' })).toEqual({
+      PREVIEW_DOMAIN: 'byatlas.dev',
+      POSTHOG_KEY: 'phc_q27hvgM8kSbwyjca72m3v7QexFE25FfFG8n529zM2WqL',
+    })
   })
 })

@@ -64,6 +64,20 @@ describe('podStartedOf', () => {
     })
   })
 
+  it('includes the provider wake stages when supplied', () => {
+    expect(
+      podStartedOf({
+        start: EPodStart.Woke,
+        provider: 'agent37',
+        sessionId: 'session-1',
+        wakeMs: 4_000,
+        stages: { instanceStartMs: 1_200, daemonReadyMs: 2_500 },
+      }),
+    ).toMatchObject({
+      properties: { instance_start_ms: 1_200, daemon_ready_ms: 2_500 },
+    })
+  })
+
   it('stays quiet for a pod that was already running or reported nothing', () => {
     const base = { provider: 'vercel', sessionId: 'session-1', wakeMs: 5 }
     expect(podStartedOf({ ...base, start: EPodStart.Running })).toBeUndefined()

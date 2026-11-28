@@ -14,6 +14,22 @@ const warm = {
   950: '#1e1a17',
 } as const
 
+const graphite = {
+  50: '#f7f7f7',
+  100: '#eaeaea',
+  200: '#d5d5d5',
+  300: '#b9b9b9',
+  400: '#9c9c9c',
+  500: '#828282',
+  600: '#646464',
+  700: '#4b4b4b',
+  800: '#363636',
+  850: '#282828',
+  900: '#252525',
+  925: '#202020',
+  950: '#1b1b1b',
+} as const
+
 const clay = {
   50: '#fdf3ef',
   100: '#fbe4da',
@@ -40,6 +56,19 @@ const blue = {
   800: '#1f3f6b',
   900: '#182c48',
   950: '#101c2c',
+} as const
+
+const sky = {
+  50: '#e3f8ff',
+  100: '#b3ecff',
+  200: '#81defd',
+  300: '#5ed0fa',
+  400: '#40c3f7',
+  500: '#2bb0ed',
+  600: '#1992d4',
+  700: '#127fbf',
+  800: '#0b69a3',
+  900: '#035388',
 } as const
 
 const steel = {
@@ -105,13 +134,15 @@ const violet = {
 } as const
 
 const wash = {
-  hover: warm[850],
-  selected: '#3a332e',
-  user: '#332e2a',
-  userBand: warm[850],
+  hover: graphite[850],
+  selected: '#343434',
+  user: '#2f2f2f',
+  userBand: graphite[850],
 } as const
 
 const accentChoices = {
+  graphite: '#eaeaea',
+  sky: '#40c3f7',
   clay: clay[500],
   slate: '#7f9cc0',
   moss: '#7aa262',
@@ -122,18 +153,20 @@ const diff = {
   addDark: '#252d20',
   removeDark: '#322020',
   wordDark: '#335030',
-  bandDark: '#241f1c',
+  bandDark: graphite[925],
   addLight: '#eef7ee',
   removeLight: '#fdf1f0',
   wordLight: '#cdecc6',
-  bandLight: '#f0ebe4',
+  bandLight: '#ececec',
 } as const
 
 export const primitives = {
   color: {
     warm,
+    graphite,
     clay,
     blue,
+    sky,
     steel,
     red,
     amber,

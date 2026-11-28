@@ -65,6 +65,30 @@ export const MEMORY_TYPE_FILTER_OPTIONS = [
 export const MEMORY_PAGE_TITLE = 'Memory'
 export const MEMORY_PAGE_DESCRIPTION =
   'Notes the agent keeps across conversations. Global memories apply everywhere, group memories to every project in a group, and project memories only in that repository.'
+export const selectedMemoryNamesOf = ({
+  selected,
+  memories,
+}: {
+  selected: readonly string[]
+  memories: readonly Pick<MemoryEntry, 'name'>[]
+}): string[] => selected.filter((name) => memories.some((entry) => entry.name === name))
+
+export const memorySelectionOf = ({
+  selectedNames,
+  name,
+  selected,
+}: {
+  selectedNames: readonly string[]
+  name: string
+  selected: boolean
+}): string[] =>
+  selected
+    ? [...selectedNames.filter((value) => value !== name), name]
+    : selectedNames.filter((value) => value !== name)
+
+export const memoryDeleteTitleOf = (count: number): string =>
+  `Delete ${count} ${count === 1 ? 'memory' : 'memories'}?`
+
 export const MEMORY_DELETE_TAIL =
   'The agent stops seeing this memory in new threads. This cannot be undone.'
 

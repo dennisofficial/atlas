@@ -52,11 +52,21 @@ response payloads, the constants that both sides must agree on, and the sandbox 
 ### Share an HTTP payload
 
 - `threadMessageRequestSchema`, `threadMessageReplySchema`: the send of a message to a thread.
+- `beginGoogleLinkInputSchema`, `beginGoogleReauthInputSchema`, `beginGoogleReplySchema`: authenticated Google account linking and fresh PKCE confirmation begins. `authorizeDesktopInputSchema.googleReauth` and `exchangeDesktopCodeInputSchema.requireGoogleReauth` are optional so released Mac and TUI sign-in requests remain valid. A Google reveal sets `requireGoogleReauth: true` so a normal login grant cannot be substituted.
 - `dictationTokenReplySchema`: the single-use Gateway transcription token a phone dictates with,
   with the socket `url` it opens and the `DICTATION_MODEL` it is bound to.
 - `modelsResponseSchema`: the model list of the providers, with the live error.
 - `classifierTestOutputSchema`: the outcome of a classifier connection test, a pass with its model
   and duration or a fault with its detail.
+- `skillSummarySchema`, `skillLayersSchema`: list and layered skill summaries. `skills.list` and
+  `skills.layered` never wait for usage. `usagePending: true` means the `usage` object is a
+  compatibility placeholder (`usedCount30d: 0`, `lastUsedAt: null`), not a measured zero.
+  Older clients can still read `usage` without crashing; newer clients show an empty usage cell
+  until `skills.usage` returns. The optional marker also accepts replies from older servers.
+- `skillUsageReplySchema`, `SkillUsageReply`: `skills.usage` takes `skillScopeInputSchema`, the
+  same scope as `skills.list`, and returns `{ usage: { [skillName]: { usedCount30d, lastUsedAt } } }`.
+  Personal usage includes built-ins. Each inherited layer loads its own scope. A failed usage
+  query must not fail a skills list.
 - `memorySummarySchema`, `memoryEntrySchema`, `memoryListSchema`: the memory rows of a list and a
   read.
 - `memoryPutSchema`, `memoryEditSchema`, `memoryKeySchema`: the memory write and edit payloads. A

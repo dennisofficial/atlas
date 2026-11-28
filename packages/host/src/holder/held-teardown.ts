@@ -23,6 +23,7 @@ export const teardownHeld = async (args: {
   fenced: FencedSettlement
 }): Promise<HeldOutcome> => {
   const { deps, runtime, kind } = args
+  runtime?.pluginScope?.dispose()
   if (kind === EHeldOutcome.Fenced) {
     runtime?.remoteCalls.close()
     if (args.settleFence) await args.fenced.settle(args.epoch)

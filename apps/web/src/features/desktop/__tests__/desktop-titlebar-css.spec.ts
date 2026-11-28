@@ -27,6 +27,11 @@ describe('desktop.css titlebar band', () => {
     expect(wordmark).not.toContain('position: relative')
   })
 
+  it('keeps the right-edge inset on the header beside an expanded sidebar', () => {
+    const header = blockOf('  ~ [data-slot="sidebar-inset"]\n  header[data-chrome="titlebar"] {')
+    expect(header).toContain('padding-left: calc(var(--spacing) * 4)')
+  })
+
   it('hides the wordmark and its traffic light inset while the window is full screen', () => {
     const hidden = blockOf('[data-desktop-wordmark] {')
     expect(hidden).toContain('display: none')

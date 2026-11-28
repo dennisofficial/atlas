@@ -5,6 +5,7 @@ import {
   nextReleaseVersion,
 } from '@dltech/atlas-core'
 
+import { payloadVersion } from './payload-version'
 import { RELEASE_TAG_PREFIX, latestRelease } from '../src/boot/update-check'
 import { nonEmptyLines, run, workspaceManifests } from '../../../scripts/workspace-manifests'
 
@@ -33,10 +34,18 @@ const affected = affectedApps({
   apps: SHIPPED_APP_DIRS,
   changedPaths: changed,
 })
-const next = nextReleaseVersion({
+const computed = nextReleaseVersion({
   current: latest?.version ?? null,
   subjects: subjectsSince(since),
   appsAffected: affected.length > 0,
+})
+
+const next = payloadVersion({
+  headTags: process.argv.includes('--prefer-head-tag')
+    ? nonEmptyLines(run(['git', 'tag', '--points-at', 'HEAD', '--list', `${RELEASE_TAG_PREFIX}*`]))
+    : [],
+  prefix: RELEASE_TAG_PREFIX,
+  next: computed,
 })
 
 console.error(

@@ -4,6 +4,7 @@ import { createEmailSender } from '../../../_lib/email/email-sender'
 import { captureSignedIn, captureSignedUp } from './auth-analytics'
 import { createAuthEmailHooks } from './auth-email-hooks'
 import { sessionStorageFromEnv } from './auth-session-storage'
+import { recordGoogleSession } from './google-session'
 import { missingTrustedOrigins } from './trusted-origins'
 import { betterAuth } from 'better-auth'
 import { bearer, deviceAuthorization } from 'better-auth/plugins'
@@ -108,8 +109,15 @@ export const auth = betterAuth({
     },
     session: {
       create: {
-        after: async (session, context) =>
-          captureSignedIn(serverAnalytics().analytics, session, context),
+        after: async (session, context) => {
+          await recordGoogleSession({
+            sessionId: session.id,
+            userId: session.userId,
+            path: context?.path,
+            provider: context?.params?.id,
+          })
+          captureSignedIn(serverAnalytics().analytics, session, context)
+        },
       },
     },
   },

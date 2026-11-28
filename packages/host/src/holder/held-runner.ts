@@ -5,7 +5,7 @@ import {
   type ThreadId,
 } from '@dltech/atlas-core'
 import { LoopTurnRunner, settleCrashedCalls } from '@dltech/atlas-agent'
-import { logFieldsOf } from '@dltech/atlas-observability'
+import { EFirstAction, logFieldsOf } from '@dltech/atlas-observability'
 import { composePodCommands } from '@dltech/atlas-plugin-sdk'
 
 import { dispatchableScopeKey, ScopedToolDispatcher } from '../calls/call-scope'
@@ -17,8 +17,10 @@ import { podSampleObserverOf, type PodSampleObserver } from './pod-sample-observ
 import { hookedToolsOf } from './hooked-tools'
 import { pluginPodOf } from './plugin-pod'
 import type { HeldSessionDeps } from './held-session-deps'
+import type { TakeOverFirstStep } from './held-takeover'
 import { LeaseLostError } from './record/record-adapter'
 import type { HeldTurns } from './held-turns'
+import { isCommandEntry } from './held-inbox'
 import { InboxIntake } from './inbox-intake'
 import { EIntakeScope } from './intake-scope'
 import { openChildren, type OpenChild } from './crew/open-children'
@@ -60,8 +62,14 @@ export const ranQueuedCommand = async (args: {
   entries: readonly InboxEntry[]
   turnRunning: boolean
   runCommands?: ((entries: readonly InboxEntry[]) => Promise<boolean>) | undefined
+  waiting: Omit<TakeOverFirstStep, 'action'>
+  firstStep: (first: TakeOverFirstStep) => void
 }): Promise<boolean> => {
   if (args.turnRunning || !IDLE_COMMAND_ACTIONS.includes(args.action)) return false
+  const command = args.entries.find(isCommandEntry)
+  if (command !== undefined) {
+    args.firstStep({ action: EFirstAction.Command, ...args.waiting, queuedAt: command.postedAt })
+  }
   return (await args.runCommands?.(args.entries)) === true
 }
 

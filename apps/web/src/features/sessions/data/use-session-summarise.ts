@@ -9,7 +9,10 @@ import type { TranscriptSummarise } from '@/features/threads/data/use-summarise'
 import { messageOf } from '@/features/threads/data/message-of'
 
 import { sessionsApi } from './sessions-api'
+import type { RequestedCommandState } from './use-requested-command'
 import { requestSummarise, summariseCopyOf, summarisePointsOf } from '@dltech/atlas-client/session'
+
+const NO_POINTS: ReadonlyMap<string, SummariseReach> = new Map()
 
 export type SessionSummarise = {
   transcript: TranscriptSummarise
@@ -24,10 +27,13 @@ export type SessionSummarise = {
 export function useSessionSummarise(args: {
   sessionId: string
   events: readonly RecordEvent[]
+  requested: RequestedCommandState
 }): SessionSummarise {
-  const { sessionId, events } = args
+  const { sessionId, events, requested } = args
+  const { blocking, track } = requested
+  const busy = blocking !== undefined
   const [pick, setPick] = useState<SummariseReach | null>(null)
-  const points = useMemo(() => summarisePointsOf(events), [events])
+  const points = useMemo(() => (busy ? NO_POINTS : summarisePointsOf(events)), [busy, events])
 
   const handleSummarise = useCallback(
     (eventId: string) => {
@@ -44,9 +50,11 @@ export function useSessionSummarise(args: {
   const handleConfirm = () => {
     if (pick === null) return
     setPick(null)
-    requestSummarise({ api: sessionsApi, sessionId, throughSeq: pick.throughSeq }).catch(
-      (failure) => toast.error(messageOf(failure)),
-    )
+    if (busy) return
+    track({
+      name: 'summarise',
+      request: () => requestSummarise({ api: sessionsApi, sessionId, throughSeq: pick.throughSeq }),
+    }).catch((failure) => toast.error(messageOf(failure)))
   }
 
   return {

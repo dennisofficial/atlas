@@ -108,7 +108,11 @@ const AppStack = () => {
                   sheetGrabberVisible: true,
                 }),
             ...pushedHeaderOptions,
-            ...pushedHeaderOptionsOf({ title: screen.title, barWidth }),
+            ...pushedHeaderOptionsOf({
+              title: screen.title,
+              barWidth,
+              buttons: screen.titleButtons,
+            }),
             ...(screen.presentation === undefined ? {} : { presentation: screen.presentation }),
           }}
         />

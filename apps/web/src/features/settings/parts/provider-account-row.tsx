@@ -7,30 +7,21 @@ import { RadioGroupItem } from '@dltech/atlas-ui/components/radio-group'
 import { cn } from '@dltech/atlas-ui/lib/utils'
 
 import { EAccountKind, type Account } from '../data/personal/accounts-api'
-import { planNameOf } from '../data/personal/plan-name'
+import { providerAccountDetailOf, providerKeyMaskOf } from '@dltech/atlas-client/settings'
 import { shortDate } from '../data/personal/relative-time'
 import type { ProviderInfo } from '../fixtures/settings-agent'
 import { Mono } from '../settings-layout'
 import { type LibraryMenuAction, LibraryRowMenu } from './library-row-menu'
 import { UsageMeterRow } from './usage-meter-row'
 
-const UNKNOWN_PREFIX_MASK = '••••'
-
 const titleOf = (account: Account): string => account.email ?? account.label
 
-const planDetailOf = (args: { provider: ProviderInfo; account: Account }): string => {
-  const product = args.provider.plan?.product ?? args.provider.name
-  const plan = planNameOf(args.account.subscription)
-  const tier = plan === null ? product : `${product} ${plan}`
-  return `${tier} plan · Signed in ${shortDate(args.account.createdAt)}`
-}
+const planDetailOf = providerAccountDetailOf
 
 const keyDetailOf = (args: { provider: ProviderInfo; account: Account }) => {
-  const tail = args.account.keyHint
+  const masked = providerKeyMaskOf(args)
   const added = `Added ${shortDate(args.account.createdAt)}`
-  if (tail === undefined || tail === '') return <>API key · {added}</>
-  const prefix = args.provider.keyPrefix
-  const masked = prefix.length > 0 ? `${prefix}…${tail}` : `${UNKNOWN_PREFIX_MASK}${tail}`
+  if (masked === null) return <>API key · {added}</>
   return (
     <>
       API key · <Mono className="text-foreground">{masked}</Mono> · {added}

@@ -74,7 +74,7 @@ describe('the drawer rows', () => {
 
 describe('writing a row', () => {
   it('removes the row when the value is the fallback, and encodes it otherwise', () => {
-    expect(writeOf({ definition: accent(), value: 'clay' })).toBe('remove')
+    expect(writeOf({ definition: accent(), value: 'graphite' })).toBe('remove')
     expect(writeOf({ definition: accent(), value: 'moss' })).toEqual({
       key: ESettingId.Accent,
       value: 'atlas-setting:v1:"moss"',

@@ -117,11 +117,15 @@ export const readyAgent37Instance = async (args: {
   id: string
   pollMs?: number | undefined
   signal?: AbortSignal | undefined
+  monotonicNow?: (() => number) | undefined
+  onRunning?: ((report: { instanceStartMs: number }) => void) | undefined
   log?: ((line: string) => void) | undefined
 }): Promise<EPodStart> => {
+  const now = args.monotonicNow ?? (() => performance.now())
   const instance = await settleAgent37Instance(args)
   if (ASLEEP_STATUSES.has(instance.status)) {
     args.signal?.throwIfAborted()
+    const startingAt = now()
     await args.client.start({ id: args.id })
     await waitForAgent37Instance({
       client: args.client,
@@ -129,8 +133,10 @@ export const readyAgent37Instance = async (args: {
       signal: args.signal,
       ...(args.log === undefined ? {} : { log: args.log }),
     })
+    args.onRunning?.({ instanceStartMs: Math.max(0, now() - startingAt) })
     return EPodStart.Woke
   }
+  args.onRunning?.({ instanceStartMs: 0 })
   if (instance.status === 'running') {
     const repaired = await repairAgent37IfWedged(args)
     return repaired ? EPodStart.Repaired : EPodStart.Running

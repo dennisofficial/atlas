@@ -6,6 +6,7 @@ import { act } from 'react'
 import { installLinkClickOpen, notifyLinkHover } from '../../../link-click'
 import { bindPathLinks, unbindPathLinks } from '../../../path-links'
 import { linkHoverStyle } from '../../../link-hover-style'
+import { dismissNotice } from '../../../notice-store'
 import { theme } from '../../../theme'
 import { grammarsReady, teardown } from '../../__tests__/harness'
 import { ProseView } from '../prose-view'
@@ -33,6 +34,7 @@ const live: Setup[] = []
 const opened = { urls: [] as string[], files: [] as { path: string; line?: number }[] }
 
 afterEach(async () => {
+  dismissNotice()
   notifyLinkHover(null)
   unbindPathLinks()
   opened.urls.length = 0

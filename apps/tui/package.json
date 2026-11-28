@@ -1,6 +1,6 @@
 {
   "name": "@dltech/atlas",
-  "version": "0.1.0",
+  "version": "2.0.0",
   "private": true,
   "description": "Atlas \u2014 a coding-agent harness in the shape of Claude Code.",
   "type": "module",

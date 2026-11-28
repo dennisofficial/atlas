@@ -1,4 +1,4 @@
-import { Button, EButtonSize, EButtonVariant, useTheme } from '@dltech/atlas-ui-native'
+import { Button, EButtonSize, EButtonVariant, useIsDark, useTheme } from '@dltech/atlas-ui-native'
 import { Image } from 'expo-image'
 import { router, Stack, useFocusEffect } from 'expo-router'
 import { PanelLeft } from 'lucide-react-native'
@@ -14,13 +14,13 @@ import { SessionsButton } from '../../../../navigation/sessions-button'
 import { opensDrawerWithoutSessionOf } from '../../../../sessions/drawer-layout'
 import { useSelectedSession, useSelectedSessionLoaded } from '../../../../sessions/selected-session'
 import { useSessionsDrawer } from '../../../../sessions/sessions-drawer-state'
+import { SPLASH_MARK_ASPECT, splashMarkOf } from '../../../../splash/splash-mark'
 
 const MARK_WIDTH = 96
-const MARK_ASPECT = 1024 / 830
-const mark = require('../../../../../assets/images/splash-mark.png')
 
 export default function SessionsIndexScreen() {
   const theme = useTheme()
+  const isDark = useIsDark()
   const selected = useSelectedSession()
   const loaded = useSelectedSessionLoaded()
   const posture = usePosture()
@@ -75,14 +75,19 @@ export default function SessionsIndexScreen() {
             Platform.OS === 'ios' || !showsSessions ? undefined : () => <NewSessionButton />,
         }}
       />
-      <Image source={mark} style={styles.mark} contentFit="contain" accessibilityLabel="Atlas" />
+      <Image
+        source={splashMarkOf({ dark: isDark })}
+        style={styles.mark}
+        contentFit="contain"
+        accessibilityLabel="Atlas"
+      />
     </View>
   )
 }
 
 const styles = StyleSheet.create({
   mark: {
-    height: MARK_WIDTH / MARK_ASPECT,
+    height: MARK_WIDTH / SPLASH_MARK_ASPECT,
     width: MARK_WIDTH,
   },
   screen: {

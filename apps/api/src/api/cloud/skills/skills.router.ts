@@ -4,6 +4,7 @@ import {
   skillListFilesReplySchema,
   skillListFilesRequestSchema,
   skillListReplySchema,
+  skillUsageReplySchema,
   skillListRequestSchema,
   skillFileContentSchema,
   skillLayersSchema,
@@ -40,6 +41,14 @@ export class SkillsRouter {
   })
   layered(@Input() input: SkillScopeArgs, @Ctx() ctx: SessionTrpcCtx) {
     return this.skills.layered({ userId: ctx.auth.userId, ...input })
+  }
+
+  @Query({
+    input: skillListRequestSchema,
+    output: skillUsageReplySchema,
+  })
+  usage(@Input() input: SkillScopeArgs, @Ctx() ctx: SessionTrpcCtx) {
+    return this.skills.usageFor({ userId: ctx.auth.userId, ...input })
   }
 
   @Query({

@@ -1,5 +1,6 @@
 'use client'
 
+import { accessGrantNameValid } from '@dltech/atlas-client/settings'
 import { useId, useState } from 'react'
 import { PlusIcon } from 'lucide-react'
 
@@ -44,7 +45,7 @@ export function AccessGrantDialog({
   const [instruction, setInstruction] = useState(editing?.instruction ?? '')
   const [saving, setSaving] = useState(false)
   const [failure, setFailure] = useState<string | null>(null)
-  const canSave = name.trim() !== '' && !saving
+  const canSave = accessGrantNameValid(name) && !saving
 
   const handleOpenChange = (next: boolean) => {
     setOpen(next)

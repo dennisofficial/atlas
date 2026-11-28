@@ -86,6 +86,7 @@ export const ModelListBody = ({
 
   return (
     <SectionList
+      scrollsToTop={false}
       sections={sections}
       keyExtractor={(item) => item.key}
       renderItem={renderItem}

@@ -4,7 +4,7 @@ import {
   overviewDraftOf,
   overviewDraftsEqual,
   overviewSaveBodyOf,
-  removeAdditionalRepository,
+  pickedAdditionalRepository,
   shipOptionsOf,
   type IProjectOverviewDraft,
 } from '@dltech/atlas-client/settings'
@@ -12,7 +12,7 @@ import type { Project, ProjectGroup, ProjectUpdate } from '@dltech/atlas-wire/we
 import { Button, EFontFamily, ETextRole, ETextTone, Input, Text } from '@dltech/atlas-ui-native'
 import { space } from '@dltech/atlas-ui/tokens'
 import { router, useLocalSearchParams } from 'expo-router'
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { Alert, Platform, StyleSheet, View } from 'react-native'
 
 import { useAuth } from '../../../../auth/auth-provider'
@@ -55,11 +55,29 @@ const ProjectForm = ({
   onReload: () => void
 }) => {
   const { api } = useAuth()
+  const { pickedRepository, pickedIndex } = useLocalSearchParams<{
+    pickedRepository?: string
+    pickedIndex?: string
+  }>()
   const [draft, setDraft] = useState<IProjectOverviewDraft>(() => overviewDraftOf(project))
   const [saving, setSaving] = useState(false)
   const [saved, setSaved] = useState(false)
   const [failure, setFailure] = useState<string | null>(null)
   const identity = identityOf(project)
+  useEffect(() => {
+    if (pickedRepository === undefined || pickedIndex === undefined) return
+    setDraft((current) => ({
+      ...current,
+      additionalRepositories: pickedAdditionalRepository({
+        repositories: current.additionalRepositories,
+        mainRepository: project.repo,
+        index: Number(pickedIndex),
+        value: pickedRepository,
+      }),
+    }))
+    setSaved(false)
+    router.setParams({ pickedRepository: undefined, pickedIndex: undefined })
+  }, [pickedRepository, pickedIndex, project.repo])
   const dirty = !overviewDraftsEqual({ left: draft, right: overviewDraftOf(project) })
   const invalid = !overviewDraftIsValid({ draft })
 
@@ -149,6 +167,9 @@ const ProjectForm = ({
             onChange={(shipBehavior) => handleChange({ ...draft, shipBehavior })}
           />
         </Section>
+        {dirty ? (
+          <Button label="Discard" onPress={() => handleChange(overviewDraftOf(project))} />
+        ) : null}
         <Button
           label="Save"
           stretch
@@ -171,7 +192,12 @@ const ProjectForm = ({
         <Row label="GitHub repository" value={project.repo ?? 'No repository connected'} mono />
       </Section>
       <GroupChoice project={project} groups={groups} onAssigned={onReload} />
-      <RepositoryFields draft={draft} onDraft={handleChange} />
+      <RepositoryFields
+        projectId={project.id}
+        mainRepository={project.repo}
+        draft={draft}
+        onDraft={handleChange}
+      />
       <Section title="Danger zone">
         <ActionRow label="Delete project" tone={EActionTone.Destructive} onPress={handleDelete} />
       </Section>

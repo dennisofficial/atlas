@@ -23,6 +23,7 @@
     "test": "bun test"
   },
   "dependencies": {
+    "@dltech/atlas-classifier": "workspace:*",
     "@dltech/atlas-core": "workspace:*",
     "@dltech/atlas-models": "workspace:*",
     "@dltech/atlas-protocol": "workspace:*",

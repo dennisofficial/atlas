@@ -9,6 +9,7 @@ import { SESSION_PANE_KEY } from '../pane-memory'
 import { EPaneOpen } from '../pane-open'
 import { type SessionPaneState, useSessionPane } from '../pane-state'
 import { ESessionPaneTab } from '../pane-tab'
+import { stubViewTransitions } from './view-transition-stub'
 
 beforeAll(() => {
   registerDom()
@@ -89,15 +90,33 @@ describe('useSessionPane', () => {
     expect(state().collapsed).toBe(false)
   })
 
-  it('toggles the collapse and keeps it across a remount', async () => {
+  it('switches the tab inside the morph that expands the pane', async () => {
+    resetCollapsed()
+    const state = await mount()
+    const transitions = stubViewTransitions()
+    try {
+      await act(async () => state().openTab(ESessionPaneTab.Terminal))
+      expect(state().tab).toBe(ESessionPaneTab.Details)
+
+      await act(async () => transitions.runPending())
+
+      expect(state().tab).toBe(ESessionPaneTab.Terminal)
+      expect(state().collapsed).toBe(false)
+      expect(transitions.started()).toBe(1)
+    } finally {
+      transitions.restore()
+    }
+  })
+
+  it('starts collapsed and keeps an expansion across a remount', async () => {
     resetCollapsed()
     const first = await mount('collapsed')
-    expect(first().collapsed).toBe(false)
-    await act(async () => first().toggleCollapsed())
     expect(first().collapsed).toBe(true)
+    await act(async () => first().toggleCollapsed())
+    expect(first().collapsed).toBe(false)
     await first.unmount()
     const again = await mount('collapsed')
-    expect(again().collapsed).toBe(true)
+    expect(again().collapsed).toBe(false)
   })
 
   it('restores the pane layout per session', async () => {
@@ -110,6 +129,45 @@ describe('useSessionPane', () => {
     expect(again().layout).toEqual({ transcript: 70, 'right-panel': 30 })
     const other = await mount('sized-other')
     expect(other().layout).toBeUndefined()
+  })
+
+  it('opens the details card by default and remembers a close per session', async () => {
+    resetCollapsed()
+    const first = await mount('card')
+    expect(first().detailsOpen).toBe(true)
+    await act(async () => first().toggleDetails())
+    expect(first().detailsOpen).toBe(false)
+    await first.unmount()
+    const stored = JSON.parse(window.localStorage.getItem(SESSION_PANE_KEY) ?? '{}')
+    expect(stored.card.detailsOpen).toBe(false)
+    const again = await mount('card')
+    expect(again().detailsOpen).toBe(false)
+    const other = await mount('card-other')
+    expect(other().detailsOpen).toBe(true)
+  })
+
+  it('openDetails opens the card and asks the sheet for the Details tab', async () => {
+    const state = await mount()
+    await act(async () => state().setDetailsOpen(false))
+    await act(async () => state().openDetails())
+    expect(state().detailsOpen).toBe(true)
+    expect(state().tab).toBe(ESessionPaneTab.Details)
+    expect(state().sheetOpen).toBe(true)
+  })
+
+  it('shows the card and the tools panel one at a time', async () => {
+    resetCollapsed()
+    const state = await mount()
+    expect(state().detailsShown).toBe(true)
+    await act(async () => state().setCollapsed(false))
+    expect(state().detailsOpen).toBe(true)
+    expect(state().detailsShown).toBe(false)
+    await act(async () => state().toggleDetails())
+    expect(state().collapsed).toBe(true)
+    expect(state().detailsShown).toBe(true)
+    await act(async () => state().toggleDetails())
+    expect(state().detailsShown).toBe(false)
+    expect(state().detailsOpen).toBe(false)
   })
 
   it('hands the pod section a size request it consumes once', async () => {
