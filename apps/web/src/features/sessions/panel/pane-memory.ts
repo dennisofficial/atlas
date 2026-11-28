@@ -6,13 +6,24 @@ import { ESessionPaneTab } from './pane-tab'
 
 export const SESSION_PANE_KEY = 'atlas:session-pane'
 
+const agentMemorySchema = z.object({
+  agentId: z.string(),
+  parentAgentId: z.string().optional(),
+})
+
 const sessionPaneSchema = z.object({
   tab: z.enum(ESessionPaneTab).optional(),
   contextOpen: z.array(z.string()).optional(),
   detailsOpen: z.boolean().optional(),
+  detailsFile: z.string().optional(),
+  collapsed: z.boolean().optional(),
+  agent: agentMemorySchema.optional(),
+  collapsedBeforeAgent: z.boolean().optional(),
 })
 
 export type SessionPaneMemory = z.infer<typeof sessionPaneSchema>
+
+export type RememberedAgent = z.infer<typeof agentMemorySchema>
 
 const panes = createThreadMemory({
   key: SESSION_PANE_KEY,
@@ -49,4 +60,40 @@ export const recallDetailsOpen = (sessionId: string): boolean =>
 
 export function rememberDetailsOpen(args: { sessionId: string; open: boolean }): void {
   mergePaneMemory({ sessionId: args.sessionId, memory: { detailsOpen: args.open } })
+}
+
+export const recallDetailsFile = (sessionId: string): string | undefined =>
+  panes.recall(sessionId)?.detailsFile
+
+export function rememberDetailsFile(args: { sessionId: string; path: string | undefined }): void {
+  mergePaneMemory({ sessionId: args.sessionId, memory: { detailsFile: args.path } })
+}
+
+export const PANE_COLLAPSED_BY_DEFAULT = true
+
+export const recallCollapsed = (sessionId: string): boolean =>
+  panes.recall(sessionId)?.collapsed ?? PANE_COLLAPSED_BY_DEFAULT
+
+export function rememberCollapsed(args: { sessionId: string; collapsed: boolean }): void {
+  mergePaneMemory({ sessionId: args.sessionId, memory: { collapsed: args.collapsed } })
+}
+
+export const recallAgent = (sessionId: string): RememberedAgent | undefined =>
+  panes.recall(sessionId)?.agent
+
+export function rememberAgent(args: {
+  sessionId: string
+  agent: RememberedAgent | undefined
+}): void {
+  mergePaneMemory({ sessionId: args.sessionId, memory: { agent: args.agent } })
+}
+
+export const recallCollapsedBeforeAgent = (sessionId: string): boolean | undefined =>
+  panes.recall(sessionId)?.collapsedBeforeAgent
+
+export function rememberCollapsedBeforeAgent(args: {
+  sessionId: string
+  collapsed: boolean | undefined
+}): void {
+  mergePaneMemory({ sessionId: args.sessionId, memory: { collapsedBeforeAgent: args.collapsed } })
 }

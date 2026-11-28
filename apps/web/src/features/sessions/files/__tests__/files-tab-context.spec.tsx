@@ -247,6 +247,17 @@ describe('FilesTab context files', () => {
     expect(host.textContent).toContain('src')
   })
 
+  it('keeps the shown context file when the session comes back to the tab', async () => {
+    await mount(withOpen(sleepingValue(), 'plan.md', EPaneOpen.Context))
+    for (const root of roots) await act(async () => root.unmount())
+    roots.clear()
+
+    const again = await mount(sleepingValue())
+
+    expect(again.textContent).toContain('Context · plan.md')
+    expect(again.textContent).toContain('# Plan')
+  })
+
   it('plays a video in the pane and downloads under the real file name', async () => {
     const host = await mount(
       withOpen(runningValue(), '$ATLAS_CONTEXT_DIR/media/walkthrough.mp4', EPaneOpen.Context),

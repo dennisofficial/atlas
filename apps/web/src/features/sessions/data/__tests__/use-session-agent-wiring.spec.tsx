@@ -4,8 +4,6 @@ import * as realNavigation from 'next/navigation'
 import { act, useState } from 'react'
 import type { Root } from 'react-dom/client'
 
-import { RIGHT_PANEL_COLLAPSED_KEY } from '@/features/threads/panel/right-panel-collapsed'
-
 import { stubViewTransitions } from '../../panel/__tests__/view-transition-stub'
 import type { SessionAgentWiring } from '../use-session-agent-wiring'
 
@@ -166,7 +164,6 @@ describe('useSessionAgentWiring', () => {
   })
 
   it('shows the agent inside the one morph that opens the pane', async () => {
-    window.localStorage.setItem(RIGHT_PANEL_COLLAPSED_KEY, 'true')
     const { read } = await mount()
     const transitions = stubViewTransitions()
     try {
@@ -185,9 +182,59 @@ describe('useSessionAgentWiring', () => {
   })
 
   it('stays collapsed as the operator left it', async () => {
-    window.localStorage.setItem(RIGHT_PANEL_COLLAPSED_KEY, 'true')
     const { read } = await mount()
 
     expect(read().pane.collapsed).toBe(true)
+  })
+
+  it('folds the pane back into the details card when Back leaves the agent', async () => {
+    const { read } = await mount()
+    expect(read().pane.detailsShown).toBe(true)
+
+    await act(async () => read().openAgent('agent-2'))
+    expect(read().pane.collapsed).toBe(false)
+
+    await act(async () => read().panel.clearAgent())
+    expect(read().pane.collapsed).toBe(true)
+    expect(read().pane.detailsShown).toBe(true)
+  })
+
+  it('folds the pane back when browser history drops the agent', async () => {
+    const { read, nudge } = await mount()
+    await act(async () => read().openAgent('agent-2'))
+    query = 'agent=agent-2'
+    await nudge()
+    expect(read().pane.collapsed).toBe(false)
+
+    query = ''
+    await nudge()
+    expect(read().pane.collapsed).toBe(true)
+  })
+
+  it('reopens the agent a session had open when the operator comes back to it', async () => {
+    const first = await mount()
+    await act(async () => first.read().openAgent('thr_grandchild', 'thr_child'))
+    for (const root of roots) await act(async () => root.unmount())
+    roots.clear()
+    pushed.length = 0
+
+    const again = await mount()
+    expect(again.read().panel.agentId).toBe('thr_grandchild')
+    expect(again.read().panel.agentParentId).toBe('thr_child')
+    expect(again.read().pane.collapsed).toBe(false)
+    expect(replaced).toEqual(['/sessions/ses-1?agent=thr_grandchild&parent=thr_child'])
+  })
+
+  it('forgets the agent once the operator leaves it', async () => {
+    const first = await mount()
+    await act(async () => first.read().openAgent('agent-2'))
+    await act(async () => first.read().panel.clearAgent())
+    for (const root of roots) await act(async () => root.unmount())
+    roots.clear()
+    replaced.length = 0
+
+    const again = await mount()
+    expect(again.read().panel.agentId).toBeUndefined()
+    expect(replaced).toEqual([])
   })
 })
