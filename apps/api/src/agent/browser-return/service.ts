@@ -145,7 +145,12 @@ export class BrowserReturnService {
     claim: BrowserReturnClaim | null
     request: BrowserReturnAnswerRequest
   }): BrowserReturnCallbackAnswer {
-    return this.answerFor({ request: args.request, row: args.claim?.row ?? null })
+    if (args.claim === null)
+      return this.answerFor({
+        request: { ...args.request, cookieHeader: undefined },
+        row: null,
+      })
+    return this.answerFor({ request: args.request, row: args.claim.row })
   }
 
   private answerFor(args: {
