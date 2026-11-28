@@ -4,9 +4,9 @@ import { EStreamCacheOutcome, EStreamSubscribeKind } from '../stream-constants'
 import { streamClientMessageSchema } from '../stream-client'
 
 const subscribe = {
-  type: 'subscribe',
+  type: 'subscribe' as const,
   id: 's1',
-  kind: EStreamSubscribeKind.Session,
+  kind: EStreamSubscribeKind.Session as const,
   sessionId: 'session-1',
 }
 
