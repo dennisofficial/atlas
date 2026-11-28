@@ -18,21 +18,18 @@ import { Field, FieldDescription, FieldError, FieldLabel } from '@dltech/atlas-u
 import { Input } from '@dltech/atlas-ui/components/input'
 import { Textarea } from '@dltech/atlas-ui/components/textarea'
 import {
-  fileMountPathProblem,
-  MAX_FILE_MOUNT_BYTES,
-  personalFileMountPathProblem,
-} from '@dltech/atlas-wire/web'
+  accessFileValidation,
+  type AccessFileDraft,
+  type EditingFile,
+} from '@dltech/atlas-client/settings'
 
 import {
   DEFAULT_MODE_TEXT,
-  parseFileMode,
   type TreeEntry,
 } from '@/features/project-settings/data/file-mount-helpers'
 import { FilePathPicker } from '@/features/project-settings/file-path-picker'
 
-export type AccessFileDraft = { path: string; contents: string; mode: number }
-
-export type EditingFile = { path: string; contents: string; modeText: string }
+export type { AccessFileDraft, EditingFile } from '@dltech/atlas-client/settings'
 
 export function AccessFileDialog({
   personal,
@@ -57,16 +54,13 @@ export function AccessFileDialog({
   const [contents, setContents] = useState(editing?.contents ?? '')
   const [modeText, setModeText] = useState(editing?.modeText ?? DEFAULT_MODE_TEXT)
   const [saving, setSaving] = useState(false)
-  const pathProblem =
-    path === ''
-      ? null
-      : personal
-        ? personalFileMountPathProblem(path.trim())
-        : fileMountPathProblem(path.trim())
-  const mode = parseFileMode(modeText)
-  const contentsTooLarge = new TextEncoder().encode(contents).byteLength > MAX_FILE_MOUNT_BYTES
-  const canSave =
-    path.trim() !== '' && pathProblem === null && mode !== null && !contentsTooLarge && !saving
+  const { pathProblem, mode, contentsTooLarge, draft } = accessFileValidation({
+    personal,
+    path,
+    contents,
+    modeText,
+  })
+  const canSave = draft !== null && !saving
   const picksFromTree = !personal && editing === undefined
 
   const handleOpenChange = (next: boolean) => {
@@ -78,9 +72,9 @@ export function AccessFileDialog({
     onClosed?.()
   }
   const handleSubmit = async () => {
-    if (!canSave || mode === null) return
+    if (!canSave || draft === null) return
     setSaving(true)
-    const saved = await onSave({ path: path.trim(), contents, mode })
+    const saved = await onSave(draft)
     setSaving(false)
     if (saved) handleOpenChange(false)
   }

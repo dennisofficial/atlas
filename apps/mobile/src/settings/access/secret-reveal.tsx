@@ -1,5 +1,9 @@
 import { createApiClient } from '@dltech/atlas-api-router'
-import { createAccessMemberApi, type AccessScope } from '@dltech/atlas-client/settings'
+import {
+  createAccessMemberApi,
+  EAccessMemberKind,
+  type AccessScope,
+} from '@dltech/atlas-client/settings'
 import { Input } from '@dltech/atlas-ui-native'
 import { useState } from 'react'
 import { View } from 'react-native'
@@ -13,7 +17,17 @@ import { useAccountApi } from '../account/use-account-api'
 import { ActionRow } from '../settings-parts'
 import { AccessNote, accessStyles } from './access-parts'
 
-export const SecretReveal = ({ scope, name }: { scope: AccessScope; name: string }) => {
+export const SecretReveal = ({
+  scope,
+  name,
+  kind = EAccessMemberKind.Secret,
+  onRevealed,
+}: {
+  scope: AccessScope
+  name: string
+  kind?: EAccessMemberKind
+  onRevealed?: (value: string) => void
+}) => {
   const { api, user } = useAuth()
   const account = useAccountApi()
   const [value, setValue] = useState<string | null>(null)
@@ -22,6 +36,14 @@ export const SecretReveal = ({ scope, name }: { scope: AccessScope; name: string
   const [failure, setFailure] = useState('')
   const [busy, setBusy] = useState(false)
 
+  const reveal = async (client: ReturnType<typeof createApiClient>) => {
+    const members = createAccessMemberApi({ api: client, scope })
+    const revealed = await (kind === EAccessMemberKind.File
+      ? members.revealFile(name)
+      : members.revealSecret(name))
+    setValue(revealed)
+    onRevealed?.(revealed)
+  }
   const handleReveal = async () => {
     if (api === undefined || busy) return
     if (value !== null) {
@@ -31,7 +53,7 @@ export const SecretReveal = ({ scope, name }: { scope: AccessScope; name: string
     setBusy(true)
     setFailure('')
     try {
-      setValue(await createAccessMemberApi({ api, scope }).revealSecret(name))
+      await reveal(api)
     } catch (error) {
       if (error instanceof Error && error.message.includes('REAUTH_REQUIRED')) {
         try {
@@ -41,7 +63,7 @@ export const SecretReveal = ({ scope, name }: { scope: AccessScope; name: string
         } catch {
           setFailure('Your sign-in methods could not be loaded. Try again.')
         }
-      } else setFailure('The secret could not be revealed. Try again.')
+      } else setFailure('The value could not be revealed. Try again.')
     } finally {
       setBusy(false)
     }
@@ -59,7 +81,7 @@ export const SecretReveal = ({ scope, name }: { scope: AccessScope; name: string
       setPassword('')
       try {
         const freshApi = createApiClient({ baseUrl: apiOrigin, token: signedIn.token })
-        setValue(await createAccessMemberApi({ api: freshApi, scope }).revealSecret(name))
+        await reveal(freshApi)
         setNeedsPassword(false)
       } finally {
         await revokeOrPersist({
@@ -69,7 +91,7 @@ export const SecretReveal = ({ scope, name }: { scope: AccessScope; name: string
         })
       }
     } catch {
-      setFailure('The secret could not be revealed. Try again.')
+      setFailure('The value could not be revealed. Try again.')
     } finally {
       setBusy(false)
     }

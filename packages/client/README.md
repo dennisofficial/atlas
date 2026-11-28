@@ -133,7 +133,10 @@ The headless client library that web, the TUI and the mobile app share.
 - `providerUsageWindowsOf`, `providerUsageAgeOf`: plan usage meter values and stale-read text.
 - `classifierSettingsFrom`, `classifierChanges`, `classifierModelItems`, `classifierAvailabilityIn`, `classifierStatusOf`, `classifierSuggestionOf`, `classifierFeaturesOf`, `classifierTestLineOf`: classifier drafts, availability, suggestions and status text.
 
-### Access grants and secrets
+### Access grants, secrets and file mounts
+
+- `accessFileValidation`, `AccessFileDraft`, `EditingFile`: shared file draft validation and save payload, including scope path rules, byte limit and permissions.
+- `parseFileMode`, `formatFileMode`, `DEFAULT_MODE_TEXT`, `pickerChoices`, `TreeEntry`: octal mode labels and ranked repository path suggestions.
 
 - `createAccessMemberApi({ api, scope })`: select personal, group or project secret and file operations using a surface-supplied transport.
 - `scopeKeyOf`, `moveTargetsOf`, `grantMoveBranchesOf`, `deleteGrantDescription`: grant identity, move destinations and delete confirmation copy.

@@ -2,6 +2,7 @@ export * from './grants'
 export * from './secrets'
 export * from './members-api'
 export * from './routes'
+export * from './files'
 export {
   EAccessScope,
   EAccessMemberKind,
