@@ -43,16 +43,6 @@ services:
       - bun install
     portal:
       title: Prototype
-  mobile-skills-detail:
-    command: bunx expo start --web --port $PORT
-    cwd: apps/mobile
-    port: 8094
-    health: /
-    env:
-      CI: '1'
-      NODE_OPTIONS: --max-old-space-size=1024
-      EXPO_PUBLIC_API_ORIGIN: https://api.byatlas.io
-      EXPO_PUBLIC_WEB_ORIGIN: https://byatlas.io
   mobile:
     command: bunx expo start --web --port $PORT
     cwd: apps/mobile
