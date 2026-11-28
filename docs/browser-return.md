@@ -110,8 +110,19 @@ This settings UI is mobile-only; web already has Google linking and confirmation
 
 | Flow          | Start                                                 | Return path                                                                                            | Durable result                        |
 | ------------- | ----------------------------------------------------- | ------------------------------------------------------------------------------------------------------ | ------------------------------------- |
+| `github`      | `github.beginRedirect` from integrations settings     | `/settings/integrations`                                                                               | `github.get` connection               |
 | `google-link` | the iOS Account settings Link Google button           | `/settings/account`                                                                                    | the linked sign-in methods            |
 | `mcp`         | the MCP transcript card's sign-in, or a settings page | `/sessions/<id>`, `/settings/integrations`, `/projects/<id>/settings/mcp`, `/groups/<id>/settings/mcp` | the roster row, read by the next turn |
+
+GitHub connect opens a browser on web, Mac, iOS and a local TUI. The iOS integrations screen calls
+`github.beginRedirect`, passes its `{url}` to `openBrowserReturn`, and reads `useReturnOutcome` to
+refresh the connection or show the failure reason. The provider callback is exactly
+`https://api.byatlas.io/v1/github/oauth/callback` in production; local and test configurations derive
+`/v1/github/oauth/callback` from their public API origin. The callback exchanges the authorization
+code with the OAuth App secret and finds the operator by claiming the open `github` state once, before the exchange, never from a cookie.
+The TUI uses `loginFlowOf` to keep device codes for SSH or headless sessions. While it waits for a
+browser, Enter on the GitHub row switches to a code. A loopback bind or launch failure and a timed-out
+browser attempt also fall back to a code. Web and Mac have no device-code UI or polling loop.
 
 The MCP transcript card signs in an `http` MCP server. The agent tool `operator_mcp_sign_in` begins
 the flow, and the callback answers a session screen through `BrowserReturnService.answer`, so the

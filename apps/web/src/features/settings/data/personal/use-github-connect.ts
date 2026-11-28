@@ -1,11 +1,11 @@
 'use client'
 
 import { useCallback, useEffect, useRef, useState } from 'react'
-
-import { EGithubPollStatus, type GithubDeviceCodes } from '@dltech/atlas-wire/web'
-import { githubFailureOf, pollUntilSettled } from '@dltech/atlas-client/settings'
-
-import { beginGithubConnect, disconnectGithub, pollGithubConnect } from './github-api'
+import { EReturnResult, stateOfStartLink } from '@dltech/atlas-core'
+import { toast } from 'sonner'
+import { openBrowserReturn } from '@/features/auth/browser-return/open-browser-return'
+import { useReturnOutcome } from '@/features/auth/browser-return/use-return-outcome'
+import { beginGithubConnect, disconnectGithub } from './github-api'
 
 export enum EGithubFlow {
   Idle = 'idle',
@@ -17,7 +17,7 @@ export enum EGithubFlow {
 export type GithubFlow =
   | { status: EGithubFlow.Idle }
   | { status: EGithubFlow.Starting }
-  | { status: EGithubFlow.Waiting; codes: GithubDeviceCodes }
+  | { status: EGithubFlow.Waiting; url: string }
   | { status: EGithubFlow.Failed; message: string }
 
 export type GithubConnectControl = {
@@ -29,9 +29,6 @@ export type GithubConnectControl = {
 }
 
 const IDLE: GithubFlow = { status: EGithubFlow.Idle }
-
-const sleep = (ms: number): Promise<void> => new Promise((resolve) => setTimeout(resolve, ms))
-
 const messageOf = (error: unknown): string =>
   error instanceof Error ? error.message : 'Something went wrong'
 
@@ -40,6 +37,8 @@ export function useGithubConnect(args: { onChanged: () => void }): GithubConnect
   const [flow, setFlow] = useState<GithubFlow>(IDLE)
   const [disconnecting, setDisconnecting] = useState(false)
   const run = useRef(0)
+  const state = flow.status === EGithubFlow.Waiting ? stateOfStartLink(flow.url) : undefined
+  const outcome = useReturnOutcome({ state, durable: undefined })
 
   useEffect(
     () => () => {
@@ -47,6 +46,18 @@ export function useGithubConnect(args: { onChanged: () => void }): GithubConnect
     },
     [],
   )
+  useEffect(() => {
+    if (state === undefined || outcome === undefined) return
+    if (outcome.result === EReturnResult.Connected) {
+      setFlow(IDLE)
+      toast.success('GitHub connected')
+      onChanged()
+      return
+    }
+    const message = outcome.reason ?? 'GitHub access was refused'
+    setFlow({ status: EGithubFlow.Failed, message })
+    toast.error(message)
+  }, [state, outcome, onChanged])
 
   const cancel = useCallback(() => {
     run.current += 1
@@ -54,35 +65,18 @@ export function useGithubConnect(args: { onChanged: () => void }): GithubConnect
   }, [])
 
   const connect = useCallback(() => {
-    run.current += 1
-    const id = run.current
-    const isCurrent = () => run.current === id
+    const id = ++run.current
     setFlow({ status: EGithubFlow.Starting })
-    void (async () => {
-      try {
-        const codes = await beginGithubConnect()
-        if (!isCurrent()) return
-        setFlow({ status: EGithubFlow.Waiting, codes })
-        window.open(codes.verificationUrl, '_blank', 'noopener')
-        const result = await pollUntilSettled({
-          codes,
-          poll: pollGithubConnect,
-          wait: sleep,
-          now: Date.now,
-          isCancelled: () => !isCurrent(),
-        })
-        if (result === null) return
-        if (result.status === EGithubPollStatus.Connected) {
-          setFlow(IDLE)
-          onChanged()
-          return
-        }
-        setFlow({ status: EGithubFlow.Failed, message: githubFailureOf(result) })
-      } catch (error) {
-        if (isCurrent()) setFlow({ status: EGithubFlow.Failed, message: messageOf(error) })
-      }
-    })()
-  }, [onChanged])
+    void beginGithubConnect()
+      .then(({ url }) => {
+        if (run.current !== id) return
+        setFlow({ status: EGithubFlow.Waiting, url })
+        openBrowserReturn({ url })
+      })
+      .catch((error: unknown) => {
+        if (run.current === id) setFlow({ status: EGithubFlow.Failed, message: messageOf(error) })
+      })
+  }, [])
 
   const disconnect = useCallback(() => {
     run.current += 1
