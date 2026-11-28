@@ -21,14 +21,21 @@ let grantedScopes: string
 let failure: string | undefined
 let returns: BrowserReturnService
 let service: GithubRedirectService
+let beforeExchange: (() => Promise<void>) | undefined
 
 beforeEach(async () => {
   await ensureUsers('user-a', 'user-b')
   requests = []
   grantedScopes = scopes
   failure = undefined
+  beforeExchange = undefined
   const fetchFn: FetchFn = async (url) => {
     requests.push(url)
+    if (!url.endsWith('/user')) {
+      const gate = beforeExchange
+      beforeExchange = undefined
+      await gate?.()
+    }
     const body = url.endsWith('/user')
       ? { login: 'octocat' }
       : failure === undefined
@@ -74,8 +81,7 @@ describe('GitHub browser redirect', () => {
     expect(provider.searchParams.get('redirect_uri')).toBe(redirectUri)
     expect(provider.searchParams.get('scope')).toBe(scopes)
     expect(provider.searchParams.get('state')).toBe(state)
-    expect(await returns.pendingUserOf({ state, flow: 'github' })).toBe('user-a')
-    expect(await returns.pendingUserOf({ state, flow: 'mcp' })).toBeUndefined()
+    expect(await returns.claim({ state, flow: 'mcp' })).toBeNull()
     const answer = await callback(state)
     expect(answer.kind === 'redirect' ? answer.location : '').toContain(
       'http://127.0.0.1:53210/atlas-return?atlasReturn=connected',
@@ -83,9 +89,54 @@ describe('GitHub browser redirect', () => {
     const rows = await connectionRows()
     expect(rows).toHaveLength(1)
     expect(rows[0]?.userId).toBe('user-a')
-    expect(await returns.pendingUserOf({ state, flow: 'github' })).toBeUndefined()
+    expect(await returns.claim({ state, flow: 'github' })).toBeNull()
     await callback(state)
     expect(requests).toHaveLength(2)
+  })
+
+  it('exchanges the code of one of two racing callbacks only', async () => {
+    const { state } = await begin()
+
+    const answers = await Promise.all([callback(state), callback(state), callback(state)])
+
+    const locations = answers.map((answer) => (answer.kind === 'redirect' ? answer.location : ''))
+    expect(locations.filter((location) => location.includes('atlasReturn=connected'))).toHaveLength(
+      1,
+    )
+    expect(requests).toHaveLength(2)
+    expect(await connectionRows()).toHaveLength(1)
+  })
+
+  it('claims the state before exchanging and keeps its target from a concurrent callback', async () => {
+    const { state } = await begin()
+    const started = await returns.start({ state, surface: 'tui', port: 53210 })
+    if (started.kind !== 'redirect') throw new Error('expected provider redirect')
+    const entered = Promise.withResolvers<void>()
+    const release = Promise.withResolvers<void>()
+    beforeExchange = async () => {
+      entered.resolve()
+      await release.promise
+    }
+    const winner = callback(state)
+    await entered.promise
+    try {
+      const loser = await service.callback({
+        state,
+        code: 'duplicate',
+        cookieHeader: started.cookie,
+      })
+      expect(requests.filter((url) => url.endsWith('/login/oauth/access_token'))).toHaveLength(1)
+      expect(loser.kind === 'redirect' ? loser.location : '').toContain(
+        'https://byatlas.io/settings/integrations?atlasReturn=failed',
+      )
+    } finally {
+      release.resolve()
+      const answer = await winner
+      expect(answer.kind === 'redirect' ? answer.location : '').toContain(
+        'http://127.0.0.1:53210/atlas-return?atlasReturn=connected',
+      )
+    }
+    expect(await connectionRows()).toHaveLength(1)
   })
 
   it('refuses missing scopes and stores no connection', async () => {

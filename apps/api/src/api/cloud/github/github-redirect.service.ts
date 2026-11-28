@@ -8,7 +8,11 @@ import {
   REQUESTED_SCOPES,
 } from '@dltech/atlas-github'
 import { Injectable, ServiceUnavailableException } from '@nestjs/common'
-import { BrowserReturnService, type BrowserReturnCallbackAnswer } from '../../../agent'
+import {
+  BrowserReturnService,
+  type BrowserReturnCallbackAnswer,
+  type BrowserReturnClaim,
+} from '../../../agent'
 
 export const GITHUB_CALLBACK_PATH = '/v1/github/oauth/callback'
 const WEB_PATH = '/settings/integrations'
@@ -50,34 +54,42 @@ export class GithubRedirectService {
   }
 
   async callback(args: GithubCallback): Promise<BrowserReturnCallbackAnswer> {
+    const claim = await this.returns.claim({ state: args.state, flow: 'github' })
     let outcome: ReturnOutcome
     try {
-      outcome = await this.connect(args)
+      outcome = await this.connect({ callback: args, claim })
     } catch (error) {
       outcome = {
         result: EReturnResult.Failed,
         reason: error instanceof Error ? error.message : 'GitHub connection failed',
       }
     }
-    return this.returns.answer({
-      state: args.state,
-      cookieHeader: args.cookieHeader,
-      outcome,
-      fallbackWebPath: WEB_PATH,
+    return this.returns.answerClaimed({
+      claim,
+      request: {
+        state: args.state,
+        cookieHeader: args.cookieHeader,
+        outcome,
+        fallbackWebPath: WEB_PATH,
+      },
     })
   }
 
-  private async connect(args: GithubCallback): Promise<ReturnOutcome> {
-    const userId = await this.returns.pendingUserOf({ state: args.state, flow: 'github' })
+  private async connect(args: {
+    callback: GithubCallback
+    claim: BrowserReturnClaim | null
+  }): Promise<ReturnOutcome> {
+    const userId = args.claim?.userId
     if (userId === undefined)
       return { result: EReturnResult.Failed, reason: 'That GitHub sign-in expired. Try again.' }
-    if (args.error !== undefined)
-      return { result: EReturnResult.Failed, reason: args.errorDescription ?? args.error }
-    if (args.code === undefined || args.code.length === 0)
+    const callback = args.callback
+    if (callback.error !== undefined)
+      return { result: EReturnResult.Failed, reason: callback.errorDescription ?? callback.error }
+    if (callback.code === undefined || callback.code.length === 0)
       return { result: EReturnResult.Failed, reason: 'GitHub returned no authorization code' }
     const token = await this.client.exchangeRedirectToken({
       ...this.credentials(),
-      code: args.code,
+      code: callback.code,
       redirectUri: this.redirectUri(),
     })
     const result = await this.github.connectWithToken({ userId, ...token })

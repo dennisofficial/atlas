@@ -47,7 +47,7 @@ describe('GitHub OAuth callback route', () => {
       .set('cookie', 'atlas_return=sealed')
     expect(response.status).toBe(302)
     expect(response.headers.location).toContain('atlasReturn=connected')
-    expect(response.headers['set-cookie']).toEqual(['atlas_return=; Max-Age=0'])
+    expect(String(response.headers['set-cookie'])).toBe('atlas_return=; Max-Age=0')
     expect(response.headers['cache-control']).toBe('no-store')
     expect(calls.at(-1)).toEqual({
       state: 'state',
