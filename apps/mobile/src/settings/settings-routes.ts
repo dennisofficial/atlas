@@ -45,12 +45,15 @@ export const SETTINGS_STACK_SCREENS: readonly ISettingsStackScreen[] = [
   { name: 'settings/memory-entry', title: 'Memory', sheet: { detents: [0.75, 1] } },
   { name: 'settings/skills', title: 'Skills', titleButtons: 2 },
   { name: 'settings/skills-new', title: 'New skill', sheet: SKILL_FORM_SHEET },
+  { name: 'settings/skills/[skillId]', title: 'Skill' },
+  { name: 'settings/skill-file', title: 'File', sheet: SKILL_FORM_SHEET },
   { name: 'settings/notifications', title: 'Notifications' },
   { name: 'settings/notifications-timezone', title: 'Time zone' },
   { name: 'project-settings/[projectId]/index', title: 'Project settings' },
   { name: 'project-settings/[projectId]/mcp', title: 'MCP' },
   { name: 'project-settings/[projectId]/overview', title: 'Overview' },
   { name: 'project-settings/[projectId]/skills', title: 'Skills', titleButtons: 2 },
+  { name: 'project-settings/[projectId]/skills/[skillId]', title: 'Skill' },
   { name: 'project-settings/[projectId]/skills-new', title: 'New skill', sheet: SKILL_FORM_SHEET },
   { name: 'project-settings/[projectId]/sandbox', title: 'Sandbox' },
   { name: 'project-settings/[projectId]/pull-requests', title: 'Pull requests' },
@@ -60,6 +63,7 @@ export const SETTINGS_STACK_SCREENS: readonly ISettingsStackScreen[] = [
   { name: 'group-settings/[groupId]/sandbox', title: 'Sandbox' },
   { name: 'group-settings/[groupId]/instructions', title: 'Instructions' },
   { name: 'group-settings/[groupId]/skills', title: 'Skills', titleButtons: 2 },
+  { name: 'group-settings/[groupId]/skills/[skillId]', title: 'Skill' },
   { name: 'group-settings/[groupId]/skills-new', title: 'New skill', sheet: SKILL_FORM_SHEET },
 ]
 

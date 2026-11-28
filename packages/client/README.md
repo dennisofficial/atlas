@@ -110,6 +110,9 @@ The headless client library that web, the TUI and the mobile app share.
   built-in skills no delete can reach.
 - `skillUsageViewOf({ skill, now })`, `skillRelativeTimeOf({ iso, now })`, `SkillUsageView`: a row's
   usage text, its last use as a relative time, and "Never used". Pending or failed usage reads "—".
+- `buildSkillTree(paths)`, `defaultSkillPath({ metas })`, `skillFileTargetOf`, `skillFilePathProblem`, `skillPathContains`, `skillRenamePlan`: the skill file tree, initial selection and validated file operations shared by web and iOS.
+- `skillFileWriteOf`, `saveSkillTextWith`, `isSkillConflict`: hashed file writes and revision-conflict recovery through surface-supplied read, write and hash ports.
+- `initialSkillEditorState`, `skillEditorReducer`, `ESkillEditorAction`, `skillDetailIsReadOnly`: the text draft, discard/save/conflict transitions and built-in protection.
 - `toBase64Utf8`, `fromBase64Utf8`, `base64OfBytes`, `bytesOfBase64`: a skill file's payload.
 - `formatBytes(bytes)`, `formatSkillDate(updatedAt)`, `fileKindOf(path)`, `ESkillFileKind`,
   `SKILL_PRECEDENCE_COPY`: how a skill row reads.

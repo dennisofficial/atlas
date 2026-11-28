@@ -13,6 +13,37 @@ export const skillsRouteOf = (target: SkillScopeTarget): Href => {
   return '/settings/skills'
 }
 
+export const skillDetailRouteOf = ({
+  target,
+  skill,
+}: {
+  target: SkillScopeTarget
+  skill: string
+}): Href => `${skillsRouteOf(target)}/${encodeURIComponent(skill)}`
+
+export const skillFileFormRouteOf = ({
+  target,
+  action,
+  path = '',
+  folder = false,
+}: {
+  target: SkillScopeTarget & { skill: string }
+  action: string
+  path?: string
+  folder?: boolean
+}): Href => ({
+  pathname: '/settings/skill-file',
+  params: {
+    scope: target.scope,
+    projectId: target.projectId,
+    groupId: target.groupId,
+    skillId: target.skill,
+    action,
+    path,
+    folder: folder ? 'true' : 'false',
+  },
+})
+
 export const groupSkillsRouteOf = ({ groupId }: { groupId: string }): Href =>
   skillsRouteOf(groupSkillTarget({ groupId }))
 
