@@ -1,13 +1,14 @@
-import { randomUUID } from 'node:crypto'
+import { createHash, randomUUID } from 'node:crypto'
 import { db } from '@dltech/atlas-db'
 import { useTestDatabase } from '@dltech/atlas-db/testing'
 import { beforeAll, beforeEach, describe, expect, it } from 'bun:test'
 import { recordGoogleSession } from '../../auth/google-session'
 import { EnvService } from '../../../../_core/config/env/env.service'
 
+const VERIFIER = 'v'.repeat(43)
 const INPUT = {
   redirectUri: 'atlas://auth/callback',
-  codeChallenge: 'c'.repeat(43),
+  codeChallenge: createHash('sha256').update(VERIFIER).digest('base64url'),
   codeChallengeMethod: 'S256' as const,
   state: 'client-state',
 }
@@ -105,7 +106,14 @@ describe('Google confirmation grants', () => {
       input: { ...INPUT, googleReauth: nonce },
       sessionCreatedAt: new Date(Date.now() + 1),
     }
-    expect(await service.authorize(args)).toBeTruthy()
+    const code = await service.authorize(args)
+    const token = await service.exchange({
+      code,
+      codeVerifier: VERIFIER,
+      redirectUri: INPUT.redirectUri,
+      requireGoogleReauth: true,
+    })
+    expect(token).toBeTruthy()
     await expect(service.authorize(args)).rejects.toThrow('expired')
   })
 

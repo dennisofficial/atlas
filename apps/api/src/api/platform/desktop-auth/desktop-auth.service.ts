@@ -15,6 +15,7 @@ const grantSchema = z.object({
   userId: z.string(),
   codeChallenge: z.string(),
   redirectUri: z.string(),
+  googleReauthConfirmed: z.boolean().optional(),
 })
 
 const sha256 = (value: string): Buffer => createHash('sha256').update(value).digest()
@@ -69,6 +70,7 @@ export class DesktopAuthService {
         userId: args.userId,
         codeChallenge: args.input.codeChallenge,
         redirectUri: args.input.redirectUri,
+        ...(args.input.googleReauth === undefined ? {} : { googleReauthConfirmed: true }),
       }),
       expiresAt: new Date(Date.now() + CODE_TTL_MS),
     })
@@ -84,6 +86,9 @@ export class DesktopAuthService {
     if (grant.data.redirectUri !== input.redirectUri) throw new BadRequestException(INVALID_GRANT)
     if (challengeOf(input.codeVerifier) !== grant.data.codeChallenge) {
       throw new BadRequestException(INVALID_GRANT)
+    }
+    if (input.requireGoogleReauth === true && grant.data.googleReauthConfirmed !== true) {
+      throw new BadRequestException('Google confirmation is required for this exchange')
     }
     const session = await internalAdapter.createSession(grant.data.userId)
     return session.token

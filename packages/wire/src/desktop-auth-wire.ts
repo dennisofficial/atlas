@@ -49,6 +49,7 @@ export const exchangeDesktopCodeInputSchema = z.strictObject({
   code: z.string().min(1).max(256),
   codeVerifier: z.string().regex(CODE_VERIFIER_PATTERN),
   redirectUri: redirectUriSchema,
+  requireGoogleReauth: z.boolean().optional(),
 })
 export type ExchangeDesktopCodeInput = z.infer<typeof exchangeDesktopCodeInputSchema>
 

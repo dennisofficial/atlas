@@ -81,5 +81,21 @@ describe('desktop auth redirect uris', () => {
       redirectUri: 'https://app.example.test/auth/callback',
     })
     expect(exchange.success).toBe(true)
+    expect(
+      exchangeDesktopCodeInputSchema.safeParse({
+        code: 'c',
+        codeVerifier: 'v'.repeat(43),
+        redirectUri: APP_REDIRECT_URI,
+        requireGoogleReauth: true,
+      }).success,
+    ).toBe(true)
+    expect(
+      exchangeDesktopCodeInputSchema.safeParse({
+        code: 'c',
+        codeVerifier: 'v'.repeat(43),
+        redirectUri: APP_REDIRECT_URI,
+        requireGoogleReauth: 'yes',
+      }).success,
+    ).toBe(false)
   })
 })

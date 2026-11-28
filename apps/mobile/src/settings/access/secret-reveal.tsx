@@ -158,6 +158,7 @@ export const SecretReveal = ({
         code: outcome.code,
         codeVerifier: outcome.verifier,
         redirectUri: outcome.redirectUri,
+        requireGoogleReauth: true,
       })
       await revealWithTemporarySession({
         token,
