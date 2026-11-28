@@ -1,7 +1,7 @@
 export const STARTING_PAGE_RELOAD_SECONDS = 3
 
 const PAGE = `<!doctype html>
-<html>
+<html data-atlas-preview-starting>
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">

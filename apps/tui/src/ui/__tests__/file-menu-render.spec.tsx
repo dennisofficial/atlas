@@ -1,7 +1,6 @@
 import { parseColor } from '@opentui/core'
 import { testRender } from '@opentui/react/test-utils'
 import { describe, expect, it } from 'bun:test'
-import React from 'react'
 
 import type { DirectoryEntry } from '@dltech/atlas-core'
 
@@ -32,7 +31,7 @@ const menu = (args: {
 
 type Colour = { equals: (other: unknown) => boolean }
 
-type CapturedSpan = { text: string; fg: Colour }
+type CapturedSpan = { text: string; fg: Colour; bg: Colour }
 
 type CapturedSpans = { lines: ({ spans: CapturedSpan[] } | undefined)[] }
 
@@ -74,13 +73,13 @@ describe('the file menu', () => {
     expect(spanFor({ spans, text: 'app.tsx' })?.fg.equals(parseColor(theme.hint))).toBe(false)
   })
 
-  it('brightens the name of the row under the caret', async () => {
+  it('marks the row under the caret with the hover band', async () => {
     const { spans } = await shown(menu({ index: 1 }))
 
-    expect(spanFor({ spans, text: 'architecture.md' })?.fg.equals(parseColor(theme.bright))).toBe(
+    expect(spanFor({ spans, text: 'architecture.md' })?.bg.equals(parseColor(theme.hoverBg))).toBe(
       true,
     )
-    expect(spanFor({ spans, text: 'app.tsx' })?.fg.equals(parseColor(theme.bright))).toBe(false)
+    expect(spanFor({ spans, text: 'app.tsx' })?.bg.equals(parseColor(theme.hoverBg))).toBe(false)
   })
 
   it('offers to open a directory and to attach a file', async () => {

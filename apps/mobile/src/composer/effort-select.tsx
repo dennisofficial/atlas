@@ -57,7 +57,7 @@ export const EffortSelect = ({
               },
             ]}
           >
-            <ScrollView keyboardShouldPersistTaps="handled">
+            <ScrollView scrollsToTop={false} keyboardShouldPersistTaps="handled">
               {efforts.map((effort) => (
                 <Pressable
                   key={effort}

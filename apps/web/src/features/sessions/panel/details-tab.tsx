@@ -1,8 +1,9 @@
 'use client'
 
-import { useState } from 'react'
+import { useCallback, useState } from 'react'
 
 import { ContextFileView } from '../files/context-file-view'
+import { recallDetailsFile, rememberDetailsFile } from './pane-memory'
 import { useSessionPaneValue } from './pane-value'
 import { SessionBackgroundSection } from './details/background-section'
 import { SessionContextSection } from './details/context-section'
@@ -17,7 +18,14 @@ import { DetailsMotion } from './details/reveal'
 
 export function SessionDetailsTab() {
   const { sessionId, view } = useSessionPaneValue()
-  const [contextPath, setContextPath] = useState<string | undefined>(undefined)
+  const [contextPath, setContextPathState] = useState(() => recallDetailsFile(sessionId))
+  const setContextPath = useCallback(
+    (path: string | undefined) => {
+      rememberDetailsFile({ sessionId, path })
+      setContextPathState(path)
+    },
+    [sessionId],
+  )
   const handleBack = () => setContextPath(undefined)
 
   if (contextPath !== undefined) {

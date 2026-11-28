@@ -62,6 +62,22 @@ describe('classifying a notice row by stage', () => {
     expect(reachesModel(serviceEnded)).toBe(true)
   })
 
+  it('keeps mirrored service events as bookkeeping only', () => {
+    if (serviceEnded.type !== 'service-ended') throw new Error('expected a service ending')
+    const ending: EventDraft = { ...serviceEnded, agentId: 'child-1' }
+    const started: EventDraft = {
+      type: 'service-started',
+      serviceId: 'svc_1',
+      command: 'bun dev',
+      agentId: 'child-1',
+    }
+    for (const row of [started, ending]) {
+      expect(reachesModel(row)).toBe(false)
+      expect(recordsLifecycle(row)).toBe(true)
+      expect(eventBodySchema.parse(row)).toEqual(row)
+    }
+  })
+
   it('never shows a bookkeeping ending to the model', () => {
     expect(reachesModel(agentEnded({ relayed: false }))).toBe(false)
     expect(recordsLifecycle(agentEnded({ relayed: false }))).toBe(true)

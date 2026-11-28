@@ -27,6 +27,7 @@ export const authorizeDesktopInputSchema = z.strictObject({
   redirectUri: redirectUriSchema,
   codeChallenge: z.string().regex(CODE_CHALLENGE_PATTERN),
   codeChallengeMethod: z.literal('S256'),
+  googleReauth: z.string().min(32).max(256).optional(),
 })
 export type AuthorizeDesktopInput = z.infer<typeof authorizeDesktopInputSchema>
 
@@ -35,10 +36,20 @@ export const authorizeDesktopReplySchema = z.strictObject({
 })
 export type AuthorizeDesktopReply = z.infer<typeof authorizeDesktopReplySchema>
 
+export const beginGoogleReauthInputSchema = authorizeDesktopInputSchema
+  .omit({ googleReauth: true })
+  .extend({ state: z.string().min(1).max(256) })
+export type BeginGoogleReauthInput = z.infer<typeof beginGoogleReauthInputSchema>
+export const beginGoogleLinkInputSchema = z.strictObject({})
+export type BeginGoogleLinkInput = z.infer<typeof beginGoogleLinkInputSchema>
+export const beginGoogleReplySchema = z.strictObject({ url: z.url() })
+export type BeginGoogleReply = z.infer<typeof beginGoogleReplySchema>
+
 export const exchangeDesktopCodeInputSchema = z.strictObject({
   code: z.string().min(1).max(256),
   codeVerifier: z.string().regex(CODE_VERIFIER_PATTERN),
   redirectUri: redirectUriSchema,
+  requireGoogleReauth: z.boolean().optional(),
 })
 export type ExchangeDesktopCodeInput = z.infer<typeof exchangeDesktopCodeInputSchema>
 

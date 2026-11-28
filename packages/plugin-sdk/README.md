@@ -86,6 +86,8 @@ the hashes `session_hash` and `thread_hash`.
 `ctx.control` is a `PodControl`: `exposePort({port})`, `settingsVersions()`, `memory`,
 `gateway` (`apiKey()`, `imageModel()`), `mcp`, `routines`, `subscriptions`.
 
+`ctx.subAgent` is present only for a sub-agent: `agentId` identifies it, and `appendToParent(drafts)` records bookkeeping on the main thread without a notice.
+
 `ctx.runtime` is the optional `PodRuntimeScope` supplied by a host. The main thread and all its
 sub-agents share it. `shared(factory)` constructs one ephemeral resource per factory per held
 runtime. The factory receives session-level `call`, `live`, `log`, `onDaemonEvent`, `onReset` and

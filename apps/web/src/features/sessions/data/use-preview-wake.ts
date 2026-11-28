@@ -18,6 +18,7 @@ import { changeRegistry, withWait } from '@/features/threads/panel/preview/frame
 import { api, cloudCall } from '@/lib/api-client'
 
 import { usePodWake } from './use-pod-wake'
+import { usePreviewWakeTracking } from './use-preview-wake-tracking'
 
 const requestWake = (sessionId: string): Promise<void> =>
   cloudCall(api.sessions.wakePod.mutate({ sessionId })).then(() => undefined)
@@ -33,6 +34,7 @@ export function usePreviewWake(args: {
   const wake = useCallback(() => requestWake(sessionId), [sessionId])
   const { wakePod } = usePodWake({ sessionId, live: wait === EPreviewWait.Awake, wake })
   const before = useRef<EPreviewWait | undefined>(undefined)
+  const trackOpen = usePreviewWakeTracking({ sessionId, power, wait })
 
   useEffect(() => {
     changeRegistry((registry) => withWait({ registry, threadId: sessionId, wait }))
@@ -52,9 +54,10 @@ export function usePreviewWake(args: {
 
   return useCallback(
     (url: string) => {
+      trackOpen(url)
       if (previewNeedsWake(wait)) wakePod()
       open(url)
     },
-    [wait, open, wakePod],
+    [wait, open, wakePod, trackOpen],
   )
 }

@@ -78,10 +78,9 @@ describe('SessionServicesSection', () => {
     expect(html).toContain('aria-label="Open the bun log"')
   })
 
-  it('uses the port when the name and command are empty', () => {
-    const html = render(valueOf([serviceRowFixture({ name: '', command: '', port: 3010 })]))
-    expect(html).toContain('aria-label="Open the :3010 log"')
-    expect(html.match(/:3010/g)).toHaveLength(2)
+  it('labels an old blank service row with its id', () => {
+    const html = render(valueOf([serviceRowFixture({ name: undefined, command: '' })]))
+    expect(html).toContain('aria-label="Open the svc-web log"')
   })
 
   it('swaps actions into the trailing cell for pointer, keyboard and touch', () => {

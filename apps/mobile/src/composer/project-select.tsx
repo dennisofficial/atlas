@@ -96,7 +96,7 @@ export const ProjectSelect = ({
               },
             ]}
           >
-            <ScrollView keyboardShouldPersistTaps="handled">
+            <ScrollView scrollsToTop={false} keyboardShouldPersistTaps="handled">
               {choices.map((choice) => (
                 <ProjectRow
                   key={choice.value}

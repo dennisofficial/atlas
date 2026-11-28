@@ -215,7 +215,7 @@ export function PromptInput({
 
   return (
     <form ref={formRef} onSubmit={handleSubmit} onDragOver={handleDragOver} onDrop={handleDrop}>
-      <InputGroup>
+      <InputGroup focus="caret">
         {attachments.length > 0 ? (
           <InputGroupAddon align="block-start">
             <AttachmentGroup className="flex-wrap">

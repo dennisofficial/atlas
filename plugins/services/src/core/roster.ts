@@ -66,6 +66,7 @@ export const foldServices = (
   event: Event | RecordEvent,
 ): ServicesViewState => {
   if (event.type === 'service-started') {
+    const existing = state.find((kept) => kept.serviceId === event.serviceId)
     return upsert(state, {
       serviceId: event.serviceId,
       ...nameOf(event),
@@ -73,9 +74,10 @@ export const foldServices = (
       ...(event.port === undefined ? {} : { port: event.port }),
       ...(event.url === undefined ? {} : { url: event.url }),
       ...placementOf(event),
-      status: EServiceStatus.Running,
-      ready: false,
-      changedAt: event.at,
+      status: existing?.status ?? EServiceStatus.Running,
+      ready: existing?.ready ?? false,
+      changedAt:
+        existing !== undefined && existing.changedAt > event.at ? existing.changedAt : event.at,
     })
   }
   if (event.type === 'service-ready') {

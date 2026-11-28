@@ -30,7 +30,7 @@ import {
 } from './accounts-api'
 import { ELoginFlow } from './account/login-flow'
 import { startBrowserSignIn, type BrowserSignInJob } from './account/browser-sign-in'
-import { providerLoopbackOf } from './account/provider-loopback'
+import { providerLoopbackOf } from '@dltech/atlas-client/loopback'
 import type { ProviderSignInBegin, SessionApi } from './session-api'
 import { pollSignInUntilSettled } from './sign-in-poll'
 

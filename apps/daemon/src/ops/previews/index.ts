@@ -6,7 +6,7 @@ import { tokenFileOf } from './tunnel-token'
 
 export const previewsGroup =
   (deps: DaemonOpsDeps): DaemonGroupFactory =>
-  () => {
+  (groupCtx) => {
     const log = (line: string): void => console.error(line)
     const supervisor = new TunnelSupervisor({
       binary: deps.cloudflaredPath ?? CLOUDFLARED_PATH,
@@ -15,6 +15,7 @@ export const previewsGroup =
       readyTimeoutMs: deps.previewReadyTimeoutMs ?? PREVIEW_READY_TIMEOUT_MS,
       ...(deps.previewHeartbeatMs === undefined ? {} : { heartbeatMs: deps.previewHeartbeatMs }),
       ...(deps.previewSuspendGapMs === undefined ? {} : { suspendGapMs: deps.previewSuspendGapMs }),
+      onRedial: (result) => groupCtx.publish({ type: 'previews.redialed', ...result }),
       log,
     })
     if (supervisor.storedToken() !== undefined) {

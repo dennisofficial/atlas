@@ -3,7 +3,6 @@ import {
   CardRow,
   EButtonSize,
   EButtonVariant,
-  EFontFamily,
   ETextRole,
   ETextTone,
   Icon,
@@ -14,8 +13,6 @@ import {
 import { space } from '@dltech/atlas-ui/tokens'
 import { githubCapabilitiesOf } from '@dltech/atlas-client/settings'
 import type { GithubConnectionState } from '@dltech/atlas-wire/web'
-import * as Clipboard from 'expo-clipboard'
-import * as WebBrowser from 'expo-web-browser'
 import { Check, X } from 'lucide-react-native'
 import { Alert, Platform, StyleSheet, View } from 'react-native'
 
@@ -52,12 +49,6 @@ const CapabilityRow = ({ label, granted }: { label: string; granted: boolean }) 
   )
 }
 
-const CodeText = ({ code }: { code: string }) => (
-  <Text size={ETextRole.Base} family={EFontFamily.Mono}>
-    {code}
-  </Text>
-)
-
 const ConnectPanel = ({
   flow,
   onCancel,
@@ -73,7 +64,7 @@ const ConnectPanel = ({
     return (
       <CardRow>
         <Text size={ETextRole.Sm} tone={ETextTone.Muted} style={styles.grow}>
-          Requesting a code
+          Opening GitHub
         </Text>
         <Spinner color={theme.primary} size={16} />
       </CardRow>
@@ -98,44 +89,19 @@ const ConnectPanel = ({
       </>
     )
   }
-  const { userCode, verificationUrl } = flow.codes
-  const handleCopy = () => void Clipboard.setStringAsync(userCode)
-  const handleOpen = () => void WebBrowser.openBrowserAsync(verificationUrl)
   return (
-    <>
-      <CardRow>
-        <Text size={ETextRole.Sm} tone={ETextTone.Muted} style={styles.grow}>
-          Enter this code on GitHub to approve Atlas.
-        </Text>
-      </CardRow>
-      <CardRow>
-        <CodeText code={userCode} />
-        <Button
-          label="Copy code"
-          variant={EButtonVariant.Outline}
-          size={EButtonSize.Sm}
-          onPress={handleCopy}
-        />
-      </CardRow>
-      <CardRow>
-        <Button
-          label="Open GitHub"
-          variant={EButtonVariant.Outline}
-          size={EButtonSize.Sm}
-          onPress={handleOpen}
-        />
-        <Button
-          label="Cancel"
-          variant={EButtonVariant.Ghost}
-          size={EButtonSize.Sm}
-          onPress={onCancel}
-        />
-        <Spinner color={theme.primary} size={16} />
-        <Text size={ETextRole.Xs} tone={ETextTone.Muted}>
-          Waiting for approval
-        </Text>
-      </CardRow>
-    </>
+    <CardRow>
+      <Spinner color={theme.primary} size={16} />
+      <Text size={ETextRole.Sm} tone={ETextTone.Muted} style={styles.grow}>
+        Complete GitHub sign-in in your browser.
+      </Text>
+      <Button
+        label="Cancel"
+        variant={EButtonVariant.Ghost}
+        size={EButtonSize.Sm}
+        onPress={onCancel}
+      />
+    </CardRow>
   )
 }
 

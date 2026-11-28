@@ -22,7 +22,7 @@ export function queuedNoticeLineOf(event: EventBody): QueuedNoticeLine | undefin
   }
 
   if (event.type === 'service-ended') {
-    if (event.restarting === true) return undefined
+    if (event.restarting === true || event.agentId !== undefined) return undefined
     return { text: serviceEndedLine(event), failed: serviceFailed(event) }
   }
 

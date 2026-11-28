@@ -6,7 +6,7 @@ import {
   type AccountDto,
   type ProviderSignInBegin,
 } from '@dltech/atlas-wire/web'
-import { createProviderSignIn, EProviderSignInState } from '../sign-in'
+import { createProviderSignIn, EBrowserSignInResult, EProviderSignInState } from '../sign-in'
 
 const account: AccountDto = {
   id: 'one',
@@ -53,6 +53,112 @@ function setup(overrides: Partial<Parameters<typeof createProviderSignIn>[0]> = 
 }
 
 describe('provider sign-in controller', () => {
+  it('finishes browser sign-in without beginning another flow', async () => {
+    const { controller, opened, changes } = setup({
+      browser: async ({ onWaiting }) => {
+        onWaiting()
+        return EBrowserSignInResult.SignedIn
+      },
+    })
+    controller.start()
+    expect(controller.getState().status).toBe(EProviderSignInState.Browser)
+    await flush()
+    expect(controller.getState().status).toBe(EProviderSignInState.Idle)
+    expect(opened).toEqual([])
+    expect(changes()).toBe(1)
+  })
+  it.each([
+    paste,
+    {
+      flow: EProviderSignInFlow.DeviceCode,
+      attemptId: 'device',
+      userCode: 'AB-CD',
+      verificationUrl: 'https://chatgpt.com/device',
+      intervalMs: 100,
+      expiresInMs: 60000,
+    } satisfies ProviderSignInBegin,
+  ])('falls back to the existing flow: %j', async (begun) => {
+    const { controller, opened } = setup({
+      browser: async () => EBrowserSignInResult.Fallback,
+      begin: async () => begun,
+    })
+    controller.start()
+    await flush()
+    expect(opened).toEqual([
+      begun.flow === EProviderSignInFlow.PasteCode ? begun.authorizeUrl : begun.verificationUrl,
+    ])
+  })
+  it('aborts browser sign-in on cancel and ignores its late result', async () => {
+    const deferred = Promise.withResolvers<EBrowserSignInResult>()
+    let signal: AbortSignal | undefined
+    const { controller, opened, changes } = setup({
+      browser: (args) => {
+        signal = args.signal
+        return deferred.promise
+      },
+    })
+    controller.start()
+    controller.cancel()
+    expect(signal?.aborted).toBe(true)
+    deferred.resolve(EBrowserSignInResult.Fallback)
+    await flush()
+    expect(controller.getState().status).toBe(EProviderSignInState.Idle)
+    expect(opened).toEqual([])
+    expect(changes()).toBe(0)
+  })
+  it('aborts a replaced browser run and ignores its waiting callback and success', async () => {
+    const stale = Promise.withResolvers<EBrowserSignInResult>()
+    let previous:
+      | Parameters<NonNullable<Parameters<typeof createProviderSignIn>[0]['browser']>>[0]
+      | undefined
+    const { controller, changes } = setup({
+      browser: (args) => {
+        if (!previous) {
+          previous = args
+          return stale.promise
+        }
+        return new Promise(() => undefined)
+      },
+    })
+    controller.start()
+    controller.start()
+    expect(previous?.signal.aborted).toBe(true)
+    previous?.onWaiting()
+    stale.resolve(EBrowserSignInResult.SignedIn)
+    await flush()
+    expect(controller.getState().status).toBe(EProviderSignInState.Starting)
+    expect(changes()).toBe(0)
+    controller.cancel()
+  })
+  it.each([EBrowserSignInResult.Cancelled, EBrowserSignInResult.Failed])(
+    'settles browser result %s without falling back',
+    async (result) => {
+      const { controller, opened, changes } = setup({ browser: async () => result })
+      controller.start()
+      await flush()
+      expect(controller.getState().status).toBe(
+        result === EBrowserSignInResult.Cancelled
+          ? EProviderSignInState.Idle
+          : EProviderSignInState.Failed,
+      )
+      expect(opened).toEqual([])
+      expect(changes()).toBe(0)
+    },
+  )
+  it('reports a browser rejection through the surface error mapper', async () => {
+    const { controller } = setup({
+      browser: async () => {
+        throw new Error('Browser refused')
+      },
+      errorMessage: () => 'Mapped browser refusal',
+    })
+    controller.start()
+    await flush()
+    expect(controller.getState()).toEqual({
+      status: EProviderSignInState.Failed,
+      message: 'Mapped browser refusal',
+    })
+  })
   it('opens the paste flow, trims the code, completes and reloads once', async () => {
     const { controller, opened, completed, changes } = setup()
     const states: EProviderSignInState[] = []

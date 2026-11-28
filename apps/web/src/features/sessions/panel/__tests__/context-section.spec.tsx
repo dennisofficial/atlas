@@ -195,4 +195,28 @@ describe('SessionContextSection', () => {
 
     expect(second.textContent).toContain('01-store.md')
   })
+
+  it('reopens the context file the session showed on its next mount', async () => {
+    const paths = ['plan.md']
+    const first = await mountDetails({ value: paneValueFixture(), paths })
+    await click(first.querySelector('[aria-label="Open plan.md"]'))
+    for (const unmount of mounted.splice(0)) await act(async () => unmount())
+
+    const again = await mountDetails({ value: paneValueFixture(), paths })
+    expect(again.querySelector('[data-context-file="plan.md"]')).not.toBeNull()
+
+    await click(again.querySelector('[data-context-file] button'))
+    for (const unmount of mounted.splice(0)) await act(async () => unmount())
+    const closed = await mountDetails({ value: paneValueFixture(), paths })
+    expect(closed.querySelector('[data-context-file]')).toBeNull()
+  })
+
+  it('keeps the context file of one session out of another', async () => {
+    const paths = ['plan.md']
+    const first = await mountDetails({ value: paneValueFixture({ sessionId: 'ses-a' }), paths })
+    await click(first.querySelector('[aria-label="Open plan.md"]'))
+
+    const other = await mountDetails({ value: paneValueFixture({ sessionId: 'ses-b' }), paths })
+    expect(other.querySelector('[data-context-file]')).toBeNull()
+  })
 })

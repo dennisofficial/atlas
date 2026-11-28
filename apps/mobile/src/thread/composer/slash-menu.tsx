@@ -68,7 +68,7 @@ export const SlashMenu = ({
         },
       ]}
     >
-      <ScrollView keyboardShouldPersistTaps="handled" style={styles.scroll}>
+      <ScrollView scrollsToTop={false} keyboardShouldPersistTaps="handled" style={styles.scroll}>
         {commandSectionsOf(entries).map((section) => (
           <View key={section.group}>
             <Text size={ETextRole.Xs} tone={ETextTone.Muted} style={styles.group}>

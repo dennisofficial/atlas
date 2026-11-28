@@ -168,7 +168,11 @@ export default function DiagramScreen() {
           dom={{ matchContents: false, scrollEnabled: false, style: { flex: 1 } }}
         />
       ) : (
-        <ScrollView contentContainerStyle={styles.source} style={styles.scroll}>
+        <ScrollView
+          scrollsToTop={false}
+          contentContainerStyle={styles.source}
+          style={styles.scroll}
+        >
           <Text size={ETextRole.Xs} tone={ETextTone.Muted} style={styles.sourceLabel}>
             Mermaid source
           </Text>

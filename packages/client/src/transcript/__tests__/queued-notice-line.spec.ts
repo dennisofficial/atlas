@@ -126,6 +126,10 @@ describe('a queued service ending', () => {
     })
   })
 
+  it('drops a mirrored sub-agent ending', () => {
+    expect(queuedNoticeLineOf(serviceEnded({ agentId: 'child-1' }))).toBeUndefined()
+  })
+
   it('drops a service that is already restarting', () => {
     expect(queuedNoticeLineOf(serviceEnded({ restarting: true }))).toBeUndefined()
   })

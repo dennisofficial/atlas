@@ -378,10 +378,7 @@ jobs:
           iconutil -c icns icon.iconset -o build/icon.icns
           bun run bundle:payload
           bun run pack:host
-          bun run build:native
           npx electron-builder --mac dmg zip --arm64
-          test -f release/mac-arm64/Atlas.app/Contents/Resources/native/atlas_native.node
-          file release/mac-arm64/Atlas.app/Contents/Resources/native/atlas_native.node | grep 'Mach-O 64-bit'
           bun scripts/update-manifest.ts --version 0.0.0 --dir release
         working-directory: apps/mac
 
@@ -427,17 +424,6 @@ jobs:
             )' >/dev/null || { echo "::error::one or more CI checks did not pass"; exit 1; }
           echo "all CI checks passed"
 
-  # Releasing is a job of the same run that proved the commit green, not a second workflow
-  # triggered by workflow_run: under workflow_run the tag's target was the triggering ci run's
-  # head_sha, a snapshot of history that a merge landing while ci was still running silently
-  # invalidated — tui-v1.20.2 was tagged one commit behind the merge that shipped it that way
-  # (2026-09-28, run 36483286193). Here the tag's target is github.sha, main's HEAD by
-  # construction, so the stale-gating-run case cannot exist. A fresher push cancels an in-flight
-  # build and its own run re-derives the version from the last tag, so no commit's
-  # release-worthiness is lost — the number itself may differ (a feat in the fresher push bumps
-  # minor where the cancelled run would have cut a patch), and that is correct. The group name
-  # carries the ref so a skipped PR job, which claims no group, can never cancel a main build
-  # even if GitHub's if-evaluation timing changes.
   release:
     runs-on: ubuntu-latest
     needs: [ci]
@@ -446,7 +432,8 @@ jobs:
       contents: write
     concurrency:
       group: release-${{ github.ref }}
-      cancel-in-progress: true
+      cancel-in-progress: false
+      queue: max
     outputs:
       tag: ${{ steps.version.outputs.skip != 'true' && format('tui-v{0}', steps.version.outputs.version) || '' }}
       mac: ${{ steps.version.outputs.mac }}
@@ -469,7 +456,14 @@ jobs:
 
       - name: compute release version
         id: version
-        run: bun apps/tui/scripts/release-version.ts >> "$GITHUB_OUTPUT"
+        run: |
+          set -euo pipefail
+          git fetch --quiet origin main
+          if [ "$(git rev-parse FETCH_HEAD)" != "$TARGET_SHA" ]; then
+            echo 'skip=true' >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+          bun apps/tui/scripts/release-version.ts >> "$GITHUB_OUTPUT"
 
       - name: build binaries
         if: steps.version.outputs.skip != 'true'
@@ -552,19 +546,15 @@ jobs:
           ./node_modules/.bin/dotenvx run -f scripts/install-worker/.env.production.enc --
           bun scripts/mirror-release.ts "tui-v${VERSION}" --latest
 
-  # Signed and notarized build, only for a release the `release` job actually cut and only when the
-  # app itself changed (`release-version.ts` reports whether a change reached apps/mac or a package
-  # it depends on). A merge that touches only the interface cuts the release for the binaries and
-  # lets web-ota.yml carry the UI, instead of paying the mac runner for an unchanged app. The app is
-  # stamped with that release's version and its dmg is attached to the same GitHub release, which is
-  # then marked latest here — the only case that produces fresh Mac files. Every other release is
-  # marked latest by the `release` job, after it copies the previous Mac files onto it; see the
-  # comment above that job's step.
   mac-release:
     runs-on: macos-latest
     needs: [release]
     if: ${{ !cancelled() && needs.release.result == 'success' && needs.release.outputs.tag != '' && needs.release.outputs.mac == 'true' }}
     timeout-minutes: 45
+    concurrency:
+      group: release-${{ github.ref }}
+      cancel-in-progress: false
+      queue: max
     permissions:
       contents: write
     env:
@@ -651,7 +641,6 @@ jobs:
           iconutil -c icns icon.iconset -o build/icon.icns
           bun run bundle:payload
           bun run pack:host
-          bun run build:native
           printf '%s' "$MAC_PROVISIONING_PROFILE_B64" | base64 --decode > build/embedded.provisionprofile
           npx electron-builder --mac dmg zip --arm64 --publish never -c.extraMetadata.version="$VERSION" -c.mac.provisioningProfile=build/embedded.provisionprofile
           bun scripts/update-manifest.ts --version "$VERSION" --dir release
@@ -678,20 +667,12 @@ jobs:
           bun apps/mac/scripts/verify-signature.ts "$app"
           shasum -a 256 apps/mac/release/*.dmg
 
-      - name: upload the app to the release
-        run: |
-          set -euo pipefail
-          ls -la apps/mac/release/*.dmg apps/mac/release/*.zip apps/mac/release/latest-mac.yml
-          bun scripts/gh-retry.ts --call=upload -- gh release upload "$TAG" apps/mac/release/*.dmg \
-            apps/mac/release/*.zip apps/mac/release/latest-mac.yml --clobber --repo "$GITHUB_REPOSITORY"
-          gh release edit "$TAG" --latest --repo "$GITHUB_REPOSITORY"
-
-      - name: mirror the release to install.byatlas.io
+      - name: publish the app without regressing latest
         env:
           DOTENV_PRIVATE_KEY_PRODUCTION_ENC: ${{ secrets.INSTALL_WORKER_DOTENV_PRIVATE_KEY }}
         run: >-
           ./node_modules/.bin/dotenvx run -f scripts/install-worker/.env.production.enc --
-          bun scripts/mirror-release.ts "$TAG" --latest
+          bun scripts/publish-mac-release.ts "$TAG" apps/mac/release
 
       - name: remove signing material
         if: always()

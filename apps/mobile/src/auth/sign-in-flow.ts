@@ -1,3 +1,4 @@
+import type { GoogleReauthBegin } from '@dltech/atlas-client/settings'
 import * as WebBrowser from 'expo-web-browser'
 
 import { nativeRedirectUri } from '../config'
@@ -19,16 +20,28 @@ export type THandoffOutcome =
 
 export const runHandoffSignIn = async ({
   webOrigin,
+  beginGoogleReauth,
 }: {
   webOrigin: string
+  beginGoogleReauth?: GoogleReauthBegin | undefined
 }): Promise<THandoffOutcome> => {
   const pair = await createPkcePair()
-  const authorizeUrl = buildAuthorizeUrl({
-    webOrigin,
-    redirectUri: nativeRedirectUri,
-    state: pair.state,
-    codeChallenge: pair.challenge,
-  })
+  const authorizeUrl =
+    beginGoogleReauth === undefined
+      ? buildAuthorizeUrl({
+          webOrigin,
+          redirectUri: nativeRedirectUri,
+          state: pair.state,
+          codeChallenge: pair.challenge,
+        })
+      : (
+          await beginGoogleReauth({
+            redirectUri: nativeRedirectUri,
+            state: pair.state,
+            codeChallenge: pair.challenge,
+            codeChallengeMethod: 'S256',
+          })
+        ).url
   const result = await WebBrowser.openAuthSessionAsync(authorizeUrl, nativeRedirectUri)
   if (result.type !== 'success') return { kind: EHandoffResult.Cancelled }
   const outcome = parseAuthCallback({ url: result.url, expectedState: pair.state })

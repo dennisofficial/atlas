@@ -153,6 +153,14 @@ describe('a service ending that an auto-restart follows', () => {
     expect(rendered(true)).toHaveLength(0)
   })
 
+  it('produces no message for a mirrored sub-agent ending', () => {
+    const result = messagesFromEvents()(
+      { system: [], messages: [] },
+      contextFor({ events: log([{ ...ended(), agentId: 'child-1' }]) }),
+    )
+    expect(result.messages).toEqual([])
+  })
+
   it('still renders an ordinary ending', () => {
     expect(rendered(undefined)).toHaveLength(1)
   })

@@ -1,15 +1,20 @@
-import { CallFailureError, ECallFailure } from '@dltech/atlas-protocol'
+import { CallFailureError, ECallFailure, type PreviewTunnelRedial } from '@dltech/atlas-protocol'
 
 import { ManagedProcess, type ManagedExit } from '../../process/managed'
+import { TunnelClock, type TunnelClockArgs } from './tunnel-clock'
+import {
+  REGISTERED_MARKER,
+  exitLabelOf,
+  tailOf,
+  waitForRegistration,
+  type Readiness,
+} from './tunnel-readiness'
 import { readStored, type StoredTunnel, writeStored } from './tunnel-token'
 
-const REGISTERED_MARKER = 'Registered tunnel connection'
 const OUTPUT_TAIL_CHARS = 2_000
-const READY_POLL_MS = 100
 const BACKOFF_START_MS = 1_000
 const BACKOFF_MAX_MS = 30_000
-const HEARTBEAT_MS = 5_000
-const SUSPEND_GAP_MS = 30_000
+const HEARTBEAT_MS = 2_000
 const decoder = new TextDecoder()
 
 export type TunnelState = 'stopped' | 'starting' | 'up' | 'failed'
@@ -21,52 +26,21 @@ export type TunnelStatus = {
   upAt?: string
   lastError?: string
   tail: string
+  lastRedial?: PreviewTunnelRedial
 }
 
-export type TunnelSupervisorArgs = {
+export type TunnelSupervisorArgs = TunnelClockArgs & {
   binary: string
   env: Record<string, string | undefined>
   file: string
   readyTimeoutMs: number
   heartbeatMs?: number | undefined
-  suspendGapMs?: number | undefined
+  onRedial?: ((result: PreviewTunnelRedial) => void) | undefined
   log(line: string): void
 }
 
-type Readiness =
-  | { kind: 'registered' }
-  | { kind: 'exited'; exit: ManagedExit }
-  | { kind: 'timeout' }
-
 const messageOf = (error: unknown): string =>
   error instanceof Error ? error.message : String(error)
-
-const tailOf = (output: string): string =>
-  output === '' ? '(cloudflared printed nothing)' : output.slice(-OUTPUT_TAIL_CHARS)
-
-const exitLabelOf = (exit: ManagedExit): string =>
-  exit.exitCode !== null ? `code ${exit.exitCode}` : `signal ${exit.signal ?? 'unknown'}`
-
-const waitForRegistration = (args: {
-  child: ManagedProcess
-  output: () => string
-  timeoutMs: number
-}): Promise<Readiness> =>
-  new Promise((resolve) => {
-    let timer: ReturnType<typeof setTimeout> | undefined
-    const finish = (readiness: Readiness): void => {
-      if (timer !== undefined) clearTimeout(timer)
-      resolve(readiness)
-    }
-    const deadline = Date.now() + args.timeoutMs
-    const check = (): void => {
-      if (args.output().includes(REGISTERED_MARKER)) return finish({ kind: 'registered' })
-      if (Date.now() >= deadline) return finish({ kind: 'timeout' })
-      timer = setTimeout(check, READY_POLL_MS)
-    }
-    void args.child.exit().then((exit) => finish({ kind: 'exited', exit }))
-    check()
-  })
 
 export class TunnelSupervisor {
   private state: TunnelState = 'stopped'
@@ -81,11 +55,13 @@ export class TunnelSupervisor {
   private pending: Promise<TunnelStatus> | undefined
   private stopping = false
   private upAt: string | undefined
-  private lastBeat = Date.now()
+  private readonly clock: TunnelClock
   private redialing = false
+  private lastRedial: PreviewTunnelRedial | undefined
   private readonly heartbeat: ReturnType<typeof setInterval>
 
   constructor(private readonly args: TunnelSupervisorArgs) {
+    this.clock = new TunnelClock(args)
     this.heartbeat = setInterval(() => this.watchForSuspend(), args.heartbeatMs ?? HEARTBEAT_MS)
     this.heartbeat.unref?.()
   }
@@ -132,6 +108,7 @@ export class TunnelSupervisor {
       ...(this.upAt === undefined ? {} : { upAt: this.upAt }),
       ...(this.lastError === undefined ? {} : { lastError: this.lastError }),
       tail: tailOf(this.output),
+      ...(this.lastRedial === undefined ? {} : { lastRedial: this.lastRedial }),
     }
   }
 
@@ -161,7 +138,9 @@ export class TunnelSupervisor {
     writeStored({ file: this.args.file, stored })
   }
 
-  private async launch(): Promise<TunnelStatus> {
+  private async launch(args?: { onRegistered(ms: number): void }): Promise<TunnelStatus> {
+    const launchingAt = this.clock.now()
+    let registeredAt: number | undefined
     const token = this.storedToken()
     if (token === undefined) {
       throw new CallFailureError({
@@ -177,6 +156,10 @@ export class TunnelSupervisor {
       this.output = (this.output + decoder.decode(bytes, { stream: true })).slice(
         -OUTPUT_TAIL_CHARS,
       )
+      if (registeredAt === undefined && this.output.includes(REGISTERED_MARKER)) {
+        registeredAt = this.clock.now()
+        args?.onRegistered(Math.max(0, registeredAt - launchingAt))
+      }
     }
     let child: ManagedProcess
     try {
@@ -255,15 +238,15 @@ export class TunnelSupervisor {
   }
 
   private watchForSuspend(): void {
-    const now = Date.now()
-    const gap = now - this.lastBeat
-    this.lastBeat = now
-    if (gap < (this.args.suspendGapMs ?? SUSPEND_GAP_MS)) return
+    const gap = this.clock.suspendGap()
+    if (gap === undefined) return
     if (this.state !== 'up' || this.child === undefined) return
-    void this.redial({ gapMs: gap })
+    void this.redial(gap)
   }
 
-  private async redial(args: { gapMs: number }): Promise<void> {
+  private async redial(
+    args: Pick<PreviewTunnelRedial, 'reason' | 'gapMs' | 'skewMs'>,
+  ): Promise<void> {
     if (this.redialing || this.stopping) return
     this.redialing = true
     try {
@@ -278,12 +261,28 @@ export class TunnelSupervisor {
       this.backoffMs = BACKOFF_START_MS
       const child = this.child
       this.child = undefined
+      const stoppingAt = this.clock.now()
       if (child !== undefined) {
-        child.kill()
+        child.killNow()
         await child.exit().catch(() => undefined)
       }
+      const stopMs = Math.max(0, this.clock.now() - stoppingAt)
       if (this.stopping) return
-      await this.launch()
+      const launchingAt = this.clock.now()
+      let registeredMs: number | undefined
+      const status = await this.launch({
+        onRegistered: (ms) => {
+          registeredMs = ms
+        },
+      })
+      this.lastRedial = {
+        ...args,
+        id: crypto.randomUUID(),
+        stopMs,
+        registerMs: registeredMs ?? Math.max(0, this.clock.now() - launchingAt),
+        ok: status.state === 'up',
+      }
+      this.args.onRedial?.(this.lastRedial)
     } finally {
       this.redialing = false
     }

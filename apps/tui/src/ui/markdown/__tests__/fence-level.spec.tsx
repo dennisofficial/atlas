@@ -1,7 +1,8 @@
+import { parseColor } from '@opentui/core'
 import { testRender } from '@opentui/react/test-utils'
 import { describe, expect, it } from 'bun:test'
-import React from 'react'
 
+import { theme } from '../../theme'
 import { grammarsReady, settle, teardown } from './harness'
 import { MarkdownView } from '../markdown-view'
 import { fenceWidth } from '../fenced-block'
@@ -36,7 +37,7 @@ async function slabEdges(source: string): Promise<number[]> {
       let last = -1
       for (const span of line.spans) {
         for (const _ of span.text) {
-          if (Math.round(span.bg.r * 255) === 0x1e) last = column
+          if (span.bg.equals(parseColor(theme.panelBg))) last = column
           column += 1
         }
       }

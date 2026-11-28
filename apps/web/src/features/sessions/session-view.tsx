@@ -70,6 +70,7 @@ import { ConnectionLine } from './connection-line'
 import { RefusalRows } from './refusal-rows'
 import { SessionPreviewsProvider } from './panel/browser/previews-provider'
 import { SessionDetailsCard, detailsCardReserveOf } from './panel/details-card'
+import { COMPOSER_MORPH_CLASS } from './panel/details-morph'
 import { SessionCheckoutScope } from './panel/checkout-scope'
 import { ESessionPaneTab } from './panel/pane-tab'
 import { SessionPaneProvider } from './panel/pane-value'
@@ -395,7 +396,7 @@ export function SessionView({ sessionId }: { sessionId: string }) {
                   <div className="@container shrink-0">
                     <div className={detailsCardReserveOf(pane.detailsShown)}>
                       <div
-                        className={`mx-auto flex w-full ${readingClasses.measure} shrink-0 flex-col gap-2 px-4 pb-[max(1rem,var(--safe-area-bottom))]`}
+                        className={`mx-auto flex w-full ${readingClasses.measure} shrink-0 flex-col gap-2 px-4 pb-[max(1rem,var(--safe-area-bottom))] ${COMPOSER_MORPH_CLASS}`}
                       >
                         <OperatorRequestDock sessionId={sessionId} request={operatorRequest} />
                         <RepairStrip strip={repair.strip} />
@@ -449,7 +450,6 @@ export function SessionView({ sessionId }: { sessionId: string }) {
                                 onSelectionChange={choice.onSelectionChange}
                                 open={choice.open}
                                 onOpenChange={choice.onOpenChange}
-                                native
                               />
                             )}
                             <span aria-hidden className="flex-1" />

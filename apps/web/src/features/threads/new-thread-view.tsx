@@ -124,7 +124,6 @@ function Welcome({ projects }: { projects: readonly Project[] }) {
           onSelectionChange={setChosen}
           open={commands.modelOpen}
           onOpenChange={commands.setModelOpen}
-          native
         />
         <div className="ml-auto flex min-w-0">
           <ProjectSelect

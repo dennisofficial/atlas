@@ -132,6 +132,19 @@ export function ProviderSignInPanel({
     )
   }
 
+  if (flow.status === EProviderSignInState.Browser) {
+    return (
+      <div className="flex items-center gap-3 pl-12" role="status">
+        <p className="flex items-center gap-2 text-sm text-muted-foreground">
+          <Spinner /> Finish signing in in your browser
+        </p>
+        <Button variant="ghost" size="xs" onClick={cancel}>
+          Cancel
+        </Button>
+      </div>
+    )
+  }
+
   if (flow.status === EProviderSignInState.Waiting) {
     return (
       <div className="flex flex-col gap-3 pl-12" role="status">

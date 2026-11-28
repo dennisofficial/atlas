@@ -9,7 +9,8 @@ export type TunnelWait = {
   sleep: (ms: number) => Promise<void>
 }
 
-export type TunnelAnswer = { response: Response; tunnelError: boolean }
+export type TunnelHold = { tries: number; holdMs: number }
+export type TunnelAnswer = { response: Response; tunnelError: boolean; hold?: TunnelHold }
 
 const CLOUDFLARE_EDGE_STATUSES: ReadonlySet<number> = new Set([502, 530])
 const CLOUDFLARE_ERROR_MARKER = 'cf-error-details'
@@ -21,7 +22,7 @@ export const DEFAULT_TUNNEL_WAIT: TunnelWait = {
   tries: 15,
   firstDelayMs: 500,
   maxDelayMs: 2_000,
-  now: () => Date.now(),
+  now: () => performance.now(),
   sleep: (ms) => new Promise((resolve) => setTimeout(resolve, ms)),
 }
 
@@ -65,18 +66,24 @@ export const upstreamWaitingForTunnel = async (args: {
   wait: TunnelWait
 }): Promise<TunnelAnswer> => {
   const { request, upstream, wait } = args
-  const first = await upstream(request)
-  if (!repeatsUpstream(request)) return { response: first, tunnelError: await isTunnelError(first) }
+  const started = wait.now()
+  let response = await upstream(request)
+  let tunnelError = await isTunnelError(response)
+  const firstTunnelError = tunnelError
   const deadline = wait.now() + wait.budgetMs
   let delay = wait.firstDelayMs
-  let response = first
-  for (let tries = 1; tries < wait.tries; tries += 1) {
-    const tunnelError = await isTunnelError(response)
-    if (!tunnelError || wait.now() >= deadline) return { response, tunnelError }
+  let tries = 1
+  while (repeatsUpstream(request) && tunnelError && tries < wait.tries && wait.now() < deadline) {
     await discardResponse(response)
     await wait.sleep(delay)
     delay = Math.min(delay * 2, wait.maxDelayMs)
     response = await upstream(request)
+    tries += 1
+    tunnelError = await isTunnelError(response)
   }
-  return { response, tunnelError: await isTunnelError(response) }
+  return {
+    response,
+    tunnelError,
+    ...(firstTunnelError ? { hold: { tries, holdMs: wait.now() - started } } : {}),
+  }
 }

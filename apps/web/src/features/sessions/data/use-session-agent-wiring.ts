@@ -22,21 +22,24 @@ export function useSessionAgentWiring(args: {
   const { sessionId, working } = args
   const pane = useSessionPane(sessionId)
   const { agentId, parentAgentId, openAgent, clearAgent } = useSessionAgent({
-    openPane: pane.openPane,
+    sessionId,
+    enterPane: pane.enterAgentPane,
+    leavePane: pane.leaveAgentPane,
   })
-  const { openPane, setSheetOpen } = pane
+  const { revealAgentPane, settleAgentPane, setSheetOpen } = pane
   const openedFor = useRef<string | undefined>(undefined)
 
   useEffect(() => {
     if (agentId !== undefined) {
       openedFor.current = agentId
-      openPane()
+      revealAgentPane()
       return
     }
     if (openedFor.current === undefined) return
     openedFor.current = undefined
     setSheetOpen(false)
-  }, [agentId, openPane, setSheetOpen])
+    settleAgentPane()
+  }, [agentId, revealAgentPane, settleAgentPane, setSheetOpen])
 
   const sheetOpenChange = useCallback(
     (open: boolean) => {

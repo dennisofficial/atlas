@@ -1,10 +1,21 @@
 import { describe, expect, it } from 'bun:test'
 import { readdirSync, readFileSync, statSync } from 'node:fs'
-import { join, relative } from 'node:path'
+import { dirname, join, relative, resolve, sep } from 'node:path'
 
 import { browserSafetyViolations } from './browser-safe-imports'
 
 const SRC = join(import.meta.dir, '..')
+const LOOPBACK = join(SRC, 'loopback')
+
+const loopbackImportsOf = (args: { source: string; file: string }): string[] =>
+  [...args.source.matchAll(/\b(?:from|import)\s*(?:\(\s*)?['"]([^'"]+)['"]/g)]
+    .map((match) => match[1] ?? '')
+    .filter(
+      (specifier) =>
+        specifier === '@dltech/atlas-client/loopback' ||
+        (specifier.startsWith('.') &&
+          relative(SRC, resolve(dirname(args.file), specifier)).split(sep)[0] === 'loopback'),
+    )
 
 const sourceFilesUnder = (dir: string): string[] =>
   readdirSync(dir).flatMap((name) => {
@@ -47,13 +58,39 @@ describe('browserSafetyViolations', () => {
 })
 
 describe('the client package', () => {
-  it('imports only browser-safe modules', () => {
-    const offences = sourceFilesUnder(SRC).flatMap((file) =>
-      browserSafetyViolations(readFileSync(file, 'utf8')).map(
-        ({ rule, line }) => `${relative(SRC, file)}:${line} ${rule}`,
+  it('keeps every portable module browser-safe and outside the Bun-only subpath', () => {
+    const offences = sourceFilesUnder(SRC)
+      .filter((file) => relative(SRC, file).split(sep)[0] !== 'loopback')
+      .flatMap((file) => {
+        const source = readFileSync(file, 'utf8')
+        return [
+          ...browserSafetyViolations(source).map(
+            ({ rule, line }) => `${relative(SRC, file)}:${line} ${rule}`,
+          ),
+          ...loopbackImportsOf({ source, file }).map(
+            (specifier) => `${relative(SRC, file)} imports ${specifier}`,
+          ),
+        ]
+      })
+    expect(offences).toEqual([])
+  })
+
+  it('permits only Bun globals in the dedicated loopback transport', () => {
+    const offences = sourceFilesUnder(LOOPBACK).flatMap((file) =>
+      browserSafetyViolations(readFileSync(file, 'utf8')).filter(
+        ({ rule }) => rule !== 'Bun global',
       ),
     )
     expect(offences).toEqual([])
+  })
+
+  it.each([
+    ["import { start } from '../loopback'", ['../loopback']],
+    ["export * from '../loopback/loopback-server'", ['../loopback/loopback-server']],
+    ["const listener = import('@dltech/atlas-client/loopback')", ['@dltech/atlas-client/loopback']],
+    ["import { x } from '../account'", []],
+  ])('detects a portable entry point reaching the Bun-only transport: %s', (source, expected) => {
+    expect(loopbackImportsOf({ source, file: join(SRC, 'account', 'index.ts') })).toEqual(expected)
   })
 })
 

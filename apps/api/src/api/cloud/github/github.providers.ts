@@ -14,6 +14,7 @@ export function githubConfigOf(env: EnvService): GithubConfig {
     appPrivateKey: env.get('GITHUB_APP_PRIVATE_KEY'),
     appSlug: env.get('GITHUB_APP_SLUG'),
     clientId: env.get('GITHUB_CLIENT_ID'),
+    clientSecret: env.get('GITHUB_CLIENT_SECRET'),
     publicApiUrl: env.get('BETTER_AUTH_URL'),
   })
 }

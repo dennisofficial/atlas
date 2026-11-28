@@ -44,6 +44,7 @@ export default function SignInScreen() {
       style={[styles.screen, { backgroundColor: theme.background }]}
     >
       <ScrollView
+        scrollsToTop={false}
         keyboardShouldPersistTaps="handled"
         contentContainerStyle={[
           styles.scroll,

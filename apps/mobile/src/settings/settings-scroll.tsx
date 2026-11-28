@@ -7,6 +7,7 @@ export const SettingsScroll = ({ children }: { children: ReactNode }) => {
   const theme = useTheme()
   return (
     <ScrollView
+      scrollsToTop={false}
       contentInsetAdjustmentBehavior="automatic"
       keyboardShouldPersistTaps="handled"
       style={{ backgroundColor: theme.background }}

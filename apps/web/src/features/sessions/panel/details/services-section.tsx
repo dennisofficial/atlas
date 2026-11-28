@@ -32,9 +32,7 @@ const TONE: Record<EServiceStatus, string> = {
 }
 
 const nameOf = (row: ServiceRow): string =>
-  row.name?.trim() ||
-  row.command.trim().split(/\s+/)[0] ||
-  (row.port === undefined ? 'Service' : `:${row.port}`)
+  row.name?.trim() || row.command.trim().split(/\s+/)[0] || row.serviceId
 
 const pausedOf = (args: { row: ServiceRow; asleep: boolean }): boolean =>
   args.asleep && args.row.status === EServiceStatus.Running

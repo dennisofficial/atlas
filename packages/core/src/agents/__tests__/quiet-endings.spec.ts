@@ -53,6 +53,10 @@ describe('an ending written because the sandbox stopped', () => {
     expect(isTurnTaking(serviceEnded({ cause: EShellEndCause.PodRestarted }))).toBe(false)
   })
 
+  it('keeps a sub-agent service ending from handing the main thread a turn', () => {
+    expect(isTurnTaking(serviceEnded({ agentId: 'child-1' }))).toBe(false)
+  })
+
   it('leaves every other ending waking the model, flagged or legacy', () => {
     expect(isTurnTaking(shellEnded())).toBe(true)
     expect(isTurnTaking(serviceEnded())).toBe(true)

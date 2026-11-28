@@ -4,8 +4,8 @@ import { EReturnResult, EReturnSurface, startLinkFor, type ReturnOutcome } from 
 
 import { browserReturns } from '@dltech/atlas-client/browser-return'
 
-import type { LoopbackCopy } from '../loopback-page'
-import type { LoopbackReturn, LoopbackStart } from '../loopback-server'
+import type { LoopbackCopy } from '@dltech/atlas-client/loopback'
+import type { LoopbackReturn, LoopbackStart } from '@dltech/atlas-client/loopback'
 import { createBrowserReturnOpener } from '../open'
 
 const COPY: LoopbackCopy = {

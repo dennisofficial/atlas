@@ -1,0 +1,47 @@
+::view-transition-group(root),
+::view-transition-group(session-composer),
+::view-transition-group(session-details-morph) {
+  animation-duration: 320ms;
+  animation-timing-function: cubic-bezier(0.32, 0.72, 0, 1);
+}
+
+::view-transition-image-pair(session-details-morph) {
+  overflow: clip;
+  border-radius: var(--radius-xl, 0.75rem);
+}
+
+::view-transition-old(session-details-morph),
+::view-transition-new(session-details-morph) {
+  inline-size: auto;
+  block-size: auto;
+  object-fit: none;
+  object-position: top left;
+  mix-blend-mode: normal;
+}
+
+html[data-session-details-swap]::view-transition-group(session-details-morph) {
+  overflow: clip;
+  border-radius: var(--radius-xl, 0.75rem);
+  background: var(--card);
+  box-shadow: 0 0 0 1px var(--border);
+}
+
+html[data-session-details-swap]::view-transition-old(session-details-morph) {
+  animation: session-details-fade-out 140ms ease-out both;
+}
+
+html[data-session-details-swap]::view-transition-new(session-details-morph) {
+  animation: session-details-fade-in 200ms ease-in 120ms both;
+}
+
+@keyframes session-details-fade-out {
+  to {
+    opacity: 0;
+  }
+}
+
+@keyframes session-details-fade-in {
+  from {
+    opacity: 0;
+  }
+}

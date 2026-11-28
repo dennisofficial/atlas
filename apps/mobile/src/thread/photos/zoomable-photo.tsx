@@ -97,6 +97,7 @@ export const ZoomablePhoto = ({
 
   return (
     <ScrollView
+      scrollsToTop={false}
       ref={scrollRef}
       style={styles.fill}
       contentContainerStyle={viewport}

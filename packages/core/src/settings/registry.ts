@@ -315,9 +315,11 @@ export const ATLAS_SETTINGS: readonly SettingDefinition[] = [
       'The one hue that carries the harness through the whole app: block marks, the composer rail, the caret and inline code.',
     environmentVariable: 'ATLAS_ACCENT',
     kind: ESettingKind.Choice,
-    fallback: 'clay',
+    fallback: 'graphite',
     options: [
-      { value: 'clay', label: 'clay', detail: 'shipped' },
+      { value: 'graphite', label: 'graphite', detail: 'shipped' },
+      { value: 'sky', label: 'sky' },
+      { value: 'clay', label: 'clay' },
       { value: 'slate', label: 'slate' },
       { value: 'moss', label: 'moss' },
       { value: 'plum', label: 'plum' },

@@ -49,6 +49,7 @@ export const ComposerControls = ({
   const slot =
     children === undefined ? null : (
       <ScrollView
+        scrollsToTop={false}
         horizontal
         keyboardShouldPersistTaps="handled"
         showsHorizontalScrollIndicator={false}

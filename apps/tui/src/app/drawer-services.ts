@@ -28,7 +28,7 @@ export const drawerServicesOf = (rows: readonly ServiceViewRow[]): readonly Draw
   rows.map((row) => ({
     serviceId: row.serviceId,
     command: row.command,
-    description: row.name ?? row.command,
+    description: row.name?.trim() || row.command.trim() || row.serviceId,
     status: row.status,
     startedAt: row.changedAt,
     ...(row.name === undefined ? {} : { name: row.name }),

@@ -1,32 +1,34 @@
 import { primitives } from './primitives'
 
-const { graphite, sky, steel, blue, red, amber, green, violet, wash, diff } = primitives.color
+const { graphite, steel, blue, red, amber, green, violet, wash, diff } = primitives.color
 
 export enum EColorScheme {
   Dark = 'dark',
   Light = 'light',
 }
 
+const READING_TEXT = '#dcdcdc'
+
 const dark = {
   background: graphite[900],
-  foreground: graphite[100],
+  foreground: READING_TEXT,
   card: graphite[950],
-  cardForeground: graphite[100],
+  cardForeground: READING_TEXT,
   popover: graphite[925],
-  popoverForeground: graphite[100],
-  primary: sky[400],
+  popoverForeground: READING_TEXT,
+  primary: graphite[100],
   primaryForeground: graphite[925],
   secondary: wash.user,
-  secondaryForeground: graphite[100],
+  secondaryForeground: READING_TEXT,
   muted: graphite[850],
   skeleton: '#303030',
   mutedForeground: graphite[500],
   accent: wash.selected,
-  accentForeground: graphite[100],
+  accentForeground: READING_TEXT,
   destructive: red[400],
   border: graphite[800],
   input: graphite[800],
-  ring: sky[400],
+  ring: graphite[500],
 
   chart1: steel[400],
   chart2: blue[400],
@@ -35,13 +37,13 @@ const dark = {
   chart5: violet[400],
 
   sidebar: graphite[950],
-  sidebarForeground: graphite[100],
-  sidebarPrimary: sky[400],
+  sidebarForeground: READING_TEXT,
+  sidebarPrimary: graphite[100],
   sidebarPrimaryForeground: graphite[925],
   sidebarAccent: wash.selected,
-  sidebarAccentForeground: graphite[100],
+  sidebarAccentForeground: READING_TEXT,
   sidebarBorder: graphite[800],
-  sidebarRing: sky[400],
+  sidebarRing: graphite[500],
 
   success: green[400],
   successForeground: graphite[925],
@@ -53,7 +55,8 @@ const dark = {
   warning: amber[300],
   warningForeground: graphite[925],
 
-  code: blue[300],
+  code: '#d0d0d0',
+  codeBackground: '#ffffff12',
   link: blue[300],
 
   diffAdd: diff.addDark,
@@ -86,7 +89,7 @@ const light: SemanticTheme = {
   cardForeground: '#262626',
   popover: '#fcfcfc',
   popoverForeground: '#262626',
-  primary: sky[800],
+  primary: '#262626',
   primaryForeground: '#fcfcfc',
   secondary: '#e7e7e7',
   secondaryForeground: '#262626',
@@ -98,7 +101,7 @@ const light: SemanticTheme = {
   destructive: red[700],
   border: '#d5d5d5',
   input: '#d5d5d5',
-  ring: sky[800],
+  ring: graphite[500],
 
   chart1: steel[600],
   chart2: blue[600],
@@ -108,12 +111,12 @@ const light: SemanticTheme = {
 
   sidebar: '#f9f9f9',
   sidebarForeground: '#262626',
-  sidebarPrimary: sky[800],
+  sidebarPrimary: '#262626',
   sidebarPrimaryForeground: '#fcfcfc',
   sidebarAccent: '#dddddd',
   sidebarAccentForeground: '#262626',
   sidebarBorder: '#d5d5d5',
-  sidebarRing: sky[800],
+  sidebarRing: graphite[500],
 
   success: green[600],
   successForeground: '#fcfcfc',
@@ -125,7 +128,8 @@ const light: SemanticTheme = {
   warning: amber[600],
   warningForeground: '#fcfcfc',
 
-  code: blue[700],
+  code: '#333333',
+  codeBackground: '#0000000d',
   link: blue[700],
 
   diffAdd: diff.addLight,

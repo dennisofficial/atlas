@@ -34,15 +34,6 @@ describe('the release build', () => {
     expect(inherit).not.toContain('aps-environment')
   })
 
-  test('ships the native model picker outside asar and signs it with the app', () => {
-    expect(config.mac.binaries).toContain('Contents/Resources/native/atlas_native.node')
-    const addon = config.extraResources.find(
-      (resource) => resource.to === 'native/atlas_native.node',
-    )
-    expect(addon.from).toBe('native/prebuilds/darwin-arm64/atlas_native.node')
-    expect(config.asar).toBe(true)
-  })
-
   test('asks for push in the app itself, in production', () => {
     expect(entitlements).toContain('<key>com.apple.developer.aps-environment</key>')
     expect(entitlements).toContain('<string>production</string>')

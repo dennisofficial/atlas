@@ -59,10 +59,10 @@ describe('the settings page', () => {
   })
 
   it('lists the options a choice offers', async () => {
-    const rows = await rowsOf(page({ state: { pageIndex: 2, rowIndex: 0 } }), WIDE)
+    const rows = await rowsOf(page({ width: 200, state: { pageIndex: 2, rowIndex: 0 } }), 200)
 
     expect(rowWith(rows, 'Accent')).toContain(
-      ['clay', 'slate', 'moss', 'plum'].join(OPTION_SEPARATOR),
+      ['graphite', 'sky', 'clay', 'slate', 'moss', 'plum'].join(OPTION_SEPARATOR),
     )
   })
 
@@ -136,7 +136,7 @@ describe('the settings page', () => {
   it('bands the row under the cursor with a preview of what it changes', async () => {
     const rows = await rowsOf(page({ state: ACCENT_ROW }), WIDE)
 
-    expect(rowWith(rows, `${CHOSEN} clay`)).not.toBe('')
+    expect(rowWith(rows, `${CHOSEN} graphite`)).not.toBe('')
     expect(rowWith(rows, `${UNCHOSEN} slate`)).not.toBe('')
   })
 
