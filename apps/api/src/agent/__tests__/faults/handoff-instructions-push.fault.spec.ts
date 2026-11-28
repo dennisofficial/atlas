@@ -193,18 +193,13 @@ describeHandoff({
       throw new Error('the record never carried the pushed instructions snapshot')
     }
     await waitUntil({
-      what: 'the restarted pod to record the instructions again',
-      check: async () =>
-        snapshotsOf(await ctx.record()).some((snapshot) => snapshot.seq > pushed.seq),
-      timeoutMs: 60_000,
-    })
-    await waitUntil({
       what: 'the interrupted result of the gated call',
       check: async () => resultsOf(await ctx.record()).length === 1,
       timeoutMs: 60_000,
     })
     const rows = await ctx.record()
     expect(JSON.stringify(snapshotsOf(rows).at(-1)?.loaded.value)).toContain(MARKER)
+    expect(snapshotsOf(rows).filter((snapshot) => snapshot.seq > pushed.seq)).toHaveLength(0)
     const results = resultsOf(rows)
     expect(results).toHaveLength(1)
     expect((results[0]?.event as { interrupted?: boolean } | undefined)?.interrupted).toBe(true)
