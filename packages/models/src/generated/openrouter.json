@@ -640,6 +640,9 @@
       "outputPerMillion": 0
     },
     "effort": {
+      "off": "none",
+      "low": "low",
+      "medium": "medium",
       "high": "high"
     }
   },
@@ -1000,7 +1003,7 @@
     ],
     "maxOutputTokens": 384000,
     "cost": {
-      "inputPerMillion": 0.047,
+      "inputPerMillion": 0.0456,
       "outputPerMillion": 0.3,
       "cacheReadPerMillion": 0.035
     },
@@ -1051,9 +1054,9 @@
     ],
     "maxOutputTokens": 393216,
     "cost": {
-      "inputPerMillion": 0.888188,
-      "outputPerMillion": 1.5082,
-      "cacheReadPerMillion": 0.2
+      "inputPerMillion": 0.70487,
+      "outputPerMillion": 1.544,
+      "cacheReadPerMillion": 0.21
     },
     "effort": {
       "off": "none",
@@ -1101,9 +1104,9 @@
     ],
     "maxOutputTokens": 393216,
     "cost": {
-      "inputPerMillion": 0.14,
-      "outputPerMillion": 0.42,
-      "cacheReadPerMillion": 0.0042
+      "inputPerMillion": 0.0507,
+      "outputPerMillion": 0.2028,
+      "cacheReadPerMillion": 0.001014
     },
     "effort": {
       "off": "none",
@@ -1899,9 +1902,9 @@
   {
     "ref": {
       "providerId": "openrouter",
-      "modelId": "inclusionai/ling-3.2-flash:free"
+      "modelId": "inclusionai/ling-3.2-flash"
     },
-    "label": "Ling 3.2 Flash (free)",
+    "label": "Ling 3.2 Flash",
     "api": "openai-completions",
     "contextWindow": 1048576,
     "imageTier": "standard",
@@ -1911,8 +1914,9 @@
     ],
     "maxOutputTokens": 262144,
     "cost": {
-      "inputPerMillion": 0,
-      "outputPerMillion": 0
+      "inputPerMillion": 0.3,
+      "outputPerMillion": 0.9,
+      "cacheReadPerMillion": 0.06
     }
   },
   {
@@ -5468,7 +5472,7 @@
     },
     "label": "Qwen3.8 2.4T A95B",
     "api": "openai-completions",
-    "contextWindow": 1048576,
+    "contextWindow": 1000000,
     "imageTier": "standard",
     "inputModalities": [
       "text"
@@ -6067,9 +6071,9 @@
     ],
     "maxOutputTokens": 65536,
     "cost": {
-      "inputPerMillion": 0.075,
-      "outputPerMillion": 0.3,
-      "cacheReadPerMillion": 0.015
+      "inputPerMillion": 0.06,
+      "outputPerMillion": 0.24,
+      "cacheReadPerMillion": 0.012
     },
     "effort": {
       "off": "none",
@@ -6988,11 +6992,11 @@
     "inputModalities": [
       "text"
     ],
-    "maxOutputTokens": 943718,
+    "maxOutputTokens": 131072,
     "cost": {
-      "inputPerMillion": 0.047,
-      "outputPerMillion": 0.3,
-      "cacheReadPerMillion": 0.035
+      "inputPerMillion": 0.04532,
+      "outputPerMillion": 0.13596,
+      "cacheReadPerMillion": 0.001442
     },
     "effort": {
       "off": "none",
