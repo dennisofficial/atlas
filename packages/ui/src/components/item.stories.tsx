@@ -43,7 +43,7 @@ export const Default: Story = {
       </ItemMedia>
       <ItemContent>
         <ItemTitle>dennis/shadcn-ui-storybook</ItemTitle>
-        <ItemDescription>14 turns · last active 3 minutes ago</ItemDescription>
+        <ItemDescription>14 turns, last active 3 minutes ago</ItemDescription>
       </ItemContent>
       <ItemActions>
         <Button size="sm" variant="outline">

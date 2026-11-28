@@ -27,7 +27,7 @@ const actionsOf = (seeds: ActionSeed[]): RunAttentionAction[] =>
   }))
 
 const RETRY: ActionSeed = { id: 'retry', label: 'Retry' }
-const META = '1.2s · ↓4.1k'
+const META = '1.2s, ↓4.1k'
 
 const meta = {
   title: 'AI/RunAttentionStrip',

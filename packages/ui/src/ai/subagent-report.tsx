@@ -30,7 +30,7 @@ interface ReportTitleInput {
 }
 
 export function reportTitle({ agentType, intent, failed }: ReportTitleInput): string {
-  return `${agentType} · ${intent} ${failed ? 'failed' : 'reported'}`
+  return `${agentType}, ${intent} ${failed ? 'failed' : 'reported'}`
 }
 
 function ReportBody({ entry, failed }: { entry: SubagentReportEntry; failed: boolean }) {

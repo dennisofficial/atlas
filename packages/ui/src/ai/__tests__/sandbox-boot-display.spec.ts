@@ -42,13 +42,13 @@ describe('sandboxBootDisplayOf', () => {
       elapsedMs: 2_500,
     })
     expect(display.title).toBe('Setup script failed')
-    expect(display.summary).toBe('1/2 · 2.5s')
+    expect(display.summary).toBe('1/2, 2.5s')
   })
 })
 
 describe('bootStepErrorOf', () => {
   it('reads the detail of a failed step only', () => {
     expect(bootStepErrorOf({ state: Error, detail: 'boom' })).toBe('boom')
-    expect(bootStepErrorOf({ state: Done, detail: 'Vercel · iad1' })).toBeUndefined()
+    expect(bootStepErrorOf({ state: Done, detail: 'Vercel, iad1' })).toBeUndefined()
   })
 })

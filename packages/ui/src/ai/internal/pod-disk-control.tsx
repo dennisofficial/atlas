@@ -27,19 +27,22 @@ export function PodDiskSelect(props: PodDiskControlProps) {
     props.onGrow?.(picked)
   }
 
+  const currentGb = limitGb === undefined ? undefined : Math.round(limitGb)
+  const sizes = currentGb === undefined ? [] : [currentGb, ...options]
+
   return (
     <Select
-      items={options.map((size) => ({ value: size, label: `${size} GB` }))}
-      value={null}
+      items={sizes.map((size) => ({ value: size, label: `${size} GB` }))}
+      value={currentGb ?? null}
       onValueChange={handleValueChange}
       disabled={props.disabled === true || !known}
     >
-      <SelectTrigger size="sm" aria-label="Increase disk" className="text-xs">
-        <SelectValue>Increase disk</SelectValue>
+      <SelectTrigger size="sm" aria-label="Disk size" className="shrink-0 text-xs">
+        <SelectValue placeholder="Disk" />
       </SelectTrigger>
       <SelectContent align="end" className="w-auto min-w-(--anchor-width)">
-        {options.map((size) => (
-          <SelectItem key={size} value={size}>
+        {sizes.map((size) => (
+          <SelectItem key={size} value={size} disabled={size === currentGb}>
             {size} GB
           </SelectItem>
         ))}

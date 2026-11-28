@@ -50,7 +50,7 @@ describe('github pull request presentation', () => {
   it('summarises a filter in catalog order, spelling CI', () => {
     expect(presentPullRequest(input({ events: ['ci', 'comments'] })).meta).toEqual([
       'Pull request',
-      'comments · CI',
+      'comments, CI',
     ])
     expect(presentPullRequest(input({ events: ['state'] })).meta).toEqual(['Pull request', 'state'])
   })

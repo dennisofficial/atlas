@@ -79,8 +79,8 @@ describe('Context', () => {
 
     expect(html).toContain('Estimated')
     expect(html).toContain('System prompt')
-    expect(html).toContain('6.2k · 3%')
-    expect(html).toContain('14.8k · 7%')
+    expect(html).toContain('6.2k, 3%')
+    expect(html).toContain('14.8k, 7%')
   })
 
   it('shows no estimate caption without a breakdown', () => {

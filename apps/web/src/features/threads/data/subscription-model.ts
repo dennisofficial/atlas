@@ -74,7 +74,7 @@ export function detailOf(subscription: SubscriptionWire): string {
     actorLabelOf(subscription.createdBy),
     subscription.held > 0 ? `${subscription.held} held` : null,
   ]
-  return parts.filter((part) => part !== null).join(' · ')
+  return parts.filter((part) => part !== null).join(', ')
 }
 
 export type PullRequestBell = { watching: boolean; busy: boolean; label: string }

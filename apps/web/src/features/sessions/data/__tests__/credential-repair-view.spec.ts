@@ -190,7 +190,7 @@ describe('repairCardViewOf', () => {
     })
 
     expect(view.title).toBe('Atlas could not call claude-opus-5-5')
-    expect(view.detail).toBe('Anthropic · dennis@example.com · The sign-in is no longer accepted')
+    expect(view.detail).toBe('Anthropic, dennis@example.com, The sign-in is no longer accepted')
     expect(view.notes).toEqual([])
   })
 
@@ -203,7 +203,7 @@ describe('repairCardViewOf', () => {
       accountKind: EAuthKind.ApiKey,
     })
 
-    expect(view.detail).toBe('OpenAI · livecheck-bad-key · The key was refused')
+    expect(view.detail).toBe('OpenAI, livecheck-bad-key, The key was refused')
   })
 
   it('keeps the sign-in copy for an oauth account', () => {
@@ -215,7 +215,7 @@ describe('repairCardViewOf', () => {
       accountKind: EAuthKind.Oauth,
     })
 
-    expect(view.detail).toBe('Anthropic · dennis@example.com · The sign-in is no longer accepted')
+    expect(view.detail).toBe('Anthropic, dennis@example.com, The sign-in is no longer accepted')
   })
 
   it('names the sub-agent that is waiting', () => {

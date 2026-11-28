@@ -82,10 +82,10 @@ export const providerAccountDetailOf = ({
   if (account.kind === EAccountKind.Oauth) {
     const product = provider.plan?.product ?? provider.name
     const plan = planNameOf(account.subscription)
-    return `${plan === null ? product : `${product} ${plan}`} plan · Signed in ${shortDate(account.createdAt)}`
+    return `${plan === null ? product : `${product} ${plan}`} plan, Signed in ${shortDate(account.createdAt)}`
   }
   const masked = providerKeyMaskOf({ account, provider })
-  return `API key${masked ? ` · ${masked}` : ''} · Added ${shortDate(account.createdAt)}`
+  return `API key${masked ? `, ${masked}` : ''}, Added ${shortDate(account.createdAt)}`
 }
 
 export enum EKeyDialogMode {

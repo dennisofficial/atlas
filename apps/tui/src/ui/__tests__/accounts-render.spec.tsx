@@ -218,7 +218,7 @@ describe('the detail panel', () => {
   it('says how a signed-out provider can be reached', async () => {
     const rows = await render({ state: stateOn(rowsOf([]), 2) })
 
-    expect(rows.join('\n')).toContain('not signed in · api key')
+    expect(rows.join('\n')).toContain('not signed in   api key')
   })
 
   it('points at the actions menu', async () => {

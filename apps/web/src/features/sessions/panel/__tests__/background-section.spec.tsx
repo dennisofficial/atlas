@@ -70,14 +70,13 @@ describe('orderedShellRows', () => {
 })
 
 describe('SessionBackgroundSection', () => {
-  it('shows an empty line when nothing ran in the background', () => {
+  it('omits the section when nothing ran in the background', () => {
     const html = renderToStaticMarkup(
       <SessionPaneProvider value={paneValueFixture()}>
         <SessionBackgroundSection />
       </SessionPaneProvider>,
     )
-    expect(html).toContain('aria-label="Background"')
-    expect(html).toContain('Nothing running in the background')
+    expect(html).toBe('')
   })
 
   it('lists a shell with the last line of its output', () => {

@@ -20,9 +20,9 @@ export type GithubAccountView = {
 
 const STATUS_LABEL: Readonly<Record<ESettingsLogin, string | null>> = {
   [ESettingsLogin.Idle]: null,
-  [ESettingsLogin.Asking]: 'asking GitHub for a code…',
+  [ESettingsLogin.Asking]: 'starting GitHub sign-in…',
   [ESettingsLogin.Prompting]: 'code below — waiting for approval…',
-  [ESettingsLogin.Browser]: 'waiting for your browser…',
+  [ESettingsLogin.Browser]: 'waiting for browser   ⏎ to use a code',
   [ESettingsLogin.Finishing]: 'connecting…',
 }
 
@@ -38,11 +38,11 @@ const valueOf = (args: { signedIn: boolean; view: GithubAccountView }): Span[] =
   if (view.connection !== null) {
     return [
       { text: `@${view.connection.login}`, fg: theme.hover },
-      { text: ' · connected · ⏎ to disconnect', fg: theme.hint },
+      { text: '   connected   ⏎ to disconnect', fg: theme.hint },
     ]
   }
 
-  return [{ text: 'not connected · ⏎ to connect', fg: theme.hint }]
+  return [{ text: 'not connected   ⏎ to connect', fg: theme.hint }]
 }
 
 export function GithubRow(props: {
@@ -52,7 +52,10 @@ export function GithubRow(props: {
   view: GithubAccountView
 }): React.ReactNode {
   const { view } = props
-  const actionable = props.signedIn && !view.unreachable && !isSettlingLogin(view.flow.status)
+  const actionable =
+    props.signedIn &&
+    !view.unreachable &&
+    (!isSettlingLogin(view.flow.status) || view.flow.status === ESettingsLogin.Browser)
   const region = useClickRegion(actionable ? view.onActivate : undefined)
 
   return (

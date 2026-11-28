@@ -266,7 +266,7 @@ describe('the models page agent rows on screen', () => {
     const onShadow = (await shown(modelsState(shadowIndex), NARROW)).join('\n')
     const onProject = (await shown(modelsState(activeProjectIndex), NARROW)).join('\n')
 
-    expect(onShadow).toContain('overridden · read only')
+    expect(onShadow).toContain('overridden   read only')
     expect(onShadow).not.toContain('edits write to')
     expect(onProject).toContain(`edits write to ${PROJECT_FILE}`)
   })

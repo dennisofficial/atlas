@@ -1,10 +1,34 @@
 import { describe, expect, it } from 'bun:test'
 import { renderToStaticMarkup } from 'react-dom/server'
 
-import { ThreadStatusIcon } from '../shell-status-icon'
+import { EAgentStatus } from '@dltech/atlas-core'
+import { AgentStatusIcon, ThreadStatusIcon } from '../shell-status-icon'
 import { EThreadStatus } from '../thread-status'
 
 const iconOf = (status: EThreadStatus) => renderToStaticMarkup(<ThreadStatusIcon status={status} />)
+
+describe('AgentStatusIcon', () => {
+  for (const [status, label, shape, tone] of [
+    [EAgentStatus.Running, 'Running', 'loader-circle', 'text-primary'],
+    [EAgentStatus.WaitingForModel, 'Waiting for model', 'circle-alert', 'text-warning'],
+    [EAgentStatus.Blocked, 'Blocked', 'circle-alert', 'text-warning'],
+    [EAgentStatus.Failed, 'Failed', 'circle-x', 'text-destructive'],
+    [EAgentStatus.Finished, 'Finished', 'circle', 'text-muted-foreground'],
+    [EAgentStatus.Stopped, 'Stopped', 'circle', 'text-muted-foreground'],
+    [EAgentStatus.Paused, 'Paused', 'circle', 'text-muted-foreground'],
+  ] as const) {
+    it(`labels ${status} with the sidebar shape and tone`, () => {
+      const html = renderToStaticMarkup(<AgentStatusIcon status={status} />)
+      expect(html).toContain('role="img"')
+      expect(html).toContain(`aria-label="${label}"`)
+      expect(html).toContain(`lucide-${shape}`)
+      expect(html).toContain(tone)
+      expect(html).toContain('size-3.5')
+      expect(html.includes('animate-spin')).toBe(status === EAgentStatus.Running)
+      expect(html.includes('motion-reduce:animate-none')).toBe(status === EAgentStatus.Running)
+    })
+  }
+})
 
 describe('ThreadStatusIcon', () => {
   for (const [status, label, icon, spinning] of [

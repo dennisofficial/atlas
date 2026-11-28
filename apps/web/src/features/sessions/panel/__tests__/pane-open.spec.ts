@@ -8,7 +8,7 @@ const option = (overrides: Partial<CheckoutOption> = {}): CheckoutOption => ({
   repo: 'owner/atlas',
   worktree: 'atlas',
   path: '/work/atlas',
-  label: 'owner/atlas · main',
+  label: 'owner/atlas, main',
   ...overrides,
 })
 

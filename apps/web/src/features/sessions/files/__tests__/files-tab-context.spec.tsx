@@ -192,7 +192,7 @@ describe('FilesTab context files', () => {
   it('opens a context path given relative to the context folder', async () => {
     const host = await mount(withOpen(runningValue(), 'sections/01.md', EPaneOpen.Context))
 
-    expect(host.textContent).toContain('Context · sections/01.md')
+    expect(host.textContent).toContain('Context, sections/01.md')
     expect(host.textContent).toContain('# Plan')
   })
 
@@ -201,14 +201,14 @@ describe('FilesTab context files', () => {
       withOpen(runningValue(), '$ATLAS_CONTEXT_DIR/media/long.bin', EPaneOpen.Context),
     )
 
-    expect(host.textContent).toContain('Context · media/long.bin')
+    expect(host.textContent).toContain('Context, media/long.bin')
     expect(host.textContent).toContain('Not mirrored yet')
   })
 
   it('opens a context file while the pod sleeps, without touching the pod', async () => {
     const host = await mount(withOpen(sleepingValue(), 'plan.md', EPaneOpen.Context))
 
-    expect(host.textContent).toContain('Context · plan.md')
+    expect(host.textContent).toContain('Context, plan.md')
     expect(host.textContent).toContain('# Plan')
     expect(podCalls).toEqual([])
   })
@@ -216,7 +216,7 @@ describe('FilesTab context files', () => {
   it('opens an absolute context path from a file request without holding the pod', async () => {
     const host = await mount(withOpen(runningValue(), '/atlas/home/sessions/ses-1/context/plan.md'))
 
-    expect(host.textContent).toContain('Context · plan.md')
+    expect(host.textContent).toContain('Context, plan.md')
     expect(host.textContent).toContain('# Plan')
     expect(host.textContent).not.toContain('Disconnected')
     expect(podCalls).toEqual([])
@@ -226,7 +226,7 @@ describe('FilesTab context files', () => {
   it('shows a file request on the context path instead of the disconnected panel', async () => {
     const host = await mount(withOpen(sleepingValue(), '$ATLAS_CONTEXT_DIR/plan.md'))
 
-    expect(host.textContent).toContain('Context · plan.md')
+    expect(host.textContent).toContain('Context, plan.md')
     expect(host.textContent).not.toContain('Disconnected')
     expect(podCalls).toEqual([])
   })
@@ -235,7 +235,7 @@ describe('FilesTab context files', () => {
     const host = await mount(
       withOpen(runningValue(), '$ATLAS_CONTEXT_DIR/plan.md', EPaneOpen.Context),
     )
-    expect(host.textContent).toContain('Context · plan.md')
+    expect(host.textContent).toContain('Context, plan.md')
     expect(host.textContent).toContain('# Plan')
 
     const back = host.querySelector('[data-context-file] button')
@@ -243,8 +243,19 @@ describe('FilesTab context files', () => {
     await act(async () => back.click())
     await settle()
 
-    expect(host.textContent).not.toContain('Context ·')
+    expect(host.textContent).not.toContain('Context,')
     expect(host.textContent).toContain('src')
+  })
+
+  it('keeps the shown context file when the session comes back to the tab', async () => {
+    await mount(withOpen(sleepingValue(), 'plan.md', EPaneOpen.Context))
+    for (const root of roots) await act(async () => root.unmount())
+    roots.clear()
+
+    const again = await mount(sleepingValue())
+
+    expect(again.textContent).toContain('Context, plan.md')
+    expect(again.textContent).toContain('# Plan')
   })
 
   it('plays a video in the pane and downloads under the real file name', async () => {

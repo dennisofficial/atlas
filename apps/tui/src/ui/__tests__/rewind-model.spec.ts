@@ -297,7 +297,7 @@ describe('what a verb says it will do', () => {
       'returns to the composer',
     )
     expect(verbConsequence({ state, verb: ERewindVerb.SummariseUpTo })).toContain(
-      'one summary · deletes rows',
+      'one summary, deletes rows',
     )
   })
 

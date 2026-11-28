@@ -17,9 +17,9 @@ export const TOGGLE_HINT = '⏎ toggle'
 
 export const RANGE_HINT = '← → adjust'
 
-export const TEXT_HINT = '⏎ edit · ⌫ clear'
+export const TEXT_HINT = '⏎ edit   ⌫ clear'
 
-export const MODEL_HINT = '⏎ choose · ⌫ clear'
+export const MODEL_HINT = '⏎ choose   ⌫ clear'
 
 export const MODEL_NOT_SET = 'shipped default'
 
@@ -29,7 +29,7 @@ export const SECRET_NOT_NEEDED = 'not needed'
 
 export const SECRET_NOT_SET = 'not set'
 
-export const OPTION_SEPARATOR = ' · '
+export const OPTION_SEPARATOR = '   '
 
 export function valueLabel(args: { definition: SettingDefinition; value: SettingValue }): string {
   const { definition, value } = args
@@ -85,5 +85,5 @@ export function secretDisplay(args: {
 }
 
 export function provenanceOf(setting: ResolvedSetting): string {
-  return `${setting.layer} · ${setting.origin}`
+  return `${setting.layer}   ${setting.origin}`
 }

@@ -60,7 +60,7 @@ export function TriggerLabel({
       ) : null}
       <span className={cn('min-w-0 truncate', follow !== undefined && 'text-muted-foreground')}>
         {model.label}
-        {model.route ? <span className="text-muted-foreground"> · {model.route}</span> : null}
+        {model.route ? <span className="ml-2 text-muted-foreground">{model.route}</span> : null}
       </span>
     </>
   )

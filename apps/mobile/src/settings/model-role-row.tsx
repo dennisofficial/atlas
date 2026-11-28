@@ -29,7 +29,7 @@ export const ModelRoleRow = ({
   const modelId = refKey(choice.ref)
   const selection = selectionOf({ models, modelId, effort: choice.effort, fast: choice.fast })
   const label = modelTriggerLabelOf({ models, selection, ref: modelId })
-  const summary = `${label} · ${effortLabelOf(choice.effort)}${choice.fast ? ' · Fast' : ''}`
+  const summary = `${label}, ${effortLabelOf(choice.effort)}${choice.fast ? ', Fast' : ''}`
   const note = following ? followNoteOf(role) : undefined
 
   return (

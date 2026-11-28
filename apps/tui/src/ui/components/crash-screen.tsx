@@ -41,7 +41,7 @@ function hintSpans(copy: CopyState): Span[] {
   return [
     { text: glyph.copy, fg: copyFg },
     { text: ` c ${copyLabel}`, fg: copyFg },
-    { text: '   ·   ', fg: theme.rule },
+    { text: '   ', fg: theme.rule },
     { text: 'q quit', fg: theme.hover },
   ]
 }

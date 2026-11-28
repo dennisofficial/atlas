@@ -35,7 +35,7 @@ export const skillUsageViewOf = ({
   if (skill.usagePending) return { usageLabel: '—', lastUsedLabel: null }
   if (skill.usage.usedCount30d === 0) return { usageLabel: 'Never used', lastUsedLabel: null }
   return {
-    usageLabel: `Used ${skill.usage.usedCount30d}× · 30d`,
+    usageLabel: `Used ${skill.usage.usedCount30d}× in 30d`,
     lastUsedLabel:
       skill.usage.lastUsedAt === null
         ? null

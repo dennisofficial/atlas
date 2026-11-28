@@ -134,15 +134,15 @@ describe('metaLineOf', () => {
   it('names the paused and skipped states', () => {
     expect(
       metaLineOf({ routine: routine(), state: ERoutineState.Off, now: NOW, timeZone: 'UTC' }),
-    ).toBe('Every weekday at 07:00 · paused')
+    ).toBe('Every weekday at 07:00, paused')
     expect(
       metaLineOf({ routine: routine(), state: ERoutineState.Skipped, now: NOW, timeZone: 'UTC' }),
-    ).toBe('Every weekday at 07:00 · last run skipped')
+    ).toBe('Every weekday at 07:00, last run skipped')
   })
 
   it('counts down to the next run when idle', () => {
     expect(
       metaLineOf({ routine: routine(), state: ERoutineState.Idle, now: NOW, timeZone: 'UTC' }),
-    ).toBe('Every weekday at 07:00 · next in 24h')
+    ).toBe('Every weekday at 07:00, next in 24h')
   })
 })

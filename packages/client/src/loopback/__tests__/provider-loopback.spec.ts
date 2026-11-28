@@ -7,7 +7,7 @@ import {
   providerLoopbackOf,
   providerReturnOf,
   startProviderLoopback,
-} from '../account/provider-loopback'
+} from '../provider-loopback'
 
 const STATE = 'state-1'
 
@@ -164,6 +164,33 @@ describe('the loopback a provider sign-in comes back on', () => {
       .catch((error: unknown) => error)
 
     expect(String(failure)).toContain('the api refused the address')
+  })
+
+  it('fails start and releases its port when the browser refuses to open', async () => {
+    let port = 0
+    await expect(
+      startProviderLoopback({
+        provider: EAuthProvider.Anthropic,
+        begin: async ({ redirectUri }) => {
+          port = Number(new URL(redirectUri).port)
+          return BEGIN
+        },
+        open: async () => false,
+      }),
+    ).rejects.toThrow('browser')
+    await expect(fetch(`http://127.0.0.1:${port}/callback`)).rejects.toBeDefined()
+  })
+
+  it('keeps the provider refusal for a host while retaining the TUI done contract', async () => {
+    const loopback = await startProviderLoopback({
+      provider: EAuthProvider.Anthropic,
+      begin: async () => BEGIN,
+      open: () => true,
+    })
+    await fetch(`http://127.0.0.1:${loopback.port}/callback?state=${STATE}&error=access_denied`)
+    expect(loopback.attemptId).toBe(BEGIN.attemptId)
+    expect(await loopback.outcome).toEqual({ error: 'access_denied' })
+    expect(await loopback.done).toBeUndefined()
   })
 
   it('closes its port and opens no browser when cancelled while the attempt begins', async () => {

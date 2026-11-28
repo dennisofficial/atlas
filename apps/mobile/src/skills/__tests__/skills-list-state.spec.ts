@@ -67,14 +67,15 @@ describe('skillMetaLineOf', () => {
 
   it('reads usage, files, size and updated date', () => {
     expect(skillMetaLineOf({ skill: summary('tdd', 5), now: NOW })).toBe(
-      'Used 5× · 30d · 1 file · 2.0 KB · Nov 1',
+      'Used 5× in 30d, 1 file, 2.0 KB, Nov 1',
     )
+    expect(skillMetaLineOf({ skill: summary('tdd', 5), now: NOW })).not.toContain('\u00b7')
     expect(skillMetaLineOf({ skill: summary('tdd', 0), now: NOW })).toStartWith('Never used')
   })
 
   it('keeps file metadata visible while usage is pending or failed', () => {
     expect(skillMetaLineOf({ skill: summary('tdd', 0, { usagePending: true }), now: NOW })).toBe(
-      '— · 1 file · 2.0 KB · Nov 1',
+      '—, 1 file, 2.0 KB, Nov 1',
     )
   })
 
@@ -86,7 +87,7 @@ describe('skillMetaLineOf', () => {
         }),
         now: NOW,
       }),
-    ).toBe('Used 5× · 30d · last used 3h ago · 1 file · 2.0 KB · Nov 1')
+    ).toBe('Used 5× in 30d, last used 3h ago, 1 file, 2.0 KB, Nov 1')
   })
 })
 

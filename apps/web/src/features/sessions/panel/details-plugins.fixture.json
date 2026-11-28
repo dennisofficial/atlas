@@ -1,0 +1,219 @@
+{
+  "shells": [],
+  "crew": [
+    {
+      "agentId": "brn_9056137b-1b1b-d724-aca2-1faef94fcc54",
+      "agentType": "researcher",
+      "intent": "Study T3 Code architecture and design",
+      "status": "finished",
+      "turns": 20,
+      "toolCalls": 68,
+      "startedAt": "2026-11-27T20:46:21.793Z",
+      "endedAt": "2026-11-27T20:54:10.769Z"
+    },
+    {
+      "agentId": "brn_be4a414d-9e91-0d1e-02c6-b169122fefac",
+      "agentType": "explore",
+      "intent": "Summarize Atlas web UI design",
+      "status": "finished",
+      "turns": 16,
+      "toolCalls": 35,
+      "startedAt": "2026-11-27T20:46:21.974Z",
+      "endedAt": "2026-11-27T20:46:46.887Z"
+    },
+    {
+      "agentId": "brn_539cc617-b172-9eaf-e5de-e8ecd3f1f5b8",
+      "agentType": "researcher",
+      "intent": "Research native macOS UI inside Electron",
+      "status": "finished",
+      "turns": 21,
+      "toolCalls": 139,
+      "startedAt": "2026-11-27T20:49:24.639Z",
+      "endedAt": "2026-11-27T21:01:07.387Z"
+    },
+    {
+      "agentId": "brn_2ff8e2c1-0594-6ba1-bcb3-d2b9b77c24dc",
+      "agentType": "general-purpose",
+      "intent": "Spec native SwiftUI model picker for Mac",
+      "status": "finished",
+      "turns": 19,
+      "toolCalls": 45,
+      "startedAt": "2026-11-27T21:02:47.674Z",
+      "endedAt": "2026-11-27T21:03:50.128Z"
+    },
+    {
+      "agentId": "brn_f6240568-2619-477b-3a52-24e2129a0f33",
+      "agentType": "builder",
+      "intent": "Build round 3: floating details card",
+      "status": "finished",
+      "turns": 34,
+      "toolCalls": 51,
+      "startedAt": "2026-11-27T21:26:20.841Z",
+      "endedAt": "2026-11-27T21:52:34.835Z"
+    },
+    {
+      "agentId": "brn_50f35e08-3f8a-75a9-b916-099a936b6a4a",
+      "agentType": "builder",
+      "intent": "Build native Mac model picker slice",
+      "status": "finished",
+      "turns": 374,
+      "toolCalls": 383,
+      "startedAt": "2026-11-27T21:26:23.152Z",
+      "endedAt": "2026-11-27T21:52:34.853Z"
+    },
+    {
+      "agentId": "brn_6a9f0878-b34d-3f27-b077-e9b563488659",
+      "agentType": "researcher",
+      "intent": "Research how harnesses expose diff, files, terminal, browser",
+      "status": "finished",
+      "turns": 28,
+      "toolCalls": 123,
+      "startedAt": "2026-11-27T22:51:28.155Z",
+      "endedAt": "2026-11-27T23:05:02.876Z"
+    },
+    {
+      "agentId": "brn_2f90b161-94c6-7028-c3c5-6c690eb6fc86",
+      "agentType": "builder",
+      "intent": "Recolor app icons and favicons",
+      "status": "finished",
+      "turns": 11,
+      "toolCalls": 63,
+      "startedAt": "2026-11-28T02:51:21.772Z",
+      "endedAt": "2026-11-28T02:54:58.519Z"
+    },
+    {
+      "agentId": "brn_d7567d50-4ef2-9a91-037e-f2cb9edceec5",
+      "agentType": "explore",
+      "intent": "Map versioning and TUI palette for 2.0.0",
+      "status": "finished",
+      "turns": 8,
+      "toolCalls": 81,
+      "startedAt": "2026-11-28T02:55:22.916Z",
+      "endedAt": "2026-11-28T02:58:05.538Z"
+    },
+    {
+      "agentId": "brn_56fb04e3-07ee-42eb-9222-47aa511bc38b",
+      "agentType": "builder",
+      "intent": "Build the Atlas 2.0.0 release PR",
+      "status": "finished",
+      "turns": 35,
+      "toolCalls": 212,
+      "startedAt": "2026-11-28T02:58:36.550Z",
+      "endedAt": "2026-11-28T03:20:25.733Z"
+    },
+    {
+      "agentId": "brn_1b34d769-c91b-d87b-eff6-48cc729b2daa",
+      "agentType": "builder",
+      "intent": "Make logo and icons monochrome",
+      "status": "finished",
+      "turns": 11,
+      "toolCalls": 38,
+      "startedAt": "2026-11-28T03:29:54.286Z",
+      "endedAt": "2026-11-28T03:33:46.683Z"
+    }
+  ],
+  "services": [
+    {
+      "serviceId": "svc-3c21fb0b",
+      "command": "pnpm dlx t3@0.1.13 serve --port \"$PORT\" --host 127.0.0.1 --base-dir /session/scratch/t3code-state --auto-bootstrap-project-from-cwd",
+      "status": "exited",
+      "ready": false,
+      "changedAt": "2026-11-27T20:47:44.724Z"
+    },
+    {
+      "serviceId": "svc-dd2a3b0a",
+      "command": "",
+      "status": "killed",
+      "ready": false,
+      "changedAt": "2026-11-27T20:53:14.060Z"
+    },
+    {
+      "serviceId": "svc-a87f7e67",
+      "name": "Local web on this branch against prod API",
+      "command": "cd apps/web && ATLAS_API_ORIGIN=https://api.byatlas.io bun run dev -H 0.0.0.0 -p $PORT",
+      "port": 3011,
+      "status": "killed",
+      "ready": false,
+      "changedAt": "2026-11-27T21:05:35.543Z"
+    },
+    {
+      "serviceId": "svc-a6820c42",
+      "name": "Local web on this branch against prod API",
+      "command": "cd apps/web && ATLAS_API_ORIGIN=https://api.byatlas.io bun run dev -H 0.0.0.0 -p $PORT",
+      "port": 3011,
+      "status": "killed",
+      "ready": false,
+      "changedAt": "2026-11-27T22:04:11.932Z"
+    },
+    {
+      "serviceId": "svc-49a0de0d",
+      "name": "Local web on this branch against prod API",
+      "command": "cd apps/web && ATLAS_API_ORIGIN=https://api.byatlas.io bun run dev -H 0.0.0.0 -p $PORT",
+      "port": 3011,
+      "status": "killed",
+      "ready": false,
+      "changedAt": "2026-11-27T22:09:10.944Z"
+    },
+    {
+      "serviceId": "svc-dd89d421",
+      "name": "Local web on this branch against prod API",
+      "command": "cd apps/web && ATLAS_API_ORIGIN=https://api.byatlas.io bun run dev -H 0.0.0.0 -p $PORT",
+      "port": 3011,
+      "status": "killed",
+      "ready": false,
+      "changedAt": "2026-11-27T22:25:06.797Z"
+    },
+    {
+      "serviceId": "svc-7ed8701d",
+      "command": "",
+      "status": "killed",
+      "ready": false,
+      "changedAt": "2026-11-27T23:04:36.880Z"
+    },
+    {
+      "serviceId": "svc-8a469c02",
+      "name": "Local web on this branch against prod API",
+      "command": "cd apps/web && ATLAS_API_ORIGIN=https://api.byatlas.io bun run dev -H 0.0.0.0 -p $PORT",
+      "port": 3011,
+      "status": "killed",
+      "ready": false,
+      "changedAt": "2026-11-27T23:40:40.256Z"
+    },
+    {
+      "serviceId": "svc-11945cb6",
+      "name": "Local web on this branch against prod API",
+      "command": "cd apps/web && ATLAS_API_ORIGIN=https://api.byatlas.io bun run dev -H 0.0.0.0 -p $PORT",
+      "port": 3011,
+      "status": "killed",
+      "ready": false,
+      "changedAt": "2026-11-28T03:33:24.707Z"
+    }
+  ],
+  "mcp": [
+    {
+      "name": "Linear",
+      "transport": "http",
+      "status": "connected",
+      "toolCount": 78,
+      "layer": "group"
+    },
+    {
+      "name": "wispr-flow",
+      "transport": "http",
+      "status": "connected",
+      "toolCount": 16,
+      "layer": "user"
+    },
+    {
+      "name": "Paper",
+      "transport": "http",
+      "status": "connected",
+      "toolCount": 41,
+      "layer": "group"
+    }
+  ],
+  "plan": {
+    "tasks": [],
+    "pending": {}
+  }
+}

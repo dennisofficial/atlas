@@ -52,7 +52,7 @@ describe('detailRows', () => {
   })
 
   it('puts the total in the section label', () => {
-    expect(toolCallsLabel(312)).toBe('Tool calls · 312')
+    expect(toolCallsLabel(312)).toBe('Tool calls: 312')
   })
 })
 

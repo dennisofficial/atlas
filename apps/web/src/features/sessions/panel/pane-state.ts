@@ -7,11 +7,14 @@ import {
   rememberPaneLayout,
 } from '@/features/threads/panel/pane-layout-memory'
 import { samePaneLayout } from '@/features/threads/panel/pane-split'
-import { useRightPanelCollapsed } from '@/features/threads/panel/right-panel-collapsed'
 
 import {
+  recallCollapsed,
+  recallCollapsedBeforeAgent,
   recallDetailsOpen,
   recallPaneTab,
+  rememberCollapsed,
+  rememberCollapsedBeforeAgent,
   rememberDetailsOpen,
   rememberPaneTab,
 } from './pane-memory'
@@ -29,7 +32,10 @@ export type SessionPaneState = {
   toggleCollapsed: () => void
   openPane: () => void
   expandPane: (update: () => void) => void
-  revealPane: () => void
+  enterAgentPane: (update: () => void) => void
+  revealAgentPane: () => void
+  leaveAgentPane: (update: () => void) => void
+  settleAgentPane: () => void
   openTab: (tab: ESessionPaneTab) => void
   openRequest: PaneOpenRequest | undefined
   requestOpen: (request: { kind: EPaneOpen; path: string }) => void
@@ -72,7 +78,28 @@ export function useSessionPane(sessionId: string): SessionPaneState {
   const [podSizeRequest, setPodSizeRequest] = useState(0)
   const requestPodSize = useCallback(() => setPodSizeRequest((count) => count + 1), [])
   const consumePodSizeRequest = useCallback(() => setPodSizeRequest(0), [])
-  const { collapsed, setCollapsed } = useRightPanelCollapsed()
+  const [collapsed, setCollapsedState] = useState(() => recallCollapsed(sessionId))
+  const collapsedNow = useRef(collapsed)
+  const setCollapsed = useCallback(
+    (next: boolean) => {
+      collapsedNow.current = next
+      rememberCollapsed({ sessionId, collapsed: next })
+      setCollapsedState(next)
+    },
+    [sessionId],
+  )
+  const collapsedBeforeAgent = useRef(recallCollapsedBeforeAgent(sessionId))
+  const holdAgentReturn = useCallback(() => {
+    if (collapsedBeforeAgent.current !== undefined) return
+    collapsedBeforeAgent.current = collapsedNow.current
+    rememberCollapsedBeforeAgent({ sessionId, collapsed: collapsedNow.current })
+  }, [sessionId])
+  const takeAgentReturn = useCallback(() => {
+    const held = collapsedBeforeAgent.current
+    collapsedBeforeAgent.current = undefined
+    rememberCollapsedBeforeAgent({ sessionId, collapsed: undefined })
+    return held
+  }, [sessionId])
   useEffect(() => rememberPaneTab({ sessionId, tab }), [sessionId, tab])
 
   const expandPane = useCallback(
@@ -88,10 +115,35 @@ export function useSessionPane(sessionId: string): SessionPaneState {
 
   const openPane = useCallback(() => expandPane(() => undefined), [expandPane])
 
-  const revealPane = useCallback(() => {
+  const enterAgentPane = useCallback(
+    (update: () => void) => {
+      holdAgentReturn()
+      expandPane(update)
+    },
+    [holdAgentReturn, expandPane],
+  )
+
+  const revealAgentPane = useCallback(() => {
+    holdAgentReturn()
     setSheetOpen(true)
     setCollapsed(false)
-  }, [setCollapsed])
+  }, [holdAgentReturn, setCollapsed])
+
+  const leaveAgentPane = useCallback(
+    (update: () => void) => {
+      const held = takeAgentReturn()
+      morphSessionDetails(() => {
+        update()
+        if (held !== undefined) setCollapsed(held)
+      })
+    },
+    [takeAgentReturn, setCollapsed],
+  )
+
+  const settleAgentPane = useCallback(() => {
+    const held = takeAgentReturn()
+    if (held !== undefined) setCollapsed(held)
+  }, [takeAgentReturn, setCollapsed])
 
   const toggleCollapsed = useCallback(
     () => morphSessionDetails(() => setCollapsed(!collapsed)),
@@ -147,7 +199,10 @@ export function useSessionPane(sessionId: string): SessionPaneState {
     toggleCollapsed,
     openPane,
     expandPane,
-    revealPane,
+    enterAgentPane,
+    revealAgentPane,
+    leaveAgentPane,
+    settleAgentPane,
     openTab,
     openRequest,
     requestOpen,

@@ -43,10 +43,10 @@ const valueOf = (view: SigningKeyView): Span[] => {
   if (view.state === ESigningKeyView.Registered) {
     return [
       { text: 'on', fg: theme.hover },
-      hint(` · …${view.fingerprintTail ?? ''} · ⏎ to rotate`),
+      hint(`   …${view.fingerprintTail ?? ''}   ⏎ to rotate`),
     ]
   }
-  return [{ text: 'off', fg: theme.hover }, hint(' · ⏎ to enable')]
+  return [{ text: 'off', fg: theme.hover }, hint('   ⏎ to enable')]
 }
 
 const isActionable = (view: SigningKeyView): boolean =>

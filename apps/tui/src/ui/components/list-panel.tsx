@@ -106,7 +106,7 @@ export function ListPanel(props: {
         fill={theme.panelBg}
         band={theme.panelBand}
         label={<text fg={theme.accent}> {props.title} </text>}
-        badge={<text fg={theme.meta}>{`${props.rows.length} · ⏎ open`}</text>}
+        badge={<text fg={theme.meta}>{`${props.rows.length}   ⏎ open`}</text>}
         footer={
           <text>
             <Spans

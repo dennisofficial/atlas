@@ -344,7 +344,7 @@ describe('labels', () => {
           status: EAccountStatus.Expired,
         }),
       ),
-    ).toBe('api key · from the environment · expired')
+    ).toBe('api key   from the environment   expired')
   })
 
   it('says nothing extra about an account that is fine', () => {

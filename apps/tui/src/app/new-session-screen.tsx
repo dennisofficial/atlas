@@ -18,11 +18,11 @@ const headerSpans = (args: {
   choosingModel: boolean
 }): readonly Span[] => [
   { text: 'new session', fg: theme.body },
-  { text: ` · ${args.cwd}`, fg: theme.hint },
+  { text: `   ${args.cwd}`, fg: theme.hint },
   ...(args.model === null
-    ? [{ text: ' · first reachable model', fg: theme.hint }]
-    : [{ text: ` · ${args.model.ref}`, fg: theme.hint }]),
-  ...(args.choosingModel ? [{ text: ' · choosing…', fg: theme.meta }] : []),
+    ? [{ text: '   first reachable model', fg: theme.hint }]
+    : [{ text: `   ${args.model.ref}`, fg: theme.hint }]),
+  ...(args.choosingModel ? [{ text: '   choosing…', fg: theme.meta }] : []),
 ]
 
 export function NewSessionScreen(props: {

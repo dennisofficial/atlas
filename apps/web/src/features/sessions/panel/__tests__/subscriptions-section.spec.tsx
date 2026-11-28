@@ -74,18 +74,22 @@ const press = async (value: SessionPaneValue, label: string) => {
 }
 
 describe('SessionSubscriptionsSection', () => {
-  it('shows an empty line when the session follows nothing', () => {
+  it('omits the section when the session follows nothing', () => {
     const html = render(valueOf([]))
-    expect(html).toContain('aria-label="Subscriptions"')
-    expect(html).toContain('No subscriptions')
+    expect(html).toBe('')
   })
 
   it('renders one row with the plugin title and the meta line', () => {
     const html = render(valueOf([subscriptionRowFixture()]))
     expect(html).toContain('aria-label="Subscriptions"')
-    expect(html).toContain('<span class="font-mono">#7</span>')
+    expect(html).toContain('<span class="tabular-nums">#7</span>')
     expect(html).toContain('Add the session pane')
-    expect(html).toContain('Pull request · all events · Agent')
+    expect(html).toContain('Pull request, all events, by Agent')
+    expect(html).toContain('data-row-actions')
+    expect(html).not.toContain('absolute inset-y-0 right-0')
+    expect(html).not.toContain('bg-gradient-to-r')
+    expect(html).toContain('group-focus-within:flex')
+    expect(html).toContain('[@media(hover:none)]:flex')
     expect(html).toContain(`aria-label="Remove ${TAKEN}"`)
   })
 
@@ -93,7 +97,7 @@ describe('SessionSubscriptionsSection', () => {
     const html = render(
       valueOf([subscriptionRowFixture({ createdBy: ESubscriptionActor.Operator })]),
     )
-    expect(html).toContain('· You')
+    expect(html).toContain('by You')
   })
 
   it('leaves the number out of the monospace lead for a title that has none', () => {
@@ -139,7 +143,7 @@ describe('SessionSubscriptionsSection', () => {
     await mount({ value: valueOf([subscriptionRowFixture()]), run: async () => undefined })
     await click(`Remove ${TAKEN}`)
     expect(container.querySelector(rowSelector)).toBeNull()
-    expect(container.textContent).toContain('No subscriptions')
+    expect(container.querySelector('[data-session-subscriptions]')).toBeNull()
   })
 
   it('puts the row back and says why when the command fails', async () => {

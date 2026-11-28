@@ -19,7 +19,7 @@ describe('hintWidth', () => {
   })
 
   it('counts the separator between hints', () => {
-    expect(hintWidth(HINTS)).toBe(cellsOf('⏎ send · ⇧⏎ newline · ctrl+n new'))
+    expect(hintWidth(HINTS)).toBe(cellsOf('⏎ send   ⇧⏎ newline   ctrl+n new'))
   })
 })
 
@@ -29,7 +29,7 @@ describe('fitHints', () => {
   })
 
   it('drops from the tail, keeping the most wanted', () => {
-    const kept = fitHints({ hints: HINTS, cells: cellsOf('⏎ send · ⇧⏎ newline') })
+    const kept = fitHints({ hints: HINTS, cells: cellsOf('⏎ send   ⇧⏎ newline') })
     expect(kept).toEqual(HINTS.slice(0, 2))
   })
 
@@ -50,8 +50,15 @@ describe('hintSpans', () => {
     expect(tiers).toEqual(new Set([theme.accent, theme.hint, theme.rule]))
   })
 
+  it('separates hints with spacing, not middle dots', () => {
+    const text = hintSpans({ hints: HINTS, keyColour: theme.accent })
+      .map((span) => span.text)
+      .join('')
+    expect(text).not.toContain('\u00b7')
+  })
+
   it('renders back to the spelled row', () => {
     const spans = hintSpans({ hints: HINTS, keyColour: theme.accent })
-    expect(spans.map((span) => span.text).join('')).toBe('⏎ send · ⇧⏎ newline · ctrl+n new')
+    expect(spans.map((span) => span.text).join('')).toBe('⏎ send   ⇧⏎ newline   ctrl+n new')
   })
 })

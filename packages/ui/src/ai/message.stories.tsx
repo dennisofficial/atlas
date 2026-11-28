@@ -173,5 +173,5 @@ export const FromAnotherSessionLong: Story = {
 }
 
 export const Harness: Story = {
-  render: () => <HarnessMessage>Turn complete · 2 files changed</HarnessMessage>,
+  render: () => <HarnessMessage>Turn complete, 2 files changed</HarnessMessage>,
 }

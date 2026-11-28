@@ -594,6 +594,9 @@ export const fakeSessionClient = (args: {
         connectedAt: '2026-11-20T00:00:00.000Z',
       }
     },
+    beginGithubRedirect: async () => ({
+      url: 'https://api.example.test/return/start/github-state',
+    }),
     beginGithubConnect: async () => {
       calls.beginGithubConnect += 1
       return {

@@ -149,7 +149,7 @@ function CollapsedRow(props: {
       </span>
       {props.failed ? (
         <span fg={theme.warn} {...region.wash}>
-          {' · one failed'}
+          {', one failed'}
         </span>
       ) : null}
     </text>

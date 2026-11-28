@@ -219,7 +219,7 @@ function Committing(props: {
       </box>
       <Rows
         lines={wrapCells({
-          text: `${verbConsequence({ state: props.state, verb: props.verb })} · ${NO_UNDO}`,
+          text: `${verbConsequence({ state: props.state, verb: props.verb })}, ${NO_UNDO}`,
           cells: inner(props.cells),
         })}
         cells={props.cells}

@@ -6,7 +6,7 @@ import { TerminalScreen, type TerminalScreenHandle } from './terminal-screen'
 import { ETerminalConnection } from './terminal-states'
 
 const ESC = '\u001b'
-const GREETING = `${ESC}[90mConnected to pod · Ubuntu 24.04 · bun 1.3.4${ESC}[0m\r\n${ESC}[32mdennis@pod${ESC}[0m ${ESC}[34m~/workspace${ESC}[0m $ `
+const GREETING = `${ESC}[90mConnected to pod, Ubuntu 24.04, bun 1.3.4${ESC}[0m\r\n${ESC}[32mdennis@pod${ESC}[0m ${ESC}[34m~/workspace${ESC}[0m $ `
 
 function Screen() {
   const ref = useRef<TerminalScreenHandle>(null)
@@ -19,7 +19,7 @@ const meta = {
   component: TerminalPanel,
   args: {
     connection: ETerminalConnection.Connected,
-    detail: '4 vCPU · 8 GB',
+    detail: '4 vCPU, 8 GB',
     tabs: [
       { id: 'term-1', label: 'Terminal 1' },
       { id: 'term-2', label: 'Terminal 2' },

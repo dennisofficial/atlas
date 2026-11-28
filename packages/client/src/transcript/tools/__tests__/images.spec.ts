@@ -41,7 +41,8 @@ describe('a read that came back as a picture', () => {
   })
 
   it('summarises as the path, its dimensions and its weight', () => {
-    expect(imageSummary({ call: settled, cwd: CWD })).toBe('docs/shot.png · 1024×768 · 412 KB')
+    expect(imageSummary({ call: settled, cwd: CWD })).toBe('docs/shot.png, 1024×768, 412 KB')
+    expect(imageSummary({ call: settled, cwd: CWD })).not.toContain('\u00b7')
   })
 
   it('leaves out what the tool could not tell it', () => {
@@ -51,7 +52,7 @@ describe('a read that came back as a picture', () => {
       byteLength: 900,
     })
 
-    expect(imageSummary({ call: unsized, cwd: CWD })).toBe('docs/shot.png · 900 B')
+    expect(imageSummary({ call: unsized, cwd: CWD })).toBe('docs/shot.png, 900 B')
     expect(classify({ call: unsized, cwd: CWD }).note).toBe('900 B')
   })
 
@@ -66,7 +67,7 @@ describe('a read that came back as a picture', () => {
     })
 
     expect(classify({ call: declined, cwd: CWD }).detail).toBe(EDetail.Image)
-    expect(imageSummary({ call: declined, cwd: CWD })).toBe('docs/shot.png · 4000×3000 · 20.0 MB')
+    expect(imageSummary({ call: declined, cwd: CWD })).toBe('docs/shot.png, 4000×3000, 20.0 MB')
   })
 })
 

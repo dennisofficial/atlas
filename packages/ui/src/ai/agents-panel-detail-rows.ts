@@ -16,7 +16,7 @@ export type DetailRow =
   | { key: string; kind: EDetailRow.Outcome }
 
 export function toolCallsLabel(count: number): string {
-  return `Tool calls · ${count}`
+  return `Tool calls: ${count}`
 }
 
 export function hasOutcome(agent: AgentsPanelAgent): boolean {

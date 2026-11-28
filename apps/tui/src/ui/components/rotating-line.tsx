@@ -23,7 +23,7 @@ const PHASE_LABEL: Record<ERotationPhase, string> = {
 
 export function RotatingLine(props: { rotating: Rotating; now: number }): React.ReactNode {
   const elapsed = formatElapsed(Math.max(0, props.now - props.rotating.startedAt))
-  const label = `Rotating · ${PHASE_LABEL[props.rotating.phase]} for ${elapsed} (esc to cancel)`
+  const label = `Rotating   ${PHASE_LABEL[props.rotating.phase]} for ${elapsed} (esc to cancel)`
 
   return (
     <box flexDirection="column">

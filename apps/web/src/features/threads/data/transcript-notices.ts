@@ -127,7 +127,7 @@ function fieldsOf(entry: TranscriptEntry): NoticeFields | null {
 const FAILED_NOTE = 'failed'
 
 const attentionOf = (count: number): string =>
-  count === 0 ? '' : ` · ${count} ${count === 1 ? 'needs' : 'need'} attention`
+  count === 0 ? '' : `, ${count} ${count === 1 ? 'needs' : 'need'} attention`
 
 export function prNoticeItemOf(entries: PrEventEntry[]): NoticeItem | null {
   const [first] = entries

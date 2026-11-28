@@ -82,14 +82,16 @@ track a repository or a pull request. `apps/api` drives it through thin Nest ada
 
 ### Connect a user account and read repositories
 
-- `GithubService` runs the OAuth device flow, stores the encrypted user token and reads the
-  connection. It takes a `GithubDeviceClient`, which makes the device-flow calls; a spec passes a
-  `fetchFn` to it.
+- `GithubService.connectWithToken({userId, accessToken, scope})` checks scopes, verifies the GitHub
+  identity and stores the encrypted token. Both browser redirect and device grants use it.
+- `GithubDeviceClient.exchangeRedirectToken({clientId, clientSecret, code, redirectUri})` exchanges
+  a browser authorization code. Its device methods remain for SSH and headless TUI sessions.
+  A spec supplies `fetchFn` for either path.
 - `GithubRepoReads` lists repositories, branches and trees, and reads a file.
 
 ### Ports
 
-- `GithubConfig`: the App id, the private key, the App slug, the client id and the public API URL.
+- `GithubConfig`: the App id, private key, App slug, OAuth client id and secret, and public API URL.
 - `GithubSecretCipher`, `GithubRedis`, `GithubDrain`: small structural ports.
 - `githubRedisOf({ url })`: a `GithubRedis` over one lazy ioredis connection, with `close()` for a
   worker that builds its graph per run. `@dltech/atlas-pods`' `SecretCipher` is a

@@ -30,7 +30,7 @@ export function SkillBinaryCard({
         <div className="flex min-w-0 flex-col gap-0.5">
           <span className="max-w-full truncate font-mono text-xs font-medium">{path}</span>
           <span className="text-xs text-muted-foreground">
-            {formatBytes(sizeBytes)} · Binary files are stored, not edited.
+            {formatBytes(sizeBytes)}. Binary files are stored, not edited.
           </span>
         </div>
         <div className="flex items-center gap-2">

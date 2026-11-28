@@ -140,7 +140,7 @@ describe('what the sidebar says about background shells', () => {
     const rows = await sidebarRows([shell({ shellId: 'bash_1' })])
 
     expect(has(rows, '1m 4s')).toBe(true)
-    expect(has(rows, 'running · 1m 4s')).toBe(false)
+    expect(has(rows, 'running   1m 4s')).toBe(false)
   })
 })
 
@@ -211,7 +211,7 @@ describe('what the shells panel shows', () => {
     })
     const rows = await panelRows({ shells: [selected], selected })
 
-    expect(has(rows, 'done · 12s')).toBe(true)
+    expect(has(rows, 'done   12s')).toBe(true)
   })
 
   it('says a shell has printed nothing rather than showing a blank pane', async () => {

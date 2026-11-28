@@ -51,11 +51,11 @@ export const keptServiceOf = (snapshot: ServiceSnapshotWire): KeptService => ({
 })
 
 export const earlierLabelOf = (args: { hidden: number; failed: boolean }): string =>
-  `+${args.hidden} earlier${args.failed ? ' · one failed' : ''}`
+  `+${args.hidden} earlier${args.failed ? ', one failed' : ''}`
 
 export const settledLabelOf = (args: {
   collapsed: number
   expanded: boolean
   failed: boolean
 }): string =>
-  args.expanded ? 'Show fewer' : `${args.collapsed} settled${args.failed ? ' · one failed' : ''}`
+  args.expanded ? 'Show fewer' : `${args.collapsed} settled${args.failed ? ', one failed' : ''}`

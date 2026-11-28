@@ -72,7 +72,7 @@ function PodDetails({ status }: { status: PodStatus }) {
       {status.podId === undefined ? null : (
         <p className="font-mono text-xs text-muted-foreground">
           {status.podId}
-          {status.region === undefined ? '' : ` · ${status.region}`}
+          {status.region === undefined ? '' : `, ${status.region}`}
         </p>
       )}
     </div>

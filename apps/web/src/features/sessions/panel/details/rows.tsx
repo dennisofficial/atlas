@@ -4,16 +4,25 @@ import { ChevronDownIcon } from 'lucide-react'
 import type { ReactNode } from 'react'
 import { useState } from 'react'
 
+import { Button } from '@dltech/atlas-ui/components/button'
 import { cn } from '@dltech/atlas-ui/lib/utils'
+
+import { RevealRows } from './reveal'
 
 const VISIBLE_ROWS = 3
 
-export function SectionHead({ title, count }: { title: string; count?: number }) {
+export const ROW_SURFACE =
+  'rounded-lg hover:bg-muted hover:text-foreground focus-within:bg-muted focus-within:text-foreground dark:hover:bg-muted/50 dark:focus-within:bg-muted/50 transition-colors duration-150 motion-reduce:transition-none'
+
+const ACTIONS_SHOWN = 'group-hover:flex group-focus-within:flex [@media(hover:none)]:flex'
+const TRAILING_HIDDEN = 'group-hover:hidden group-focus-within:hidden [@media(hover:none)]:hidden'
+
+export function SectionHead({ title, count }: { title: string; count?: ReactNode }) {
   return (
-    <div className="flex items-baseline justify-between gap-3 pb-1">
-      <h3 className="text-[11px] leading-4 font-medium text-muted-foreground">{title}</h3>
+    <div className="flex items-baseline justify-between gap-3 pb-1.5">
+      <h3 className="text-xs leading-4 font-medium text-foreground">{title}</h3>
       {count === undefined ? null : (
-        <span className="text-[11px] leading-4 text-muted-foreground/70 tabular-nums">{count}</span>
+        <span className="text-xs leading-4 text-muted-foreground tabular-nums">{count}</span>
       )}
     </div>
   )
@@ -28,10 +37,16 @@ export function Row(props: {
   title: ReactNode
   meta?: ReactNode
   trailing?: ReactNode
+  actions?: ReactNode
+  actionsVisible?: boolean
   label?: string
   onSelect?: (() => void) | undefined
 }) {
-  const layout = 'grid grid-cols-[1rem_minmax(0,1fr)_auto] items-start gap-x-2.5 py-1'
+  const layout = cn(
+    'group relative grid grid-cols-[1rem_minmax(0,1fr)_auto] items-start gap-x-2.5 py-1',
+    (props.actions !== undefined || props.onSelect !== undefined) &&
+      cn('-mx-1.5 w-[calc(100%+0.75rem)] px-1.5', ROW_SURFACE),
+  )
   const leading = (
     <span className="flex h-4 items-center justify-center text-muted-foreground">
       {props.leading}
@@ -47,8 +62,26 @@ export function Row(props: {
   )
   const trailing =
     props.trailing === undefined ? null : (
-      <span className="flex shrink-0 items-center gap-2 pt-0.5 text-[11px] leading-4 text-muted-foreground tabular-nums">
+      <span
+        data-row-trailing
+        className={cn(
+          'flex shrink-0 items-center gap-2 pt-0.5 text-[11px] leading-4 text-muted-foreground tabular-nums',
+          props.actions !== undefined && !props.actionsVisible && TRAILING_HIDDEN,
+        )}
+      >
         {props.trailing}
+      </span>
+    )
+  const actions =
+    props.actions === undefined ? null : (
+      <span
+        data-row-actions
+        className={cn(
+          'h-4 shrink-0 items-center gap-1 text-[11px] leading-4 text-muted-foreground',
+          props.actionsVisible ? 'flex' : cn('hidden', ACTIONS_SHOWN),
+        )}
+      >
+        {props.actions}
       </span>
     )
   if (props.onSelect === undefined) {
@@ -56,50 +89,75 @@ export function Row(props: {
       <div data-pane-row className={layout}>
         {leading}
         {title}
-        {trailing}
+        <span className="flex items-center gap-1">
+          {trailing}
+          {actions}
+        </span>
       </div>
     )
   }
   return (
-    <div
-      data-pane-row
-      className={cn(
-        layout,
-        'group -mx-1.5 w-[calc(100%+0.75rem)] rounded-md px-1.5 hover:bg-muted',
-      )}
-    >
+    <div data-pane-row className={layout}>
       <button
         type="button"
         aria-label={props.label}
         onClick={props.onSelect}
-        className="col-span-2 grid grid-cols-[1rem_minmax(0,1fr)] items-start gap-x-2.5 rounded-sm text-left outline-none focus-visible:ring-2 focus-visible:ring-ring/50"
+        className="col-span-2 grid cursor-pointer grid-cols-[1rem_minmax(0,1fr)] items-start gap-x-2.5 rounded-sm text-left outline-none focus-visible:ring-2 focus-visible:ring-ring/50"
       >
         {leading}
         {title}
       </button>
-      {trailing}
+      <span className="flex items-center gap-1">
+        {trailing}
+        {actions}
+      </span>
     </div>
   )
 }
 
-export function FoldedRows<T>(props: { rows: readonly T[]; render: (row: T) => ReactNode }) {
+export function FoldedRows<T>(props: {
+  rows: readonly T[]
+  minVisible?: number
+  rowKey: (row: T) => string | number
+  render: (row: T) => ReactNode
+}) {
   const [expanded, setExpanded] = useState(false)
-  const visible = expanded ? props.rows : props.rows.slice(0, VISIBLE_ROWS)
+  const visibleCount = Math.max(VISIBLE_ROWS, props.minVisible ?? 0)
+  const visible = expanded ? props.rows : props.rows.slice(0, visibleCount)
   const handleToggle = () => setExpanded((held) => !held)
 
   return (
     <>
-      {visible.map((row) => props.render(row))}
-      {props.rows.length > VISIBLE_ROWS ? (
-        <button
-          type="button"
-          onClick={handleToggle}
-          className="mt-0.5 ml-[1.625rem] w-fit rounded-sm text-[11px] leading-4 text-muted-foreground outline-none hover:text-foreground focus-visible:ring-2 focus-visible:ring-ring/50"
-        >
+      <RevealRows rows={visible} rowKey={props.rowKey} render={props.render} />
+      {props.rows.length > visibleCount ? (
+        <RowsToggle expanded={expanded} onToggle={handleToggle}>
           {expanded ? 'Show fewer' : `Show all (${props.rows.length})`}
-        </button>
+        </RowsToggle>
       ) : null}
     </>
+  )
+}
+
+export function RowsToggle(props: {
+  expanded: boolean
+  onToggle: () => void
+  children: ReactNode
+  beforeRows?: boolean
+}) {
+  return (
+    <Button
+      type="button"
+      variant="ghost"
+      size="xs"
+      aria-expanded={props.expanded}
+      onClick={props.onToggle}
+      className={cn(
+        'ml-[1.125rem] w-fit text-muted-foreground',
+        props.beforeRows ? 'mb-0.5' : 'mt-0.5',
+      )}
+    >
+      {props.children}
+    </Button>
   )
 }
 

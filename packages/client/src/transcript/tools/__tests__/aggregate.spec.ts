@@ -38,13 +38,16 @@ const grep = (pattern: string, matches: number) =>
 describe('the sentence a run of gathering makes', () => {
   it('counts each clause and totals what the clause measures', () => {
     expect(rowsOf([read('a.ts', 10), read('b.ts', 20), grep('x', 3)])).toEqual([
-      'Read 2 files, searched 1 time · 30 lines · 3 matches',
+      'Read 2 files, searched 1 time, 30 lines, 3 matches',
     ])
+    expect(rowsOf([read('a.ts', 10), read('b.ts', 20), grep('x', 3)]).join('')).not.toContain(
+      '\u00b7',
+    )
   })
 
   it('orders clauses by consequence rather than by which landed first', () => {
     expect(rowsOf([grep('x', 1), read('a.ts', 5)])).toEqual([
-      'Read 1 file, searched 1 time · 5 lines · 1 match',
+      'Read 1 file, searched 1 time, 5 lines, 1 match',
     ])
   })
 
@@ -52,7 +55,7 @@ describe('the sentence a run of gathering makes', () => {
     const broken = aShell({ command: 'nixify', exitCode: 1 })
 
     expect(rowsOf([read('a.ts', 5), read('b.ts', 5), broken])).toEqual([
-      'Read 2 files · 10 lines',
+      'Read 2 files, 10 lines',
       'nixify',
     ])
   })
@@ -63,7 +66,7 @@ describe('the sentence a run of gathering makes', () => {
     expect(rowsOf([read('a.ts', 5), broken, read('b.ts', 5), grep('x', 2)])).toEqual([
       'Read a.ts',
       'nixify',
-      'Read 1 file, searched 1 time · 5 lines · 2 matches',
+      'Read 1 file, searched 1 time, 5 lines, 2 matches',
     ])
   })
 
@@ -75,7 +78,7 @@ describe('the sentence a run of gathering makes', () => {
     expect(
       sentences.flatMap((segment) => segment.reads).some((entry) => entry.reading.failed),
     ).toBe(false)
-    expect(sentences.map((segment) => measureOfSentence(segment.reads))).toEqual([' · 10 lines'])
+    expect(sentences.map((segment) => measureOfSentence(segment.reads))).toEqual([', 10 lines'])
   })
 })
 
@@ -199,7 +202,7 @@ describe('a group of one is not a group', () => {
   })
 
   it('still makes a sentence of two', () => {
-    expect(rowsOf([read('a.ts', 1), read('b.ts', 1)])).toEqual(['Read 2 files · 2 lines'])
+    expect(rowsOf([read('a.ts', 1), read('b.ts', 1)])).toEqual(['Read 2 files, 2 lines'])
   })
 })
 

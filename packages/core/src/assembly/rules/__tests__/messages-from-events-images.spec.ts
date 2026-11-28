@@ -64,7 +64,7 @@ describe('a message somebody attached a picture to', () => {
     ).toEqual([
       {
         type: 'text',
-        text: operatorSaidAs('look at this\n[image /tmp/atlas/shot.png · 560×280]'),
+        text: operatorSaidAs('look at this\n[image /tmp/atlas/shot.png, 560×280]'),
       },
     ])
   })
@@ -79,7 +79,7 @@ describe('a message somebody attached a picture to', () => {
     expect(content).toHaveLength(2)
     expect(content?.[0]).toEqual({
       type: 'text',
-      text: operatorSaidAs('both of these\n[image /tmp/atlas/shot.png · 560×280]'),
+      text: operatorSaidAs('both of these\n[image /tmp/atlas/shot.png, 560×280]'),
     })
     expect(content?.[1]?.type).toBe('image')
   })

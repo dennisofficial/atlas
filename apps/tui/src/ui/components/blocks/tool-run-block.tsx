@@ -85,7 +85,7 @@ const SentenceBlock = React.memo(function SentenceBlock(props: {
           {measureOfSentence(done)}
         </span>
         {running === undefined ? null : (
-          <ElapsedNote call={running.call} separator=" · " fg={theme.rule} wash={region.wash} />
+          <ElapsedNote call={running.call} separator="   " fg={theme.rule} wash={region.wash} />
         )}
       </text>
 
@@ -130,7 +130,7 @@ const AloneBlock = React.memo(function AloneBlock(props: {
     opensCluster: props.opensCluster,
     ...(running ? { spinner: RUNNING } : {}),
   })
-  const separator = reading.note === '' ? '' : ' · '
+  const separator = reading.note === '' ? '' : '   '
   const notice = running ? null : qualityNoticeOf(call.qualityReviews)
   const noticeText = notice === null ? '' : qualityNoticeText(notice).text
   const room = Math.max(

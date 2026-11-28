@@ -25,7 +25,7 @@ const meta = {
     sizes: SIZES,
     defaultOpen: true,
     onResize: settle,
-    planCapHint: 'Hobby up to 4 vCPU · Pro up to 8 · Enterprise up to 32',
+    planCapHint: 'Hobby up to 4 vCPU, Pro up to 8, Enterprise up to 32',
     settingsHref: '#',
   },
   parameters: { layout: 'centered' },

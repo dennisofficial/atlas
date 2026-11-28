@@ -29,7 +29,7 @@ const KILL_KIND_LABEL: Record<RewindKillRow['kind'], string> = {
 }
 
 const killLineOf = (kill: RewindKillRow): string =>
-  `${KILL_KIND_LABEL[kill.kind]} · ${kill.label}${kill.running ? ' (running)' : ''}`
+  `${KILL_KIND_LABEL[kill.kind]}: ${kill.label}${kill.running ? ' (running)' : ''}`
 
 export const rewindConfirmOf = (
   kills: readonly RewindKillRow[],

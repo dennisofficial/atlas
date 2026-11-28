@@ -20,7 +20,7 @@ const filterSummaryOf = (provider: string, events: readonly string[]): string =>
     .map((spec) => spec.name)
     .filter((name) => names.includes(name))
     .map((name) => EVENT_LABEL[name] ?? name)
-    .join(' · ')
+    .join(', ')
 }
 
 const runTitleOf = (target: RunTarget): string =>

@@ -93,9 +93,10 @@ const mount = async (
   )
 
 describe('the pills under the composer', () => {
-  it('spaces the facts apart and marks where the chips begin with the one separator dot', async () => {
+  it('spaces the facts apart and separates the chips with spacing', async () => {
     const frame = await frameOf(footer({ width: 140, items: [PR, SHELLS] }), 140)
-    expect(rowOf(frame).trimStart()).toStartWith(`${MODEL} med · #123 2 shells`)
+    expect(frame).not.toContain('\u00b7')
+    expect(rowOf(frame).trimStart()).toStartWith(`${MODEL} med   #123 2 shells`)
   })
 
   it('leaves the read-out flush against the far edge', async () => {

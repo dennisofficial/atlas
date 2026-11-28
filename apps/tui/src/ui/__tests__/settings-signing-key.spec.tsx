@@ -49,7 +49,7 @@ describe('the commit signing row', () => {
     const frame = await frameOf(cloud({ view: { state: ESigningKeyView.Absent } }), WIDTH)
 
     expect(frame).toContain('Commit signing')
-    expect(frame).toContain('off · ⏎ to enable')
+    expect(frame).toContain('off   ⏎ to enable')
     expect(frame).not.toContain('Remove signing key')
   })
 
@@ -59,7 +59,7 @@ describe('the commit signing row', () => {
       WIDTH,
     )
 
-    expect(frame).toContain('on · …CDEFGHIJ · ⏎ to rotate')
+    expect(frame).toContain('on   …CDEFGHIJ   ⏎ to rotate')
     expect(frame).toContain('Remove signing key')
   })
 

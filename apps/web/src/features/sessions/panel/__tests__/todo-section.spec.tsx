@@ -52,10 +52,9 @@ const longPlan = Array.from({ length: 8 }, (_, index) =>
 )
 
 describe('SessionTodoSection', () => {
-  it('shows an empty line without a plan', () => {
+  it('omits the section without a plan', () => {
     const html = renderToStaticMarkup(<SessionTodoSection tasks={[]} />)
-    expect(html).toContain('aria-label="Todo"')
-    expect(html).toContain('No plan yet')
+    expect(html).toBe('')
   })
 
   it('always shows one row per task with its status glyph', () => {

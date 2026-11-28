@@ -1,29 +1,15 @@
 'use client'
 
+import { formatTokens } from '@dltech/atlas-client/crew'
 import { formatElapsed } from '@dltech/atlas-client/transcript'
-import {
-  formatUsd,
-  sandboxComputeAt,
-  type SandboxCompute,
-  type SpendTally,
-} from '@dltech/atlas-core'
-import type { SessionViewOutput } from '@dltech/atlas-protocol'
+import { formatUsd, sandboxComputeAt, type SandboxCompute } from '@dltech/atlas-core'
+import type { ReactNode } from 'react'
 
-import { EHeaderState, STATE_LABEL } from '@/features/threads/data/header-model'
 import { useNowEvery } from '@/features/threads/data/use-now'
 import { tokenStatsOf } from '@/features/threads/panel/details/details-model'
-import { Stat, Tokens } from '@/features/threads/panel/details/head-section'
 
-import { headerStateOfSession } from '../../data/session-state'
 import { useSessionPaneValue } from '../pane-value'
-import { Pill } from './rows'
-
-const PILL_TONE: Record<EHeaderState, string> = {
-  [EHeaderState.Failed]: 'bg-destructive/10 text-destructive',
-  [EHeaderState.NeedsYou]: 'bg-primary/10 text-primary',
-  [EHeaderState.Running]: 'bg-success/10 text-success',
-  [EHeaderState.Idle]: 'bg-muted text-muted-foreground',
-}
+import { cacheHitRateOf } from './usage-model'
 
 const ELAPSED_TICK_MS = 30_000
 
@@ -34,61 +20,85 @@ function elapsedOf(args: { startedAt: string | undefined; now: number }): string
   return formatElapsed(Math.max(0, args.now - started))
 }
 
-type SessionCompute = SessionViewOutput['compute']
-
 const SANDBOX_TICK_MS = 5_000
 
-function SandboxCost({ compute }: { compute: SandboxCompute | undefined }) {
-  const running = compute?.tick != null
+function SandboxCost({ compute }: { compute: SandboxCompute }) {
+  const running = compute.tick !== null
   const now = useNowEvery({ enabled: running, tickMs: SANDBOX_TICK_MS })
-  if (compute === undefined || compute.costUsd === null) return null
   const aged = sandboxComputeAt({ compute, now })
   if (aged.costUsd === null) return null
-  return <Stat value={formatUsd(aged.costUsd)} unit="sandbox" />
+  return <UsageStat value={formatUsd(aged.costUsd)} unit="sandbox" />
 }
 
-function SpendLine({
-  spend,
-  compute,
-}: {
-  spend: SpendTally | null
-  compute: SessionCompute | undefined
-}) {
-  const stats = spend === null ? null : tokenStatsOf(spend)
-  if (spend === null || stats === null) return null
+function UsageStat(props: { value: ReactNode; unit: string; title?: string }) {
   return (
-    <p
-      data-session-spend
-      className="flex flex-wrap items-center gap-x-3 gap-y-1 text-xs leading-4 text-muted-foreground"
-    >
-      {spend.costUsd === null ? null : <Stat value={formatUsd(spend.costUsd)} unit="spent" />}
-      <Tokens stats={stats} />
-      {stats.cached == null ? null : <Stat value={stats.cached} unit="cached" />}
-      <SandboxCost compute={compute} />
-    </p>
+    <span title={props.title} className="whitespace-nowrap">
+      <span className="text-foreground">{props.value}</span>
+      <span className="text-muted-foreground"> {props.unit}</span>
+    </span>
+  )
+}
+
+function UsageLine({ start, end }: { start: ReactNode; end: ReactNode }) {
+  return (
+    <div className="flex items-baseline justify-between gap-3">
+      <span className="flex min-w-0 flex-wrap gap-x-2.5">{start}</span>
+      <span className="shrink-0">{end}</span>
+    </div>
   )
 }
 
 export function SessionDetailsHeader() {
-  const { title, startedAt, status, view } = useSessionPaneValue()
+  const { startedAt, view } = useSessionPaneValue()
   const now = useNowEvery({ enabled: startedAt !== undefined, tickMs: ELAPSED_TICK_MS })
-  const state = headerStateOfSession(status)
   const elapsed = elapsedOf({ startedAt, now })
+  const spend = view.spend
+  const cost = spend?.costUsd ?? null
+  const stats = spend === null ? null : tokenStatsOf(spend)
+  const cacheHitRate = cacheHitRateOf(spend)
+  const compute = view.compute
+  const hasSandboxCost = compute !== undefined && compute.costUsd !== null
+  const hasSpend = cost !== null || stats !== null || cacheHitRate !== null || hasSandboxCost
+  if (elapsed === null && !hasSpend) return null
+  const hasCostLine = cost !== null || hasSandboxCost || elapsed !== null
+  const hasTokenLine = stats !== null || cacheHitRate !== null
 
   return (
-    <header data-session-summary className="flex flex-col gap-1">
-      <h2 className="truncate text-[13px] leading-5 font-medium">{title ?? 'Session'}</h2>
-      <div className="flex items-center gap-2">
-        <span data-session-state className="inline-flex items-center gap-1">
-          <Pill label={STATE_LABEL[state]} tone={PILL_TONE[state]} />
-        </span>
-        {elapsed === null ? null : (
-          <span className="font-mono text-[11px] text-muted-foreground tabular-nums">
-            {elapsed}
-          </span>
-        )}
+    <header data-session-summary className="flex flex-col gap-1 text-xs leading-5 tabular-nums">
+      <div data-session-spend={hasSpend || undefined} className="contents">
+        {hasCostLine ? (
+          <UsageLine
+            start={
+              <>
+                {cost === null ? null : <UsageStat value={formatUsd(cost)} unit="spent" />}
+                {hasSandboxCost ? <SandboxCost compute={compute} /> : null}
+              </>
+            }
+            end={elapsed === null ? null : <UsageStat value={elapsed} unit="running" />}
+          />
+        ) : null}
+        {hasTokenLine ? (
+          <UsageLine
+            start={
+              stats === null ? null : (
+                <>
+                  <UsageStat value={stats.input} unit="in" title="Input tokens" />
+                  <UsageStat value={stats.output} unit="out" title="Output tokens" />
+                </>
+              )
+            }
+            end={
+              cacheHitRate === null || spend === null ? null : (
+                <UsageStat
+                  value={`${cacheHitRate}%`}
+                  unit="cached"
+                  title={`${formatTokens(spend.cacheReadTokens)} tokens read from cache`}
+                />
+              )
+            }
+          />
+        ) : null}
       </div>
-      <SpendLine spend={view.spend} compute={view.compute} />
     </header>
   )
 }

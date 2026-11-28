@@ -118,7 +118,7 @@ describe('sessionFailureCardOf', () => {
     const card = cardOf(extraUsage)
     expect(card.title).toBe('The run failed')
     expect(card.detail).toBe(extraUsage.message)
-    expect(card.meta).toBe('dennislysenko@hotmail.com · claude-opus-5-5')
+    expect(card.meta).toBe('dennislysenko@hotmail.com, claude-opus-5-5')
   })
 
   it('names the account in the message when the provider refused its quota', () => {

@@ -74,7 +74,7 @@ describe('ContextFileBody', () => {
         />,
       ),
     )
-    expect(host.textContent).toContain('Binary file · 5 B')
+    expect(host.textContent).toContain('Binary file, 5 B')
     expect(host.querySelector('button')?.textContent).toContain('Download')
     await act(async () => root.unmount())
   })

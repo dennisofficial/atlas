@@ -95,7 +95,7 @@ export function PodUsageSpark({ data, limitGb, defaultActiveIndex }: PodUsageSpa
         })
 
   return (
-    <div className="relative h-full min-h-10 w-28 shrink-0 rounded-md border border-border bg-muted/30 p-1">
+    <div className="relative h-8 w-full shrink-0 rounded-md border border-border bg-muted/30 p-1">
       <div
         ref={plot}
         data-slot="pod-spark-plot"
@@ -109,7 +109,7 @@ export function PodUsageSpark({ data, limitGb, defaultActiveIndex }: PodUsageSpa
         <ChartContainer
           config={COMBINED_CONFIG}
           className="aspect-auto h-full w-full"
-          initialDimension={{ width: 104, height: 32 }}
+          initialDimension={{ width: 278, height: 22 }}
           role="img"
           aria-label={
             withDisk

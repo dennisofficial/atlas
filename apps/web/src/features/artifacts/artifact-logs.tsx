@@ -32,7 +32,6 @@ export function ArtifactBuildLog({ build }: { build: ArtifactBuild }) {
       <div className="flex flex-wrap items-center gap-2 text-xs text-muted-foreground">
         <ArtifactStatusChip status={build.status} />
         <span>{relativeTime({ from: build.updatedAt })}</span>
-        <span aria-hidden>·</span>
         <span>took {formatDuration(build.durationMs)}</span>
       </div>
       {build.failure === null ? null : (

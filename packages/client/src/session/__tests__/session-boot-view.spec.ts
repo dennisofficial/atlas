@@ -200,7 +200,8 @@ describe('sessionBootViewOf', () => {
       EBootStepState.Done,
       EBootStepState.Interrupted,
     ])
-    expect(view?.steps.at(-1)?.label).toBe('Setup restarted · running again')
+    expect(view?.steps.at(-1)?.label).toBe('Setup restarted, running again')
+    expect(view?.steps.at(-1)?.label).not.toContain('\u00b7')
     expect(view?.state).toBe(EBootStepState.Running)
     expect(view?.error).toBeUndefined()
   })

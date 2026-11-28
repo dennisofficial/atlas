@@ -96,10 +96,6 @@ const Lead = (): React.ReactNode => (
   </text>
 )
 
-/**
- * The dot and the gaps sit outside the pressable box on purpose: a click between two chips belongs
- * to neither of them. The gap is a margin for the same reason a space used to be a text of its own.
- */
 export function FooterStrip(
   props: {
     items: readonly FooterItem[]

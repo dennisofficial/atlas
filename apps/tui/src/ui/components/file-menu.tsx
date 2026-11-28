@@ -69,7 +69,7 @@ export function FileMenu(props: {
           {props.label ?? ' Files '}
         </text>
       }
-      badge={<text fg={theme.hint} bg={theme.overlayBg}>{` ${counted} · ⇥ ${verb} `}</text>}
+      badge={<text fg={theme.hint} bg={theme.overlayBg}>{` ${counted}   ⇥ ${verb} `}</text>}
     >
       <box flexDirection="column" flexShrink={0}>
         {visible.map((entry, offset) => (

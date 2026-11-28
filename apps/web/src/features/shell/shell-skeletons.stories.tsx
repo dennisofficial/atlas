@@ -32,8 +32,8 @@ function ThreadsPair() {
   )
 }
 
-const WEB_LINES = ['Interface 1.179.4 · 5cc4b0e']
-const MAC_LINES = ['App 1.179.4', 'Interface 1.179.4 · 5cc4b0e']
+const WEB_LINES = ['Interface 1.179.4, 5cc4b0e']
+const MAC_LINES = ['App 1.179.4', 'Interface 1.179.4, 5cc4b0e']
 
 function VersionPair({ lines }: { lines: string[] }) {
   return (

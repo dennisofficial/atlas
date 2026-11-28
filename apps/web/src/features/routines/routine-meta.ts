@@ -13,7 +13,7 @@ export const metaLineOf = (args: {
   if (state === ERoutineState.Working && routine.lastRunAt !== null) {
     return `Running since ${clockAt({ iso: routine.lastRunAt, timeZone })}`
   }
-  if (state === ERoutineState.Off) return `${schedule} · paused`
-  if (state === ERoutineState.Skipped) return `${schedule} · last run skipped`
-  return `${schedule} · next ${relativeOf({ from: now, to: routine.nextRunAt })}`
+  if (state === ERoutineState.Off) return `${schedule}, paused`
+  if (state === ERoutineState.Skipped) return `${schedule}, last run skipped`
+  return `${schedule}, next ${relativeOf({ from: now, to: routine.nextRunAt })}`
 }

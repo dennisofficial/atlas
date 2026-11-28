@@ -8,7 +8,7 @@ import { NAMING_SIDEBAR_LINE } from '../../naming-frames'
 import { ENamingPhase, NamingLine, type NamingState } from '../naming-line'
 import { truncateCells, wrapCappedCells } from './cells'
 
-const SEPARATOR = ' · '
+const SEPARATOR = '   '
 
 const TITLE_MAX_LINES = 2
 

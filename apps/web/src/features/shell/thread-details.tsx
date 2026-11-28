@@ -58,7 +58,7 @@ function PullRequestDetails({ entries }: { entries: readonly PullRequestEntry[] 
               className="min-w-0 flex-1 break-words hover:underline"
             >
               {entry.repo}#{entry.number}
-              {entry.title ? ` · ${entry.title}` : ''}
+              {entry.title ? `, ${entry.title}` : ''}
             </a>
           </div>
           <div

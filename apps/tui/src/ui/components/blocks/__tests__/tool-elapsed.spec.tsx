@@ -120,7 +120,7 @@ describe('the final duration of a settled call', () => {
     expect(elapsedCellsOf({ call: running, separator: '' })).toBeGreaterThanOrEqual(
       elapsedCellsOf({ call: settledCall, separator: '' }),
     )
-    expect(elapsedCellsOf({ call: call({ name: 'bash' }), separator: ' · ' })).toBe(0)
+    expect(elapsedCellsOf({ call: call({ name: 'bash' }), separator: '   ' })).toBe(0)
   })
 })
 
@@ -164,7 +164,7 @@ describe('a tool block with its call still running', () => {
     globalThis.IS_REACT_ACT_ENVIRONMENT = false
     try {
       const frame = await frameShowing({ setup, text: 'Read 2 files' })
-      expect(frame).toMatch(/· \d+s/)
+      expect(frame).toMatch(/ {3}\d+s/)
     } finally {
       await teardown(setup)
     }

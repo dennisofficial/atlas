@@ -28,7 +28,7 @@ const tokensLabel = (tokens: number): string =>
 
 export function effortLabelOf(args: { map: EffortMap | undefined; rung: EEffort }): string {
   const wire = args.map?.[args.rung]
-  if (typeof wire === 'number') return `${EFFORT_RUNG_LABEL[args.rung]} · ${tokensLabel(wire)}`
+  if (typeof wire === 'number') return `${EFFORT_RUNG_LABEL[args.rung]}, ${tokensLabel(wire)}`
   if (typeof wire === 'string') return WIRE_LABEL[wire] ?? wire
   return EFFORT_RUNG_LABEL[args.rung]
 }

@@ -1,59 +1,58 @@
 'use client'
 
-import { EAgentStatus } from '@dltech/atlas-core'
+import { isActiveCrewStatus } from '@dltech/atlas-plugin-crew/client'
 import { formatElapsed } from '@dltech/atlas-client/transcript'
 
+import { AgentStatusIcon } from '@/features/shell/shell-status-icon'
 import { useNowEvery } from '@/features/threads/data/use-now'
 import { useOptionalThreadPanel } from '@/features/threads/panel/thread-panel-context'
 
 import { useSessionPaneValue } from '../pane-value'
-import { Dot, EmptyLine, FoldedRows, Row, SectionHead } from './rows'
-
-const CREW_TONE: Record<EAgentStatus, string> = {
-  [EAgentStatus.Running]: 'bg-success',
-  [EAgentStatus.Finished]: 'bg-muted-foreground/40',
-  [EAgentStatus.Failed]: 'bg-destructive',
-  [EAgentStatus.Stopped]: 'bg-muted-foreground/40',
-  [EAgentStatus.Blocked]: 'bg-warning',
-  [EAgentStatus.Paused]: 'bg-muted-foreground/40',
-  [EAgentStatus.WaitingForModel]: 'bg-warning',
-}
+import { FoldedRows, Row, SectionHead } from './rows'
+import { Reveal } from './reveal'
 
 const TICK_MS = 30_000
 
 export function SessionCrewSection() {
   const { view } = useSessionPaneValue()
   const openAgent = useOptionalThreadPanel()?.openAgent
-  const now = useNowEvery({ enabled: view.crewRows.length > 0, tickMs: TICK_MS })
-  if (view.crew.total === 0)
-    return (
-      <section data-session-crew aria-label="Sub-agents" className="flex flex-col">
-        <SectionHead title="Sub-agents" />
-        <EmptyLine>No sub-agents yet</EmptyLine>
-      </section>
+  const active = view.crewRows.filter((row) => isActiveCrewStatus(row.status)).length
+  const count =
+    view.crew.running > 0 ? (
+      <span className="flex items-baseline gap-2">
+        <span className="text-foreground">{view.crew.running} running</span>
+        <span>{view.crew.total}</span>
+      </span>
+    ) : (
+      view.crew.total
     )
+  const now = useNowEvery({ enabled: view.crewRows.length > 0, tickMs: TICK_MS })
   return (
-    <section data-session-crew aria-label="Sub-agents" className="flex flex-col">
-      <SectionHead title="Sub-agents" count={view.crew.total} />
-      <FoldedRows
-        rows={view.crewRows}
-        render={(row) => {
-          const end = row.endedAt === undefined ? now : Date.parse(row.endedAt)
-          const started = Date.parse(row.startedAt)
-          const elapsed = Number.isNaN(started) ? null : formatElapsed(Math.max(0, end - started))
-          return (
-            <Row
-              key={row.agentId}
-              leading={<Dot className={CREW_TONE[row.status]} />}
-              title={row.agentType}
-              meta={row.intent}
-              trailing={elapsed === null ? null : <span className="font-mono">{elapsed}</span>}
-              label={`Open the ${row.agentType} sub-agent: ${row.intent}`}
-              onSelect={openAgent === undefined ? undefined : () => openAgent(row.agentId)}
-            />
-          )
-        }}
-      />
-    </section>
+    <Reveal open={view.crewRows.length > 0} section>
+      <section data-session-crew aria-label="Sub-agents" className="flex flex-col">
+        <SectionHead title="Sub-agents" count={count} />
+        <FoldedRows
+          rows={view.crewRows}
+          minVisible={active}
+          rowKey={(row) => row.agentId}
+          render={(row) => {
+            const end = row.endedAt === undefined ? now : Date.parse(row.endedAt)
+            const started = Date.parse(row.startedAt)
+            const elapsed = Number.isNaN(started) ? null : formatElapsed(Math.max(0, end - started))
+            return (
+              <Row
+                key={row.agentId}
+                leading={<AgentStatusIcon status={row.status} />}
+                title={row.agentType}
+                meta={row.intent}
+                trailing={elapsed}
+                label={`Open the ${row.agentType} sub-agent: ${row.intent}`}
+                onSelect={openAgent === undefined ? undefined : () => openAgent(row.agentId)}
+              />
+            )
+          }}
+        />
+      </section>
+    </Reveal>
   )
 }

@@ -143,7 +143,7 @@ describe('SandboxSizeSection', () => {
         onSave={noop}
       />,
     )
-    expect(inherited).toContain('4 vCPU · 16 GB RAM')
+    expect(inherited).toContain('4 vCPU, 16 GB RAM')
     expect(inherited).toContain('text-muted-foreground')
   })
 
@@ -151,7 +151,7 @@ describe('SandboxSizeSection', () => {
     const fallback = renderToStaticMarkup(
       <SandboxSizeSection value={null} withAccountDefault onSave={noop} />,
     )
-    expect(fallback).toContain('2 vCPU · 4 GB RAM')
+    expect(fallback).toContain('2 vCPU, 4 GB RAM')
   })
 })
 

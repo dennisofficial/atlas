@@ -83,7 +83,7 @@ describe('useCredentialRepair', () => {
 
     const card = cardOf()
     expect(card.title).toBe('Atlas could not call claude-opus-5-5')
-    expect(card.detail).toBe('Anthropic · dennis@example.com · The key was refused')
+    expect(card.detail).toBe('Anthropic, dennis@example.com, The key was refused')
     const markup = renderToStaticMarkup(<RepairCard {...card} />)
     expect(markup).toContain('dennis@example.com')
     expect(markup).toContain('Replace key')

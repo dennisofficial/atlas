@@ -60,10 +60,9 @@ const click = async (element: Element | null) =>
   })
 
 describe('SessionServicesSection', () => {
-  it('shows an empty line when no service is running', () => {
+  it('omits the section when no service is running', () => {
     const html = render(valueOf([]))
-    expect(html).toContain('aria-label="Services"')
-    expect(html).toContain('No services running')
+    expect(html).toBe('')
   })
 
   it('lists a service with its port and open link', () => {
@@ -74,9 +73,25 @@ describe('SessionServicesSection', () => {
     expect(html).toContain('aria-label="Open the web log"')
   })
 
+  it('uses the first command word for an empty service name', () => {
+    const html = render(valueOf([serviceRowFixture({ name: '   ', command: '  bun run dev' })]))
+    expect(html).toContain('aria-label="Open the bun log"')
+  })
+
   it('labels an old blank service row with its id', () => {
     const html = render(valueOf([serviceRowFixture({ name: undefined, command: '' })]))
     expect(html).toContain('aria-label="Open the svc-web log"')
+  })
+
+  it('swaps actions into the trailing cell for pointer, keyboard and touch', () => {
+    const html = render(valueOf())
+    expect(html).toContain('data-row-actions')
+    expect(html).not.toContain('absolute inset-y-0 right-0')
+    expect(html).not.toContain('bg-gradient-to-r')
+    expect(html).toContain('group-hover:flex')
+    expect(html).toContain('group-focus-within:flex')
+    expect(html).toContain('motion-reduce:transition-none')
+    expect(html).toContain('[@media(hover:none)]:flex')
   })
 
   it('marks a running service paused but still offers its preview while the pod is asleep', () => {

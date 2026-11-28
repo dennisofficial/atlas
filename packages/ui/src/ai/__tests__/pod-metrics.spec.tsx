@@ -128,7 +128,7 @@ describe('pod metrics sections', () => {
     const html = renderToStaticMarkup(<PodMetricsRows {...PROPS} />)
     expect(html).toContain('CPU')
     expect(html).toContain('RAM')
-    expect(html).toContain('4 vCPU · 8 GB')
+    expect(html).toContain('4 vCPU, 8 GB')
   })
 
   it('cards split the reading into CPU and RAM', () => {
@@ -140,7 +140,7 @@ describe('pod metrics sections', () => {
   it('combined keeps the window caption and the size in the header', () => {
     const html = renderToStaticMarkup(<PodMetricsCombined {...PROPS} />)
     expect(html).toContain('Last 15 min')
-    expect(html).toContain('4 vCPU · 8 GB')
+    expect(html).toContain('4 vCPU, 8 GB')
   })
 
   it('surfaces throttling and OOM kills only when they happened', () => {

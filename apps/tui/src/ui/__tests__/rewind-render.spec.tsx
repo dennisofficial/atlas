@@ -160,7 +160,7 @@ describe('the panel it opens with', () => {
 
   it('walks the choice forward rather than committing it', async () => {
     const rows = written(await rowsOf({ state: stateOf({ index: 1 }) }))
-    expect(rows.at(-1)).toBe('│  Enter to continue · Esc to cancel')
+    expect(rows.at(-1)).toBe('│  Enter to continue   Esc to cancel')
   })
 
   it('keeps every row inside the overlay, wide or narrow', async () => {
@@ -196,14 +196,14 @@ describe('choosing what to do at that message', () => {
     const rows = await rowsOf({ state: committing })
     expect(rowWith(rows, glyph.warning)).toContain('1 later message')
     expect(prose(rows)).toContain(
-      '1 later message and every reply are deleted, this one returns to the composer · no undo',
+      '1 later message and every reply are deleted, this one returns to the composer, no undo',
     )
   })
 
   it('says a summarisation deletes rows', async () => {
     const rows = await rowsOf({ state: stateOf({ index: 1, verb: ERewindVerb.SummariseUpTo }) })
     expect(prose(rows)).toContain(
-      '1 earlier message and their replies become one summary · deletes rows · no undo',
+      '1 earlier message and their replies become one summary, deletes rows, no undo',
     )
     expect(rowWith(rows, 'returns to the composer')).toBe('')
   })
@@ -219,7 +219,7 @@ describe('choosing what to do at that message', () => {
 
   it('offers a way back out that is not the destructive one', async () => {
     const rows = written(await rowsOf({ state: committing }))
-    expect(rows.at(-1)).toBe('│  Enter to confirm · Esc to go back')
+    expect(rows.at(-1)).toBe('│  Enter to confirm   Esc to go back')
   })
 
   it('keeps every row inside the overlay while committing', async () => {

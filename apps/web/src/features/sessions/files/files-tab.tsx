@@ -35,6 +35,7 @@ import { PodNotReady } from '../panel/pod-not-ready'
 import { useReadyDeadline } from '../data/use-ready-deadline'
 import { ContextFileView } from './context-file-view'
 import { recallSelectedFile, rememberSelectedFile } from './files-memory'
+import { useContextFile } from './use-context-file'
 
 const requestWake = (sessionId: string) => cloudCall(api.sessions.wake.mutate({ sessionId }))
 
@@ -181,7 +182,7 @@ export function FilesTab(
   const { sessionId, status, openRequest, consumeOpenRequest } = useSessionPaneValue()
   const { changes, options, selectedId, select } = useCheckoutChoice()
   const [openPath, setOpenPath] = useState<string | undefined>(undefined)
-  const [contextPath, setContextPath] = useState<string | undefined>(undefined)
+  const { contextPath, setContextPath } = useContextFile(sessionId)
   const handledOpen = useRef(0)
   const sourceOf = props.sourceOf ?? fileSource
   const source = useMemo(
@@ -235,9 +236,18 @@ export function FilesTab(
     setContextPath(undefined)
     select(target.checkoutId)
     setOpenPath(target.path)
-  }, [openRequest, changes.status, options, selectedId, select, consumeOpenRequest, sessionId])
+  }, [
+    openRequest,
+    changes.status,
+    options,
+    selectedId,
+    select,
+    consumeOpenRequest,
+    sessionId,
+    setContextPath,
+  ])
   const handleOpened = useCallback(() => setOpenPath(undefined), [])
-  const handleBack = useCallback(() => setContextPath(undefined), [])
+  const handleBack = useCallback(() => setContextPath(undefined), [setContextPath])
 
   if (shownContextPath !== undefined) {
     return <ContextFileView sessionId={sessionId} path={shownContextPath} onBack={handleBack} />

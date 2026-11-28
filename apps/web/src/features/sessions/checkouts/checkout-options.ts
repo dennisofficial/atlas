@@ -61,7 +61,7 @@ export function checkoutOptionsOf(args: {
       repo: checkout.repo,
       worktree,
       path: checkout.worktreePath,
-      label: `${checkout.repo} · ${branch ?? worktree}`,
+      label: `${checkout.repo}, ${branch ?? worktree}`,
     }
   })
 }

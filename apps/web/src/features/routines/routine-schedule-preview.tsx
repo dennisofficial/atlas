@@ -42,7 +42,7 @@ export function RoutineSchedulePreview({ cron, timezone }: { cron: string; timez
 
   return (
     <>
-      <FieldDescription>{`${scheduleSummaryOf(cron)} · ${timezone}`}</FieldDescription>
+      <FieldDescription>{`${scheduleSummaryOf(cron)}, ${timezone}`}</FieldDescription>
       {preview.occurrences.length === 0 ? null : (
         <div className="rounded-md border border-border bg-muted/40 p-2.5 text-xs">
           <p className="mb-1 text-muted-foreground">Next three runs</p>

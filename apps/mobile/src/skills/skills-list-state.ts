@@ -68,7 +68,7 @@ export const skillMetaLineOf = ({ skill, now }: { skill: SkillSummary; now: numb
     formatBytes(skill.sizeBytes),
     formatSkillDate(skill.updatedAt),
   )
-  return parts.join(' · ')
+  return parts.join(', ')
 }
 
 export const deleteConfirmCopyOf = ({ names }: { names: readonly string[] }): string =>

@@ -28,7 +28,7 @@ export function versionLines({
     web.version.length > 0 ? web.version : '',
     web.commit.slice(0, SHORT_SHA_LENGTH),
   ].filter((part) => part.length > 0)
-  if (interfaceParts.length > 0) lines.push(`Interface ${interfaceParts.join(' · ')}`)
+  if (interfaceParts.length > 0) lines.push(`Interface ${interfaceParts.join(', ')}`)
   return lines
 }
 

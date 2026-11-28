@@ -3,6 +3,7 @@ export type GithubConfigValues = {
   appPrivateKey?: string | undefined
   appSlug?: string | undefined
   clientId?: string | undefined
+  clientSecret?: string | undefined
   publicApiUrl?: string | undefined
 }
 

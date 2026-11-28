@@ -3,6 +3,7 @@ import { registerDom, unregisterDom } from '@/lib/__tests__/happy-dom-globals'
 import { act } from 'react'
 import type { Root } from 'react-dom/client'
 
+import { Row } from '../details/rows'
 import { PullRequestBell } from '../details/pull-request-bell'
 import type { BellCommand } from '../details/pull-request-bell-model'
 import { SessionPaneProvider, type SessionPaneValue } from '../pane-value'
@@ -31,11 +32,18 @@ const clickBell = async (value: SessionPaneValue): Promise<Sent[]> => {
   await act(async () =>
     root.render(
       <SessionPaneProvider value={value}>
-        <PullRequestBell
-          entry={pullRequestFixture}
-          run={async (args) => {
-            sent.push(args)
-          }}
+        <Row
+          leading={null}
+          title="Pull request"
+          actionsVisible={value.view.subscriptionRows.length > 0}
+          actions={
+            <PullRequestBell
+              entry={pullRequestFixture}
+              run={async (args) => {
+                sent.push(args)
+              }}
+            />
+          }
         />
       </SessionPaneProvider>,
     ),
@@ -51,6 +59,13 @@ describe('PullRequestBell', () => {
     const sent = await clickBell(
       paneValueFixture({ view: { ...populatedPaneValue().view, subscriptionRows: [] } }),
     )
+    expect(container.querySelector('[data-row-actions]')?.className).toContain('hidden')
+    expect(container.querySelector('[data-row-actions]')?.className).toContain(
+      'group-focus-within:flex',
+    )
+    expect(container.querySelector('[data-row-actions]')?.className).toContain(
+      '[@media(hover:none)]:flex',
+    )
     expect(sent).toEqual([
       {
         sessionId: 'ses-1',
@@ -65,6 +80,8 @@ describe('PullRequestBell', () => {
 
   it('unsubscribes the pull request when the session follows it', async () => {
     const sent = await clickBell(populatedPaneValue())
+    expect(container.querySelector('[data-row-actions]')?.className).not.toContain('hidden')
+    expect(container.querySelector('button')?.getAttribute('aria-pressed')).toBe('true')
     expect(sent).toEqual([
       { sessionId: 'ses-1', command: { name: 'unsubscribe', subscriptionId: 'sub_7' } },
     ])

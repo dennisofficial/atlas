@@ -92,7 +92,7 @@ export const SecurityDevices = {
           ].map((device) => (
             <DeviceRow
               key={device.id}
-              device={{ ...device, meta: 'Seen 2 minutes ago · 10.0.0.1' }}
+              device={{ ...device, meta: 'Seen 2 minutes ago, 10.0.0.1' }}
               onRevoke={noop}
             />
           ))}

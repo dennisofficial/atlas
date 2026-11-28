@@ -7,7 +7,12 @@ import { createTestQueryClient, TestQueryProvider } from '@/lib/__tests__/query-
 import { contextMirrorKey } from '../../data/context-files'
 import { SessionDetailsTab } from '../details-tab'
 import { SessionPaneProvider, type SessionPaneValue } from '../pane-value'
-import { paneValueFixture, populatedPaneValue, serviceRowFixture } from './fixture'
+import {
+  paneValueFixture,
+  populatedPaneValue,
+  pullRequestFixture,
+  serviceRowFixture,
+} from './fixture'
 
 const client = (value: SessionPaneValue) => {
   const created = createTestQueryClient()
@@ -39,8 +44,8 @@ const serviceRowsOf = (count: number) =>
 describe('SessionDetailsTab', () => {
   it('reads every section from the streamed view', () => {
     const html = render(populatedPaneValue())
-    expect(html).toContain('Rebase ui on shadcn base-nova')
-    expect(html).toContain('Running')
+    expect(html).not.toContain('Rebase ui on shadcn base-nova')
+    expect(html).not.toContain('data-session-state')
     expect(html).toContain('aria-label="Pull requests"')
     expect(html).toContain('href="https://github.com/owner/atlas/pull/7"')
     expect(html).toContain('#7')
@@ -86,31 +91,30 @@ describe('SessionDetailsTab', () => {
     const html = render(paneValueFixture({ view: { ...paneValueFixture().view, spend } }))
     expect(html).toContain('data-session-spend')
     expect(html).toContain('$1.23')
-    expect(html).toContain('aria-label="Input tokens"')
-    expect(html).toContain('aria-label="Output tokens"')
-    expect(html).toContain('cached')
+    expect(html).toContain('title="Input tokens"')
+    expect(html).toContain('title="Output tokens"')
+    expect(html).toContain('>67%</span>')
+    expect(html).toContain('100.0k tokens read from cache')
   })
 
   it('hides the spend line before any model call', () => {
     expect(render(paneValueFixture())).not.toContain('data-session-spend')
   })
 
-  it('shows every section heading with an empty line when nothing streamed', () => {
+  it('omits optional sections when nothing streamed', () => {
     const html = render(paneValueFixture())
-    expect(html).toContain('aria-label="Todo"')
-    expect(html).toContain('No plan yet')
-    expect(html).toContain('aria-label="Pull requests"')
-    expect(html).toContain('No pull requests yet')
-    expect(html).toContain('aria-label="Context"')
-    expect(html).toContain('No context files yet')
-    expect(html).toContain('aria-label="Subscriptions"')
-    expect(html).toContain('No subscriptions')
-    expect(html).toContain('aria-label="Services"')
-    expect(html).toContain('No services running')
-    expect(html).toContain('aria-label="Sub-agents"')
-    expect(html).toContain('No sub-agents yet')
-    expect(html).toContain('aria-label="Background"')
-    expect(html).toContain('Nothing running in the background')
+    for (const label of [
+      'Todo',
+      'Pull requests',
+      'Context',
+      'Subscriptions',
+      'Services',
+      'Sub-agents',
+      'Background',
+    ]) {
+      expect(html).not.toContain(`aria-label="${label}"`)
+    }
+    expect(html).toContain('aria-label="Pod"')
   })
 
   it('drops the checkout lines and the GitHub section', () => {
@@ -128,8 +132,8 @@ describe('SessionDetailsTab', () => {
     expect(html).toContain('Add the session pane')
   })
 
-  it('says nothing is followed when the session follows nothing', () => {
-    expect(render(paneValueFixture())).toContain('No subscriptions')
+  it('omits subscriptions when the session follows nothing', () => {
+    expect(render(paneValueFixture())).not.toContain('aria-label="Subscriptions"')
   })
 
   it('leaves an empty slot for the todo section above the lists', () => {
@@ -156,12 +160,43 @@ describe('SessionDetailsTab', () => {
     expect(html).not.toContain('web-4')
   })
 
+  it('aligns pull request and service expansion controls with the row titles', () => {
+    const base = populatedPaneValue()
+    const html = render({
+      ...base,
+      view: {
+        ...base.view,
+        entries: Array.from({ length: 5 }, (_, index) => ({
+          ...pullRequestFixture,
+          number: index + 1,
+        })),
+        serviceRows: serviceRowsOf(5),
+      },
+    })
+    const toggles = [...html.matchAll(/class="([^"]*)"[^>]*>Show all \(5\)/g)]
+    expect(toggles).toHaveLength(2)
+    expect(toggles.every((match) => match[1]?.includes('ml-[1.125rem]'))).toBe(true)
+  })
+
   it('omits the Show all control at exactly three rows', () => {
     const html = render(
       paneValueFixture({ view: { ...paneValueFixture().view, serviceRows: serviceRowsOf(3) } }),
     )
     expect(rowsIn(html)).toBe(3)
     expect(html).not.toContain('Show all')
+  })
+
+  it('uses borderless grid rows for card pull requests', () => {
+    const html = render(populatedPaneValue())
+    const pullRequests = html.slice(
+      html.indexOf('data-session-pull-requests'),
+      html.indexOf('data-session-subscriptions'),
+    )
+    expect(pullRequests).toContain('data-pane-row')
+    expect(pullRequests).toContain('gap-0.5')
+    expect(pullRequests).not.toContain('<table')
+    expect(pullRequests).not.toContain('<tr')
+    expect(pullRequests).not.toContain('border-b')
   })
 
   it('rings the bell on a pull request row only while it is subscribed', () => {

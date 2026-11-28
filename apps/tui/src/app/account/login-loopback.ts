@@ -1,7 +1,7 @@
 import { EReturnResult, LOOPBACK_HOST, parsedUrlOf } from '@dltech/atlas-core'
 
-import type { LoopbackCopy } from '../browser-return/loopback-page'
-import type { LoopbackAccepted } from '../browser-return/loopback-server'
+import type { LoopbackCopy } from '@dltech/atlas-client/loopback'
+import type { LoopbackAccepted } from '@dltech/atlas-client/loopback'
 
 export const DESKTOP_CALLBACK_PATH = '/desktop/auth/callback'
 
