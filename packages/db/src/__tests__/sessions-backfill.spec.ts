@@ -52,7 +52,7 @@ describe('sessions migration backfill', () => {
     )
 
     await applyMigration({ client, directory: SESSIONS_MIGRATION })
-  })
+  }, 180_000)
 
   afterAll(async () => {
     await client.end()

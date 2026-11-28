@@ -14,4 +14,5 @@ model Event {
 
   @@id([threadId, seq], map: "V2Event_pkey")
   @@index([threadId, type, seq], map: "V2Event_threadId_type_seq_idx")
+  @@index([threadId, at], name: "Event_skill_usage", where: sql`("type" IN ('context-loaded', 'tool-called') AND (strpos("canonical", '"skill"') > 0 OR strpos("canonical", chr(92) || 'u') > 0))`)
 }

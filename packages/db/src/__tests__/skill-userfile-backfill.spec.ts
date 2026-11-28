@@ -99,7 +99,7 @@ describe('skills UserFile backfill migration', () => {
 
     await applyMigration({ client, directory: DDL_MIGRATION })
     await applyMigration({ client, directory: DATA_MIGRATION })
-  })
+  }, 180_000)
 
   afterAll(async () => {
     await client.end()

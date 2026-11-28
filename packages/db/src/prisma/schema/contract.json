@@ -12529,6 +12529,16 @@
                 {
                   "columns": [
                     "threadId",
+                    "at"
+                  ],
+                  "name": "Event_skill_usage_777c0615",
+                  "prefix": "Event_skill_usage",
+                  "unique": false,
+                  "where": "(\"type\" IN ('context-loaded', 'tool-called') AND (strpos(\"canonical\", '\"skill\"') > 0 OR strpos(\"canonical\", chr(92) || 'u') > 0))"
+                },
+                {
+                  "columns": [
+                    "threadId",
                     "type",
                     "seq"
                   ],
@@ -19270,7 +19280,7 @@
         "kind": "postgres-schema"
       }
     },
-    "storageHash": "0afeeb830835c1a111e5003744b1fb67e0fa0e1f89e6213b0ef2535adc60966f"
+    "storageHash": "4b0efa032438b801aabe2792310769aac79b16a4c84805813929e9c776dbfc1a"
   },
   "execution": {
     "executionHash": "0e6f989bb6c7c489039e329d87ab4c7469f87c12c726c4dcf40ed6296bf343c1",

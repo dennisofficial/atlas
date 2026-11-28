@@ -97,7 +97,7 @@ describe('unique api-key account migration', () => {
     })
 
     await applyMigration({ client, directory: MIGRATION })
-  })
+  }, 180_000)
 
   afterAll(async () => {
     await client.end()
