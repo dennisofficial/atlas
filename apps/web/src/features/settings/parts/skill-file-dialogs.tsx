@@ -1,6 +1,7 @@
 'use client'
 
 import { useState } from 'react'
+import { skillFileTargetOf, skillFilePathProblem } from '@dltech/atlas-client/settings'
 
 import { Button } from '@dltech/atlas-ui/components/button'
 import {
@@ -36,12 +37,9 @@ function titleOf(prompt: SkillFilePrompt): string {
 }
 
 function resolveTarget({ prompt, value }: { prompt: SkillFilePrompt; value: string }): string {
-  const clean = value.trim().replace(/^\/+|\/+$/g, '')
-  if (prompt.kind === 'rename') {
-    const parent = prompt.path.split('/').slice(0, -1).join('/')
-    return parent === '' ? clean : `${parent}/${clean}`
-  }
-  return prompt.basePath === '' ? clean : `${prompt.basePath}/${clean}`
+  const basePath =
+    prompt.kind === 'rename' ? prompt.path.split('/').slice(0, -1).join('/') : prompt.basePath
+  return skillFileTargetOf({ basePath, value })
 }
 
 export function SkillFilePromptDialog({
@@ -69,14 +67,13 @@ export function SkillFilePromptDialog({
         : ''
   const invalid =
     prompt === null ||
-    (uploading
-      ? pickedFile === null || takenPaths.some((path) => path === target)
-      : value.trim() === '' ||
-        target === '' ||
-        target.includes('//') ||
-        (prompt.kind !== 'rename' &&
-          takenPaths.some((path) => path === target || path.startsWith(`${target}/`))) ||
-        (prompt.kind === 'rename' && target === prompt.path))
+    (uploading && pickedFile === null) ||
+    skillFilePathProblem({
+      path: target,
+      takenPaths,
+      from: prompt?.kind === 'rename' ? prompt.path : undefined,
+      folder,
+    }) !== null
 
   const handleSubmit = () => {
     if (invalid || prompt === null) return

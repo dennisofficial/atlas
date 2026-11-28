@@ -3,6 +3,7 @@ import { z } from 'zod'
 const desktopBridgeSchema = z.object({
   vibrancy: z.boolean().optional(),
   nativeBrowser: z.boolean().optional(),
+  nativeModelPicker: z.boolean().optional(),
 })
 
 const parseBridge = (host: object) =>
@@ -15,6 +16,11 @@ export function isDesktopHost(host: object): boolean {
 export function hasNativeBrowser(host: object): boolean {
   const parsed = parseBridge(host)
   return parsed.success && parsed.data.nativeBrowser === true
+}
+
+export function hasNativeModelPicker(host: object): boolean {
+  const parsed = parseBridge(host)
+  return parsed.success && parsed.data.nativeModelPicker === true
 }
 
 export function applyDesktopAttributes({ root, host }: { root: HTMLElement; host: object }): void {

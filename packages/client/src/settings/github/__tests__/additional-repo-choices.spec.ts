@@ -2,7 +2,7 @@ import { describe, expect, it } from 'bun:test'
 
 import type { GithubRepoSummary } from '@dltech/atlas-wire/web'
 
-import { additionalRepoChoices } from '../additional-repo-choices'
+import { additionalRepoChoices, repositoryPickerChoices } from '../repositories'
 
 const repoNamed = (fullName: string): GithubRepoSummary => ({
   fullName,
@@ -12,6 +12,21 @@ const repoNamed = (fullName: string): GithubRepoSummary => ({
 })
 
 const repos = ['acme/web', 'acme/api', 'acme/docs'].map(repoNamed)
+
+describe('repositoryPickerChoices', () => {
+  it('excludes taken names even for an exact search and a pasted URL', () => {
+    for (const query of ['ACME/web', 'https://github.com/acme/web']) {
+      expect(repositoryPickerChoices({ repos, query, taken: ['acme/web'] })).toEqual([])
+    }
+  })
+
+  it('searches known repositories and accepts other GitHub URLs', () => {
+    expect(repositoryPickerChoices({ repos, query: 'ap', taken: [] })).toEqual(['acme/api'])
+    expect(
+      repositoryPickerChoices({ repos, query: 'https://github.com/other/new', taken: [] }),
+    ).toEqual(['other/new'])
+  })
+})
 
 describe('additionalRepoChoices', () => {
   it('suggests matching repositories', () => {

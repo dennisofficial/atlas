@@ -16,6 +16,9 @@ import {
   memoryMatchesFilter,
   memoryScopeHintOf,
   memoryScopeOptionsOf,
+  selectedMemoryNamesOf,
+  memorySelectionOf,
+  memoryDeleteTitleOf,
   type MemoryEntry,
   type MemoryScopeGroup,
 } from '../memory'
@@ -174,6 +177,36 @@ describe('memoryKeyInput', () => {
     expect(
       memoryKeyInput({ scope: EMemoryScope.Group, project: null, groupId: 'pgr_1', name: 'a' }),
     ).toEqual({ scope: EMemoryScope.Group, name: 'a', groupId: 'pgr_1' })
+  })
+})
+
+describe('memory selection', () => {
+  it('keeps only names still in the current scope, not only the search results', () => {
+    expect(
+      selectedMemoryNamesOf({
+        selected: ['one', 'gone', 'two'],
+        memories: [{ name: 'one' }, { name: 'two' }],
+      }),
+    ).toEqual(['one', 'two'])
+    expect(selectedMemoryNamesOf({ selected: ['one'], memories: [] })).toEqual([])
+  })
+
+  it('selects once and removes a name without changing other selections', () => {
+    expect(memorySelectionOf({ selectedNames: ['one'], name: 'one', selected: true })).toEqual([
+      'one',
+    ])
+    expect(memorySelectionOf({ selectedNames: ['one'], name: 'two', selected: true })).toEqual([
+      'one',
+      'two',
+    ])
+    expect(
+      memorySelectionOf({ selectedNames: ['one', 'two'], name: 'one', selected: false }),
+    ).toEqual(['two'])
+  })
+
+  it('names singular and plural destructive confirmations', () => {
+    expect(memoryDeleteTitleOf(1)).toBe('Delete 1 memory?')
+    expect(memoryDeleteTitleOf(2)).toBe('Delete 2 memories?')
   })
 })
 

@@ -13,6 +13,7 @@ import {
   overviewDraftOf,
   overviewDraftsEqual,
   overviewSaveBodyOf,
+  pickedAdditionalRepository,
   removeAdditionalRepository,
   shipOptionsOf,
 } from '../project-overview'
@@ -99,6 +100,25 @@ describe('additional repositories', () => {
     expect(
       removeAdditionalRepository({ repositories: ['acme/web', 'acme/api'], index: 0 }),
     ).toEqual(['acme/api'])
+  })
+
+  it('applies a picker result only within the repo limit and without duplicates', () => {
+    const args = {
+      repositories: ['acme/web'],
+      mainRepository: 'acme/main',
+      index: 1,
+      value: 'acme/api',
+    }
+    expect(pickedAdditionalRepository(args)).toEqual(['acme/web', 'acme/api'])
+    expect(pickedAdditionalRepository({ ...args, index: 0 })).toEqual(['acme/api'])
+    for (const value of ['ACME/main', 'acme/web', '', 'bad']) {
+      expect(pickedAdditionalRepository({ ...args, value })).toEqual(['acme/web'])
+    }
+    for (const index of [-1, 0.5, 3, Number.NaN]) {
+      expect(pickedAdditionalRepository({ ...args, index })).toEqual(['acme/web'])
+    }
+    const full = Array.from({ length: 10 }, (_, i) => `acme/repo-${String(i)}`)
+    expect(pickedAdditionalRepository({ ...args, repositories: full, index: 10 })).toEqual(full)
   })
 
   it('stops at the wire limit', () => {

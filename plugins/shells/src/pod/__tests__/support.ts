@@ -8,6 +8,7 @@ import {
   type RecordEvent,
 } from '@dltech/atlas-core'
 import {
+  PodRuntimeScope,
   EMPTY_CREW,
   EMPTY_ANALYTICS,
   EMPTY_CLASSIFIER,
@@ -142,6 +143,9 @@ export const rig = () => {
     log: () => undefined,
   }
 
+  const runtime = new PodRuntimeScope(ctx)
+  ctx.runtime = runtime
+
   const output = (shellId: string): void => {
     const shell = shells.get(shellId)
     if (shell === undefined) throw new Error(`no shell ${shellId}`)
@@ -161,6 +165,7 @@ export const rig = () => {
 
   return {
     ctx,
+    runtime,
     log,
     shells,
     calls,
