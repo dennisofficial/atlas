@@ -50,7 +50,7 @@ jobs:
       - name: compute the version this commit releases as
         run: |
           set -euo pipefail
-          out=$(bun apps/tui/scripts/release-version.ts)
+          out=$(bun apps/tui/scripts/release-version.ts --prefer-head-tag)
           echo "$out"
           version=$(printf '%s\n' "$out" | sed -n 's/^version=//p')
           if [ -z "$version" ]; then

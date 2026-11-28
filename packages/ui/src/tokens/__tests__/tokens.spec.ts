@@ -2,6 +2,7 @@ import { describe, expect, test } from 'bun:test'
 import { readFileSync } from 'node:fs'
 
 import { buildThemeCss, toKebab } from '../css'
+import { primitives } from '../primitives'
 import { semantic, EColorScheme, type SemanticTheme } from '../semantic'
 
 const SHADCN_VARIABLES = [
@@ -165,6 +166,16 @@ const contrastOf = ({ text, surface }: { text: string; surface: string }): numbe
 }
 
 describe('sky accent', () => {
+  test('offers graphite and sky alongside every existing named accent', () => {
+    expect(primitives.color.accentChoices).toEqual({
+      graphite: '#eaeaea',
+      sky: '#40c3f7',
+      clay: '#d97757',
+      slate: '#7f9cc0',
+      moss: '#7aa262',
+      plum: '#b08cd0',
+    })
+  })
   test('primary is a sky blue, not a graphite', () => {
     for (const scheme of Object.values(EColorScheme)) {
       const { primary } = semantic[scheme]

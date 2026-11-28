@@ -1,6 +1,6 @@
+import { parseColor } from '@opentui/core'
 import { testRender } from '@opentui/react/test-utils'
 import { describe, expect, it } from 'bun:test'
-import React from 'react'
 
 import { theme } from '../../../theme'
 import { grammarsReady, teardown } from '../../__tests__/harness'
@@ -156,7 +156,9 @@ describe('inline syntax', () => {
         const stranded = setup
           .captureSpans()
           .lines.flatMap((line) => line.spans)
-          .filter((span) => span.text.trim().length === 0 && Math.round(span.bg.r * 255) === 0x33)
+          .filter(
+            (span) => span.text.trim().length === 0 && span.bg.equals(parseColor(theme.userBg)),
+          )
         expect(stranded).toEqual([])
       } finally {
         await teardown(setup)
@@ -172,14 +174,10 @@ describe('inline syntax', () => {
         .lines.flatMap((line) => line.spans)
         .filter((span) => span.text.trim().length > 0)
 
-      const slabbed = painted.filter((span) => Math.round(span.bg.r * 255) === 0x33)
+      const slabbed = painted.filter((span) => span.bg.equals(parseColor(theme.userBg)))
       expect(slabbed.length).toBeGreaterThan(0)
       for (const span of slabbed) {
-        expect(Math.round(span.fg.r * 255)).toBe(0xd9)
-      }
-
-      for (const span of painted.filter((span) => Math.round(span.bg.r * 255) !== 0x33)) {
-        expect(Math.round(span.fg.r * 255)).not.toBe(0xd9)
+        expect(span.fg.equals(parseColor(theme.codeInline))).toBe(true)
       }
     } finally {
       await teardown(setup)
@@ -195,7 +193,7 @@ describe('inline syntax', () => {
         .filter((span) => span.text.trim().length > 0)
 
       for (const span of painted) {
-        expect(Math.round(span.fg.r * 255)).not.toBe(0xd9)
+        expect(span.fg.equals(parseColor(theme.codeInline))).toBe(false)
       }
     } finally {
       await teardown(setup)
