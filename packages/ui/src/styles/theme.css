@@ -80,6 +80,7 @@
   --color-warning: var(--warning);
   --color-warning-foreground: var(--warning-foreground);
   --color-code: var(--code);
+  --color-code-background: var(--code-background);
   --color-link: var(--link);
   --color-diff-add: var(--diff-add);
   --color-diff-add-foreground: var(--diff-add-foreground);
@@ -146,7 +147,8 @@
   --pr-queued: #d29922;
   --warning: #e3b341;
   --warning-foreground: #202020;
-  --code: #7cbdff;
+  --code: #b9b9b9;
+  --code-background: #303030;
   --link: #7cbdff;
   --diff-add: #252d20;
   --diff-add-foreground: #57ab5a;
@@ -209,7 +211,8 @@
   --pr-queued: #9a6700;
   --warning: #8f6615;
   --warning-foreground: #fcfcfc;
-  --code: #28558f;
+  --code: #4b4b4b;
+  --code-background: #e3e3e3;
   --link: #28558f;
   --diff-add: #eef7ee;
   --diff-add-foreground: #255c28;
