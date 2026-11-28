@@ -4,6 +4,8 @@ export * from './reveal-request'
 export * from './secrets'
 export * from './members-api'
 export * from './routes'
+export * from './files'
+export * from './file-editor'
 export {
   EAccessScope,
   EAccessMemberKind,

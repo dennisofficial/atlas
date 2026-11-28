@@ -1,4 +1,6 @@
 import {
+  formatFileMode,
+  accessParamsOfScope,
   formatMemoryDate,
   accessScopeOfParams,
   deleteGrantDescription,
@@ -121,6 +123,34 @@ export default function AccessGrantScreen() {
             <ActionRow
               label="Bulk add secrets"
               onPress={() => openAccessForm({ scope, grantId: grant.id, mode: 'bulk' })}
+            />
+          </Section>
+          <Section title="Files">
+            {grant.files.length === 0 ? (
+              <AccessNote text="No files in this grant yet. Add a file to mount it in the sandbox." />
+            ) : (
+              grant.files.map((file) => (
+                <NavRow
+                  key={file.path}
+                  label={file.path}
+                  value={formatFileMode(file.mode)}
+                  onPress={() =>
+                    router.push({
+                      pathname: '/settings/access-file',
+                      params: { ...accessParamsOfScope(scope), grantId: grant.id, name: file.path },
+                    })
+                  }
+                />
+              ))
+            )}
+            <ActionRow
+              label="Add file"
+              onPress={() =>
+                router.push({
+                  pathname: '/settings/access-file',
+                  params: { ...accessParamsOfScope(scope), grantId: grant.id },
+                })
+              }
             />
           </Section>
           <Section title="Move grant">

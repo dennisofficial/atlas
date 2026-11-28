@@ -4,14 +4,15 @@ import {
   beginRevealRequest,
   cancelRevealRequest,
   createAccessMemberApi,
+  EAccessMemberKind,
   ERevealRequestStatus,
   revealRequestPending,
   type AccessScope,
   type RevealRequest,
 } from '@dltech/atlas-client/settings'
-import { Input } from '@dltech/atlas-ui-native'
+import { EFontFamily, ETextRole, Input, Text } from '@dltech/atlas-ui-native'
 import { useEffect, useRef, useState } from 'react'
-import { View } from 'react-native'
+import { ScrollView, View } from 'react-native'
 
 import { useAuth } from '../../auth/auth-provider'
 import { revokeSession, signInWithPassword } from '../../auth/session'
@@ -22,7 +23,19 @@ import { useAccountApi } from '../account/use-account-api'
 import { ActionRow } from '../settings-parts'
 import { AccessNote, accessStyles } from './access-parts'
 
-export const SecretReveal = ({ scope, name }: { scope: AccessScope; name: string }) => {
+export const SecretReveal = ({
+  scope,
+  name,
+  kind = EAccessMemberKind.Secret,
+  onEdit,
+  onHidden,
+}: {
+  scope: AccessScope
+  name: string
+  kind?: EAccessMemberKind
+  onEdit?: (value: string) => void
+  onHidden?: () => void
+}) => {
   const { api, user } = useAuth()
   const account = useAccountApi()
   const [value, setValue] = useState<string | null>(null)
@@ -52,7 +65,10 @@ export const SecretReveal = ({ scope, name }: { scope: AccessScope; name: string
     client: ReturnType<typeof createApiClient>
     id: number
   }) => {
-    const revealed = await createAccessMemberApi({ api: client, scope }).revealSecret(name)
+    const members = createAccessMemberApi({ api: client, scope })
+    const revealed = await (kind === EAccessMemberKind.File
+      ? members.revealFile(name)
+      : members.revealSecret(name))
     if (!pending(id)) return
     request.current = acceptRevealRequest({ request: request.current, id })
     setValue(revealed)
@@ -62,6 +78,7 @@ export const SecretReveal = ({ scope, name }: { scope: AccessScope; name: string
     if (api === undefined || busy) return
     if (value !== null) {
       setValue(null)
+      onHidden?.()
       return
     }
     request.current = beginRevealRequest(request.current)
@@ -81,7 +98,7 @@ export const SecretReveal = ({ scope, name }: { scope: AccessScope; name: string
         } catch {
           if (pending(id)) setFailure('Your sign-in methods could not be loaded. Try again.')
         }
-      } else setFailure('The secret could not be revealed. Try again.')
+      } else setFailure('The value could not be revealed. Try again.')
     } finally {
       finish(id)
     }
@@ -111,7 +128,7 @@ export const SecretReveal = ({ scope, name }: { scope: AccessScope; name: string
         })
       }
     } catch {
-      if (pending(id)) setFailure('The secret could not be revealed. Try again.')
+      if (pending(id)) setFailure('The value could not be revealed. Try again.')
     } finally {
       finish(id)
     }
@@ -124,12 +141,23 @@ export const SecretReveal = ({ scope, name }: { scope: AccessScope; name: string
   }
   return (
     <>
-      <AccessNote>{value ?? '••••••••••••'}</AccessNote>
+      {value !== null && kind === EAccessMemberKind.File ? (
+        <ScrollView style={{ maxHeight: 160 }} nestedScrollEnabled>
+          <Text family={EFontFamily.Mono} size={ETextRole.Sm} style={accessStyles.note} selectable>
+            {value}
+          </Text>
+        </ScrollView>
+      ) : (
+        <AccessNote>{value ?? '••••••••••••'}</AccessNote>
+      )}
       <ActionRow
         label={`${value === null ? 'Reveal' : 'Hide'} ${name}`}
         loading={busy}
         onPress={() => void handleReveal()}
       />
+      {value !== null && onEdit !== undefined ? (
+        <ActionRow label="Edit file" onPress={() => onEdit(value)} loading={busy} />
+      ) : null}
       {needsPassword ? (
         <View style={accessStyles.field}>
           <AccessNote text="Confirm it’s you. Enter your password to reveal this value." />

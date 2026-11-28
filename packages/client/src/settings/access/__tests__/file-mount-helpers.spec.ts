@@ -8,7 +8,7 @@ import {
   parseFileMode,
   pickerChoices,
   type TreeEntry,
-} from '../data/file-mount-helpers'
+} from '../files'
 
 const entries: TreeEntry[] = [
   { path: 'src', kind: ERepoTreeEntryKind.Folder },

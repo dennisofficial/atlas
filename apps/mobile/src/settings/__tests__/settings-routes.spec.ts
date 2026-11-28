@@ -71,6 +71,9 @@ describe('ios settings pages', () => {
     expect(
       SETTINGS_STACK_SCREENS.find((screen) => screen.name === 'settings/access-form')?.sheet,
     ).toBeDefined()
+    expect(
+      SETTINGS_STACK_SCREENS.find((screen) => screen.name === 'settings/access-file')?.sheet,
+    ).toBeDefined()
     const lists = SETTINGS_STACK_SCREENS.filter((screen) => screen.name.endsWith('/access'))
     expect(lists).toHaveLength(3)
     for (const screen of lists) expect(screen.titleButtons).toBe(2)

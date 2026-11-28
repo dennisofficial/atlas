@@ -55,6 +55,7 @@ The headless client library that web, the TUI and the mobile app share.
 
 ### List settings
 
+- `accessFileEditorOf`, `loadAccessFileEditor`, `accessFileEditorDirty` and `clearAccessFileEditor`: keep file editing separate from its reveal preview, preserve unsaved contents or mode changes until confirmed, and clear plaintext when editing ends.
 - `accessGrantNameValid`, `accessGrantDraftValid`, `secretNameInvalid` and `secretDraftValid`: shared grant and secret form predicates. The grant draft adds length limits to the web form's name predicate.
 - `beginRevealRequest`, `cancelRevealRequest`, `revealRequestPending` and `acceptRevealRequest`: the reveal request state machine. Cancelled or superseded results cannot be accepted.
 
@@ -141,7 +142,10 @@ The headless client library that web, the TUI and the mobile app share.
 - `providerUsageWindowsOf`, `providerUsageAgeOf`: plan usage meter values and stale-read text.
 - `classifierSettingsFrom`, `classifierChanges`, `classifierModelItems`, `classifierAvailabilityIn`, `classifierStatusOf`, `classifierSuggestionOf`, `classifierFeaturesOf`, `classifierTestLineOf`: classifier drafts, availability, suggestions and status text.
 
-### Access grants and secrets
+### Access grants, secrets and file mounts
+
+- `accessFileValidation`, `AccessFileDraft`, `EditingFile`: shared file draft validation and save payload, including scope path rules, byte limit and permissions.
+- `parseFileMode`, `formatFileMode`, `DEFAULT_MODE_TEXT`, `pickerChoices`, `TreeEntry`: octal mode labels and ranked repository path suggestions.
 
 - `createAccessMemberApi({ api, scope })`: select personal, group or project secret and file operations using a surface-supplied transport.
 - `scopeKeyOf`, `moveTargetsOf`, `grantMoveBranchesOf`, `deleteGrantDescription`: grant identity, move destinations and delete confirmation copy.

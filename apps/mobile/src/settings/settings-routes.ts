@@ -25,6 +25,7 @@ export const SETTINGS_STACK_SCREENS: readonly ISettingsStackScreen[] = [
   { name: 'settings/integrations', title: 'Integrations & MCP' },
   { name: 'settings/mcp-add', title: 'Add MCP server', sheet: { detents: [0.9, 1] } },
   { name: 'settings/access', title: 'Access', titleButtons: 2 },
+  { name: 'settings/access-file', title: 'File mount', sheet: { detents: [0.85, 1] } },
   { name: 'settings/access-grant', title: 'Access grant' },
   { name: 'settings/access-form', title: 'Access', sheet: { detents: [0.85, 1] } },
   { name: 'settings/groups', title: 'Groups' },
