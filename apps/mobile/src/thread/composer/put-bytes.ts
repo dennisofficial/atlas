@@ -1,5 +1,7 @@
 import { File, UploadType } from 'expo-file-system'
 
+import { uploadFractionOf } from './upload-fraction'
+
 export type UploadHandle = { done: Promise<void>; abort: () => void }
 
 export const sizeOfFile = async (uri: string): Promise<number> => new File(uri).size ?? 0
@@ -17,7 +19,8 @@ export function putBytes(args: {
     mimeType: args.mediaType,
     headers: { 'content-type': args.mediaType },
     onProgress: ({ bytesSent, totalBytes }) => {
-      if (totalBytes > 0) args.onProgress(Math.min(1, Math.max(0, bytesSent / totalBytes)))
+      const fraction = uploadFractionOf({ bytesSent, totalBytes })
+      if (fraction !== undefined) args.onProgress(fraction)
     },
   })
   const done = task.uploadAsync().then((result) => {
