@@ -80,15 +80,20 @@ export function ToolLine({
     state === EToolState.Running || state === EToolState.Error ? STEP_STATUS[state] : undefined
 
   return (
-    <Step
-      icon={icon ?? <Icon />}
-      title={title ?? toolTitle({ kind, state, label })}
-      description={elapsed}
-      status={status}
-      defaultOpen={defaultOpen ?? failed}
+    <div
+      data-slot="tool-line"
+      className="min-w-0 rounded-lg px-2 py-1.5 transition-colors hover:bg-foreground/[0.04]"
     >
-      {body}
-    </Step>
+      <Step
+        icon={icon ?? <Icon />}
+        title={title ?? toolTitle({ kind, state, label })}
+        description={elapsed}
+        status={status}
+        defaultOpen={defaultOpen ?? failed}
+      >
+        {body}
+      </Step>
+    </div>
   )
 }
 

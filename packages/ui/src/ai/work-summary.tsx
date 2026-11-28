@@ -23,7 +23,7 @@ export function workSummaryTitle({ duration, running }: TitleInput): string {
 
 function stepCountLabel(stepCount: number | undefined): string | undefined {
   if (stepCount === undefined) return undefined
-  return stepCount === 1 ? '1 step' : `${stepCount} steps`
+  return stepCount === 1 ? '· 1 step' : `· ${stepCount} steps`
 }
 
 export function WorkSummary({
@@ -34,18 +34,23 @@ export function WorkSummary({
   children,
 }: WorkSummaryProps) {
   return (
-    <Trace>
-      <Step
-        icon={running ? <LoaderCircleIcon className="animate-spin" /> : undefined}
-        title={workSummaryTitle({ duration, running })}
-        description={stepCountLabel(stepCount)}
-        status={running ? 'running' : undefined}
-        autoOpen={defaultOpen === undefined ? running : undefined}
-        defaultOpen={defaultOpen}
-        contentClassName="flex flex-col gap-2"
-      >
-        {children}
-      </Step>
-    </Trace>
+    <div
+      data-slot="work-summary"
+      className="w-fit max-w-full min-w-0 rounded-full bg-foreground/[0.03] px-3 py-2 has-[[aria-expanded=true]]:w-full has-[[aria-expanded=true]]:rounded-xl"
+    >
+      <Trace>
+        <Step
+          icon={running ? <LoaderCircleIcon className="animate-spin" /> : undefined}
+          title={workSummaryTitle({ duration, running })}
+          description={stepCountLabel(stepCount)}
+          status={running ? 'running' : undefined}
+          autoOpen={defaultOpen === undefined ? running : undefined}
+          defaultOpen={defaultOpen}
+          contentClassName="flex flex-col gap-2"
+        >
+          {children}
+        </Step>
+      </Trace>
+    </div>
   )
 }

@@ -65,6 +65,16 @@ describe('Tool', () => {
     expect(html).toContain('Deny')
   })
 
+  it('groups a tool in a rounded hover row without changing its code body', () => {
+    const html = render(EToolState.Done, { defaultOpen: true })
+
+    expect(html).toContain('data-slot="tool-line"')
+    expect(html).toContain('rounded-lg')
+    expect(html).toContain('hover:bg-foreground/[0.04]')
+    expect(html).toContain('data-slot="code-block"')
+    expect(html).toContain(' M a.ts')
+  })
+
   it('shows elapsed time next to the title', () => {
     expect(render(EToolState.Done, { elapsed: '1.2s' })).toContain('1.2s')
   })

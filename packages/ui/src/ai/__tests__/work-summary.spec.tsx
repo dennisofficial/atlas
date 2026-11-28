@@ -23,6 +23,9 @@ describe('WorkSummary', () => {
     expect(html).toContain('trace-collapsible-trigger')
     expect(html).not.toContain(' data-status="')
     expect(html).not.toContain('child step')
+    expect(html).toContain('data-slot="work-summary"')
+    expect(html).toContain('rounded-full')
+    expect(html).toContain('bg-foreground/[0.03]')
   })
 
   it('opens and shows the running status while running', () => {
@@ -35,6 +38,8 @@ describe('WorkSummary', () => {
     expect(html).toContain('Working for 2m')
     expect(html).toContain('data-status="running"')
     expect(html).toContain('child step')
+    expect(html).toContain('has-[[aria-expanded=true]]:rounded-xl')
+    expect(html).toContain('has-[[aria-expanded=true]]:w-full')
   })
 
   it('honours defaultOpen over the running default', () => {
