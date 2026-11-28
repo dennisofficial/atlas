@@ -143,21 +143,40 @@ export const readEventsIn = async (params: {
       ? whole
       : narrowToTypes({ segments: whole, onlyTypes: params.onlyTypes })
   const rows: StoredEvent[] = []
+  let stoppedEarly = false
+  let bytes = 0
   for (const segment of segments) {
     if (rows.length >= params.limit) break
-    const batch = await tx.readEvents({
+    const read = {
       threadId: row.threadId,
       afterSeq: segment.fromSeq - 1,
       throughSeq: segment.throughSeq,
       limit: params.limit - rows.length,
       onlyTypes: segment.onlyTypes,
-    })
-    rows.push(...batch)
+    }
+    const batch =
+      params.maxBytes !== undefined &&
+      Number.isFinite(params.maxBytes) &&
+      tx.readEventsByBytes !== undefined
+        ? await tx.readEventsByBytes({ ...read, maxBytes: params.maxBytes - bytes })
+        : { rows: await tx.readEvents(read), stoppedEarly: false }
+    rows.push(...batch.rows)
+    if (params.maxBytes !== undefined && tx.readEventsByBytes !== undefined) {
+      bytes += batch.rows.reduce(
+        (total, stored) => total + Buffer.byteLength(stored.canonical, 'utf8'),
+        0,
+      )
+    }
+    if (batch.stoppedEarly) {
+      stoppedEarly = true
+      break
+    }
   }
   const boundaries =
     params.maxBytes === undefined
       ? { kept: rows, stoppedEarly: false }
       : boundRowsByBytes(rows, params.maxBytes)
+  boundaries.stoppedEarly ||= stoppedEarly
   const events = boundaries.kept.map((stored) => decodeStoredEvent(stored, params.eventSchema))
   const tail = boundaries.kept[boundaries.kept.length - 1]
   const extended =

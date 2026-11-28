@@ -67,15 +67,7 @@ const cursorBeforeIn = async (args: {
   threadId: string
   tailFrom: number
 }): Promise<TailBase['cursor'] | undefined> => {
-  const seq = args.tailFrom - 1
-  const rows = await args.tx.readEvents({
-    threadId: args.threadId,
-    afterSeq: seq - 1,
-    throughSeq: seq,
-    limit: 1,
-  })
-  const row = rows[0]
-  return row === undefined || row.seq !== seq ? undefined : { seq: row.seq, hash: row.hash }
+  return args.tx.readEventCursor({ threadId: args.threadId, seq: args.tailFrom - 1 })
 }
 
 export const readTailBaseIn = async (args: {

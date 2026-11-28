@@ -57,6 +57,52 @@ export const readEventsIn = async (
   return rows.map(toStoredEvent)
 }
 
+export const readEventCursorIn = async (params: { tx: Tx; threadId: string; seq: number }) => {
+  const row = await params.tx.orm.public.Event.where({ threadId: params.threadId, seq: params.seq })
+    .select('seq', 'hash')
+    .first()
+  return row === null ? undefined : { seq: row.seq, hash: row.hash as Hash }
+}
+
+export const readEventsByBytesIn = async (
+  params: { tx: Tx; maxBytes: number } & ReadEventsParams,
+) => {
+  const rows = await params.tx.query(
+    params.tx.raw.sql`WITH candidates AS (
+      SELECT * FROM "public"."Event"
+      WHERE "threadId" = ${params.threadId}
+        AND "seq" > ${params.afterSeq} AND "seq" <= ${params.throughSeq}
+        AND (${params.onlyTypes === undefined}::boolean
+          OR "type" IN (SELECT jsonb_array_elements_text(${JSON.stringify(params.onlyTypes ?? [])}::jsonb)))
+      ORDER BY "seq" LIMIT ${params.limit}
+    ), measured AS (
+      SELECT *, row_number() OVER (ORDER BY "seq") AS ordinal,
+        sum(octet_length("canonical")) OVER (ORDER BY "seq") AS bytes,
+        count(*) OVER () AS total
+      FROM candidates
+    )
+    SELECT "threadId", "seq", "id", "epoch", "type", "runId", "at", "prevHash", "hash", "canonical",
+      total > count(*) OVER () AS "stoppedEarly"
+    FROM measured WHERE ordinal = 1 OR bytes <= ${params.maxBytes}
+    ORDER BY "seq"`
+      .returnsRow({
+        threadId: 'pg/text@1',
+        seq: 'pg/int4@1',
+        id: 'pg/text@1',
+        epoch: 'pg/int4@1',
+        type: 'pg/text@1',
+        runId: 'pg/text@1',
+        at: 'pg/timestamptz-date@1',
+        prevHash: 'pg/text@1',
+        hash: 'pg/text@1',
+        canonical: 'pg/text@1',
+        stoppedEarly: 'pg/bool@1',
+      })
+      .build(),
+  )
+  return { rows: rows.map(toStoredEvent), stoppedEarly: rows[0]?.stoppedEarly ?? false }
+}
+
 export const listSessionsIn = async (params: {
   tx: Tx
   userId: string

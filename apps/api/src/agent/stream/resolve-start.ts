@@ -1,4 +1,4 @@
-import { chainHash, GENESIS_HASH, SESSION_VIEW_VERSION } from '@dltech/atlas-core'
+import { GENESIS_HASH, SESSION_VIEW_VERSION } from '@dltech/atlas-core'
 import {
   type EStreamCacheOutcome,
   EStreamResetReason,
@@ -28,14 +28,8 @@ const hashAt = async (args: {
   seq: number
 }): Promise<string | undefined> => {
   if (args.seq === 0) return GENESIS_HASH
-  const page = await args.plane.readEvents({
-    threadId: args.threadId,
-    afterSeq: args.seq - 1,
-    limit: 1,
-    visible: false,
-  })
-  const event = page.events[0]
-  return event === undefined ? undefined : chainHash(event)
+  const cursor = await args.plane.readEventCursor({ threadId: args.threadId, seq: args.seq })
+  return cursor?.hash
 }
 
 const tailFromOf = (headSeq: number): { tailFrom: number } => ({

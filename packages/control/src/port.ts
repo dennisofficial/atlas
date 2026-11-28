@@ -263,6 +263,10 @@ export type ReadEventsParams = {
   onlyTypes?: readonly string[] | undefined
 }
 
+export type EventCursor = Pick<StoredEvent, 'seq' | 'hash'>
+
+export type BoundedEventRows = { rows: StoredEvent[]; stoppedEarly: boolean }
+
 export type AppendOpening = {
   row: ThreadRow
   lease: Lease | undefined
@@ -422,6 +426,8 @@ export interface ControlTx {
   blobsExist(hashes: readonly string[]): Promise<ReadonlySet<string>>
   blobReferencedBy(params: { sessionId: string; hash: string }): Promise<boolean>
   readEvents(params: ReadEventsParams): Promise<StoredEvent[]>
+  readEventCursor(params: { threadId: string; seq: number }): Promise<EventCursor | undefined>
+  readEventsByBytes?(params: ReadEventsParams & { maxBytes: number }): Promise<BoundedEventRows>
   changeBlobsPresent(hashes: readonly string[]): Promise<ReadonlySet<string>>
   upsertChanges(params: {
     sessionId: string
