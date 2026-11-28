@@ -164,6 +164,7 @@ export const SessionsList = ({
           contentContainerStyle={[styles.list, { paddingBottom: space(8) + insets.bottom }]}
           keyboardDismissMode={showsSearchField ? 'on-drag' : 'none'}
           contentInsetAdjustmentBehavior="automatic"
+          scrollsToTop={false}
           sections={sections}
           keyExtractor={(item) => item.key}
           CellRendererComponent={AnimatedListCell}

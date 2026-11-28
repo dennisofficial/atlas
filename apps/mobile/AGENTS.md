@@ -46,7 +46,10 @@ web spinner), never `ActivityIndicator`.
   container so it covers padding and gaps. Give non-interactive header text `PASS_THROUGH` and
   wrapper views `pointerEvents="box-none"`, so a tap on them falls through to the shield. A
   `Pressable` inside a shield never fires: the shield must sit inside the `Pressable`, not
-  around it.
+  around it. Neither the guard nor the shield stopped the scroll on Dennis's Duo (build 27). The
+  one switch that holds is `scrollsToTop={false}` on the scroll view, as the transcript
+  (#2939) and the sessions list do. Set it on every list that sits under a bar with tappable
+  header views; the cost is that a status-bar tap no longer scrolls that list.
 - **Back:** the native back button and the swipe-back gesture. Do not add a JS back button on iOS.
   A pushed screen (Settings, Sub-agent, Project settings) uses `pushedHeaderOptionsOf`: the native
   back button followed by the same glass leading title as the tab screens.
