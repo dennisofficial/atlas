@@ -218,6 +218,9 @@ export const Transcript = ({
       ref={listRef}
       data={rows}
       keyExtractor={keyOf}
+      // iOS 27 scrolls this list to the top on any tap on the native bar, header buttons included.
+      // ScrollToTopGuard and a UIControl overlay both failed on the iPhone Duo; only this holds.
+      // Do not remove. https://github.com/react/react-native/issues/56061
       scrollsToTop={false}
       renderItem={renderRow}
       contentInsetAdjustmentBehavior="automatic"

@@ -26,4 +26,14 @@ describe('InputGroup', () => {
     expect(classes.some((name) => name.startsWith('has-disabled:'))).toBe(false)
     expect(classes).toContain('has-[[data-slot=input-group-control]:disabled]:opacity-50')
   })
+
+  it('rings a focused control by default and shows the caret alone when asked', () => {
+    const focusRing = 'has-[[data-slot=input-group-control]:focus-visible]:ring-3'
+    const ringed = groupClassOf(renderToStaticMarkup(<InputGroup />)).split(' ')
+    const caret = groupClassOf(renderToStaticMarkup(<InputGroup focus="caret" />)).split(' ')
+
+    expect(ringed).toContain(focusRing)
+    expect(caret).not.toContain(focusRing)
+    expect(caret).toContain('has-[[data-slot][aria-invalid=true]]:ring-3')
+  })
 })
