@@ -148,3 +148,42 @@ describe('theme.css', () => {
     expect(css).toContain('--font-display: "Space Grotesk"')
   })
 })
+
+const relativeLuminance = (hex: string): number => {
+  const channels = [1, 3, 5].map((start) => Number.parseInt(hex.slice(start, start + 2), 16) / 255)
+  const [red = 0, green = 0, blue = 0] = channels.map((channel) =>
+    channel <= 0.03928 ? channel / 12.92 : ((channel + 0.055) / 1.055) ** 2.4,
+  )
+  return 0.2126 * red + 0.7152 * green + 0.0722 * blue
+}
+
+const contrastOf = ({ text, surface }: { text: string; surface: string }): number => {
+  const [lighter, darker] = [relativeLuminance(text), relativeLuminance(surface)].sort(
+    (left, right) => right - left,
+  )
+  return ((lighter ?? 0) + 0.05) / ((darker ?? 0) + 0.05)
+}
+
+describe('sky accent', () => {
+  test('primary is a sky blue, not a graphite', () => {
+    for (const scheme of Object.values(EColorScheme)) {
+      const { primary } = semantic[scheme]
+      expect(primary, scheme).not.toBe(semantic[scheme].foreground)
+      expect(primary.slice(5, 7) > primary.slice(1, 3), scheme).toBe(true)
+    }
+  })
+
+  test('label on a primary fill and primary text on the page meet AA', () => {
+    for (const scheme of Object.values(EColorScheme)) {
+      const theme = semantic[scheme]
+      expect(
+        contrastOf({ text: theme.primaryForeground, surface: theme.primary }),
+        `${scheme} primary fill`,
+      ).toBeGreaterThanOrEqual(4.5)
+      expect(
+        contrastOf({ text: theme.primary, surface: theme.background }),
+        `${scheme} primary text`,
+      ).toBeGreaterThanOrEqual(4.5)
+    }
+  })
+})
