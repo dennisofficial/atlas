@@ -7,9 +7,17 @@ import {
   type ProviderSignInPoll,
 } from '@dltech/atlas-wire/web'
 
+export enum EBrowserSignInResult {
+  SignedIn = 'signed-in',
+  Fallback = 'fallback',
+  Cancelled = 'cancelled',
+  Failed = 'failed',
+}
+
 export enum EProviderSignInState {
   Idle = 'idle',
   Starting = 'starting',
+  Browser = 'browser',
   AwaitingCode = 'awaiting-code',
   Submitting = 'submitting',
   Waiting = 'waiting',
@@ -18,6 +26,7 @@ export enum EProviderSignInState {
 export type ProviderSignInFlow =
   | { status: EProviderSignInState.Idle }
   | { status: EProviderSignInState.Starting }
+  | { status: EProviderSignInState.Browser }
   | { status: EProviderSignInState.AwaitingCode; authorizeUrl: string }
   | { status: EProviderSignInState.Submitting; authorizeUrl: string }
   | { status: EProviderSignInState.Waiting; userCode: string; verificationUrl: string }
@@ -54,6 +63,7 @@ export function createProviderSignIn(args: {
   begin: (provider: EOauthProvider) => Promise<ProviderSignInBegin>
   complete: (args: { attemptId: string; code: string }) => Promise<AccountDto>
   poll: (attemptId: string) => Promise<ProviderSignInPoll>
+  browser?: (args: { signal: AbortSignal; onWaiting: () => void }) => Promise<EBrowserSignInResult>
   open: (url: string) => void
   errorMessage?: (error: unknown) => string
   onChanged: () => void
@@ -62,6 +72,7 @@ export function createProviderSignIn(args: {
 }) {
   let flow: ProviderSignInFlow = { status: EProviderSignInState.Idle }
   let run = 0
+  let browserRun: AbortController | null = null
   let attempt: { attemptId: string; authorizeUrl: string } | null = null
   const listeners = new Set<() => void>()
   const publish = (next: ProviderSignInFlow) => {
@@ -79,16 +90,37 @@ export function createProviderSignIn(args: {
     })
   const cancel = () => {
     run += 1
+    browserRun?.abort()
+    browserRun = null
     attempt = null
     publish({ status: EProviderSignInState.Idle })
   }
   const start = () => {
     const id = ++run
+    browserRun?.abort()
+    const controller = new AbortController()
+    browserRun = controller
     const isCurrent = () => id === run
     attempt = null
     publish({ status: EProviderSignInState.Starting })
     void (async () => {
       try {
+        if (args.browser) {
+          const result = await args.browser({
+            signal: controller.signal,
+            onWaiting: () => {
+              if (isCurrent()) publish({ status: EProviderSignInState.Browser })
+            },
+          })
+          if (!isCurrent()) return
+          if (result === EBrowserSignInResult.Failed) throw new Error('Provider sign-in failed')
+          if (result !== EBrowserSignInResult.Fallback) {
+            publish({ status: EProviderSignInState.Idle })
+            if (result === EBrowserSignInResult.SignedIn) args.onChanged()
+            return
+          }
+          publish({ status: EProviderSignInState.Starting })
+        }
         const begun = await args.begin(args.provider)
         if (!isCurrent()) return
         if (begun.flow === EProviderSignInFlow.PasteCode) {
@@ -120,6 +152,8 @@ export function createProviderSignIn(args: {
         args.onChanged()
       } catch (error) {
         if (isCurrent()) fail(error)
+      } finally {
+        if (isCurrent()) browserRun = null
       }
     })()
   }

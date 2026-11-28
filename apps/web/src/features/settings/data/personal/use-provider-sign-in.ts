@@ -1,8 +1,14 @@
 'use client'
 
-import { createProviderSignIn, type ProviderSignInControl } from '@dltech/atlas-client/settings'
+import {
+  createProviderSignIn,
+  EBrowserSignInResult,
+  type ProviderSignInControl,
+} from '@dltech/atlas-client/settings'
 import type { EOauthProvider } from '@dltech/atlas-wire/web'
 import { useEffect, useMemo, useRef, useSyncExternalStore } from 'react'
+import { isDesktopHost } from '@/features/desktop/desktop-attributes'
+import { EDesktopProviderResult, signInThroughDesktop } from './desktop-provider-sign-in'
 import { errorMessageOf } from './error-message'
 import {
   beginProviderSignIn,
@@ -26,6 +32,23 @@ export function useProviderSignIn(args: {
     () =>
       createProviderSignIn({
         provider: args.provider,
+        browser:
+          typeof window !== 'undefined' && isDesktopHost(window)
+            ? async (browserArgs) => {
+                const result = await signInThroughDesktop({
+                  provider: args.provider,
+                  ...browserArgs,
+                })
+                switch (result) {
+                  case EDesktopProviderResult.SignedIn:
+                    return EBrowserSignInResult.SignedIn
+                  case EDesktopProviderResult.Cancelled:
+                    return EBrowserSignInResult.Cancelled
+                  case EDesktopProviderResult.Fallback:
+                    return EBrowserSignInResult.Fallback
+                }
+              }
+            : undefined,
         begin: beginProviderSignIn,
         complete: completeProviderSignIn,
         poll: pollProviderSignIn,
