@@ -142,7 +142,7 @@ export const SecretReveal = ({
   return (
     <>
       {value !== null && kind === EAccessMemberKind.File ? (
-        <ScrollView style={{ maxHeight: 160 }} nestedScrollEnabled>
+        <ScrollView scrollsToTop={false} style={{ maxHeight: 160 }} nestedScrollEnabled>
           <Text family={EFontFamily.Mono} size={ETextRole.Sm} style={accessStyles.note} selectable>
             {value}
           </Text>
