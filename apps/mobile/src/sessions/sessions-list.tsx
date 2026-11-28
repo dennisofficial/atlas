@@ -164,6 +164,9 @@ export const SessionsList = ({
           contentContainerStyle={[styles.list, { paddingBottom: space(8) + insets.bottom }]}
           keyboardDismissMode={showsSearchField ? 'on-drag' : 'none'}
           contentInsetAdjustmentBehavior="automatic"
+          // iOS 27 scrolls this list to the top on any tap on the native bar, header buttons included.
+          // ScrollToTopGuard and a UIControl overlay both failed on the iPhone Duo; only this holds.
+          // Do not remove. https://github.com/react/react-native/issues/56061
           scrollsToTop={false}
           sections={sections}
           keyExtractor={(item) => item.key}
