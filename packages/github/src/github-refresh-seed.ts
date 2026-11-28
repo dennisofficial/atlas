@@ -1,4 +1,4 @@
-import { db, type Row } from '@dltech/atlas-db'
+import { and, db, or, type Row } from '@dltech/atlas-db'
 import { normalizedRepo } from './github-linked-prs'
 import { subscriptionLiveWhere } from './github-delivery-routing'
 import { runSelectorOf } from './github-run-selector'
@@ -15,11 +15,24 @@ type SeedKey = {
 const keyId = (key: SeedKey): string =>
   [key.userId, key.kind, key.repoFullName, key.branch, key.prNumber].join('\u0000')
 
-const storedLiveUntil = async (userIds: readonly string[]): Promise<Map<string, number>> => {
-  if (userIds.length === 0) return new Map()
-  const rows = await db.orm.public.GithubTrackingTarget.where((target) =>
-    target.userId.in([...userIds]),
-  )
+const storedLiveUntil = async (seeds: readonly SeedKey[]): Promise<Map<string, number>> => {
+  const keys = [...new Map(seeds.map((key) => [keyId(key), key])).values()]
+  if (keys.length === 0) return new Map()
+  const userIds = [...new Set(keys.map((key) => key.userId))]
+  const rows = await db.orm.public.GithubTrackingTarget.where((target) => target.userId.in(userIds))
+    .where((target) =>
+      or(
+        ...keys.map((key) =>
+          and(
+            target.userId.eq(key.userId),
+            target.kind.eq(key.kind),
+            target.repoFullName.eq(key.repoFullName),
+            target.branch.eq(key.branch),
+            target.prNumber.eq(key.prNumber),
+          ),
+        ),
+      ),
+    )
     .select('userId', 'kind', 'repoFullName', 'branch', 'prNumber', 'liveUntil')
     .all()
   return new Map(rows.map((row) => [keyId(row), row.liveUntil.getTime()]))
@@ -46,36 +59,28 @@ export async function seedSubscriptionTargets(args: {
   const subscriptions = await db.orm.public.GithubSubscription.where(
     subscriptionLiveWhere({ now: args.now }),
   ).all()
-  const stored = await storedLiveUntil(subscriptions.map((row) => row.userId))
+  const seeds: { key: SeedKey; liveUntil: Date }[] = []
   for (const row of subscriptions) {
+    const key: SeedKey = {
+      userId: row.userId,
+      kind: 'pull-request',
+      repoFullName: normalizedRepo(row.repoFullName),
+      branch: '',
+      prNumber: row.prNumber ?? 0,
+    }
     if (row.prNumber !== null) {
-      await dueTarget({ row, number: row.prNumber, now: args.now, stored })
+      seeds.push({ key, liveUntil: row.liveUntil })
       continue
     }
     if (!row.pollBacked || row.branch === '') continue
     if (runSelectorOf(row.branch) !== null) continue
     if (!(await args.transport.polls(row.repoFullName))) continue
-    await dueHeadTarget({ row, now: args.now, stored })
+    seeds.push({ key: { ...key, kind: 'head', branch: row.branch }, liveUntil: row.liveUntil })
   }
-}
-
-async function dueHeadTarget(args: {
-  row: Row<'GithubSubscription'>
-  now: Date
-  stored: Map<string, number>
-}): Promise<void> {
-  await seedTargetIfChanged({
-    key: {
-      userId: args.row.userId,
-      kind: 'head',
-      repoFullName: normalizedRepo(args.row.repoFullName),
-      branch: args.row.branch,
-      prNumber: 0,
-    },
-    liveUntil: args.row.liveUntil,
-    now: args.now,
-    stored: args.stored,
-  })
+  const stored = await storedLiveUntil(seeds.map((seed) => seed.key))
+  for (const seed of seeds) {
+    await seedTargetIfChanged({ ...seed, now: args.now, stored })
+  }
 }
 
 export const ensurePullTarget = async (args: {
@@ -85,37 +90,18 @@ export const ensurePullTarget = async (args: {
   liveUntil: Date
   now: Date
 }): Promise<void> => {
+  const key: SeedKey = {
+    userId: args.userId,
+    kind: 'pull-request',
+    repoFullName: normalizedRepo(args.repoFullName),
+    branch: '',
+    prNumber: args.prNumber,
+  }
   await seedTargetIfChanged({
-    key: {
-      userId: args.userId,
-      kind: 'pull-request',
-      repoFullName: normalizedRepo(args.repoFullName),
-      branch: '',
-      prNumber: args.prNumber,
-    },
+    key,
     liveUntil: args.liveUntil,
     now: args.now,
-    stored: await storedLiveUntil([args.userId]),
-  })
-}
-
-async function dueTarget(args: {
-  row: Row<'GithubSubscription'>
-  number: number
-  now: Date
-  stored: Map<string, number>
-}): Promise<void> {
-  await seedTargetIfChanged({
-    key: {
-      userId: args.row.userId,
-      kind: 'pull-request',
-      repoFullName: normalizedRepo(args.row.repoFullName),
-      branch: '',
-      prNumber: args.number,
-    },
-    liveUntil: args.row.liveUntil,
-    now: args.now,
-    stored: args.stored,
+    stored: await storedLiveUntil([key]),
   })
 }
 
