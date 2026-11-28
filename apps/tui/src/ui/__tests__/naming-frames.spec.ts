@@ -1,4 +1,3 @@
-import type { StyledText } from '@opentui/core'
 import { describe, expect, test } from 'bun:test'
 
 import {
@@ -13,8 +12,6 @@ import {
 } from '../naming-frames'
 
 const TITLE = 'fix the sidebar shimmer'
-
-const plain = (styled: StyledText): string => styled.chunks.map((chunk) => chunk.text).join('')
 
 describe('the naming glide', () => {
   test('opens at the width the generating line held', () => {
@@ -138,7 +135,7 @@ describe('the settled line', () => {
 })
 
 describe('a slab-backed line', () => {
-  const SLAB_LINE = { ...NAMING_SIDEBAR_LINE, bg: '#1e1a17' }
+  const SLAB_LINE = { ...NAMING_SIDEBAR_LINE, bg: '#1b1b1b' }
   const startedAt = 1_000
 
   test('pads the generating noise with a cell of ground on each side', () => {

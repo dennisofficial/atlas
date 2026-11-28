@@ -141,6 +141,8 @@ const wash = {
 } as const
 
 const accentChoices = {
+  graphite: '#eaeaea',
+  sky: '#40c3f7',
   clay: clay[500],
   slate: '#7f9cc0',
   moss: '#7aa262',

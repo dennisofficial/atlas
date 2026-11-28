@@ -29,7 +29,7 @@ import { applyLogo, logoOf, SHIPPED_LOGO, type ELogo } from './logo-store'
 import { applyPalette } from './palette-store'
 import { theme } from './theme'
 
-export const SHIPPED_ACCENT = 'clay'
+export const SHIPPED_ACCENT = 'graphite'
 
 export type Appearance = {
   accent: string

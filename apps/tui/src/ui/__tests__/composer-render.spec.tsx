@@ -1,6 +1,6 @@
 import { parseColor } from '@opentui/core'
 import { testRender } from '@opentui/react/test-utils'
-import { afterEach, describe, expect, it } from 'bun:test'
+import { afterEach, beforeEach, describe, expect, it } from 'bun:test'
 import React from 'react'
 
 import {
@@ -30,6 +30,10 @@ import { glyph, theme } from '../theme'
 import { drawn, frameOf, HEIGHT } from './transcript-fixture'
 
 await grammarsReady()
+
+beforeEach(() => {
+  dismissNotice()
+})
 
 afterEach(() => {
   applyComposerEdge(SHIPPED_COMPOSER_EDGE)

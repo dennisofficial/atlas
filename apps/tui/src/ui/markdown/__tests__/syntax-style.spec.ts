@@ -51,6 +51,7 @@ describe('syntax styles', () => {
   })
 
   it('spends no accent on a table: the box is rule, the header meta, the cells body', () => {
+    applyPalette({ accent: '#00ff00' })
     expect(proseScopes().conceal).toEqual({ fg: theme.rule })
     expect(proseScopes()['markup.heading']).toEqual({ fg: theme.meta })
     expect(proseScopes().default).toEqual({ fg: theme.hover })
@@ -62,7 +63,7 @@ describe('syntax styles', () => {
 
 describe('syntax styles follow the palette', () => {
   it('rebuilds the prose scopes when a colour moves', () => {
-    expect(proseScopes().conceal).toEqual({ fg: '#3a3532' })
+    expect(proseScopes().conceal).toEqual({ fg: '#363636' })
     applyPalette({ rule: '#00ff00' })
     expect(proseScopes().conceal).toEqual({ fg: '#00ff00' })
   })
@@ -119,7 +120,7 @@ describe('code themes', () => {
 
   it('rebuilds `atlas` from the palette, because that theme IS a view of it', () => {
     setCodeTheme('atlas')
-    expect(codeTheme().roles.keyword).toMatchObject({ fg: '#d97757' })
+    expect(codeTheme().roles.keyword).toMatchObject({ fg: '#eaeaea' })
     applyPalette({ accent: '#00ff00' })
     expect(codeTheme().roles.keyword).toMatchObject({ fg: '#00ff00' })
   })
