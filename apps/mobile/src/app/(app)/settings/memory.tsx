@@ -2,8 +2,11 @@ import {
   MEMORY_ALL_TYPES,
   MEMORY_PAGE_DESCRIPTION,
   MEMORY_TYPE_FILTER_OPTIONS,
-  MEMORY_TYPE_LABELS,
-  formatMemoryDate,
+  MEMORY_DELETE_TAIL,
+  memoryDeleteTitleOf,
+  memorySelectionOf,
+  selectedMemoryNamesOf,
+  memoryKeyOf,
   isMemoryTypeFilter,
   memoryClearDescriptionOf,
   memoryGroupLabel,
@@ -13,56 +16,28 @@ import {
   type MemoryEntry,
   type MemoryScopeGroup,
 } from '@dltech/atlas-client/settings'
-import { EFontFamily, ETextRole, ETextTone, Icon, Text, useTheme } from '@dltech/atlas-ui-native'
+import {
+  Button,
+  EButtonVariant,
+  EButtonSize,
+  ETextRole,
+  ETextTone,
+  Text,
+} from '@dltech/atlas-ui-native'
 import { space } from '@dltech/atlas-ui/tokens'
-import { router, Stack, useFocusEffect } from 'expo-router'
-import { ChevronRight } from 'lucide-react-native'
-import { useCallback, useState } from 'react'
-import { Pressable, StyleSheet, View } from 'react-native'
+import { router, Stack } from 'expo-router'
+import { useState } from 'react'
+import { Platform, StyleSheet } from 'react-native'
 
+import { useReloadOnFocus } from '../../../skills/use-reload-on-focus'
 import { useAuth } from '../../../auth/auth-provider'
-import { EResourceState } from '../../../settings/api-resource-state'
 import { ChoiceRow } from '../../../settings/choice-row'
 import { confirmAction } from '../../../settings/confirm-action'
 import { deleteMemoryEntry, loadMemoryGroups } from '../../../settings/memory-api'
+import { MemoryRowView } from '../../../settings/memory-row'
 import { ActionRow, EActionTone, Section, StatusRows } from '../../../settings/settings-parts'
 import { SettingsScroll } from '../../../settings/settings-scroll'
 import { useApiResource } from '../../../settings/use-api-resource'
-
-const MemoryRowView = ({
-  entry,
-  onPress,
-}: {
-  entry: MemoryEntry
-  onPress: (entry: MemoryEntry) => void
-}) => {
-  const theme = useTheme()
-  return (
-    <Pressable
-      accessibilityRole="button"
-      accessibilityLabel={entry.name}
-      onPress={() => onPress(entry)}
-    >
-      <View style={styles.row}>
-        <View style={styles.rowText}>
-          <Text size={ETextRole.Sm} tone={ETextTone.Muted}>
-            {MEMORY_TYPE_LABELS[entry.type]}
-          </Text>
-          <Text size={ETextRole.Sm} family={EFontFamily.Mono}>
-            {entry.name}
-          </Text>
-          <Text size={ETextRole.Sm} tone={ETextTone.Muted} numberOfLines={2}>
-            {entry.description}
-          </Text>
-          <Text size={ETextRole.Sm} tone={ETextTone.Muted}>
-            {`rev ${entry.revision} · updated ${formatMemoryDate(entry.updatedAt)}`}
-          </Text>
-        </View>
-        <Icon icon={ChevronRight} color={theme.mutedForeground} size={16} />
-      </View>
-    </Pressable>
-  )
-}
 
 const MemoryContent = ({
   groups,
@@ -75,6 +50,10 @@ const MemoryContent = ({
   const [groupId, setGroupId] = useState(groups[0]?.id ?? '')
   const [query, setQuery] = useState('')
   const [type, setType] = useState<string>(MEMORY_ALL_TYPES)
+  const [selecting, setSelecting] = useState(false)
+  const [selected, setSelected] = useState<string[]>([])
+  const [deleting, setDeleting] = useState(false)
+  const [failure, setFailure] = useState<string | null>(null)
   const group = groups.find((candidate) => candidate.id === groupId) ?? groups[0]
 
   if (group === undefined) return null
@@ -83,7 +62,53 @@ const MemoryContent = ({
   const handleSearch = (event: { nativeEvent: { text: string } }) =>
     setQuery(event.nativeEvent.text)
   const handleCancelSearch = () => setQuery('')
-  const handleGroupChange = (id: string) => setGroupId(id)
+  const liveSelected = selectedMemoryNamesOf({ selected, memories: group.memories })
+  const handleGroupChange = (id: string) => {
+    setGroupId(id)
+    setSelected([])
+  }
+  const handleToggleSelecting = () => {
+    setSelecting((current) => !current)
+    setSelected([])
+  }
+  const handleSelect = (entry: MemoryEntry) =>
+    setSelected((current) =>
+      memorySelectionOf({
+        selectedNames: current,
+        name: entry.name,
+        selected: !current.includes(entry.name),
+      }),
+    )
+  const handleDeleteSelected = () => {
+    if (api === undefined || deleting || liveSelected.length === 0) return
+    const names = liveSelected
+    confirmAction({
+      title: memoryDeleteTitleOf(names.length),
+      message: MEMORY_DELETE_TAIL,
+      confirmLabel: 'Delete',
+      destructive: true,
+      onConfirm: () => {
+        setDeleting(true)
+        setFailure(null)
+        void Promise.allSettled(
+          names.map((name) => deleteMemoryEntry({ api, key: memoryKeyOf({ group, name }) })),
+        )
+          .then((results) => {
+            if (results.some((result) => result.status === 'rejected')) {
+              setFailure('The selected memories could not all be deleted. Try again.')
+              return
+            }
+            setSelected([])
+            setSelecting(false)
+          })
+          .catch(() => setFailure('The selected memories could not all be deleted. Try again.'))
+          .finally(() => {
+            setDeleting(false)
+            reload()
+          })
+      },
+    })
+  }
   const handleTypeChange = (next: string) => {
     if (isMemoryTypeFilter(next)) setType(next)
   }
@@ -123,6 +148,34 @@ const MemoryContent = ({
     <>
       <Stack.Screen
         options={{
+          unstable_headerRightItems:
+            Platform.OS === 'ios'
+              ? () => [
+                  {
+                    type: 'button',
+                    label: selecting ? 'Done' : 'Select',
+                    icon: {
+                      type: 'sfSymbol',
+                      name: selecting ? 'checkmark.circle.fill' : 'checkmark.circle',
+                    },
+                    accessibilityLabel: selecting ? 'Done selecting memories' : 'Select memories',
+                    disabled: deleting,
+                    onPress: handleToggleSelecting,
+                  },
+                ]
+              : undefined,
+          headerRight:
+            Platform.OS === 'ios'
+              ? undefined
+              : () => (
+                  <Button
+                    label={selecting ? 'Done' : 'Select'}
+                    variant={EButtonVariant.Ghost}
+                    size={EButtonSize.Sm}
+                    disabled={deleting}
+                    onPress={handleToggleSelecting}
+                  />
+                ),
           headerSearchBarOptions: {
             placement: 'integratedButton',
             placeholder: 'Search memories',
@@ -145,6 +198,22 @@ const MemoryContent = ({
           {memoryScopeHintOf(group)}
         </Text>
       </Section>
+      {failure === null ? null : (
+        <Text size={ETextRole.Sm} tone={ETextTone.Destructive}>
+          {failure}
+        </Text>
+      )}
+      {selecting && liveSelected.length > 0 ? (
+        <Section title={`${liveSelected.length} selected`}>
+          <ActionRow
+            label={memoryDeleteTitleOf(liveSelected.length)}
+            tone={EActionTone.Destructive}
+            loading={deleting}
+            onPress={handleDeleteSelected}
+          />
+          <ActionRow label="Clear selection" loading={deleting} onPress={() => setSelected([])} />
+        </Section>
+      ) : null}
       <Section title="Memories">
         <ChoiceRow
           label="Type"
@@ -160,11 +229,18 @@ const MemoryContent = ({
           </Text>
         ) : (
           visible.map((entry) => (
-            <MemoryRowView key={entry.name} entry={entry} onPress={handleOpen} />
+            <MemoryRowView
+              key={entry.name}
+              entry={entry}
+              selecting={selecting}
+              selected={liveSelected.includes(entry.name)}
+              disabled={deleting}
+              onPress={selecting ? handleSelect : handleOpen}
+            />
           ))
         )}
       </Section>
-      {group.memories.length === 0 ? null : (
+      {selecting || group.memories.length === 0 ? null : (
         <Section>
           <ActionRow
             label="Clear this scope"
@@ -183,11 +259,7 @@ export default function MemoryScreen() {
     load: () => (api === undefined ? Promise.resolve(null) : loadMemoryGroups({ api })),
     deps: [api],
   })
-  useFocusEffect(
-    useCallback(() => {
-      if (state === EResourceState.Ready) reload()
-    }, [reload, state]),
-  )
+  useReloadOnFocus(reload)
 
   return (
     <SettingsScroll>
@@ -198,17 +270,6 @@ export default function MemoryScreen() {
 }
 
 const styles = StyleSheet.create({
-  row: {
-    alignItems: 'center',
-    flexDirection: 'row',
-    gap: space(2),
-    paddingHorizontal: space(4),
-    paddingVertical: space(3),
-  },
-  rowText: {
-    flexShrink: 1,
-    gap: space(1),
-  },
   hint: {
     paddingHorizontal: space(4),
     paddingVertical: space(1),

@@ -121,6 +121,18 @@ describe('settings stack screens', () => {
     for (const screen of skillsLists) expect(screen.titleButtons).toBe(2)
   })
 
+  it('registers the repository picker and memory selection bar', () => {
+    expect(SETTINGS_STACK_SCREENS).toContainEqual({
+      name: 'project-settings/[projectId]/repository-picker',
+      title: 'Repository',
+    })
+    expect(SETTINGS_STACK_SCREENS).toContainEqual({
+      name: 'settings/memory',
+      title: 'Memory',
+      titleButtons: 2,
+    })
+  })
+
   it('names a route file that exists', () => {
     for (const screen of SETTINGS_STACK_SCREENS) {
       const file = resolve(import.meta.dir, '..', '..', 'app', '(app)', `${screen.name}.tsx`)
