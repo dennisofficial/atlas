@@ -87,6 +87,7 @@ describeHandoff({
             ],
           },
           { text: 'the shell runs in the background' },
+          { text: 'the observer finished and the shell is still running' },
         ],
         [`${ctx.sessionId}#${BRIEF}@host-a`]: [
           {
@@ -121,6 +122,11 @@ describeHandoff({
     await ctx.release('publish')
     await ctx.waitFor('started', 30_000)
     await expectPublishedOnce({ ctx, text: BEFORE })
+    await waitUntil({
+      what: 'the launch turn to end before the observer exits',
+      check: async () =>
+        (await rowsOf(ctx)).filter((row) => row.type === 'turn-ended').length === 1,
+    })
     await ctx.release('child')
     await waitUntil({
       what: 'the observer child to exit',
@@ -129,9 +135,16 @@ describeHandoff({
     await ctx.release('after')
     await expectPublishedOnce({ ctx, text: AFTER })
     await waitUntil({
-      what: 'the main turn to end while the shell keeps running',
-      check: async () => (await rowsOf(ctx)).some((row) => row.type === 'turn-ended'),
+      what: 'the observer ending wake turn to finish before handoff',
+      check: async () => {
+        const rows = await rowsOf(ctx)
+        expect(rows.filter((row) => row.type === 'run-failed')).toEqual([])
+        return rows.filter((row) => row.type === 'turn-ended').length === 2
+      },
     })
+    const rows = await rowsOf(ctx)
+    expect(rows.filter((row) => row.type === 'agent-spawned')).toHaveLength(1)
+    expect(rows.filter((row) => row.type === 'background-shell-started')).toHaveLength(1)
     return host
   },
 
