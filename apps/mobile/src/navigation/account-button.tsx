@@ -4,7 +4,6 @@ import { router } from 'expo-router'
 import { Pressable, StyleSheet } from 'react-native'
 
 import { useAuth } from '../auth/auth-provider'
-import { HeaderTapShield } from './header-tap-shield'
 import { SETTINGS_HREF } from './root-navigation'
 
 export const initialsOf = (label: string): string =>
@@ -15,8 +14,6 @@ export const initialsOf = (label: string): string =>
     .map((part) => part[0]?.toUpperCase() ?? '')
     .join('')
 
-const HIT_SLOP = 8
-
 export const AccountButton = () => {
   const { user } = useAuth()
   const name = user?.name ?? user?.email ?? 'Signed in'
@@ -25,12 +22,11 @@ export const AccountButton = () => {
     <Pressable
       accessibilityRole="button"
       accessibilityLabel="Settings"
-      hitSlop={HIT_SLOP}
+      hitSlop={8}
       onPress={handlePress}
       style={styles.button}
     >
       <Avatar initials={initialsOf(name)} size={EAvatarSize.Sm} />
-      <HeaderTapShield slop={HIT_SLOP} />
     </Pressable>
   )
 }

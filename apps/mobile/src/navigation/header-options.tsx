@@ -7,7 +7,6 @@ import { Platform, StyleSheet, View } from 'react-native'
 import { AccountButton } from './account-button'
 import { GlassSurface } from './glass-surface'
 import { leadingTitleWidthOf } from './header-leading'
-import { HeaderTapShield, PASS_THROUGH } from './header-tap-shield'
 import { NewSessionButton } from './new-session-button'
 
 export const LEAD_GAP = 10
@@ -15,7 +14,7 @@ export const LEAD_GAP = 10
 const BAR_PILL_HEIGHT = 44
 
 export const TabHeaderTitle = ({ title }: { title: string }) => (
-  <Text size={ETextRole.Base} weight={EFontWeight.Semibold} numberOfLines={1} style={PASS_THROUGH}>
+  <Text size={ETextRole.Base} weight={EFontWeight.Semibold} numberOfLines={1}>
     {title}
   </Text>
 )
@@ -56,11 +55,8 @@ export const leadingHeaderOptionsOf = ({
         { maxWidth: titleWidth },
       ]}
     >
-      <HeaderTapShield />
       {iosLead}
-      <View style={styles.titleText} pointerEvents="box-none">
-        {title}
-      </View>
+      <View style={styles.titleText}>{title}</View>
     </View>
   )
   if (fillsBar && Platform.OS === 'ios') {
@@ -75,11 +71,8 @@ export const leadingHeaderOptionsOf = ({
             { width: titleWidth },
           ]}
         >
-          <HeaderTapShield />
           {iosLead}
-          <View style={styles.fillText} pointerEvents="box-none">
-            {title}
-          </View>
+          <View style={styles.fillText}>{title}</View>
         </GlassSurface>
       ),
       unstable_headerLeftItems: () => [...leading],
