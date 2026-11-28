@@ -8,7 +8,7 @@ import { partitionThreads, projectNameOf, type ShellSessionNode } from '../threa
 import { ThreadActionsContext } from '../thread-actions-context'
 import type { SessionSummary } from '@dltech/atlas-protocol'
 import { rowOf, sessionHref, mergeSessions } from '../session-rows'
-import { agoIso, NOW, projectOf, sessionOf, threadOf } from './fixtures'
+import { agoIso, projectOf, sessionOf, threadOf } from './fixtures'
 
 const summary = (overrides: Partial<SessionSummary> = {}): SessionSummary => ({
   sessionId: 'ses-a',
@@ -58,7 +58,7 @@ describe('rowOf', () => {
       entries: entries(),
       sessions: [summary({ archivedAt: stamp })],
     })
-    const partition = partitionThreads({ entries: merged, now: NOW })
+    const partition = partitionThreads({ entries: merged })
     expect(partition.archived[0]?.sessions.map((s) => s.id)).toEqual(['ses-a'])
     expect(rowOf(summary()).mainThread.archivedAt).toBeNull()
   })
@@ -99,7 +99,7 @@ describe('mergeSessions', () => {
     expect(merged[0]?.sessions.map((s) => s.id)).toEqual(['ses_v1-old'])
     expect(merged[1]?.sessions).toEqual([])
     expect(merged[2]?.sessions.map((s) => s.id)).toEqual(['loose'])
-    const partition = partitionThreads({ entries: merged, now: NOW })
+    const partition = partitionThreads({ entries: merged })
     expect(partition.groups.map((entry) => projectNameOf(entry.project))).toEqual([
       'project-p1',
       'No project',
@@ -127,7 +127,7 @@ describe('mergeSessions', () => {
       entries: entries(),
       sessions: [summary({ updatedAt: agoIso(100), createdAt: agoIso(101) })],
     })
-    const partition = partitionThreads({ entries: merged, now: NOW })
+    const partition = partitionThreads({ entries: merged })
     expect(partition.groups[0]?.sessions.map((s) => s.id)).toEqual(['ses-a', 'ses_v1-old'])
   })
 })

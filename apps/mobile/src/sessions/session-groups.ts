@@ -1,7 +1,6 @@
 import {
   type ESessionDisplay,
   EPeerBucket,
-  isRecentProject,
   isSessionUnreadOf,
   nestPeers,
   type PeerTreeNode,
@@ -142,11 +141,9 @@ export const sortSessions = (sessions: readonly ISessionEntry[]): ISessionEntry[
 export const partitionSessions = ({
   projects,
   sessions,
-  now,
 }: {
   projects: readonly IProjectSummary[]
   sessions: readonly SessionSummary[]
-  now: number
 }): ISessionPartition => {
   const ordered = [...projects].sort(
     (left, right) => timeOf(left.createdAt) - timeOf(right.createdAt),
@@ -163,9 +160,6 @@ export const partitionSessions = ({
       entries.set(key, [...(entries.get(key) ?? []), entryOf({ node, projectName: project.name })])
     }
   }
-  const createdAtOf = new Map(ordered.map((project) => [project.id, project.createdAt]))
-  const stampsOf = (key: string): (string | null | undefined)[] =>
-    (placed.get(key)?.sessions ?? []).flatMap((summary) => [summary.updatedAt, summary.archivedAt])
   const groupsOf = (bucket: EPeerBucket): IProjectGroup[] => [
     ...ordered.map((project) => ({
       key: project.id,
@@ -180,14 +174,9 @@ export const partitionSessions = ({
       sessions: sortSessions(entriesOfBucket[bucket].get(NO_PROJECT_KEY) ?? []),
     },
   ]
-  const isRecentGroup = (group: IProjectGroup): boolean => {
-    const createdAt = group.projectId === null ? undefined : createdAtOf.get(group.projectId)
-    if (createdAt === undefined) return false
-    return isRecentProject({ createdAt, stamps: stampsOf(group.key), now })
-  }
   const nonEmpty = (group: IProjectGroup) => group.sessions.length > 0
   return {
-    groups: groupsOf(EPeerBucket.Active).filter((group) => nonEmpty(group) || isRecentGroup(group)),
+    groups: groupsOf(EPeerBucket.Active).filter(nonEmpty),
     archived: groupsOf(EPeerBucket.Archived).filter(nonEmpty),
   }
 }

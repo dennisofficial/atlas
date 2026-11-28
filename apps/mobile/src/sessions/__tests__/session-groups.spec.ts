@@ -41,7 +41,6 @@ describe('partitionSessions', () => {
   it('orders projects by creation and sessions oldest-created first', () => {
     const partition = partitionSessions({
       projects,
-      now: NOW,
       sessions: [
         summaryOf({ sessionId: 'late', createdAt: hoursAgo(5) }),
         summaryOf({ sessionId: 'early', createdAt: hoursAgo(50) }),
@@ -53,31 +52,28 @@ describe('partitionSessions', () => {
     expect(partition.groups[1]?.sessions.map((session) => session.id)).toEqual(['neo'])
   })
 
-  it('hides a project with no activity and keeps one created inside 72h', () => {
+  it('hides a project with no active sessions, however new or recently archived', () => {
     const partition = partitionSessions({
       projects: [...projects, { id: 'fresh', name: 'fresh', createdAt: hoursAgo(1) }],
-      now: NOW,
-      sessions: [],
+      sessions: [summaryOf({ sessionId: 'done', projectId: 'neo', archivedAt: hoursAgo(0.1) })],
     })
-    expect(partition.groups.map((group) => group.name)).toEqual(['fresh'])
-    expect(partition.groups[0]?.sessions).toEqual([])
+    expect(partition.groups).toEqual([])
+    expect(partition.archived.map((group) => group.name)).toEqual(['comp-neo'])
   })
 
-  it('keeps an old project while one of its sessions moved', () => {
+  it('shows an old project while it holds an active session', () => {
     const partition = partitionSessions({
       projects,
-      now: NOW,
       sessions: [summaryOf({ sessionId: 'moved', projectId: 'rcp' })],
     })
     expect(partition.groups.map((group) => group.name)).toEqual(['RCP'])
   })
 
   it('shows a No project group only when it has sessions', () => {
-    const empty = partitionSessions({ projects, now: NOW, sessions: [] })
+    const empty = partitionSessions({ projects, sessions: [] })
     expect(empty.groups.some((group) => group.projectId === null)).toBe(false)
     const loose = partitionSessions({
       projects,
-      now: NOW,
       sessions: [summaryOf({ sessionId: 'loose', projectId: null })],
     })
     expect(loose.groups.at(-1)).toMatchObject({ name: NO_PROJECT_NAME, projectId: null })
@@ -86,7 +82,6 @@ describe('partitionSessions', () => {
   it('files a session of a deleted project nowhere', () => {
     const partition = partitionSessions({
       projects,
-      now: NOW,
       sessions: [summaryOf({ sessionId: 'gone', projectId: 'deleted' })],
     })
     expect(entriesOf(partition)).toEqual([])
@@ -95,7 +90,6 @@ describe('partitionSessions', () => {
   it('marks a session unread until its read cursor reaches the last assistant seq', () => {
     const partition = partitionSessions({
       projects,
-      now: NOW,
       sessions: [
         summaryOf({ sessionId: 'unread', lastAssistantSeq: 6, readSeq: 5 }),
         summaryOf({ sessionId: 'read', lastAssistantSeq: 6, readSeq: 6 }),
@@ -115,7 +109,6 @@ describe('partitionSessions', () => {
   it('keeps a session that spawned itself as a peer at the top level', () => {
     const partition = partitionSessions({
       projects,
-      now: NOW,
       sessions: [
         summaryOf({ sessionId: 'main' }),
         summaryOf({ sessionId: 'peer', spawnedBy: 'main', nested: false }),
@@ -127,7 +120,6 @@ describe('partitionSessions', () => {
   it('nests a teammate under the session that spawned it', () => {
     const partition = partitionSessions({
       projects,
-      now: NOW,
       sessions: [
         summaryOf({ sessionId: 'main' }),
         summaryOf({ sessionId: 'mate', spawnedBy: 'main', nested: true }),
@@ -143,7 +135,6 @@ describe('partitionSessions', () => {
   it('keeps a teammate whose spawner is archived or missing', () => {
     const partition = partitionSessions({
       projects,
-      now: NOW,
       sessions: [
         summaryOf({ sessionId: 'archived-main', archivedAt: hoursAgo(2) }),
         summaryOf({ sessionId: 'mate', spawnedBy: 'archived-main', nested: true }),
@@ -157,7 +148,6 @@ describe('partitionSessions', () => {
   it('keeps an old session in its project and files archived sessions per project', () => {
     const partition = partitionSessions({
       projects,
-      now: NOW,
       sessions: [
         summaryOf({ sessionId: 'stale', updatedAt: hoursAgo(100) }),
         summaryOf({ sessionId: 'kept' }),
@@ -171,7 +161,6 @@ describe('partitionSessions', () => {
   it('keeps the checks and the mergeability of a session pull request for the row chip', () => {
     const partition = partitionSessions({
       projects,
-      now: NOW,
       sessions: [
         summaryOf({
           sessionId: 'pr',
@@ -202,7 +191,6 @@ describe('partitionSessions', () => {
   it('describes a session by its latest pull request, then its branch', () => {
     const partition = partitionSessions({
       projects,
-      now: NOW,
       sessions: [
         summaryOf({
           sessionId: 'pr',
@@ -244,7 +232,6 @@ describe('session display', () => {
     entriesOf(
       partitionSessions({
         projects,
-        now: NOW,
         sessions: [summaryOf({ sessionId: 's', ...overrides })],
       }),
     )[0]?.status
