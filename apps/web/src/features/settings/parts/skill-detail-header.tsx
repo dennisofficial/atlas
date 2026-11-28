@@ -6,7 +6,7 @@ import { ArrowLeftIcon, Trash2Icon } from 'lucide-react'
 import { Badge } from '@dltech/atlas-ui/components/badge'
 import { Button } from '@dltech/atlas-ui/components/button'
 
-import { formatSkillDate } from './skill-format'
+import { formatSkillDate } from '@dltech/atlas-client/settings'
 
 export function SkillDetailHeader({
   name,

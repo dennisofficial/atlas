@@ -9,7 +9,12 @@ import {
 import { samePaneLayout } from '@/features/threads/panel/pane-split'
 import { useRightPanelCollapsed } from '@/features/threads/panel/right-panel-collapsed'
 
-import { recallPaneTab, rememberPaneTab } from './pane-memory'
+import {
+  recallDetailsOpen,
+  recallPaneTab,
+  rememberDetailsOpen,
+  rememberPaneTab,
+} from './pane-memory'
 import { EPaneOpen, type PaneOpenRequest } from './pane-open'
 import { ESessionPaneTab } from './pane-tab'
 
@@ -31,6 +36,11 @@ export type SessionPaneState = {
   consumePodSizeRequest: () => void
   layout: PaneLayout | undefined
   rememberLayout: (layout: PaneLayout) => void
+  detailsOpen: boolean
+  detailsShown: boolean
+  setDetailsOpen: (open: boolean) => void
+  toggleDetails: () => void
+  openDetails: () => void
 }
 
 export function useSessionPane(sessionId: string): SessionPaneState {
@@ -42,6 +52,14 @@ export function useSessionPane(sessionId: string): SessionPaneState {
     (next: PaneLayout) => {
       rememberPaneLayout({ threadId: sessionId, layout: next })
       setLayout((held) => (samePaneLayout(held, next) ? held : next))
+    },
+    [sessionId],
+  )
+  const [detailsOpen, setDetailsOpenState] = useState(() => recallDetailsOpen(sessionId))
+  const setDetailsOpen = useCallback(
+    (open: boolean) => {
+      rememberDetailsOpen({ sessionId, open })
+      setDetailsOpenState(open)
     },
     [sessionId],
   )
@@ -60,6 +78,20 @@ export function useSessionPane(sessionId: string): SessionPaneState {
   }, [setCollapsed])
 
   const toggleCollapsed = useCallback(() => setCollapsed(!collapsed), [collapsed, setCollapsed])
+
+  const detailsShown = detailsOpen && collapsed
+  const toggleDetails = useCallback(() => {
+    if (detailsShown) return setDetailsOpen(false)
+    setDetailsOpen(true)
+    setCollapsed(true)
+  }, [detailsShown, setDetailsOpen, setCollapsed])
+
+  const openDetails = useCallback(() => {
+    setDetailsOpen(true)
+    setCollapsed(true)
+    setTab(ESessionPaneTab.Details)
+    setSheetOpen(true)
+  }, [setDetailsOpen, setCollapsed])
 
   const openTab = useCallback(
     (next: ESessionPaneTab) => {
@@ -101,5 +133,10 @@ export function useSessionPane(sessionId: string): SessionPaneState {
     consumePodSizeRequest,
     layout,
     rememberLayout,
+    detailsOpen,
+    detailsShown,
+    setDetailsOpen,
+    toggleDetails,
+    openDetails,
   }
 }

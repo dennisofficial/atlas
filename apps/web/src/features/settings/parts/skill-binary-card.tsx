@@ -4,7 +4,7 @@ import { DownloadIcon, FileIcon, Trash2Icon } from 'lucide-react'
 
 import { Button } from '@dltech/atlas-ui/components/button'
 
-import { formatBytes } from './skill-format'
+import { formatBytes } from '@dltech/atlas-client/settings'
 
 export function SkillBinaryCard({
   path,

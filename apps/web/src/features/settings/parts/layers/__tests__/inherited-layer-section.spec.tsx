@@ -8,7 +8,7 @@ import {
   overriddenLabelOf,
   overridesLabelOf,
   shadowedBelowOf,
-} from '../layer-copy'
+} from '@dltech/atlas-client/settings'
 import { InheritedLayers, InheritedRow, OverriddenBadge } from '../inherited-layer-section'
 
 const PERSONAL = { layer: EConfigLayer.Personal, owner: { id: null, name: 'Personal' } }

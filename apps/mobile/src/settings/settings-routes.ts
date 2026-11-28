@@ -13,7 +13,10 @@ export type ISettingsStackScreen = {
   title: string
   presentation?: 'modal'
   sheet?: { detents: number[] }
+  titleButtons?: number
 }
+
+const SKILL_FORM_SHEET = { detents: [0.55, 1] }
 
 export type TRouteOfId = (args: { id: string }) => Href
 
@@ -28,22 +31,27 @@ export const SETTINGS_STACK_SCREENS: readonly ISettingsStackScreen[] = [
   { name: 'settings/account/edit', title: 'Edit profile' },
   { name: 'settings/security', title: 'Devices & Sessions' },
   { name: 'settings/models-effort', title: 'Models & Effort' },
-  { name: 'settings/agent', title: 'Agent' },
-  { name: 'settings/quality', title: 'Code Quality' },
-  { name: 'settings/experimental', title: 'Experimental' },
-  { name: 'settings/appearance', title: 'Appearance' },
+  { name: 'settings/model-role', title: 'Model' },
   { name: 'settings/providers', title: 'Providers' },
   { name: 'settings/provider-account', title: 'Provider account' },
   { name: 'settings/provider-key', title: 'API key', presentation: 'modal' },
   { name: 'settings/classifier', title: 'Classifier' },
+  { name: 'settings/agent', title: 'Agent' },
+  { name: 'settings/quality', title: 'Code Quality' },
+  { name: 'settings/experimental', title: 'Experimental' },
+  { name: 'settings/appearance', title: 'Appearance' },
   { name: 'settings/instructions', title: 'Instructions' },
   { name: 'settings/memory', title: 'Memory' },
   { name: 'settings/memory-entry', title: 'Memory', sheet: { detents: [0.75, 1] } },
+  { name: 'settings/skills', title: 'Skills', titleButtons: 2 },
+  { name: 'settings/skills-new', title: 'New skill', sheet: SKILL_FORM_SHEET },
   { name: 'settings/notifications', title: 'Notifications' },
   { name: 'settings/notifications-timezone', title: 'Time zone' },
   { name: 'project-settings/[projectId]/index', title: 'Project settings' },
   { name: 'project-settings/[projectId]/mcp', title: 'MCP' },
   { name: 'project-settings/[projectId]/overview', title: 'Overview' },
+  { name: 'project-settings/[projectId]/skills', title: 'Skills', titleButtons: 2 },
+  { name: 'project-settings/[projectId]/skills-new', title: 'New skill', sheet: SKILL_FORM_SHEET },
   { name: 'project-settings/[projectId]/sandbox', title: 'Sandbox' },
   { name: 'project-settings/[projectId]/pull-requests', title: 'Pull requests' },
   { name: 'group-settings/[groupId]/index', title: 'Group settings' },
@@ -51,6 +59,8 @@ export const SETTINGS_STACK_SCREENS: readonly ISettingsStackScreen[] = [
   { name: 'group-settings/[groupId]/overview', title: 'Overview' },
   { name: 'group-settings/[groupId]/sandbox', title: 'Sandbox' },
   { name: 'group-settings/[groupId]/instructions', title: 'Instructions' },
+  { name: 'group-settings/[groupId]/skills', title: 'Skills', titleButtons: 2 },
+  { name: 'group-settings/[groupId]/skills-new', title: 'New skill', sheet: SKILL_FORM_SHEET },
 ]
 
 export const IOS_SETTINGS_ROUTES: Partial<Record<ESettingsPage, Href>> = {
@@ -63,10 +73,11 @@ export const IOS_SETTINGS_ROUTES: Partial<Record<ESettingsPage, Href>> = {
   [ESettingsPage.Quality]: '/settings/quality',
   [ESettingsPage.Experimental]: '/settings/experimental',
   [ESettingsPage.Appearance]: '/settings/appearance',
-  [ESettingsPage.Providers]: '/settings/providers',
-  [ESettingsPage.Classifier]: '/settings/classifier',
   [ESettingsPage.Instructions]: '/settings/instructions',
   [ESettingsPage.Memory]: '/settings/memory',
+  [ESettingsPage.Skills]: '/settings/skills',
+  [ESettingsPage.Providers]: '/settings/providers',
+  [ESettingsPage.Classifier]: '/settings/classifier',
   [ESettingsPage.Notifications]: '/settings/notifications',
 }
 
@@ -74,6 +85,8 @@ export const IOS_PROJECT_SECTION_ROUTES: Partial<Record<EProjectSettingsSection,
   [EProjectSettingsSection.Mcp]: ({ id }) => `/project-settings/${encodeURIComponent(id)}/mcp`,
   [EProjectSettingsSection.Overview]: ({ id }) =>
     `/project-settings/${encodeURIComponent(id)}/overview`,
+  [EProjectSettingsSection.Skills]: ({ id }) =>
+    `/project-settings/${encodeURIComponent(id)}/skills`,
   [EProjectSettingsSection.Sandbox]: ({ id }) =>
     `/project-settings/${encodeURIComponent(id)}/sandbox`,
   [EProjectSettingsSection.PullRequests]: ({ id }) =>
@@ -86,23 +99,19 @@ export const IOS_GROUP_SECTION_ROUTES: Partial<Record<TGroupSection, TRouteOfId>
     `/group-settings/${encodeURIComponent(id)}/overview`,
   [EGroupSettingsSection.Instructions]: ({ id }) =>
     `/group-settings/${encodeURIComponent(id)}/instructions`,
+  [EProjectSettingsSection.Skills]: ({ id }) => `/group-settings/${encodeURIComponent(id)}/skills`,
   [EProjectSettingsSection.Sandbox]: ({ id }) =>
     `/group-settings/${encodeURIComponent(id)}/sandbox`,
 }
 
-export const IOS_PENDING_PAGES: ReadonlySet<ESettingsPage> = new Set([
-  ESettingsPage.Skills,
-  ESettingsPage.Access,
-])
+export const IOS_PENDING_PAGES: ReadonlySet<ESettingsPage> = new Set([ESettingsPage.Access])
 
 export const IOS_PENDING_PROJECT_SECTIONS: ReadonlySet<EProjectSettingsSection> = new Set([
   EProjectSettingsSection.Access,
-  EProjectSettingsSection.Skills,
 ])
 
 export const IOS_PENDING_GROUP_SECTIONS: ReadonlySet<TGroupSection> = new Set([
   EProjectSettingsSection.Access,
-  EProjectSettingsSection.Skills,
 ])
 
 export const routedProjectSections = (): typeof PROJECT_SECTIONS =>
