@@ -136,6 +136,7 @@ that serves it advertises `EDaemonCapability.McpRequest`.
 ### Speak the stream protocol
 
 - `parseServerMessage(raw)`, `parseClientMessage(raw)`: parse a frame, or refuse it.
+- `EStreamCacheOutcome` identifies a follow's starting cache: `memory`, `restored`, `empty`, `unusable`, `timeout`, `failed` or `resumed`. Session subscribes accept optional `cache` and non-negative integer `hydrateMs` telemetry.
 - `STREAM_PROTOCOL_VERSION`, `STREAM_MAX_CLIENT_FRAME_BYTES`, `STREAM_TAIL_EVENTS`: the limits.
 - `EStreamClose`, `EStreamErrorCode`, `EStreamSurface`: the close reason, error and surface. An
   `events` frame carries `cursor`, the stored `{seq, hash}` of its last event, and `head`, the stored

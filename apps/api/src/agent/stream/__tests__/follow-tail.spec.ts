@@ -65,6 +65,9 @@ describe('follow tail open', () => {
     expect(catchups[0]?.properties?.start).toBe('tail')
     expect(catchups[0]?.properties?.tail_missed).toBe(false)
     expect(catchups[0]?.properties?.events).toBe(STREAM_TAIL_EVENTS)
+    expect(catchups[0]?.properties?.behind_events).toBe(HEAD)
+    expect(catchups[0]?.properties?.reset_reason).toBeNull()
+    expect(catchups[0]?.properties?.had_cursor).toBe(false)
   })
 
   it('marks the catch-up when an opted-in cold open finds no tail base and replays the log', async () => {
@@ -125,6 +128,12 @@ describe('follow tail open', () => {
     expect(resets[0]?.tailFrom).toBe(TAIL_FROM)
     expect(rig.frames('base')[0]?.cursor.seq).toBe(TAIL_FROM - 1)
     expect(rig.seqs()[0]).toBe(TAIL_FROM)
+    expect(rig.analytics.eventsOf('session_catchup')[0]?.properties).toMatchObject({
+      start: 'tail',
+      had_cursor: true,
+      reset_reason: EStreamResetReason.TooFarBehind,
+      behind_events: HEAD - afterSeq,
+    })
   })
 
   it('resumes a warm cursor that is close enough without a base', async () => {

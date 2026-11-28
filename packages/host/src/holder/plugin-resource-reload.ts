@@ -4,7 +4,7 @@ import type { PluginPodContext, PodResource } from '@dltech/atlas-plugin-sdk'
 
 import { armOf, cloudStringOf, messageOf, statusOf, versionsOf } from './plugin-resource-probes'
 import { ELoadReason } from './plugin-resource-reason'
-import { appendOf, loadedDraftsOf } from './plugin-resource-loads'
+import { appendLoadedOf, loadedDraftsOf } from './plugin-resource-loads'
 import { watchOf } from './plugin-resource-refresh'
 
 type Ctx = PluginPodContext
@@ -69,7 +69,13 @@ export const reloadOne = async (args: {
           fingerprint,
         }),
     })
-    await appendOf({ ctx: args.ctx, trace: args.trace, drafts })
+    await appendLoadedOf({
+      ctx: args.ctx,
+      trace: args.trace,
+      drafts,
+      resource: args.resource.name,
+      fingerprint,
+    })
   } catch (failure) {
     args.ctx.log(`plugin resource ${args.resource.name} could not reload: ${messageOf(failure)}`)
   }

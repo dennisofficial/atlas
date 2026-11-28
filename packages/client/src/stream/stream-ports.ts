@@ -1,4 +1,4 @@
-import type { StreamServerMessage } from '@dltech/atlas-protocol'
+import type { EStreamCacheOutcome, StreamServerMessage } from '@dltech/atlas-protocol'
 
 import type { SessionLog } from './session-log'
 
@@ -8,6 +8,8 @@ export type StreamFollowInput = {
   afterSeq?: number | undefined
   afterHash?: string | undefined
   tailViewVersion?: number | undefined
+  cache?: EStreamCacheOutcome | undefined
+  hydrateMs?: number | undefined
 }
 
 export type OlderEventsInput = {

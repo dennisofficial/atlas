@@ -41,7 +41,6 @@ export class FollowSubscription implements FollowTarget {
   private announcedLive = false
   private wakeDrain: (() => void) | undefined
   private meter: CatchupMeter | undefined
-  private behindNoted = false
 
   constructor(private readonly args: FollowSubscriptionArgs) {
     this.id = args.id
@@ -85,6 +84,9 @@ export class FollowSubscription implements FollowTarget {
         mainThread: this.main,
         start: this.args.request.afterSeq === undefined ? ECatchupStart.Cold : ECatchupStart.Warm,
         startedAt,
+        cache: this.args.request.cache,
+        hydrateMs: this.args.request.hydrateMs,
+        hadCursor: this.args.request.afterSeq !== undefined,
         now: () => this.args.deps.timers.now(),
         analytics: this.args.deps.analytics,
       })
@@ -176,11 +178,13 @@ export class FollowSubscription implements FollowTarget {
       threadId: this.requireThread(),
       request: this.args.request,
       isMainThread: this.isMainThread,
+      onHead: (headSeq) =>
+        this.meter?.noteBehind({ headSeq, cursor: this.args.request.afterSeq ?? 0 }),
     })
     if (this.stopped) return false
     this.cursor = position.cursor
     if (position.reset !== undefined) {
-      this.meter?.markReset()
+      this.meter?.markReset(position.reset.reason)
       this.sendMetered({ type: 'reset', id: this.id, ...position.reset })
     }
     if (position.tail !== undefined) await this.openTail(position.tail.tailFrom)
@@ -207,10 +211,6 @@ export class FollowSubscription implements FollowTarget {
     const threadId = this.requireThread()
     let head = await plane.head({ threadId })
     if (this.stopped) return
-    if (!this.behindNoted) {
-      this.behindNoted = true
-      this.meter?.noteBehind({ headSeq: head.seq, cursor: this.cursor ?? 0 })
-    }
     for (;;) {
       if (!(await this.awaitDrained())) return
       this.dirty = false

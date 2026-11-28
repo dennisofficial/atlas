@@ -51,6 +51,7 @@ response payloads, the constants that both sides must agree on, and the sandbox 
 
 ### Share an HTTP payload
 
+- `sessionStreamFollowInputSchema` accepts optional `cache` (`EStreamCacheOutcome`) and non-negative integer `hydrateMs` telemetry alongside the session cursor.
 - `threadMessageRequestSchema`, `threadMessageReplySchema`: the send of a message to a thread.
 - `beginGoogleLinkInputSchema`, `beginGoogleReauthInputSchema`, `beginGoogleReplySchema`: authenticated Google account linking and fresh PKCE confirmation begins. `authorizeDesktopInputSchema.googleReauth` and `exchangeDesktopCodeInputSchema.requireGoogleReauth` are optional so released Mac and TUI sign-in requests remain valid. A Google reveal sets `requireGoogleReauth: true` so a normal login grant cannot be substituted.
 - `dictationTokenReplySchema`: the single-use Gateway transcription token a phone dictates with,

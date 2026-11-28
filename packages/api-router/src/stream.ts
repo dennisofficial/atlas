@@ -1,5 +1,6 @@
 import {
   streamServerMessageSchema,
+  type EStreamCacheOutcome,
   type EStreamSurface,
   type StreamServerMessage,
 } from '@dltech/atlas-protocol'
@@ -12,6 +13,8 @@ export type SessionStreamFollowInput = {
   afterSeq?: number | undefined
   afterHash?: string | undefined
   tailViewVersion?: number | undefined
+  cache?: EStreamCacheOutcome | undefined
+  hydrateMs?: number | undefined
 }
 
 export type SessionStreamOlderInput = {

@@ -24,6 +24,7 @@ CREATE TABLE IF NOT EXISTS session_log_snapshots (
   command_log TEXT NOT NULL,
   quick_stops TEXT NOT NULL DEFAULT 'null',
   through_seq INTEGER NOT NULL,
+  folded_through INTEGER,
   head TEXT
 );`
 
@@ -60,6 +61,7 @@ const snapshotRowOf = (row: Record<string, unknown>): unknown => ({
     commandLog: parse(row.command_log),
     quickStops: parse(row.quick_stops) ?? undefined,
     throughSeq: row.through_seq,
+    foldedThrough: row.folded_through ?? undefined,
   },
   head: parse(row.head),
 })
@@ -80,6 +82,10 @@ export const createSqliteSessionLog = (args: {
       await db.execAsync(`PRAGMA user_version = ${SESSION_LOG_STRUCTURE_VERSION}`)
     }
     await db.execAsync(SCHEMA)
+    const columns = await db.getAllAsync('PRAGMA table_info(session_log_snapshots)')
+    if (!columns.some((column) => rowOf(column)?.name === 'folded_through')) {
+      await db.execAsync('ALTER TABLE session_log_snapshots ADD COLUMN folded_through INTEGER')
+    }
   }
 
   const dropSession = async (sessionId: string): Promise<void> => {
@@ -137,15 +143,15 @@ export const createSqliteSessionLog = (args: {
         sessionId,
       )
       const found = rowOf(row)
-      if (found === undefined) return undefined
+      if (found === undefined || (found.version === 0 && found.cursor === 'null')) return undefined
       const loaded = logSnapshotOf(snapshotRowOf(found))
       if (loaded === undefined) await dropSession(sessionId)
       return loaded
     },
     saveSnapshot: ({ sessionId, snapshot }) =>
       db.runAsync(
-        `INSERT INTO session_log_snapshots (session_id, version, cursor, visibility, pending, view, failure_message, durable, command_log, quick_stops, through_seq, head)
-         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, NULL)
+        `INSERT INTO session_log_snapshots (session_id, version, cursor, visibility, pending, view, failure_message, durable, command_log, quick_stops, through_seq, folded_through, head)
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, NULL)
          ON CONFLICT(session_id) DO UPDATE SET
            version = excluded.version,
            cursor = excluded.cursor,
@@ -156,7 +162,8 @@ export const createSqliteSessionLog = (args: {
            durable = excluded.durable,
            command_log = excluded.command_log,
            quick_stops = excluded.quick_stops,
-           through_seq = excluded.through_seq`,
+           through_seq = excluded.through_seq,
+           folded_through = excluded.folded_through`,
         sessionId,
         snapshot.version,
         JSON.stringify(snapshot.cursor ?? null),
@@ -168,6 +175,7 @@ export const createSqliteSessionLog = (args: {
         JSON.stringify(snapshot.commandLog),
         JSON.stringify(snapshot.quickStops ?? null),
         snapshot.throughSeq,
+        snapshot.foldedThrough ?? null,
       ),
     deleteSession: dropSession,
     listSessions: async () => {

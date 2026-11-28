@@ -31,6 +31,10 @@ describe('the shell speaks the wire names', () => {
 })
 
 const PAGE = 'http://127.0.0.1:4242/settings/integrations'
+const navigation = {
+  urlOf: () => PAGE,
+  navigate: ({ win, path }) => win.calls.push(`navigate ${path}`),
+}
 
 describe('deepLinkOf', () => {
   test('reads the path and query of an atlas://open link', () => {
@@ -104,29 +108,35 @@ describe('livePlanOf', () => {
     const plan = livePlanOf({
       link: deepLinkOf('atlas://open/sessions/ses_1'),
       pageUrl: PAGE,
+      appUrl: PAGE,
       loading: false,
     })
-    expect(plan.kind).toBe(EDeepLinkPlan.Dispatch)
-    expect(plan.script).toContain(JSON.stringify(DESKTOP_NAVIGATE_EVENT))
-    expect(plan.script).toContain('"/sessions/ses_1"')
+    expect(plan).toEqual({
+      kind: EDeepLinkPlan.NavigateInPage,
+      path: '/sessions/ses_1',
+      url: 'http://127.0.0.1:4242/sessions/ses_1',
+    })
   })
 
   test('hands a preview callback to the preview', () => {
     const plan = livePlanOf({
       link: deepLinkOf('atlas://preview-callback/cb?code=c'),
       pageUrl: PAGE,
+      appUrl: PAGE,
       loading: false,
     })
     expect(plan.script).toContain(JSON.stringify(DESKTOP_PREVIEW_CALLBACK_EVENT))
   })
 
-  test('escapes the path so a link cannot inject script', () => {
+  test('carries the path as data without injecting script', () => {
     const plan = livePlanOf({
       link: { kind: EDeepLinkKind.Open, path: '/x"));alert(1);//' },
       pageUrl: PAGE,
+      appUrl: PAGE,
       loading: false,
     })
-    expect(plan.script).toContain('"/x\\"));alert(1);//"')
+    expect(plan.path).toBe('/x%22));alert(1);//')
+    expect(plan.script).toBeUndefined()
   })
 
   test('only focuses for atlas://focus', () => {
@@ -144,12 +154,19 @@ describe('livePlanOf', () => {
 
 describe('loadedPlanOf', () => {
   test('loads the link path once the page has loaded', () => {
-    expect(loadedPlanOf({ link: deepLinkOf('atlas://open/sessions/s'), pageUrl: PAGE })).toEqual({
-      kind: EDeepLinkPlan.Navigate,
+    expect(
+      loadedPlanOf({ link: deepLinkOf('atlas://open/sessions/s'), pageUrl: PAGE, appUrl: PAGE }),
+    ).toEqual({
+      kind: EDeepLinkPlan.NavigateInPage,
+      path: '/sessions/s',
       url: 'http://127.0.0.1:4242/sessions/s',
     })
     expect(
-      loadedPlanOf({ link: deepLinkOf('atlas://open/settings/integrations'), pageUrl: PAGE }).kind,
+      loadedPlanOf({
+        link: deepLinkOf('atlas://open/settings/integrations'),
+        pageUrl: PAGE,
+        appUrl: PAGE,
+      }).kind,
     ).toBe(EDeepLinkPlan.Focus)
   })
 })
@@ -175,18 +192,20 @@ describe('createDeepLinkOpener', () => {
   test('reveals the running window and routes the link inside it', () => {
     const win = windowOf({ pageUrl: PAGE })
     const open = createDeepLinkOpener({
+      navigation,
       windowNow: () => win,
       createWindow: async () => undefined,
       reveal: () => win.calls.push('reveal'),
     })
     expect(open('atlas://open/sessions/ses_1')).toBe(true)
     expect(win.calls[0]).toBe('reveal')
-    expect(win.calls[1]).toContain(DESKTOP_NAVIGATE_EVENT)
+    expect(win.calls[1]).toBe('navigate /sessions/ses_1')
   })
 
   test('opens a window on the link path when every window is closed', () => {
     const created = []
     const open = createDeepLinkOpener({
+      navigation,
       windowNow: () => undefined,
       createWindow: async (options) => created.push(options),
       reveal: () => undefined,
@@ -195,9 +214,10 @@ describe('createDeepLinkOpener', () => {
     expect(created).toEqual([{ path: '/settings' }])
   })
 
-  test('waits for a loading window, then loads the path', () => {
+  test('waits for a loading window, then routes inside the page', () => {
     const win = windowOf({ pageUrl: '', loading: true })
     const open = createDeepLinkOpener({
+      navigation,
       windowNow: () => win,
       createWindow: async () => undefined,
       reveal: () => undefined,
@@ -206,11 +226,12 @@ describe('createDeepLinkOpener', () => {
     expect(win.calls).toEqual([])
     win.webContents.getURL = () => PAGE
     win.finishLoad()
-    expect(win.calls).toEqual(['load http://127.0.0.1:4242/sessions/s'])
+    expect(win.calls).toEqual(['navigate /sessions/s'])
   })
 
   test('ignores links it does not own', () => {
     const open = createDeepLinkOpener({
+      navigation,
       windowNow: () => {
         throw new Error('must not touch a window')
       },

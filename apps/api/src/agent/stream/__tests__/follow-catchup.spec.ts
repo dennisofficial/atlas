@@ -107,6 +107,10 @@ describe('session_catchup telemetry', () => {
       start: 'cold',
       client: 'web',
       main_thread: true,
+      cache: 'unknown',
+      hydrate_ms: null,
+      had_cursor: false,
+      reset_reason: null,
       reached_live: true,
       behind_events: 1_200,
       drain_waits: 0,
@@ -179,7 +183,9 @@ describe('session_catchup telemetry', () => {
     expect(onlyCatchup().properties).toMatchObject({
       start: 'reset',
       events: 10,
-      behind_events: 10,
+      behind_events: 0,
+      had_cursor: true,
+      reset_reason: 'ahead',
       reached_live: true,
     })
   })

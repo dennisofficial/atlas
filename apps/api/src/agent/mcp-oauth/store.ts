@@ -2,6 +2,7 @@ import { randomUUID } from 'node:crypto'
 
 import { isUniqueViolation, type Db } from '@dltech/atlas-db'
 
+import { STALE_ATTEMPT_MS } from './gateway-timing'
 import { surfaceOf } from './redirect'
 import { clearServerRefusal, refuseLatestAttempt, type ServerRefusal } from './refusal'
 import { sameServerUrl } from './seal'
@@ -253,7 +254,8 @@ export class McpOauthStore {
       WHERE "id" = ${args.id}
         AND "oauthGeneration" = ${args.generation}
         AND "oauthStatus" = ${ACTIVE}
-        AND "oauthRefreshAttempt" IS NULL`
+        AND ("oauthRefreshAttempt" IS NULL OR "oauthRefreshStartedAt" IS NULL OR
+          "oauthRefreshStartedAt" <= ${new Date(args.startedAt.getTime() - STALE_ATTEMPT_MS).toISOString()}::timestamptz)`
       .affectedCount()
       .build()
     const { affectedRows } = await this.db.execute(statement)

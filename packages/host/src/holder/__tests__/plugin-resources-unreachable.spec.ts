@@ -43,7 +43,9 @@ describe('a round that the sandbox never answers', () => {
 
   it('leaves a reload for the next hello when its status call times out', async () => {
     const loads: string[] = []
-    const turn = rig({ resources: [skillsOf(loads)] })
+    let value = 'one'
+    const skills = skillsOf(loads, { value: () => value })
+    const turn = rig({ resources: [skills] })
     await turn.run()
     expect(loads).toEqual(['skills'])
 
@@ -56,10 +58,12 @@ describe('a round that the sandbox never answers', () => {
     expect(turn.calls.map((call) => call.op)).toEqual(['watch.status'])
     expect(loads).toEqual(['skills'])
 
+    value = 'two'
     turn.daemon.failStatus(undefined)
     turn.reconnect(false)
     await turn.settled()
 
+    expect(readResource({ ctx: turn.ctx, resource: skills })).toBe('two')
     expect(loads).toEqual(['skills', 'skills'])
     const loaded = turn.events.flatMap((event) =>
       event.type === 'resource-loaded' ? [event.fingerprint] : [],

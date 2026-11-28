@@ -22,6 +22,7 @@ import { createHostLauncher } from './host-launch.js'
 import { createHostTrust } from './host-trust.js'
 import { createClickWatcher, createSessionOpener, revealWindow } from './notification-clicks.js'
 import { createPaneRegistry } from './panes.js'
+import { createPageNavigation } from './page-navigation.js'
 import { createBinaryUpdater, createDesktopUpdates } from './updates.js'
 import {
   createElectronWebUpdater,
@@ -38,9 +39,9 @@ const PANE_TITLED = 'atlas-desktop:pane-titled'
 const PANE_PARTITION = 'persist:spike'
 const WINDOW_WIDTH = 1280
 const WINDOW_HEIGHT = 820
+const navigation = createPageNavigation({ ipcMain, log: (line) => console.error(line) })
 
 const { autoUpdater } = electronUpdater
-
 const desktopSecret = process.env.ATLAS_SECRET ?? crypto.randomUUID()
 
 const hostTrust = createHostTrust({ sessionOf: () => electronSession.defaultSession })
@@ -61,8 +62,6 @@ async function createWindow({ sessionId, path } = {}) {
     height: WINDOW_HEIGHT,
     resizable: true,
     titleBarStyle: 'hiddenInset',
-    // The web app draws its own titlebar, its drag regions and the traffic-light inset once it sees
-    // this bridge; without it the window cannot be moved by the page's own chrome.
     webPreferences: {
       preload: join(import.meta.dirname, 'preload.cjs'),
       contextIsolation: true,
@@ -151,14 +150,11 @@ async function createWindow({ sessionId, path } = {}) {
     log: (error) => console.error('[desktop-host] the host did not start', error),
   })
 
-  // A new interface is installed in the background and waits for the person to take it: the web app
-  // asks for this route and reloads itself when the window is in the background, so no update ever
-  // pulls the page out from under a half-written message.
   const swapTo = async ({ hash }) => {
     const next = startSession(payloadWebRoot({ home, hash }))
     try {
       const { url } = await next.page
-      await win.loadURL(url)
+      await navigation.load({ win, url })
       host?.child.kill('SIGTERM')
       host = next
       payloads.updater.applied()
@@ -192,13 +188,19 @@ async function createWindow({ sessionId, path } = {}) {
     const installedHash = await payloads.updater.installedRoot()
     try {
       host = startSession(webRootFor({ home, bundledRoot, installedHash }))
-      await win.loadURL(landingUrlOf({ pageUrl: (await host.page).url, sessionId, path }))
+      await navigation.load({
+        win,
+        url: landingUrlOf({ pageUrl: (await host.page).url, sessionId, path }),
+      })
     } catch (error) {
       if (installedHash === undefined) throw error
       console.error('[web-payload] the installed interface failed; using the bundled one', error)
       await payloads.updater.fail({ hash: installedHash })
       host = startSession(bundledRoot)
-      await win.loadURL(landingUrlOf({ pageUrl: (await host.page).url, sessionId, path }))
+      await navigation.load({
+        win,
+        url: landingUrlOf({ pageUrl: (await host.page).url, sessionId, path }),
+      })
     }
     payloads.start()
     binary.start()
@@ -217,6 +219,7 @@ const openDeepLink = createDeepLinkOpener({
   windowNow,
   createWindow,
   reveal: (win) => revealWindow({ app, win }),
+  navigation,
   log: (line) => console.error(line),
 })
 
@@ -241,7 +244,7 @@ app.on('ready', (_event, launchInfo) => {
   if (launchSessionId !== undefined) void apns.opened(userInfoOfLaunchInfo(launchInfo))
 })
 
-const openSession = createSessionOpener({ app, windowNow, createWindow })
+const openSession = createSessionOpener({ app, windowNow, createWindow, navigation })
 
 const clicks = createClickWatcher({
   notifications: Notification,

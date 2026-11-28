@@ -7,6 +7,7 @@ const SAVE_INTERVAL_MS = 1_000
 
 export type FollowerLogWriter = Pick<SessionLogWriter, 'append' | 'drop'> & {
   saveThrottled(): void
+  checkpoint(): void
 }
 
 export const createFollowerLogWriter = (args: {
@@ -36,5 +37,10 @@ export const createFollowerLogWriter = (args: {
     saveTimer = scheduler.setTimeout(save, wait)
   }
 
-  return { append: writer.append, drop: writer.drop, saveThrottled }
+  const checkpoint = (): void => {
+    if (saveTimer !== undefined) scheduler.clearTimeout(saveTimer)
+    save()
+  }
+
+  return { append: writer.append, drop: writer.drop, saveThrottled, checkpoint }
 }

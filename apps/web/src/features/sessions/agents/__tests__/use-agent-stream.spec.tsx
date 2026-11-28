@@ -11,7 +11,7 @@ import {
   settle,
 } from '@dltech/atlas-client/stream-fixture'
 import { SESSION_VIEW_VERSION } from '@dltech/atlas-core'
-import { STREAM_PROTOCOL_VERSION } from '@dltech/atlas-protocol'
+import { EStreamCacheOutcome, STREAM_PROTOCOL_VERSION } from '@dltech/atlas-protocol'
 
 const clock = createFakeScheduler()
 const fakes = createFakeTransport()
@@ -69,6 +69,8 @@ describe('useAgentStream', () => {
       sessionId: 'session-1',
       threadId: 'agent-1',
       tailViewVersion: SESSION_VIEW_VERSION,
+      cache: EStreamCacheOutcome.Empty,
+      hydrateMs: 0,
     })
 
     const events = mintEvents({ bodies: [{ type: 'user-said', text: 'working' }] })

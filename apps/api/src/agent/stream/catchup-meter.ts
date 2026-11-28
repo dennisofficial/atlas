@@ -1,5 +1,9 @@
 import type { ProductAnalytics } from '@dltech/atlas-observability'
-import type { EStreamSurface } from '@dltech/atlas-protocol'
+import type {
+  EStreamCacheOutcome,
+  EStreamResetReason,
+  EStreamSurface,
+} from '@dltech/atlas-protocol'
 
 export enum ECatchupStart {
   Cold = 'cold',
@@ -14,6 +18,9 @@ export type CatchupMeterArgs = {
   client: EStreamSurface
   mainThread: boolean
   start: ECatchupStart
+  cache?: EStreamCacheOutcome | undefined
+  hydrateMs?: number | undefined
+  hadCursor: boolean
   startedAt: number
   now: () => number
   analytics: ProductAnalytics | undefined
@@ -21,6 +28,7 @@ export type CatchupMeterArgs = {
 
 export class CatchupMeter {
   private start: ECatchupStart
+  private resetReason: EStreamResetReason | undefined
   private pages = 0
   private events = 0
   private bytes = 0
@@ -33,8 +41,9 @@ export class CatchupMeter {
     this.start = args.start
   }
 
-  markReset(): void {
+  markReset(reason: EStreamResetReason): void {
     this.start = ECatchupStart.Reset
+    this.resetReason = reason
   }
 
   markTail(): void {
@@ -84,6 +93,10 @@ export class CatchupMeter {
         events: this.events,
         pages: this.pages,
         start: this.start,
+        cache: this.args.cache ?? 'unknown',
+        hydrate_ms: this.args.hydrateMs ?? null,
+        had_cursor: this.args.hadCursor,
+        reset_reason: this.resetReason ?? null,
         client: this.args.client,
         main_thread: this.args.mainThread,
         reached_live: reachedLive,

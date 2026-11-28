@@ -22,6 +22,7 @@ export type SessionLogSnapshot = {
   commandLog: readonly RecordEvent[]
   quickStops?: QuickStopState | undefined
   throughSeq: number
+  foldedThrough?: number | undefined
 }
 
 export type SessionLog = {

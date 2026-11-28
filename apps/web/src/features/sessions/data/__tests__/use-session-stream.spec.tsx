@@ -15,7 +15,7 @@ import {
   settle,
 } from '@dltech/atlas-client/stream-fixture'
 import { SESSION_VIEW_VERSION } from '@dltech/atlas-core'
-import { STREAM_PROTOCOL_VERSION } from '@dltech/atlas-protocol'
+import { EStreamCacheOutcome, STREAM_PROTOCOL_VERSION } from '@dltech/atlas-protocol'
 
 import { useSessionStream } from '../use-session-stream'
 
@@ -83,6 +83,8 @@ describe('useSessionStream', () => {
     expect(subscription.input).toEqual({
       sessionId: 'session-1',
       tailViewVersion: SESSION_VIEW_VERSION,
+      cache: EStreamCacheOutcome.Empty,
+      hydrateMs: 0,
     })
     const events = mintEvents({ bodies: [{ type: 'user-said', text: 'hello' }] })
     await act(async () => {
@@ -111,6 +113,8 @@ describe('useSessionStream', () => {
       sessionId: 'session-1',
       threadId: 'agent-1',
       tailViewVersion: SESSION_VIEW_VERSION,
+      cache: EStreamCacheOutcome.Empty,
+      hydrateMs: 0,
     })
     await act(async () => root.unmount())
   })

@@ -1,7 +1,7 @@
 import { snapshotOf, type FollowedState, type SessionSnapshot } from './follower-state'
 import type { StreamScheduler } from './stream-ports'
 
-export const CATCH_UP_RENDER_MS = 500
+export const CATCH_UP_HOLD_MS = 5_000
 
 export type FollowerRender = {
   getSnapshot(): SessionSnapshot
@@ -33,7 +33,7 @@ export const createFollowerRender = (args: {
 
   const defer = (): void => {
     if (timer !== undefined) return
-    timer = scheduler.setTimeout(flush, CATCH_UP_RENDER_MS)
+    timer = scheduler.setTimeout(flush, CATCH_UP_HOLD_MS)
   }
 
   return {

@@ -1,6 +1,11 @@
 import { describe, expect, it } from 'bun:test'
 
-import { memorySessionLog, type SessionLog } from '@dltech/atlas-client/stream'
+import {
+  memorySessionLog,
+  restoredWindowResultOf,
+  type SessionLog,
+} from '@dltech/atlas-client/stream'
+import { EStreamCacheOutcome } from '@dltech/atlas-protocol'
 import { mintUserEvents } from '@dltech/atlas-client/stream-fixture'
 
 import { queuedSessionLog } from '../session-cache-queue'
@@ -33,18 +38,38 @@ describe('the queued session log', () => {
     expect(order).toEqual([1, 2])
   })
 
-  it('keeps taking work after an operation fails', async () => {
-    const inner = memorySessionLog()
+  it('rejects failed operations to their caller and runs later operations in order', async () => {
+    const order: string[] = []
+    const failure = new Error('disk')
     const log = queuedSessionLog({
-      ...inner,
-      appendPage: ({ sessionId }) =>
-        sessionId === 'first' ? Promise.reject(new Error('disk')) : Promise.resolve(),
+      ...memorySessionLog(),
+      appendPage: async ({ sessionId }) => {
+        order.push(sessionId)
+        if (sessionId === 'first') throw failure
+      },
     } satisfies SessionLog)
 
-    await log.appendPage({ sessionId: 'first', events: [], head: headAt(1) })
-    await log.appendPage({ sessionId: 'second', events: [], head: headAt(2) })
+    const first = log.appendPage({ sessionId: 'first', events: [], head: headAt(1) })
+    const second = log.appendPage({ sessionId: 'second', events: [], head: headAt(2) })
+    const third = log.appendPage({ sessionId: 'third', events: [], head: headAt(3) })
+    await expect(first).rejects.toBe(failure)
+    await Promise.all([second, third, log.drain()])
 
-    expect(await inner.listSessions()).toEqual([])
+    expect(order).toEqual(['first', 'second', 'third'])
+  })
+
+  it('reports a failed restore through the queue instead of an empty cache', async () => {
+    const log = queuedSessionLog({
+      ...memorySessionLog(),
+      loadSnapshot: async () => {
+        throw new Error('disk')
+      },
+    })
+
+    expect(await restoredWindowResultOf({ log, sessionId: 's1', renderLimit: 10 })).toEqual({
+      outcome: EStreamCacheOutcome.Failed,
+      window: undefined,
+    })
   })
 
   it('drains and stops taking work', async () => {

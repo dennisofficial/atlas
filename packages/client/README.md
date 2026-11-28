@@ -46,7 +46,7 @@ The headless client library that web, the TUI and the mobile app share.
   the `StreamConnection`. `follow({ sessionId, threadId?, log? })` follows one thread (main by default),
   and a reopen of one of the last 8 closed follows shows it at once; `followSessions()` is the list.
 - `createSessionFollower(args)`: a session's follower, its `SessionSnapshot` and its
-  `ESessionConnection` state. `HYDRATE_TIMEOUT_MS` bounds the first load.
+  `ESessionConnection` state. `HYDRATE_TIMEOUT_MS` bounds the first load at six seconds. `hydrated` resolves to `{ outcome, ms }`; stream follows report the `EStreamCacheOutcome` and optional `hydrateMs` to the server. `checkpoint()` saves the snapshot to the log at once; the follower also saves at a tail base, on the first live page and when its subscription closes.
   `createSessionsFeed({ follow, write })` holds the list.
 - `StreamTransport`, `StreamScheduler`, `StreamNetworkSignal`, `systemStreamScheduler`,
   `browserNetworkSignal`: the ports that a surface supplies.
@@ -206,6 +206,8 @@ The headless client library that web, the TUI and the mobile app share.
 
 - `memorySessionLog()`, `browserSessionLog(eventSchema)`, `createIndexedDbSessionLog(args)`: the
   `SessionLog` implementations. `createSqliteSessionLog({ db })` keeps one behind a `SqliteExecutor`.
+  IndexedDB logs reuse one connection; open and read/write failures reject, while browsers without IndexedDB use the empty fallback. `restoredWindowResultOf` distinguishes restored, empty, unusable and failed cache loads.
+- Catch-up pages stay off the rendered snapshot until live, with a five-second safety flush. Restored windows and tail bases render at once.
 - `SessionWindow`, `applyPage`, `applyPageOutcome`, `RENDER_LIMIT`, `OLDER_PAGE`: the paged window.
 - `applyOverlayMessage`, `closeOverlay`, `closeOverlayForEvents`, `EMPTY_OVERLAY_STATE`: the live
   step overlay. `overlaySignalsOf` and `overlayRewrote` give its step signals, append or rewrite.

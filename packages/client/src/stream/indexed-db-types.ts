@@ -36,6 +36,8 @@ export type IdbObjectStore = {
 }
 
 export type IdbDatabase = {
+  onclose: unknown
+  onversionchange: unknown
   objectStoreNames: { contains: (name: string) => boolean }
   createObjectStore: (name: string, options?: { keyPath: string | string[] }) => unknown
   deleteObjectStore: (name: string) => unknown

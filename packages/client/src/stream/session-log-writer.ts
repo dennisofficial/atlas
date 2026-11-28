@@ -57,7 +57,7 @@ export const createSessionLogWriter = (args: {
         quickStops,
         foldedThrough,
       } = window
-      if (cursor === undefined || cursor.seq < foldedThrough) return
+      if (cursor === undefined) return
       enqueue(() =>
         log.saveSnapshot({
           sessionId,
@@ -72,6 +72,7 @@ export const createSessionLogWriter = (args: {
             commandLog,
             quickStops,
             throughSeq: cursor.seq,
+            foldedThrough,
           },
         }),
       )

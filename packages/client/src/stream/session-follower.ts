@@ -10,7 +10,7 @@ import {
   retryDeadlineMsOf,
   type FrameFacts,
 } from './derived-session-view'
-import { hydrateFollower } from './follower-hydrate'
+import { hydrateFollower, type FollowerHydration } from './follower-hydrate'
 import { createOlderLoader } from './follower-older'
 import { createFollowerRender } from './follower-render'
 import { ESessionConnection, type FollowedState, type SessionSnapshot } from './follower-state'
@@ -41,9 +41,9 @@ export type SessionFollower = {
   markResubscribing(): void
   loadOlder(): Promise<number>
   cursor(): SessionCursor | undefined
-  hydrated: Promise<void>
+  checkpoint(): void
+  hydrated: Promise<FollowerHydration>
 }
-
 export type SessionFollowerArgs = {
   sessionId: string
   log: SessionLog
@@ -148,9 +148,11 @@ export const createSessionFollower = (args: SessionFollowerArgs): SessionFollowe
       skipped: inner.skipped + skipped,
       fromCache: false,
     }
+    const reachedLive = message.live && !inner.live
     if (message.live || inner.live) commit(next)
     else deferCommit(next)
-    writer.saveThrottled()
+    if (reachedLive) writer.checkpoint()
+    else writer.saveThrottled()
   }
 
   const handleShellOutput = (
@@ -215,6 +217,7 @@ export const createSessionFollower = (args: SessionFollowerArgs): SessionFollowe
     logHasEvents = false
     renderLimit = baseRenderLimit
     commit(next)
+    writer.checkpoint()
   }
 
   const handleMessage = (message: StreamServerMessage): void => {
@@ -291,6 +294,7 @@ export const createSessionFollower = (args: SessionFollowerArgs): SessionFollowe
     },
     loadOlder,
     cursor: () => inner.window.cursor,
+    checkpoint: writer.checkpoint,
     hydrated,
   }
 }

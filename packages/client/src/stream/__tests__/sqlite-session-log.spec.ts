@@ -39,7 +39,7 @@ const setup = async () => {
   const db = executorOf()
   const log = createSqliteSessionLog({ db })
   await log.prepare()
-  return { log }
+  return { log, db }
 }
 
 const snapshotAt = (args: {
@@ -84,6 +84,39 @@ describe('the sqlite session log', () => {
       ...snapshotAt({ throughSeq: 1 }),
       cursor: { seq: 2, hash: headOf(events).hash },
     })
+  })
+
+  it('keeps head-only sessions and their events when no snapshot exists', async () => {
+    const { log } = await setup()
+    const events = mintEvents({ bodies: [userSaid('a'), userSaid('b')] })
+    await log.appendPage({ sessionId: 's1', events, head: headOf(events) })
+
+    expect(await log.loadSnapshot('s1')).toBeUndefined()
+    expect(await log.listSessions()).toEqual(['s1'])
+    expect(await log.readTail({ sessionId: 's1', count: 2 })).toEqual(events)
+  })
+
+  it('round-trips the fold boundary separately from the cursor', async () => {
+    const { log } = await setup()
+    const snapshot = { ...snapshotAt({ throughSeq: 1 }), foldedThrough: 10 }
+    await log.saveSnapshot({ sessionId: 's1', snapshot })
+    expect(await log.loadSnapshot('s1')).toEqual(snapshot)
+  })
+
+  it('adds a fold boundary column without discarding an old snapshot', async () => {
+    const { log, db } = await setup()
+    await log.saveSnapshot({ sessionId: 's1', snapshot: snapshotAt({ throughSeq: 2 }) })
+    await db.execAsync('ALTER TABLE session_log_snapshots DROP COLUMN folded_through')
+
+    await log.prepare()
+    await log.prepare()
+
+    expect(await log.loadSnapshot('s1')).toEqual(snapshotAt({ throughSeq: 2 }))
+    await log.saveSnapshot({
+      sessionId: 's1',
+      snapshot: { ...snapshotAt({ throughSeq: 2 }), foldedThrough: 10 },
+    })
+    expect((await log.loadSnapshot('s1'))?.foldedThrough).toBe(10)
   })
 
   it('round-trips the quick stops of a snapshot', async () => {

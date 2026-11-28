@@ -100,10 +100,7 @@ describe('a background resource loads once at a time', () => {
     const announced = ofType({ events: turn.events, type: 'context-loaded' })
     expect(concurrent.most).toBe(1)
     expect(loads).toEqual(['mcp-tools', 'mcp-tools'])
-    expect(loaded.map((event) => event['fingerprint'])).toEqual([
-      `instance-1:0::${DIRECTORY}`,
-      `instance-1:1::${DIRECTORY}`,
-    ])
+    expect(loaded.map((event) => event['fingerprint'])).toEqual([`instance-1:0::${DIRECTORY}`])
     expect(announced).toHaveLength(1)
   }, 10_000)
 

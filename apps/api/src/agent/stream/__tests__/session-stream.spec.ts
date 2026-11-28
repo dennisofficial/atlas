@@ -1,6 +1,7 @@
 import { afterEach, beforeEach, describe, expect, it } from 'bun:test'
 
 import {
+  EStreamCacheOutcome,
   EStreamSurface,
   STREAM_HEARTBEAT_MS,
   STREAM_PROTOCOL_VERSION,
@@ -80,6 +81,8 @@ describe('session stream adapters', () => {
       sessionId: SESSION,
       afterSeq: 5,
       afterHash: rig.hashAt(page.events, 5),
+      cache: EStreamCacheOutcome.Restored,
+      hydrateMs: 225,
     })
 
     const ready = await pull(generator)
@@ -89,6 +92,13 @@ describe('session stream adapters', () => {
       expect(ready.eventTypes).toEqual(['user-said'])
     }
     expect(await liveSeqs(generator)).toEqual([6, 7, 8, 9, 10])
+    expect(rig.analytics.eventsOf('session_catchup')[0]?.properties).toMatchObject({
+      cache: EStreamCacheOutcome.Restored,
+      hydrate_ms: 225,
+      had_cursor: true,
+      reset_reason: null,
+      behind_events: 5,
+    })
     await generator.return(undefined)
   })
 

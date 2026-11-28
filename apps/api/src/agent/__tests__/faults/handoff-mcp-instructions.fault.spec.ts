@@ -144,16 +144,11 @@ describeHandoff({
 
   async interrupted(ctx) {
     await waitUntil({
-      what: 'the restarted pod to reload the MCP snapshot',
-      check: async () => {
-        const snapshots = snapshotsOf(await ctx.record())
-        const first = snapshots[0]
-        const last = snapshots.at(-1)
-        if (first === undefined || last === undefined) return false
-        return snapshots.length >= 2 && last.fingerprint !== first.fingerprint
-      },
+      what: 'the interrupted result of the gated call after the pod restart',
+      check: async () => resultsOf(await ctx.record()).length === 1,
       timeoutMs: POD_EFFECT_WAIT_MS,
     })
+    expect(snapshotsOf(await ctx.record())).toHaveLength(1)
     expectRecordedOnce(await ctx.record())
   },
 })

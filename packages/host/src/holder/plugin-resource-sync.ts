@@ -1,8 +1,8 @@
-import { latestResourceOf, type RecordEvent } from '@dltech/atlas-core'
+import type { RecordEvent } from '@dltech/atlas-core'
 import { EResourceWait, type TracePort } from '@dltech/atlas-observability'
 import type { PluginPodContext, PodResource } from '@dltech/atlas-plugin-sdk'
 
-import { appendOf, draftsOf } from './plugin-resource-loads'
+import { appendLoadedOf, draftsOf, loadedFingerprintOf } from './plugin-resource-loads'
 import { messageOf } from './plugin-resource-probes'
 import { ELoadReason } from './plugin-resource-reason'
 import { refresh, watchOf, type Adoption } from './plugin-resource-refresh'
@@ -94,14 +94,17 @@ export class ResourceSync {
     const key = `${adoption.resource.name}:${adoption.fingerprint}`
     const running = this.adoptions.get(key)
     if (running !== undefined) return running.then(() => true).catch(() => false)
-    const latest = latestResourceOf({
+    const fingerprint = loadedFingerprintOf({
+      ctx: this.args.ctx,
       events: this.args.ctx.events(),
       resource: adoption.resource.name,
     })
-    if (latest?.fingerprint === adoption.fingerprint) return Promise.resolve(true)
-    const attempt = appendOf({
+    if (fingerprint === adoption.fingerprint) return Promise.resolve(true)
+    const attempt = appendLoadedOf({
       ctx: this.args.ctx,
       trace: this.args.trace,
+      resource: adoption.resource.name,
+      fingerprint: adoption.fingerprint,
       drafts: draftsOf({
         resource: adoption.resource,
         ctx: this.args.ctx,

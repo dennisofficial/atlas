@@ -1,6 +1,4 @@
-import type { PluginViewFold, RecordEvent } from '@dltech/atlas-core'
-import type { StreamServerMessage } from '@dltech/atlas-protocol'
-import type { z } from 'zod'
+import { EStreamCacheOutcome, type StreamServerMessage } from '@dltech/atlas-protocol'
 
 import {
   EStreamConnectionState,
@@ -15,43 +13,18 @@ import { createListRetry, type ListRetry } from './list-retry'
 import { memorySessionLog } from './session-log'
 import { createSessionFollower, type SessionFollower } from './session-follower'
 import { fetchOlderOf } from './session-older'
-import {
-  createSessionsList,
-  sessionsListFrameHandler,
-  type FollowedSessionList,
-  type SessionsList,
-} from './sessions-list'
+import { createSessionsList, sessionsListFrameHandler, type SessionsList } from './sessions-list'
 import { createStreamHandlers } from './stream-handlers'
+import type { StreamConnection, StreamConnectionArgs } from './stream-connection-types'
 import { followInputOf, followWithTailFallback } from './stream-follow'
 import { createWarmFollows } from './warm-follows'
-import {
-  browserNetworkSignal,
-  type FollowArgs,
-  type StreamNetworkSignal,
-  type StreamScheduler,
-  type StreamSubscription,
-  type StreamTransport,
-} from './stream-ports'
+import { browserNetworkSignal, type FollowArgs, type StreamSubscription } from './stream-ports'
 
-export type StreamConnectionArgs = {
-  transport: StreamTransport
-  scheduler: StreamScheduler
-  networkSignal?: StreamNetworkSignal | undefined
-  eventSchema?: z.ZodType<RecordEvent> | undefined
-  knownEventTypes?: ReadonlySet<string> | undefined
-  views?: readonly PluginViewFold[] | undefined
-}
-
-export type FollowedSession = SessionFollower & { close(): void }
-
-export type StreamConnection = {
-  follow(args: FollowArgs): FollowedSession
-  followSessions(): FollowedSessionList
-  connect(): void
-  reconnect(): void
-  close(): void
-  state(): EStreamConnectionState
-}
+export type {
+  FollowedSession,
+  StreamConnection,
+  StreamConnectionArgs,
+} from './stream-connection-types'
 
 type Held = { subscription: StreamSubscription | undefined; epoch: number; watchdog: unknown }
 
@@ -60,6 +33,8 @@ type Followed = Held & {
   sessionId: string
   threadId: string | undefined
   follower: SessionFollower
+  cache: EStreamCacheOutcome | undefined
+  hydrateMs: number | undefined
 }
 
 type Listed = Held & { list: SessionsList; retry: ListRetry; stop(): void }
@@ -108,12 +83,18 @@ export const createStreamConnection = (args: StreamConnectionArgs): StreamConnec
     stopSubscription(entry)
     let opened = false
     const handlers = handlersOf(entry, (frame) => entry.follower.handleMessage(frame))
+    const cache = entry.cache ?? EStreamCacheOutcome.Empty
+    entry.cache = EStreamCacheOutcome.Resumed
+    const hydrateMs = entry.hydrateMs
+    entry.hydrateMs = undefined
     entry.subscription = followWithTailFallback({
       transport: args.transport,
       input: followInputOf({
         sessionId: entry.sessionId,
         threadId: entry.threadId,
         cursor: entry.follower.cursor(),
+        cache,
+        hydrateMs,
       }),
       handlers: {
         ...handlers,
@@ -134,8 +115,12 @@ export const createStreamConnection = (args: StreamConnectionArgs): StreamConnec
 
   const subscribeWhenHydrated = (entry: Followed): void => {
     const born = generation
-    void entry.follower.hydrated.then(() => {
+    void entry.follower.hydrated.then((result) => {
       if (!live() || born !== generation || followed.get(entry.id) !== entry) return
+      if (entry.cache === undefined) {
+        entry.cache = result.outcome
+        entry.hydrateMs = result.ms
+      }
       subscribeFollow(entry)
     })
   }
@@ -153,7 +138,10 @@ export const createStreamConnection = (args: StreamConnectionArgs): StreamConnec
 
   const abortAll = (): void => {
     generation += 1
-    for (const entry of followed.values()) stopSubscription(entry)
+    for (const entry of followed.values()) {
+      entry.follower.checkpoint()
+      stopSubscription(entry)
+    }
     for (const entry of lists) stopSubscription(entry)
   }
 
@@ -236,6 +224,8 @@ export const createStreamConnection = (args: StreamConnectionArgs): StreamConnec
         knownEventTypes: args.knownEventTypes,
         views: args.views,
       }),
+      cache: undefined,
+      hydrateMs: undefined,
       subscription: undefined,
       epoch: 0,
       watchdog: undefined,
@@ -246,6 +236,10 @@ export const createStreamConnection = (args: StreamConnectionArgs): StreamConnec
   const follow: StreamConnection['follow'] = (followArgs) => {
     const reused = warm.take(followArgs)
     reused?.follower.markResubscribing()
+    if (reused !== undefined) {
+      reused.cache = EStreamCacheOutcome.Memory
+      reused.hydrateMs = undefined
+    }
     const entry = reused ?? newEntryOf(followArgs)
     ensureConnected()
     followed.set(entry.id, entry)
@@ -257,6 +251,7 @@ export const createStreamConnection = (args: StreamConnectionArgs): StreamConnec
       close: () => {
         if (!open || followed.get(entry.id) !== entry) return
         open = false
+        entry.follower.checkpoint()
         followed.delete(entry.id)
         stopSubscription(entry)
         if (entry.follower.getSnapshot().error === undefined) warm.keep({ key: entry, entry })
