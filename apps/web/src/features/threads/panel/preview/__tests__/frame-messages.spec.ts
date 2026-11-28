@@ -28,6 +28,20 @@ describe('parseFrameMessage', () => {
     })
   })
 
+  it('validates starting-page and load markers without treating legacy reports as loaded content', () => {
+    const report = { kind: 'atlas-preview:location', url: 'https://a.b/', title: '' }
+    expect(parseFrameMessage({ ...report, startingPage: true, loaded: false })).toEqual({
+      kind: EFrameMessage.Location,
+      url: report.url,
+      title: '',
+      startingPage: true,
+      loaded: false,
+    })
+    expect(parseFrameMessage({ ...report, startingPage: 'true', loaded: true })).toBeNull()
+    expect(parseFrameMessage({ ...report, startingPage: false, loaded: 1 })).toBeNull()
+    expect(parseFrameMessage(report)).not.toHaveProperty('loaded')
+  })
+
   it('parses a loading message', () => {
     expect(parseFrameMessage({ kind: 'atlas-preview:loading' })).toEqual({
       kind: EFrameMessage.Loading,

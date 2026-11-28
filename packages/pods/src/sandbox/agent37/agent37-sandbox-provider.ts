@@ -71,6 +71,7 @@ export class Agent37SandboxProvider extends SandboxProvider {
       instances: Agent37InstanceIds
       client?: Agent37Client | undefined
       wakeDeadlineMs?: number | undefined
+      monotonicNow?: (() => number) | undefined
       log?: ((line: string) => void) | undefined
     },
   ) {
@@ -167,36 +168,32 @@ export class Agent37SandboxProvider extends SandboxProvider {
       AbortSignal.timeout(this.args.wakeDeadlineMs ?? WAKE_DEADLINE_MS),
       args.signal,
     ])
-    const waking = this.wakeWithin({
-      target: args.target,
-      signal,
-      ...(args.vcpus === undefined ? {} : { vcpus: args.vcpus }),
-      ...(args.memoryGb === undefined ? {} : { memoryGb: args.memoryGb }),
-      ...(args.diskGb === undefined ? {} : { diskGb: args.diskGb }),
-    })
+    const waking = this.wakeWithin({ ...args, signal })
     waking.catch(() => undefined)
     return Promise.race([waking, abortedWake({ signal, caller: args.signal })])
   }
 
-  private async wakeWithin(args: {
-    target: SandboxTarget
-    signal: AbortSignal
-    vcpus?: number | undefined
-    memoryGb?: number | undefined
-    diskGb?: number | undefined
-  }): Promise<DaemonEndpoint> {
+  private async wakeWithin(args: Parameters<SandboxProvider['wake']>[0]): Promise<DaemonEndpoint> {
     const sessionId = args.target.sandboxSessionId
     try {
       const resolved = await this.resolve(args)
       const client = this.clientOf(apiKeyOf(args.target.credentials))
+      const now = this.args.monotonicNow ?? (() => performance.now())
+      let instanceStartMs = 0
+      let runningAt = now()
       const ready = await readyAgent37Instance({
         client,
         id: resolved.instanceId,
         signal: args.signal,
+        monotonicNow: now,
+        onRunning: (report) => {
+          instanceStartMs = report.instanceStartMs
+          runningAt = now()
+        },
         log: this.args.log,
       })
       const repairedLater = await this.ensureDaemon({ ...args, instanceId: resolved.instanceId })
-      // The endpoint carries the instance's real shape so the runtime can record it as applied.
+      const daemonReadyMs = Math.max(0, now() - runningAt)
       const readAt = new Date().toISOString()
       const instance = await client.get({ id: resolved.instanceId })
       if (!resolved.created) {
@@ -206,7 +203,7 @@ export class Agent37SandboxProvider extends SandboxProvider {
           at: readAt,
         })
       }
-      return await agent37EndpointOf({
+      const endpoint = await agent37EndpointOf({
         client,
         instanceId: resolved.instanceId,
         token: this.tokenOf(resolved.sandboxName),
@@ -218,6 +215,7 @@ export class Agent37SandboxProvider extends SandboxProvider {
           : { memoryGb: instance.resources.memory }),
         ...(instance.resources?.disk === undefined ? {} : { diskGb: instance.resources.disk }),
       })
+      return { ...endpoint, stages: { instanceStartMs, daemonReadyMs } }
     } catch (error) {
       if (error instanceof SandboxUnavailableError) throw error
       const capacity = capacityMessageOf(error)

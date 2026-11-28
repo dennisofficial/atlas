@@ -5,6 +5,7 @@ import { EFrameMessage, frameReportOf } from './frame-messages'
 import { changeRegistry, withLoading } from './frame-registry'
 import type { FrameSpec } from './frames-of'
 import { reportedState } from './report-navigation'
+import { reportPreviewDocument } from './preview-document-reports'
 
 type HeldFrame = { iframe: HTMLIFrameElement; threadId: string; tabId: string }
 
@@ -26,6 +27,13 @@ export function useFrameReports(): (frame: FrameSpec) => (iframe: HTMLIFrameElem
         changeRegistry((registry) => withLoading({ registry, key: report.key, loading: true }))
         return
       }
+      reportPreviewDocument({
+        sessionId: target.threadId,
+        tabId: target.tabId,
+        url: message.url,
+        startingPage: message.startingPage,
+        loaded: message.loaded,
+      })
       updatePreviewBrowser({
         threadId: target.threadId,
         change: ({ state }) =>

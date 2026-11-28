@@ -2,6 +2,7 @@ import type { PluginPodContext } from '@dltech/atlas-plugin-sdk'
 import type { DaemonEventFrame } from '@dltech/atlas-protocol'
 
 import { readServiceLog } from './daemon'
+import { capturePreviewRedial } from './preview-analytics'
 import type { ServicePodState } from './state'
 import { hasEnded, hasReady, outcomeOf, startedOf } from './status'
 
@@ -32,6 +33,10 @@ export const recordServiceFrame = async (args: {
   frame: DaemonEventFrame
 }): Promise<void> => {
   const { ctx, state, frame } = args
+  if (frame.event.type === 'previews.redialed') {
+    capturePreviewRedial({ ctx, redial: frame.event })
+    return
+  }
   if (frame.event.type === 'services.ready') {
     const { serviceId } = frame.event
     if (state.readies.has(serviceId)) return

@@ -11,3 +11,4 @@ routes = [
 
 [vars]
 PREVIEW_DOMAIN = "byatlas.dev"
+POSTHOG_KEY = "phc_q27hvgM8kSbwyjca72m3v7QexFE25FfFG8n529zM2WqL"

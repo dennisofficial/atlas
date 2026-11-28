@@ -79,6 +79,14 @@ that serves it advertises `EDaemonCapability.McpRequest`.
 - `sessionLiveChannel(sessionId)`, `panelHoldKey(sessionId)`, `PG_WAKE_CHANNEL`, `PG_CHANGE_CHANNEL`: the names.
 - `frameStampSchema`, `compareFrameStamp({left, right})`: order two frames.
 
+### Read preview tunnel recovery
+
+- `previews.redialed` carries `PreviewTunnelRedial`: `id`, `reason` (`freeze` or `gap`), `gapMs`,
+  `skewMs`, `stopMs`, `registerMs` and `ok`. Stop and registration durations use the daemon's
+  monotonic clock; gap and skew compare its wall and monotonic heartbeat deltas.
+- `PreviewTunnelStatus.lastRedial` retains the latest result so a host that links after recovery
+  can collect it through `previews.status`.
+
 ### Read a session's files
 
 - `filesTreeInputSchema`, `filesSearchInputSchema`, `filesReadInputSchema`: browse, search and read.
