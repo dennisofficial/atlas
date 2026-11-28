@@ -55,6 +55,9 @@ The headless client library that web, the TUI and the mobile app share.
 
 ### List settings
 
+- `accessGrantNameValid`, `accessGrantDraftValid`, `secretNameInvalid` and `secretDraftValid`: shared grant and secret form predicates. The grant draft adds length limits to the web form's name predicate.
+- `beginRevealRequest`, `cancelRevealRequest`, `revealRequestPending` and `acceptRevealRequest`: the reveal request state machine. Cancelled or superseded results cannot be accepted.
+
 - `ESettingsPage`, `SETTINGS_NAV`, `labelOfPage(page)`, `filterNav({ groups, query })`: the user-level
   settings pages, in nav groups, labelled and searchable. `filterNav` keeps whatever a surface adds
   to an item, such as its icon.
@@ -137,6 +140,14 @@ The headless client library that web, the TUI and the mobile app share.
 - `createProviderSignIn`, `EProviderSignInState`, `pollSignInUntilSettled`: the paste-code and device-code sign-in state machine, with surface-supplied API, browser and clock ports.
 - `providerUsageWindowsOf`, `providerUsageAgeOf`: plan usage meter values and stale-read text.
 - `classifierSettingsFrom`, `classifierChanges`, `classifierModelItems`, `classifierAvailabilityIn`, `classifierStatusOf`, `classifierSuggestionOf`, `classifierFeaturesOf`, `classifierTestLineOf`: classifier drafts, availability, suggestions and status text.
+
+### Access grants and secrets
+
+- `createAccessMemberApi({ api, scope })`: select personal, group or project secret and file operations using a surface-supplied transport.
+- `scopeKeyOf`, `moveTargetsOf`, `grantMoveBranchesOf`, `deleteGrantDescription`: grant identity, move destinations and delete confirmation copy.
+- `accessGrantSaveOf`, `accessGrantMatchesQuery`, `accessGrantSummary`: grant save payloads, case-insensitive search and member count labels.
+- `SECRET_NAME`, `parseEnvLines`, `SecretPair`: secret name validation and .env bulk parsing, with invalid line numbers.
+- `accessScopeOfParams`, `accessParamsOfScope`: round-trip scope through settings routes.
 
 ### Read an account and its signed-in devices
 

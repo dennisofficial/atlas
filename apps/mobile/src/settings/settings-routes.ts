@@ -24,6 +24,9 @@ export const SETTINGS_STACK_SCREENS: readonly ISettingsStackScreen[] = [
   { name: 'settings/index', title: 'Settings' },
   { name: 'settings/integrations', title: 'Integrations & MCP' },
   { name: 'settings/mcp-add', title: 'Add MCP server', sheet: { detents: [0.9, 1] } },
+  { name: 'settings/access', title: 'Access', titleButtons: 2 },
+  { name: 'settings/access-grant', title: 'Access grant' },
+  { name: 'settings/access-form', title: 'Access', sheet: { detents: [0.85, 1] } },
   { name: 'settings/groups', title: 'Groups' },
   { name: 'settings/group-form', title: 'Group', presentation: 'modal' },
   { name: 'settings/group-assign', title: 'Assign projects', presentation: 'modal' },
@@ -51,6 +54,7 @@ export const SETTINGS_STACK_SCREENS: readonly ISettingsStackScreen[] = [
   { name: 'settings/notifications-timezone', title: 'Time zone' },
   { name: 'project-settings/[projectId]/index', title: 'Project settings' },
   { name: 'project-settings/[projectId]/mcp', title: 'MCP' },
+  { name: 'project-settings/[projectId]/access', title: 'Access', titleButtons: 2 },
   { name: 'project-settings/[projectId]/overview', title: 'Overview' },
   { name: 'project-settings/[projectId]/repository-picker', title: 'Repository' },
   { name: 'project-settings/[projectId]/skills', title: 'Skills', titleButtons: 2 },
@@ -60,6 +64,7 @@ export const SETTINGS_STACK_SCREENS: readonly ISettingsStackScreen[] = [
   { name: 'project-settings/[projectId]/pull-requests', title: 'Pull requests' },
   { name: 'group-settings/[groupId]/index', title: 'Group settings' },
   { name: 'group-settings/[groupId]/mcp', title: 'MCP' },
+  { name: 'group-settings/[groupId]/access', title: 'Access', titleButtons: 2 },
   { name: 'group-settings/[groupId]/overview', title: 'Overview' },
   { name: 'group-settings/[groupId]/sandbox', title: 'Sandbox' },
   { name: 'group-settings/[groupId]/instructions', title: 'Instructions' },
@@ -69,6 +74,7 @@ export const SETTINGS_STACK_SCREENS: readonly ISettingsStackScreen[] = [
 ]
 
 export const IOS_SETTINGS_ROUTES: Partial<Record<ESettingsPage, Href>> = {
+  [ESettingsPage.Access]: '/settings/access',
   [ESettingsPage.Groups]: '/settings/groups',
   [ESettingsPage.Integrations]: '/settings/integrations',
   [ESettingsPage.Account]: '/settings/account',
@@ -87,6 +93,8 @@ export const IOS_SETTINGS_ROUTES: Partial<Record<ESettingsPage, Href>> = {
 }
 
 export const IOS_PROJECT_SECTION_ROUTES: Partial<Record<EProjectSettingsSection, TRouteOfId>> = {
+  [EProjectSettingsSection.Access]: ({ id }) =>
+    `/project-settings/${encodeURIComponent(id)}/access`,
   [EProjectSettingsSection.Mcp]: ({ id }) => `/project-settings/${encodeURIComponent(id)}/mcp`,
   [EProjectSettingsSection.Overview]: ({ id }) =>
     `/project-settings/${encodeURIComponent(id)}/overview`,
@@ -99,6 +107,7 @@ export const IOS_PROJECT_SECTION_ROUTES: Partial<Record<EProjectSettingsSection,
 }
 
 export const IOS_GROUP_SECTION_ROUTES: Partial<Record<TGroupSection, TRouteOfId>> = {
+  [EProjectSettingsSection.Access]: ({ id }) => `/group-settings/${encodeURIComponent(id)}/access`,
   [EProjectSettingsSection.Mcp]: ({ id }) => `/group-settings/${encodeURIComponent(id)}/mcp`,
   [EProjectSettingsSection.Overview]: ({ id }) =>
     `/group-settings/${encodeURIComponent(id)}/overview`,
@@ -109,15 +118,11 @@ export const IOS_GROUP_SECTION_ROUTES: Partial<Record<TGroupSection, TRouteOfId>
     `/group-settings/${encodeURIComponent(id)}/sandbox`,
 }
 
-export const IOS_PENDING_PAGES: ReadonlySet<ESettingsPage> = new Set([ESettingsPage.Access])
+export const IOS_PENDING_PAGES: ReadonlySet<ESettingsPage> = new Set()
 
-export const IOS_PENDING_PROJECT_SECTIONS: ReadonlySet<EProjectSettingsSection> = new Set([
-  EProjectSettingsSection.Access,
-])
+export const IOS_PENDING_PROJECT_SECTIONS: ReadonlySet<EProjectSettingsSection> = new Set()
 
-export const IOS_PENDING_GROUP_SECTIONS: ReadonlySet<TGroupSection> = new Set([
-  EProjectSettingsSection.Access,
-])
+export const IOS_PENDING_GROUP_SECTIONS: ReadonlySet<TGroupSection> = new Set()
 
 export const routedProjectSections = (): typeof PROJECT_SECTIONS =>
   PROJECT_SECTIONS.filter((item) => IOS_PROJECT_SECTION_ROUTES[item.section] !== undefined)

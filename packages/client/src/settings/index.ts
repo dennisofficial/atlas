@@ -1,4 +1,5 @@
 export * from './account'
+export * from './access'
 export * from './settings-pages'
 export * from './project-sections'
 export * from './group-sections'

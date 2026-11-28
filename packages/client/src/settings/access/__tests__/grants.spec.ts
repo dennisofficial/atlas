@@ -3,11 +3,14 @@ import { describe, expect, it } from 'bun:test'
 import { EAccessScope, type AccessGrant } from '@dltech/atlas-wire/web'
 
 import {
+  accessGrantSaveOf,
+  accessGrantMatchesQuery,
+  accessGrantSummary,
   deleteGrantDescription,
   grantMoveBranchesOf,
   moveTargetsOf,
   scopeKeyOf,
-} from '../access-grant-helpers'
+} from '../grants'
 
 const grantOf = (args: Partial<AccessGrant> & { id: string; name: string }): AccessGrant => ({
   instruction: '',
@@ -32,6 +35,35 @@ const GRANTS: AccessGrant[] = [
     files: [{ path: '~/.config/gh/hosts.yml', mode: 384, updatedAt: '2026-11-25T00:00:00.000Z' }],
   }),
 ]
+
+describe('grant view and payloads', () => {
+  it('keeps a new id absent and an existing id in save payloads', () => {
+    const scope = { kind: EAccessScope.Personal } as const
+    const draft = { name: 'Deploy', instruction: 'Deploy services' }
+    expect(accessGrantSaveOf({ scope, draft })).toEqual({ scope, ...draft })
+    expect(accessGrantSaveOf({ scope, draft: { ...draft, id: 'g1' } })).toEqual({
+      scope,
+      ...draft,
+      id: 'g1',
+    })
+  })
+  it('finds grants by name, instruction and secret name without case sensitivity', () => {
+    const grant = grantOf({
+      id: 'g1',
+      name: 'Deploy',
+      instruction: 'Cloud access',
+      secrets: [{ name: 'PSCALE_TOKEN', updatedAt: 'now' }],
+    })
+    for (const query of ['', 'deploy', 'CLOUD', 'pscale'])
+      expect(accessGrantMatchesQuery({ grant, query })).toBe(true)
+    expect(accessGrantMatchesQuery({ grant, query: 'other' })).toBe(false)
+  })
+  it('pluralizes both member counts', () => {
+    expect(accessGrantSummary(grantOf({ id: 'g', name: 'Empty' }))).toBe('0 secrets · 0 files')
+    expect(accessGrantSummary(GRANTS[0] as AccessGrant)).toBe('2 secrets · 0 files')
+    expect(accessGrantSummary(GRANTS[1] as AccessGrant)).toBe('0 secrets · 1 file')
+  })
+})
 
 describe('scopeKeyOf', () => {
   it('keys grants per scope', () => {
