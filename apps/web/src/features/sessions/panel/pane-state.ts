@@ -28,6 +28,8 @@ export type SessionPaneState = {
   setCollapsed: (collapsed: boolean) => void
   toggleCollapsed: () => void
   openPane: () => void
+  expandPane: (update: () => void) => void
+  revealPane: () => void
   openTab: (tab: ESessionPaneTab) => void
   openRequest: PaneOpenRequest | undefined
   requestOpen: (request: { kind: EPaneOpen; path: string }) => void
@@ -73,9 +75,22 @@ export function useSessionPane(sessionId: string): SessionPaneState {
   const { collapsed, setCollapsed } = useRightPanelCollapsed()
   useEffect(() => rememberPaneTab({ sessionId, tab }), [sessionId, tab])
 
-  const openPane = useCallback(() => {
+  const expandPane = useCallback(
+    (update: () => void) => {
+      setSheetOpen(true)
+      morphSessionDetails(() => {
+        update()
+        setCollapsed(false)
+      })
+    },
+    [setCollapsed],
+  )
+
+  const openPane = useCallback(() => expandPane(() => undefined), [expandPane])
+
+  const revealPane = useCallback(() => {
     setSheetOpen(true)
-    morphSessionDetails(() => setCollapsed(false))
+    setCollapsed(false)
   }, [setCollapsed])
 
   const toggleCollapsed = useCallback(
@@ -102,21 +117,20 @@ export function useSessionPane(sessionId: string): SessionPaneState {
   }, [setDetailsOpen, setCollapsed])
 
   const openTab = useCallback(
-    (next: ESessionPaneTab) => {
-      setTab(next)
-      openPane()
-    },
-    [openPane],
+    (next: ESessionPaneTab) => expandPane(() => setTab(next)),
+    [expandPane],
   )
 
   const requestOpen = useCallback(
     (request: { kind: EPaneOpen; path: string }) => {
       nextOpenId.current += 1
-      setOpenRequest({ ...request, id: nextOpenId.current })
-      setTab(request.kind === EPaneOpen.Changes ? ESessionPaneTab.Changes : ESessionPaneTab.Files)
-      openPane()
+      const id = nextOpenId.current
+      expandPane(() => {
+        setOpenRequest({ ...request, id })
+        setTab(request.kind === EPaneOpen.Changes ? ESessionPaneTab.Changes : ESessionPaneTab.Files)
+      })
     },
-    [openPane],
+    [expandPane],
   )
 
   const consumeOpenRequest = useCallback((id: number) => {
@@ -132,6 +146,8 @@ export function useSessionPane(sessionId: string): SessionPaneState {
     setCollapsed,
     toggleCollapsed,
     openPane,
+    expandPane,
+    revealPane,
     openTab,
     openRequest,
     requestOpen,
