@@ -1,9 +1,4 @@
-import {
-  EPeerBucket,
-  isRecentProject as isRecentlyActiveProject,
-  lastActivityAt,
-  peerBucketOf,
-} from '@dltech/atlas-client/stream'
+import { EPeerBucket, peerBucketOf } from '@dltech/atlas-client/stream'
 import type {
   Project,
   SessionBucketCounts,
@@ -68,25 +63,7 @@ export function sortSessions(sessions: readonly SessionNode[]): SessionNode[] {
 const withSessions = (entries: ProjectThreads[]): ProjectThreads[] =>
   entries.filter((entry) => entry.sessions.length > 0)
 
-const activityStampsOf = (entry: ProjectThreads): (string | null | undefined)[] =>
-  mainThreadsOf(entry.sessions).flatMap((thread) => [thread.updatedAt, thread.archivedAt])
-
-export function lastActivityOf(entry: ProjectThreads): number {
-  return lastActivityAt({ createdAt: entry.project?.createdAt, stamps: activityStampsOf(entry) })
-}
-
-const isRecentProject = (args: { entry: ProjectThreads; now: number }): boolean =>
-  args.entry.project !== null &&
-  isRecentlyActiveProject({
-    createdAt: args.entry.project.createdAt,
-    stamps: activityStampsOf(args.entry),
-    now: args.now,
-  })
-
-export function partitionThreads(args: {
-  entries: readonly ProjectThreads[]
-  now: number
-}): ThreadPartition {
+export function partitionThreads(args: { entries: readonly ProjectThreads[] }): ThreadPartition {
   const groups: ProjectThreads[] = []
   const archived: ProjectThreads[] = []
   for (const entry of args.entries) {
@@ -98,13 +75,10 @@ export function partitionThreads(args: {
     for (const session of sortSessions(sessions)) {
       byBucket[bucketOf({ thread: session.mainThread })].push(session)
     }
-    const active = byBucket[EPeerBucket.Active]
-    if (active.length > 0 || isRecentProject({ entry, now: args.now })) {
-      groups.push({ project, sessions: active })
-    }
+    groups.push({ project, sessions: byBucket[EPeerBucket.Active] })
     archived.push({ project, sessions: byBucket[EPeerBucket.Archived] })
   }
-  return { groups, archived: withSessions(archived) }
+  return { groups: withSessions(groups), archived: withSessions(archived) }
 }
 
 export const countThreads = (entries: readonly ProjectThreads[]): number =>

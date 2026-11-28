@@ -51,7 +51,6 @@ The headless client library that web, the TUI and the mobile app share.
   `browserNetworkSignal`: the ports that a surface supplies.
 - `nestPeers(rows)` nests each teammate under its spawner. `peerBucketOf({ row })` and
   `EPeerBucket` give a row's bucket; `splitTeammates(rows)` gives its active and done teammates.
-  `isRecentProject(args)`, `lastActivityAt(args)` and `RECENT_PROJECT_WINDOW_MS` keep new projects.
 
 ### List settings
 
@@ -212,6 +211,9 @@ The headless client library that web, the TUI and the mobile app share.
 - `derivedViewOf`, `deriveViewOf`, `deriveStatusOf`, `frameFactsOf`: the view of a followed session.
   `sessionDisplayOf`, `isSessionUnreadOf`, `startFailureOf`: the status, unread mark, start failure;
   `blockingCommandOf`, `elapsedClockOf`: the command that holds the next turn, and its clock.
+  `requestedCommandOf`, `acceptedCommandOf`, `failedCommandOf`, `requestedCommandDone` and
+  `shownBlockingOf` show a blocking command from the moment the operator requests it, before the
+  server lists it.
 
 ### Read the pod channel
 

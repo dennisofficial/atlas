@@ -9,7 +9,6 @@ import { useApiPrStates } from '@/features/threads/data/use-api-pr-states'
 
 import { SidebarPrStatesProvider } from './shell-sidebar-pr-states'
 import { ThreadFamilyProvider } from './shell-thread-family'
-import { useClock } from './use-clock'
 import { Bucket } from './shell-bucket'
 import { ProjectGroup } from './shell-project-group'
 import {
@@ -72,8 +71,7 @@ const bucketTotalOf = (args: {
 
 function ThreadListContent({ entries, counts, activeThreadId }: ThreadListProps) {
   const [collapsed, setCollapsed] = useState<string[]>([])
-  const now = useClock()
-  const partition = useMemo(() => partitionThreads({ entries, now }), [entries, now])
+  const partition = useMemo(() => partitionThreads({ entries }), [entries])
   const archivedTotal = bucketTotalOf({
     streamCount: counts?.archived,
     entries: partition.archived,

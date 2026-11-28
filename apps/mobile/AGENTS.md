@@ -37,9 +37,16 @@ web spinner), never `ActivityIndicator`.
   it through. Keep the patch, or confirm upstream passes the prop, when expo-router is upgraded.
 - **Header taps:** from iOS 27 on iPhone, a tap anywhere on the native bar scrolls the screen's
   scroll view to the top, a tap on a custom header view included
-  (facebook/react-native#56061). `leadingHeaderOptionsOf` wraps its title views in
-  `ScrollToTopGuard` (`react-native-screens/experimental`) so a tap on them does not scroll. Wrap
-  any other custom header view the same way.
+  (facebook/react-native#56061). iOS skips the scroll only when the touched view is a `UIControl`
+  or sits inside one. `ScrollToTopGuard` from react-native-screens does not work on the iPhone Duo
+  on iOS 27.2 (the window's tap region refuses its failure requirement, see the 2026-11-09 comment
+  on #56061), so do not use it. Use `HeaderTapShield` (`src/navigation/header-tap-shield.tsx`, a
+  `UIControl` from `react-native-touch-control`): put it as the last child inside every header
+  `Pressable`, with the `Pressable`'s `hitSlop` as `slop`, and as the first child of every header
+  container so it covers padding and gaps. Give non-interactive header text `PASS_THROUGH` and
+  wrapper views `pointerEvents="box-none"`, so a tap on them falls through to the shield. A
+  `Pressable` inside a shield never fires: the shield must sit inside the `Pressable`, not
+  around it.
 - **Back:** the native back button and the swipe-back gesture. Do not add a JS back button on iOS.
   A pushed screen (Settings, Sub-agent, Project settings) uses `pushedHeaderOptionsOf`: the native
   back button followed by the same glass leading title as the tab screens.

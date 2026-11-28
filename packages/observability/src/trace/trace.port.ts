@@ -55,6 +55,7 @@ export enum EWake {
 export enum EFirstAction {
   Turn = 'turn',
   Prepare = 'prepare',
+  Command = 'command',
 }
 
 export enum ESandboxStart {
