@@ -1,3 +1,6 @@
 const THIN_SPACE = '\u2009'
+const WORD_JOINER = '\u2060'
 
-export const inlineCodeTextOf = (value: string): string => `${THIN_SPACE}${value}${THIN_SPACE}`
+export const INLINE_CODE_LEADING_PAD = `${THIN_SPACE}${WORD_JOINER}`
+export const INLINE_CODE_TRAILING_PAD = `${WORD_JOINER}${THIN_SPACE}`
+export const INLINE_CODE_RADIUS = 4

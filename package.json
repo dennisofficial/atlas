@@ -49,6 +49,7 @@
     }
   },
   "patchedDependencies": {
-    "expo-router@58.0.30": "patches/expo-router@58.0.30.patch"
+    "expo-router@58.0.30": "patches/expo-router@58.0.30.patch",
+    "@bsky.app/react-native-uitextview@2.7.3": "patches/@bsky.app%2Freact-native-uitextview@2.7.3.patch"
   }
 }
