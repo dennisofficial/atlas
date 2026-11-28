@@ -94,6 +94,19 @@ describe('tunnel freeze detection', () => {
     expect(supervisor.status().lastRedial).toEqual(redials[0])
   })
 
+  it('redials without waiting for a frozen cloudflared that ignores SIGTERM', async () => {
+    const binary = join(dir, 'cloudflared')
+    writeFileSync(
+      binary,
+      `#!/bin/sh\ntrap "" TERM\n${readFileSync(binary, 'utf8').slice('#!/bin/sh\n'.length)}`,
+    )
+    await supervisor.start('token')
+    const frozenAt = performance.now()
+    advanceClocks({ wallDeltaMs: 16_000, monotonicDeltaMs: 1_000 })
+    await waitForRedial(supervisor)
+    expect(performance.now() - frozenAt).toBeLessThan(1_500)
+  })
+
   it('coalesces another freeze heartbeat while a redial is in flight', async () => {
     await supervisor.start('token')
     writeFileSync(join(dir, 'hold'), '')

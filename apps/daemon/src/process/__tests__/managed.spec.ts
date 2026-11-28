@@ -73,3 +73,19 @@ describe('ManagedProcess spawn failure', () => {
     expect(failure.message).toContain('/nonexistent/tool')
   })
 })
+
+describe('ManagedProcess killNow', () => {
+  it('ends a child that ignores SIGTERM without the grace period', async () => {
+    const child = ManagedProcess.spawn({
+      cmd: ['sh', '-c', 'trap "" TERM; printf ready; exec tail -f /dev/null'],
+      env: { PATH: process.env.PATH },
+      onStdout: () => {},
+      onStderr: () => {},
+    })
+    const startedAt = performance.now()
+    child.killNow()
+    const exit = await child.exit()
+    expect(exit.signal).toBe('SIGKILL')
+    expect(performance.now() - startedAt).toBeLessThan(1_000)
+  })
+})
