@@ -534,6 +534,7 @@
       "name": "@dltech/atlas-client",
       "version": "0.1.0",
       "dependencies": {
+        "@dltech/atlas-classifier": "workspace:*",
         "@dltech/atlas-core": "workspace:*",
         "@dltech/atlas-models": "workspace:*",
         "@dltech/atlas-protocol": "workspace:*",

@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'bun:test'
 
-import { planNameOf } from '../plan-name'
+import { planNameOf } from '../accounts'
 
 describe('planNameOf', () => {
   it('names the plans it knows', () => {

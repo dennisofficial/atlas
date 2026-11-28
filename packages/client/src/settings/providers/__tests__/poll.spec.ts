@@ -2,7 +2,7 @@ import { describe, expect, it } from 'bun:test'
 
 import { EProviderSignInPoll, type ProviderSignInPoll } from '@dltech/atlas-wire/web'
 
-import { pollSignInUntilSettled } from '../provider-sign-in-poll'
+import { pollSignInUntilSettled } from '../sign-in'
 
 const complete: ProviderSignInPoll = {
   status: EProviderSignInPoll.Complete,
@@ -12,9 +12,11 @@ const complete: ProviderSignInPoll = {
     kind: 'oauth',
     label: 'x',
     status: 'active',
+    origin: 'login',
+    updatedAt: '2026-01-01T00:00:00Z',
     createdAt: '2026-01-01T00:00:00Z',
   },
-} as unknown as ProviderSignInPoll
+}
 
 function run(args: {
   results: ProviderSignInPoll[]

@@ -32,6 +32,10 @@ export const SETTINGS_STACK_SCREENS: readonly ISettingsStackScreen[] = [
   { name: 'settings/security', title: 'Devices & Sessions' },
   { name: 'settings/models-effort', title: 'Models & Effort' },
   { name: 'settings/model-role', title: 'Model' },
+  { name: 'settings/providers', title: 'Providers' },
+  { name: 'settings/provider-account', title: 'Provider account' },
+  { name: 'settings/provider-key', title: 'API key', presentation: 'modal' },
+  { name: 'settings/classifier', title: 'Classifier' },
   { name: 'settings/agent', title: 'Agent' },
   { name: 'settings/quality', title: 'Code Quality' },
   { name: 'settings/experimental', title: 'Experimental' },
@@ -72,6 +76,8 @@ export const IOS_SETTINGS_ROUTES: Partial<Record<ESettingsPage, Href>> = {
   [ESettingsPage.Instructions]: '/settings/instructions',
   [ESettingsPage.Memory]: '/settings/memory',
   [ESettingsPage.Skills]: '/settings/skills',
+  [ESettingsPage.Providers]: '/settings/providers',
+  [ESettingsPage.Classifier]: '/settings/classifier',
   [ESettingsPage.Notifications]: '/settings/notifications',
 }
 
@@ -98,11 +104,7 @@ export const IOS_GROUP_SECTION_ROUTES: Partial<Record<TGroupSection, TRouteOfId>
     `/group-settings/${encodeURIComponent(id)}/sandbox`,
 }
 
-export const IOS_PENDING_PAGES: ReadonlySet<ESettingsPage> = new Set([
-  ESettingsPage.Providers,
-  ESettingsPage.Classifier,
-  ESettingsPage.Access,
-])
+export const IOS_PENDING_PAGES: ReadonlySet<ESettingsPage> = new Set([ESettingsPage.Access])
 
 export const IOS_PENDING_PROJECT_SECTIONS: ReadonlySet<EProjectSettingsSection> = new Set([
   EProjectSettingsSection.Access,
