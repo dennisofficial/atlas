@@ -55,8 +55,8 @@ const dark = {
   warning: amber[300],
   warningForeground: graphite[925],
 
-  code: graphite[300],
-  codeBackground: '#303030',
+  code: '#d0d0d0',
+  codeBackground: '#ffffff12',
   link: blue[300],
 
   diffAdd: diff.addDark,
@@ -128,8 +128,8 @@ const light: SemanticTheme = {
   warning: amber[600],
   warningForeground: '#fcfcfc',
 
-  code: graphite[700],
-  codeBackground: '#e3e3e3',
+  code: '#333333',
+  codeBackground: '#0000000d',
   link: blue[700],
 
   diffAdd: diff.addLight,

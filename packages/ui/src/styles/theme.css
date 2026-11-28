@@ -147,8 +147,8 @@
   --pr-queued: #d29922;
   --warning: #e3b341;
   --warning-foreground: #202020;
-  --code: #b9b9b9;
-  --code-background: #303030;
+  --code: #d0d0d0;
+  --code-background: #ffffff12;
   --link: #7cbdff;
   --diff-add: #252d20;
   --diff-add-foreground: #57ab5a;
@@ -211,8 +211,8 @@
   --pr-queued: #9a6700;
   --warning: #8f6615;
   --warning-foreground: #fcfcfc;
-  --code: #4b4b4b;
-  --code-background: #e3e3e3;
+  --code: #333333;
+  --code-background: #0000000d;
   --link: #28558f;
   --diff-add: #eef7ee;
   --diff-add-foreground: #255c28;
