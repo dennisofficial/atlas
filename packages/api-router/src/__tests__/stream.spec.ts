@@ -1,5 +1,9 @@
 import { beforeEach, describe, expect, it } from 'bun:test'
-import { EStreamSurface, type StreamServerMessage } from '@dltech/atlas-protocol'
+import {
+  EStreamCacheOutcome,
+  EStreamSurface,
+  type StreamServerMessage,
+} from '@dltech/atlas-protocol'
 import { createApiClient } from '../client'
 import { sessionStreamTransport, type SessionStreamHandlers } from '../stream'
 
@@ -111,12 +115,20 @@ describe('sessionStreamTransport', () => {
       client: createApiClient({ baseUrl: 'https://api.atlas.test', EventSource: FakeEventSource }),
       surface: EStreamSurface.Desktop,
     })
-    const subscription = transport.follow({ sessionId: 'ses_1' }, collected().handlers)
+    const subscription = transport.follow(
+      { sessionId: 'ses_1', cache: EStreamCacheOutcome.Restored, hydrateMs: 225 },
+      collected().handlers,
+    )
     const source = await opened()
     subscription.close()
 
     const input = new URL(source.url).searchParams.get('input') ?? ''
-    expect(JSON.parse(input)).toEqual({ sessionId: 'ses_1', surface: 'desktop' })
+    expect(JSON.parse(input)).toEqual({
+      sessionId: 'ses_1',
+      surface: 'desktop',
+      cache: 'restored',
+      hydrateMs: 225,
+    })
   })
 
   it('follows the whole user stream without an input', async () => {

@@ -1,4 +1,5 @@
 import { urlForSession } from './apns.js'
+import { inPagePlanOf } from './page-navigation.js'
 
 export const REFRESH_GAPS_MS = [0, 1_000, 4_000]
 
@@ -6,6 +7,7 @@ export const EClickPlan = Object.freeze({
   Defer: 'defer',
   Focus: 'focus',
   Navigate: 'navigate',
+  NavigateInPage: 'navigate-in-page',
 })
 
 const PAGE_PROTOCOLS = new Set(['http:', 'https:'])
@@ -24,11 +26,10 @@ export const sessionIdOfDelivered = (notification) => {
   return typeof groupId === 'string' && groupId.length > 0 ? groupId : undefined
 }
 
-export const clickPlanOf = ({ sessionId, pageUrl }) => {
-  const origin = pageOriginOf(pageUrl)
-  if (origin === undefined) return { kind: EClickPlan.Defer }
-  const url = urlForSession(origin, sessionId)
-  return url === pageUrl ? { kind: EClickPlan.Focus } : { kind: EClickPlan.Navigate, url }
+export const clickPlanOf = ({ sessionId, pageUrl, appUrl, loading = false }) => {
+  const origin = pageOriginOf(appUrl)
+  if (loading || origin === undefined) return { kind: EClickPlan.Defer }
+  return inPagePlanOf({ pageUrl, url: urlForSession(origin, sessionId), kinds: EClickPlan })
 }
 
 export function revealWindow({ app, win }) {
@@ -38,12 +39,18 @@ export function revealWindow({ app, win }) {
   win.focus()
 }
 
-export function createSessionOpener({ app, windowNow, createWindow }) {
+export function createSessionOpener({ app, windowNow, createWindow, navigation }) {
   const reveal = (win) => revealWindow({ app, win })
 
   const navigate = (win, sessionId) => {
-    const plan = clickPlanOf({ sessionId, pageUrl: win.webContents.getURL() })
+    const plan = clickPlanOf({
+      sessionId,
+      pageUrl: win.webContents.getURL(),
+      appUrl: navigation.urlOf(win),
+      loading: win.webContents.isLoading(),
+    })
     if (plan.kind === EClickPlan.Navigate) void win.loadURL(plan.url)
+    if (plan.kind === EClickPlan.NavigateInPage) void navigation.navigate({ win, ...plan })
     return plan.kind
   }
 

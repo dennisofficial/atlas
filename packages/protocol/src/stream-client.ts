@@ -1,6 +1,7 @@
 import { z } from 'zod'
 
 import {
+  EStreamCacheOutcome,
   EStreamSubscribeKind,
   EStreamSurface,
   STREAM_PROTOCOL_MIN_VERSION,
@@ -13,6 +14,8 @@ const subscribeSessionSchema = z
     kind: z.literal(EStreamSubscribeKind.Session),
     sessionId: z.string().min(1),
     threadId: z.string().min(1).optional(),
+    cache: z.enum(EStreamCacheOutcome).optional(),
+    hydrateMs: z.number().int().min(0).optional(),
     afterSeq: z.number().int().min(0).optional(),
     afterHash: z.string().min(1).optional(),
     tailViewVersion: z.number().int().min(1).optional(),

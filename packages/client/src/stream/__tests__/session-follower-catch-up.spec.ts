@@ -2,7 +2,7 @@ import { describe, expect, it } from 'bun:test'
 import { EStreamResetReason } from '@dltech/atlas-protocol'
 
 import { EStreamConnectionState } from '../connection-machine'
-import { CATCH_UP_RENDER_MS } from '../follower-render'
+import { CATCH_UP_HOLD_MS } from '../follower-render'
 import { memorySessionLog, type SessionLog } from '../session-log'
 import { createSessionFollower, ESessionConnection } from '../session-follower'
 import { createFakeScheduler, eventsMessage, headOf, mintUserEvents, settle } from './support'
@@ -25,12 +25,15 @@ const seqs = (follower: ReturnType<typeof createSessionFollower>): number[] =>
 
 describe('the session follower catch-up render', () => {
   it('holds every catch-up page back from listeners until the live frame', () => {
-    const { follower, calls } = setup()
+    const { follower, clock, calls } = setup()
     const events = mintUserEvents({ count: 6 })
 
     follower.handleMessage(eventsMessage({ id: 's1', events: events.slice(0, 2), live: false }))
+    clock.advance(1_000)
     follower.handleMessage(eventsMessage({ id: 's1', events: events.slice(2, 4), live: false }))
+    clock.advance(1_000)
     follower.handleMessage(eventsMessage({ id: 's1', events: events.slice(4, 5), live: false }))
+    clock.advance(1_000)
 
     expect(calls()).toBe(0)
     expect(seqs(follower)).toEqual([])
@@ -41,12 +44,13 @@ describe('the session follower catch-up render', () => {
     expect(seqs(follower)).toEqual([1, 2, 3, 4, 5, 6])
   })
 
-  it('renders the pages held so far once the catch-up interval elapses', () => {
+  it('renders the held pages after the five-second safety hold', () => {
+    expect(CATCH_UP_HOLD_MS).toBe(5_000)
     const { follower, clock, calls } = setup()
     const events = mintUserEvents({ count: 4 })
 
     follower.handleMessage(eventsMessage({ id: 's1', events: events.slice(0, 2), live: false }))
-    clock.advance(CATCH_UP_RENDER_MS - 1)
+    clock.advance(CATCH_UP_HOLD_MS - 1)
     expect(calls()).toBe(0)
 
     clock.advance(1)
@@ -54,7 +58,7 @@ describe('the session follower catch-up render', () => {
     expect(seqs(follower)).toEqual([1, 2])
 
     follower.handleMessage(eventsMessage({ id: 's1', events: events.slice(2), live: false }))
-    clock.advance(CATCH_UP_RENDER_MS)
+    clock.advance(CATCH_UP_HOLD_MS)
     expect(calls()).toBe(2)
     expect(seqs(follower)).toEqual([1, 2, 3, 4])
   })
@@ -110,7 +114,7 @@ describe('the session follower catch-up render', () => {
     })
 
     expect(calls()).toBe(1)
-    clock.advance(CATCH_UP_RENDER_MS)
+    clock.advance(CATCH_UP_HOLD_MS)
     expect(calls()).toBe(1)
     expect(seqs(follower)).toEqual([])
   })

@@ -2,6 +2,7 @@ import { describe, expect, mock, test } from 'bun:test'
 
 const exposed = {}
 const sent = []
+const acknowledgements = []
 const invoked = []
 const handlers = new Map()
 let state = false
@@ -16,6 +17,7 @@ mock.module('electron', () => ({
     on: (channel, handler) => {
       handlers.set(channel, handler)
     },
+    send: (channel, payload) => acknowledgements.push([channel, payload]),
     sendSync: (channel) => {
       sent.push(channel)
       return state
@@ -41,6 +43,38 @@ const listen = (name) => {
 }
 
 describe('the atlasDesktop bridge', () => {
+  test('acknowledges navigation only when an app listener accepts it', () => {
+    const request = { requestId: 1, path: '/sessions/s' }
+    emit('atlas-desktop:navigate', request)
+    expect(acknowledgements).toEqual([])
+    const seen = []
+    const listener = (path) => {
+      seen.push(path)
+      return true
+    }
+    exposed.atlasDesktop.onNavigate(listener)
+    emit('atlas-desktop:navigate', request)
+    expect(seen).toEqual(['/sessions/s'])
+    expect(acknowledgements).toEqual([['atlas-desktop:navigate', { requestId: 1 }]])
+    exposed.atlasDesktop.offNavigate(listener)
+    emit('atlas-desktop:navigate', { ...request, requestId: 2 })
+    expect(acknowledgements).toHaveLength(1)
+  })
+
+  test('does not acknowledge a rejected or failed route', () => {
+    acknowledgements.length = 0
+    const reject = () => false
+    const fail = () => {
+      throw new Error('router unavailable')
+    }
+    exposed.atlasDesktop.onNavigate(reject)
+    exposed.atlasDesktop.onNavigate(fail)
+    emit('atlas-desktop:navigate', { requestId: 3, path: '/settings' })
+    expect(acknowledgements).toEqual([])
+    exposed.atlasDesktop.offNavigate(reject)
+    exposed.atlasDesktop.offNavigate(fail)
+  })
+
   test('reads full screen from the main process', () => {
     state = false
     expect(exposed.atlasDesktop.fullScreen()).toBe(false)

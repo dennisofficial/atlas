@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'bun:test'
 
 import { SESSION_VIEW_VERSION } from '@dltech/atlas-core'
+import { EStreamCacheOutcome } from '@dltech/atlas-protocol'
 
 import { ESessionConnection } from '../follower-state'
 import { createStreamConnection } from '../stream-connection'
@@ -56,6 +57,7 @@ describe('reopening a session the client just closed', () => {
       afterSeq: head.seq,
       afterHash: head.hash,
       tailViewVersion: SESSION_VIEW_VERSION,
+      cache: EStreamCacheOutcome.Memory,
     })
   })
 

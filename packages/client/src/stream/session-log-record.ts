@@ -97,6 +97,7 @@ const snapshotOfValue = (value: unknown): SessionLogSnapshot | undefined => {
   if (!isView(value.view) || !isFailure(value.failureMessage)) return undefined
   if (!isEventList(value.commandLog) || !isEventList(value.durable)) return undefined
   if (typeof value.throughSeq !== 'number') return undefined
+  if (value.foldedThrough !== undefined && typeof value.foldedThrough !== 'number') return undefined
   if (value.cursor !== undefined && !isCursor(value.cursor)) return undefined
   const quickStops = readQuickStopRecord(value.quickStops)
   if (value.quickStops !== undefined && quickStops === undefined) return undefined
@@ -111,6 +112,7 @@ const snapshotOfValue = (value: unknown): SessionLogSnapshot | undefined => {
     commandLog: value.commandLog,
     quickStops,
     throughSeq: value.throughSeq,
+    foldedThrough: value.foldedThrough,
   }
 }
 

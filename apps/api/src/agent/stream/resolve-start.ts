@@ -1,5 +1,6 @@
 import { chainHash, GENESIS_HASH, SESSION_VIEW_VERSION } from '@dltech/atlas-core'
 import {
+  type EStreamCacheOutcome,
   EStreamResetReason,
   STREAM_TAIL_EVENTS,
   STREAM_TOO_FAR_BEHIND_EVENTS,
@@ -11,6 +12,8 @@ export type StartRequest = {
   afterSeq: number | undefined
   afterHash: string | undefined
   tailViewVersion?: number | undefined
+  cache?: EStreamCacheOutcome | undefined
+  hydrateMs?: number | undefined
 }
 
 export type StartPosition = {
@@ -44,9 +47,11 @@ export const resolveStart = async (args: {
   threadId: string
   request: StartRequest
   isMainThread: boolean
+  onHead?: ((seq: number) => void) | undefined
 }): Promise<StartPosition> => {
   const { plane, threadId, request } = args
   const head = await plane.head({ threadId })
+  args.onHead?.(head.seq)
   const reset = (reason: EStreamResetReason, tailFrom = 0): StartPosition => ({
     cursor: 0,
     reset: { reason, tailFrom },

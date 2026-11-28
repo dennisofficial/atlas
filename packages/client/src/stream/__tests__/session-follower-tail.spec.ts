@@ -59,18 +59,18 @@ describe('the follower on a tail open', () => {
     await settle()
   })
 
-  it('saves no snapshot until the window reaches the folded head', async () => {
-    const { follower, clock, log, base, tail } = setup()
+  it('saves a checkpoint at the base and when catch-up reaches live', async () => {
+    const { follower, log, base, tail } = setup()
     follower.handleMessage(base)
     await settle()
-    expect(log.saveCount()).toBe(0)
-    follower.handleMessage(eventsMessage({ id: 's1', events: tail.slice(0, 5), live: true }))
+    expect((await log.loadSnapshot('session-1'))?.throughSeq).toBe(20)
+    expect((await log.loadSnapshot('session-1'))?.foldedThrough).toBe(30)
+    follower.handleMessage(eventsMessage({ id: 's1', events: tail.slice(0, 5), live: false }))
     await settle()
-    expect(log.saveCount()).toBe(0)
+    expect((await log.loadSnapshot('session-1'))?.throughSeq).toBe(20)
     follower.handleMessage(eventsMessage({ id: 's1', events: tail.slice(5), live: true }))
-    clock.advance(1_000)
     await settle()
-    expect(log.saveCount()).toBeGreaterThan(0)
+    expect((await log.loadSnapshot('session-1'))?.throughSeq).toBe(30)
   })
 
   it('asks the transport for the history the log does not hold', async () => {

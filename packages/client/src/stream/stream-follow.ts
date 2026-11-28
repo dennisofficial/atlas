@@ -1,4 +1,5 @@
 import { SESSION_VIEW_VERSION } from '@dltech/atlas-core'
+import type { EStreamCacheOutcome } from '@dltech/atlas-protocol'
 
 import type { SessionCursor } from './session-window'
 import type {
@@ -14,8 +15,12 @@ export const followInputOf = (args: {
   sessionId: string
   threadId: string | undefined
   cursor: SessionCursor | undefined
+  cache: EStreamCacheOutcome
+  hydrateMs: number | undefined
 }): StreamFollowInput => ({
   sessionId: args.sessionId,
+  cache: args.cache,
+  ...(args.hydrateMs === undefined ? {} : { hydrateMs: args.hydrateMs }),
   ...(args.threadId === undefined ? {} : { threadId: args.threadId }),
   ...(args.cursor === undefined ? {} : { afterSeq: args.cursor.seq, afterHash: args.cursor.hash }),
 })

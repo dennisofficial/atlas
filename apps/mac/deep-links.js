@@ -1,4 +1,5 @@
 import { HOST_SESSION_PATH, urlForSession } from './apns.js'
+import { inPagePlanOf } from './page-navigation.js'
 
 export const DESKTOP_URL_SCHEME = 'atlas'
 export const DESKTOP_OPEN_HOST = 'open'
@@ -17,6 +18,7 @@ export const EDeepLinkPlan = Object.freeze({
   Defer: 'defer',
   Dispatch: 'dispatch',
   Navigate: 'navigate',
+  NavigateInPage: 'navigate-in-page',
   Focus: 'focus',
 })
 
@@ -73,25 +75,32 @@ export function landingUrlOf({ pageUrl, sessionId, path }) {
 const dispatchScriptOf = ({ event, path }) =>
   `window.dispatchEvent(new CustomEvent(${JSON.stringify(event)}, { detail: ${JSON.stringify(path)} }))`
 
-export function livePlanOf({ link, pageUrl, loading }) {
-  if (loading || pageOriginOf(pageUrl) === undefined) return { kind: EDeepLinkPlan.Defer }
+export function livePlanOf({ link, pageUrl, appUrl, loading }) {
+  if (loading) return { kind: EDeepLinkPlan.Defer }
+  if (link.kind === EDeepLinkKind.Open) return loadedPlanOf({ link, pageUrl, appUrl })
+  if (pageOriginOf(pageUrl) === undefined) return { kind: EDeepLinkPlan.Defer }
   const event = EVENT_OF_KIND.get(link.kind)
   if (event === undefined) return { kind: EDeepLinkPlan.Focus }
   return { kind: EDeepLinkPlan.Dispatch, script: dispatchScriptOf({ event, path: link.path }) }
 }
 
-export function loadedPlanOf({ link, pageUrl }) {
-  const origin = pageOriginOf(pageUrl)
-  if (origin === undefined || link.kind !== EDeepLinkKind.Open) return { kind: EDeepLinkPlan.Focus }
-  const target = `${origin}${link.path}`
-  return target === pageUrl
-    ? { kind: EDeepLinkPlan.Focus }
-    : { kind: EDeepLinkPlan.Navigate, url: target }
+export function loadedPlanOf({ link, pageUrl, appUrl }) {
+  if (link.kind !== EDeepLinkKind.Open) return { kind: EDeepLinkPlan.Focus }
+  const origin = pageOriginOf(appUrl)
+  if (origin === undefined) return { kind: EDeepLinkPlan.Defer }
+  return inPagePlanOf({ pageUrl, url: `${origin}${link.path}`, kinds: EDeepLinkPlan })
 }
 
-export function createDeepLinkOpener({ windowNow, createWindow, reveal, log = () => {} }) {
+export function createDeepLinkOpener({
+  windowNow,
+  createWindow,
+  reveal,
+  navigation,
+  log = () => {},
+}) {
   const apply = (win, plan) => {
     if (plan.kind === EDeepLinkPlan.Navigate) void win.loadURL(plan.url)
+    if (plan.kind === EDeepLinkPlan.NavigateInPage) void navigation.navigate({ win, ...plan })
     if (plan.kind !== EDeepLinkPlan.Dispatch) return
     win.webContents.executeJavaScript(plan.script).catch((error) => {
       log(`[deep-link] could not hand the link to the page: ${error}`)
@@ -111,6 +120,7 @@ export function createDeepLinkOpener({ windowNow, createWindow, reveal, log = ()
     const plan = livePlanOf({
       link,
       pageUrl: webContents.getURL(),
+      appUrl: navigation.urlOf(win),
       loading: webContents.isLoading(),
     })
     if (plan.kind !== EDeepLinkPlan.Defer) {
@@ -118,7 +128,11 @@ export function createDeepLinkOpener({ windowNow, createWindow, reveal, log = ()
       return true
     }
     webContents.once('did-finish-load', () => {
-      if (!win.isDestroyed()) apply(win, loadedPlanOf({ link, pageUrl: webContents.getURL() }))
+      if (win.isDestroyed()) return
+      apply(
+        win,
+        loadedPlanOf({ link, pageUrl: webContents.getURL(), appUrl: navigation.urlOf(win) }),
+      )
     })
     return true
   }

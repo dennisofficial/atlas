@@ -32,21 +32,18 @@ const queueOf = (): Promise<QueuedSessionLog> => {
   return opening
 }
 
-const deferred = <T>(run: (log: SessionLog) => Promise<T>, fallback: T): Promise<T> =>
-  queueOf()
-    .then(run)
-    .catch(() => fallback)
+const deferred = <T>(run: (log: SessionLog) => Promise<T>): Promise<T> => queueOf().then(run)
 
 export const sessionLog = (): SessionLog => ({
-  appendPage: (args) => deferred((log) => log.appendPage(args), undefined),
-  readRange: (args) => deferred((log) => log.readRange(args), []),
-  readTail: (args) => deferred((log) => log.readTail(args), []),
-  readBefore: (args) => deferred((log) => log.readBefore(args), []),
-  loadSnapshot: (sessionId) => deferred((log) => log.loadSnapshot(sessionId), undefined),
-  saveSnapshot: (args) => deferred((log) => log.saveSnapshot(args), undefined),
-  deleteSession: (sessionId) => deferred((log) => log.deleteSession(sessionId), undefined),
-  listSessions: () => deferred((log) => log.listSessions(), []),
-  clear: () => deferred((log) => log.clear(), undefined),
+  appendPage: (args) => deferred((log) => log.appendPage(args)),
+  readRange: (args) => deferred((log) => log.readRange(args)),
+  readTail: (args) => deferred((log) => log.readTail(args)),
+  readBefore: (args) => deferred((log) => log.readBefore(args)),
+  loadSnapshot: (sessionId) => deferred((log) => log.loadSnapshot(sessionId)),
+  saveSnapshot: (args) => deferred((log) => log.saveSnapshot(args)),
+  deleteSession: (sessionId) => deferred((log) => log.deleteSession(sessionId)),
+  listSessions: () => deferred((log) => log.listSessions()),
+  clear: () => deferred((log) => log.clear()),
 })
 
 export const clearSessionLog = async (): Promise<void> => {

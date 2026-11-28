@@ -9,6 +9,12 @@ import {
   sessionIdOfDelivered,
 } from '../notification-clicks.js'
 
+const APP_URL = 'http://127.0.0.1:4242/'
+const navigation = {
+  urlOf: () => APP_URL,
+  navigate: ({ win, path }) => win.calls.push(`navigate ${path}`),
+}
+
 const deliveredOf = ({ id, groupId }) => {
   const listeners = new Map()
   return {
@@ -61,25 +67,40 @@ describe('sessionIdOfDelivered', () => {
 
 describe('clickPlanOf', () => {
   it('moves a loaded page to the session on the same origin', () => {
-    expect(clickPlanOf({ sessionId: 'session/1', pageUrl: 'http://127.0.0.1:4242/' })).toEqual({
-      kind: EClickPlan.Navigate,
+    expect(
+      clickPlanOf({ appUrl: APP_URL, sessionId: 'session/1', pageUrl: 'http://127.0.0.1:4242/' }),
+    ).toEqual({
+      kind: EClickPlan.NavigateInPage,
+      path: '/sessions/session%2F1',
       url: 'http://127.0.0.1:4242/sessions/session%2F1',
     })
   })
 
   it('moves a page that shows another session', () => {
     expect(
-      clickPlanOf({ sessionId: 'session-2', pageUrl: 'http://127.0.0.1:4242/sessions/session-1' }),
-    ).toEqual({ kind: EClickPlan.Navigate, url: 'http://127.0.0.1:4242/sessions/session-2' })
+      clickPlanOf({
+        appUrl: APP_URL,
+        sessionId: 'session-2',
+        pageUrl: 'http://127.0.0.1:4242/sessions/session-1',
+      }),
+    ).toEqual({
+      kind: EClickPlan.NavigateInPage,
+      path: '/sessions/session-2',
+      url: 'http://127.0.0.1:4242/sessions/session-2',
+    })
   })
 
   it('only focuses a page that already shows the session', () => {
     expect(
-      clickPlanOf({ sessionId: 'session-1', pageUrl: 'http://127.0.0.1:4242/sessions/session-1' }),
+      clickPlanOf({
+        appUrl: APP_URL,
+        sessionId: 'session-1',
+        pageUrl: 'http://127.0.0.1:4242/sessions/session-1',
+      }),
     ).toEqual({ kind: EClickPlan.Focus })
   })
 
-  it('waits for the interface when the window still loads or shows the error page', () => {
+  it('waits for the interface when the app address is unknown', () => {
     expect(clickPlanOf({ sessionId: 'session-1', pageUrl: '' })).toEqual({ kind: EClickPlan.Defer })
     expect(
       clickPlanOf({ sessionId: 'session-1', pageUrl: 'data:text/html;charset=utf-8,x' }),
@@ -99,6 +120,7 @@ const windowOf = ({ pageUrl, minimized = false }) => {
     focus: () => calls.push('focus'),
     loadURL: async (url) => calls.push(`load ${url}`),
     webContents: {
+      isLoading: () => pageUrl === '',
       getURL: () => pageUrl,
       once: (name, listener) => loads.set(name, listener),
     },
@@ -116,6 +138,7 @@ describe('createSessionOpener', () => {
   it('shows, restores and focuses the window, then opens the session', () => {
     const win = windowOf({ pageUrl: 'http://127.0.0.1:4242/', minimized: true })
     const open = createSessionOpener({
+      navigation,
       app: appOf(win.calls),
       windowNow: () => win,
       createWindow: async () => undefined,
@@ -128,13 +151,14 @@ describe('createSessionOpener', () => {
       'restore',
       'show',
       'focus',
-      'load http://127.0.0.1:4242/sessions/session-1',
+      'navigate /sessions/session-1',
     ])
   })
 
   it('opens a new window on the session when every window is closed', () => {
     const created = []
     const open = createSessionOpener({
+      navigation,
       app: appOf([]),
       windowNow: () => undefined,
       createWindow: async (options) => created.push(options),
@@ -148,6 +172,7 @@ describe('createSessionOpener', () => {
   it('opens the session once a loading window finishes its first page', () => {
     const win = windowOf({ pageUrl: '' })
     const open = createSessionOpener({
+      navigation,
       app: appOf(win.calls),
       windowNow: () => win,
       createWindow: async () => undefined,
@@ -156,7 +181,7 @@ describe('createSessionOpener', () => {
     open('session-1')
     win.finishLoad('http://127.0.0.1:4242/')
 
-    expect(win.calls.at(-1)).toBe('load http://127.0.0.1:4242/sessions/session-1')
+    expect(win.calls.at(-1)).toBe('navigate /sessions/session-1')
   })
 })
 

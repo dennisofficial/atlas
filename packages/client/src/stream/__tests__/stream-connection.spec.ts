@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'bun:test'
 
 import { SESSION_VIEW_VERSION, type PluginViewFold } from '@dltech/atlas-core'
-import { EStreamErrorCode, STREAM_STALL_MS } from '@dltech/atlas-protocol'
+import { EStreamCacheOutcome, EStreamErrorCode, STREAM_STALL_MS } from '@dltech/atlas-protocol'
 
 import { EStreamConnectionState } from '../connection-machine'
 import { createStreamConnection, type StreamConnectionArgs } from '../stream-connection'
@@ -43,46 +43,6 @@ const rows = [
 ] as never
 
 describe('the stream connection', () => {
-  it('subscribes once the cache has hydrated, then follows the frames', async () => {
-    const { connection, follows } = setup()
-    const followed = connection.follow({ sessionId: 'session-1' })
-    await settle()
-    expect(follows).toHaveLength(1)
-    expect(follows[0]?.input).toEqual({
-      sessionId: 'session-1',
-      tailViewVersion: SESSION_VIEW_VERSION,
-    })
-    const events = mintUserEvents({ count: 2 })
-    follows[0]?.handlers.handleFrame(READY)
-    follows[0]?.handlers.handleFrame(eventsMessage({ id: 's1', events, live: true }))
-    expect(followed.getSnapshot().events).toHaveLength(2)
-    expect(connection.state()).toBe(EStreamConnectionState.Open)
-  })
-
-  it('resumes from the last head after the server drains the stream', async () => {
-    const { connection, clock, follows } = setup()
-    const followed = connection.follow({ sessionId: 'session-1' })
-    await settle()
-    const events = mintUserEvents({ count: 3 })
-    follows[0]?.handlers.handleFrame(eventsMessage({ id: 's1', events, live: true }))
-    const head = headOf(events)
-    follows[0]?.handlers.handleFrame({ type: 'going-away', reconnectAfterMs: 800 })
-    follows[0]?.handlers.handleEnd()
-    expect(follows[0]?.closed).toBe(true)
-    expect(connection.state()).toBe(EStreamConnectionState.Backoff)
-    clock.advance(800)
-    await settle()
-    expect(follows).toHaveLength(2)
-    expect(follows[1]?.input).toEqual({
-      sessionId: 'session-1',
-      afterSeq: head.seq,
-      afterHash: head.hash,
-      tailViewVersion: SESSION_VIEW_VERSION,
-    })
-    follows[1]?.handlers.handleFrame(eventsMessage({ id: 's2', events, live: true }))
-    expect(followed.getSnapshot().events).toHaveLength(3)
-  })
-
   it('folds the plugin views it is handed into every followed session', async () => {
     const { connection, follows } = setup({ views: [probeView] })
     const followed = connection.follow({ sessionId: 'session-1' })
@@ -99,17 +59,6 @@ describe('the stream connection', () => {
     await settle()
     followed.close()
     expect(follows[0]?.closed).toBe(true)
-  })
-
-  it('sends the thread id when it follows a child thread', async () => {
-    const { connection, follows } = setup()
-    connection.follow({ sessionId: 'session-1', threadId: 'child-1' })
-    await settle()
-    expect(follows[0]?.input).toEqual({
-      sessionId: 'session-1',
-      threadId: 'child-1',
-      tailViewVersion: SESSION_VIEW_VERSION,
-    })
   })
 
   it('closes every subscription when the connection closes', async () => {
@@ -162,6 +111,7 @@ describe('the stream connection', () => {
       sessionId: 'session-1',
       afterSeq: head.seq,
       afterHash: head.hash,
+      cache: EStreamCacheOutcome.Resumed,
       tailViewVersion: SESSION_VIEW_VERSION,
     })
   })

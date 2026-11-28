@@ -7,9 +7,11 @@ const PANE_TITLED = 'atlas-desktop:pane-titled'
 const MODEL_PICKER_SHOW = 'atlas-desktop:model-picker-show'
 const MODEL_PICKER_HIDE = 'atlas-desktop:model-picker-hide'
 const MODEL_PICKER_EVENT = 'atlas-desktop:model-picker-event'
+const PAGE_NAVIGATE = 'atlas-desktop:navigate'
 
 const listeners = new Set()
 const navigationListeners = new Set()
+const pageNavigationListeners = new Set()
 const titleListeners = new Set()
 const modelPickerListeners = new Set()
 
@@ -29,7 +31,23 @@ ipcRenderer.on(MODEL_PICKER_EVENT, (_event, report) => {
   for (const listener of modelPickerListeners) listener(report)
 })
 
+ipcRenderer.on(PAGE_NAVIGATE, (_event, request) => {
+  for (const listener of pageNavigationListeners) {
+    try {
+      if (listener(request.path) !== true) continue
+      ipcRenderer.send(PAGE_NAVIGATE, { requestId: request.requestId })
+      return
+    } catch {}
+  }
+})
+
 contextBridge.exposeInMainWorld('atlasDesktop', {
+  onNavigate: (listener) => {
+    pageNavigationListeners.add(listener)
+  },
+  offNavigate: (listener) => {
+    pageNavigationListeners.delete(listener)
+  },
   nativeModelPicker: true,
   showModelPicker: (request) => ipcRenderer.invoke(MODEL_PICKER_SHOW, request),
   hideModelPicker: () => ipcRenderer.invoke(MODEL_PICKER_HIDE),

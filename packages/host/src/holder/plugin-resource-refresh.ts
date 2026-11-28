@@ -7,7 +7,7 @@ import type {
   ResourceWatch,
 } from '@dltech/atlas-plugin-sdk'
 
-import { appendOf, loadOf, startInBackground } from './plugin-resource-loads'
+import { loadedFingerprintOf, loadOf, startInBackground } from './plugin-resource-loads'
 import { armOf, cloudStringOf, statusOf, versionsOf, watchIdOf } from './plugin-resource-probes'
 import { ELoadReason, reasonOf } from './plugin-resource-reason'
 
@@ -44,6 +44,7 @@ export const watchOf = (args: {
 }
 
 const staleOf = (args: {
+  ctx: Ctx
   entries: readonly Entry[]
   events: readonly RecordEvent[]
   instance: string
@@ -63,7 +64,8 @@ const staleOf = (args: {
     })
     const settled =
       latest !== undefined &&
-      latest.fingerprint === fingerprint &&
+      loadedFingerprintOf({ ctx: args.ctx, events: args.events, resource: entry.resource.name }) ===
+        fingerprint &&
       (entry.watch === undefined || seq !== undefined)
     const staledByValue = latest !== undefined && entry.resource.stale?.(latest.value) === true
     if (settled && !staledByValue) return []
@@ -78,6 +80,7 @@ const staleOf = (args: {
   })
 
 const sharedValueOf = (args: {
+  ctx: Ctx
   resource: PodResource<unknown>
   events: readonly RecordEvent[]
   fingerprint: string
@@ -85,7 +88,12 @@ const sharedValueOf = (args: {
 }): { value: unknown } | undefined => {
   if (!args.live) return undefined
   const latest = latestResourceOf({ events: args.events, resource: args.resource.name })
-  if (latest === undefined || latest.fingerprint !== args.fingerprint) return undefined
+  if (latest === undefined) return undefined
+  if (
+    loadedFingerprintOf({ ctx: args.ctx, events: args.events, resource: args.resource.name }) !==
+    args.fingerprint
+  )
+    return undefined
   const parsed = args.resource.schema.safeParse(latest.value)
   if (!parsed.success) return undefined
   if (args.resource.stale?.(parsed.data) === true) return undefined
@@ -93,6 +101,7 @@ const sharedValueOf = (args: {
 }
 
 const adoptOf = async (args: {
+  ctx: Ctx
   adopt: Adopt
   candidate: Candidate
   sharedEvents: readonly RecordEvent[]
@@ -106,6 +115,7 @@ const adoptOf = async (args: {
     directory: args.directory,
   })
   const snapshot = sharedValueOf({
+    ctx: args.ctx,
     resource: args.candidate.resource,
     events: args.sharedEvents,
     fingerprint: known,
@@ -179,13 +189,12 @@ const workOf = async (args: {
     await startInBackground({ ctx: args.ctx, trace: args.trace, entry, directory: args.directory })
     return
   }
-  const drafts = await loadOf({
+  await loadOf({
     ctx: args.ctx,
     trace: args.trace,
     entry,
     directory: args.directory,
   })
-  await appendOf({ ctx: args.ctx, trace: args.trace, drafts })
 }
 
 export const refresh = async (args: {
@@ -223,6 +232,7 @@ export const refresh = async (args: {
     return
   }
   const candidates = staleOf({
+    ctx,
     entries,
     events: ctx.events(),
     instance: status.instance,
@@ -236,6 +246,7 @@ export const refresh = async (args: {
   for (const candidate of candidates) {
     if (shared !== undefined) {
       const adopted = await adoptOf({
+        ctx,
         adopt: args.adopt,
         candidate,
         sharedEvents,

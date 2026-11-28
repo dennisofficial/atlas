@@ -56,4 +56,14 @@ export enum EStreamSubscribeKind {
   Sessions = 'sessions',
 }
 
+export enum EStreamCacheOutcome {
+  Memory = 'memory',
+  Restored = 'restored',
+  Empty = 'empty',
+  Unusable = 'unusable',
+  Timeout = 'timeout',
+  Failed = 'failed',
+  Resumed = 'resumed',
+}
+
 export { EClientSurface as EStreamSurface } from '@dltech/atlas-core'

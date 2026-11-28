@@ -3,6 +3,7 @@ import { randomUUID } from 'node:crypto'
 import type { HostTimers } from '@dltech/atlas-host'
 import { logFieldsOf, type LogPort } from '@dltech/atlas-observability'
 import {
+  EStreamCacheOutcome,
   EStreamErrorCode,
   EStreamSubscribeKind,
   EStreamSurface,
@@ -45,6 +46,8 @@ export type SessionStreamFollowArgs = {
   afterSeq?: number | undefined
   afterHash?: string | undefined
   tailViewVersion?: number | undefined
+  cache?: EStreamCacheOutcome | undefined
+  hydrateMs?: number | undefined
   signal?: AbortSignal | undefined
 }
 
@@ -167,6 +170,8 @@ export const createSessionStream = (deps: SessionStreamDeps): SessionStream => {
           id,
           kind: EStreamSubscribeKind.Session,
           sessionId: args.sessionId,
+          ...(args.cache === undefined ? {} : { cache: args.cache }),
+          ...(args.hydrateMs === undefined ? {} : { hydrateMs: args.hydrateMs }),
           ...(args.threadId === undefined ? {} : { threadId: args.threadId }),
           ...(args.afterSeq === undefined ? {} : { afterSeq: args.afterSeq }),
           ...(args.afterHash === undefined ? {} : { afterHash: args.afterHash }),

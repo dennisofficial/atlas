@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'bun:test'
 import { initialSessionViewState, SESSION_VIEW_VERSION } from '@dltech/atlas-core'
-import type { StreamServerMessage } from '@dltech/atlas-protocol'
+import { EStreamCacheOutcome, type StreamServerMessage } from '@dltech/atlas-protocol'
 
 import { EStreamConnectionState } from '../connection-machine'
 import { createStreamConnection } from '../stream-connection'
@@ -37,6 +37,8 @@ describe('the stream connection tail opt-in', () => {
     await settle()
     expect(follows[0]?.input).toEqual({
       sessionId: 'session-1',
+      cache: EStreamCacheOutcome.Empty,
+      hydrateMs: 0,
       tailViewVersion: SESSION_VIEW_VERSION,
     })
   })
@@ -49,7 +51,10 @@ describe('the stream connection tail opt-in', () => {
     await settle()
     expect(follows).toHaveLength(2)
     expect(follows[0]?.closed).toBe(true)
-    expect(follows[1]?.input).toEqual({ sessionId: 'session-1' })
+    expect(follows[1]?.input).toEqual({
+      sessionId: 'session-1',
+      cache: EStreamCacheOutcome.Resumed,
+    })
     expect(connection.state()).not.toBe(EStreamConnectionState.Backoff)
   })
 
@@ -61,7 +66,11 @@ describe('the stream connection tail opt-in', () => {
     await settle()
     connection.follow({ sessionId: 'session-2' })
     await settle()
-    expect(follows[2]?.input).toEqual({ sessionId: 'session-2' })
+    expect(follows[2]?.input).toEqual({
+      sessionId: 'session-2',
+      cache: EStreamCacheOutcome.Empty,
+      hydrateMs: 0,
+    })
   })
 
   it('treats a 400 after a frame as an ordinary failure', async () => {
@@ -83,7 +92,10 @@ describe('the stream connection tail opt-in', () => {
     follows[0]?.handlers.handleFrame(brokenBase)
     await settle()
     expect(follows).toHaveLength(2)
-    expect(follows[1]?.input).toEqual({ sessionId: 'session-1' })
+    expect(follows[1]?.input).toEqual({
+      sessionId: 'session-1',
+      cache: EStreamCacheOutcome.Resumed,
+    })
   })
 
   it('resumes from the tail cursor after the base', async () => {
@@ -108,6 +120,7 @@ describe('the stream connection tail opt-in', () => {
     expect(follows[1]?.input).toEqual({
       sessionId: 'session-1',
       afterSeq: 4000,
+      cache: EStreamCacheOutcome.Resumed,
       afterHash: 'b'.repeat(64),
       tailViewVersion: SESSION_VIEW_VERSION,
     })

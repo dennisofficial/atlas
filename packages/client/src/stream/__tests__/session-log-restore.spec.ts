@@ -65,6 +65,7 @@ describe('restoring the cached session view', () => {
     const { log } = await seeded({ version: SESSION_VIEW_VERSION, foldedEventCount: 1 })
     const window = await restoredWindowOf({ log, sessionId: SESSION, renderLimit: RENDER_LIMIT })
     expect(window?.view.at).toBe(1)
+    expect(window?.foldedThrough).toBe(0)
   })
 
   it('refolds a view folded by an older version from the cached log', async () => {
@@ -111,8 +112,24 @@ describe('restoring the cached session view', () => {
     ).toBeUndefined()
   })
 
-  it('restores no window without a snapshot', async () => {
+  it('refuses an old view when refolding cannot reach its saved fold boundary', async () => {
+    const { log } = await seeded({ version: SESSION_VIEW_VERSION - 1, foldedEventCount: 1 })
+    const snapshot = await log.loadSnapshot(SESSION)
+    if (snapshot === undefined) throw new Error('snapshot was not seeded')
+    await log.saveSnapshot({
+      sessionId: SESSION,
+      snapshot: { ...snapshot, foldedThrough: 10 },
+    })
+
+    expect(
+      await restoredWindowOf({ log, sessionId: SESSION, renderLimit: RENDER_LIMIT }),
+    ).toBeUndefined()
+  })
+
+  it('restores no window from events alone without a snapshot', async () => {
     const log = memorySessionLog()
+    const events = mintUserEvents({ count: 3 })
+    await log.appendPage({ sessionId: SESSION, events, head: headOf(events) })
     expect(
       await restoredWindowOf({ log, sessionId: SESSION, renderLimit: RENDER_LIMIT }),
     ).toBeUndefined()

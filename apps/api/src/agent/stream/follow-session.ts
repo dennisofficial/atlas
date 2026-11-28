@@ -74,6 +74,8 @@ export class FollowSession implements SubscriptionSession {
         afterSeq: message.afterSeq,
         afterHash: message.afterHash,
         tailViewVersion: message.tailViewVersion,
+        cache: message.cache,
+        hydrateMs: message.hydrateMs,
       },
       connection: this.connection,
       deps: this.deps,

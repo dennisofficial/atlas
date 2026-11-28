@@ -77,6 +77,16 @@ describe('reading a stored snapshot', () => {
     expect(logSnapshotOf(snapshotAt({ throughSeq: 2 }))).toEqual(snapshotAt({ throughSeq: 2 }))
   })
 
+  it('reads an old snapshot without a fold boundary', () => {
+    expect(logSnapshotOf(snapshotAt({ throughSeq: 2 }))?.foldedThrough).toBeUndefined()
+  })
+
+  it('keeps a valid fold boundary and rejects an invalid one', () => {
+    const snapshot = { ...snapshotAt({ throughSeq: 2 }), foldedThrough: 10 }
+    expect(logSnapshotOf(snapshot)?.foldedThrough).toBe(10)
+    expect(logSnapshotOf({ ...snapshot, foldedThrough: '10' })).toBeUndefined()
+  })
+
   it('reads a record saved before quick stops as one without them', () => {
     expect(logSnapshotOf(snapshotAt({ throughSeq: 2 }))?.quickStops).toBeUndefined()
   })

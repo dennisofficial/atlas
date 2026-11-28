@@ -48,7 +48,7 @@ reaches the API through this package. No client imports `apps/api`.
 
 - `sessionStreamTransport({ client, surface?, handleUnauthorized? })`: returns a
   `SessionStreamTransport`. The `follow` call takes `sessionId`, `threadId?`, `afterSeq?`,
-  `afterHash?` and `tailViewVersion?`, and it resumes from a sequence and hash. `list(handlers)`
+  `afterHash?`, `tailViewVersion?`, `cache?` (`EStreamCacheOutcome`) and `hydrateMs?`, and it resumes from a sequence and hash. Cache telemetry is forwarded unchanged. `list(handlers)`
   follows the session list. `events({ sessionId, threadId?, afterSeq, limit })` reads one page of
   older events, and returns the events and the next sequence.
 - `SessionStreamFollowInput`, `SessionStreamTransport`: the follow input and the transport type.

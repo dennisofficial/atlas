@@ -12,16 +12,19 @@ import {
   type IdbTransaction,
 } from './indexed-db-types'
 import { logSnapshotOf } from './session-log-record'
+import { type SessionLog, type SessionLogSnapshot } from './session-log'
 import {
-  SESSION_LOG_STRUCTURE_VERSION,
-  type SessionLog,
-  type SessionLogSnapshot,
-} from './session-log'
+  createSessionLogDatabase,
+  SESSION_LOG_EVENTS_STORE,
+  SESSION_LOG_SNAPSHOTS_STORE,
+} from './indexed-db-connection'
 
-export const SESSION_LOG_DB = 'atlas-stream'
-export const SESSION_LOG_EVENTS_STORE = 'events'
-export const SESSION_LOG_SNAPSHOTS_STORE = 'snapshots'
-export const SESSION_LOG_LEGACY_STORES = ['windows'] as const
+export {
+  SESSION_LOG_DB,
+  SESSION_LOG_EVENTS_STORE,
+  SESSION_LOG_SNAPSHOTS_STORE,
+  SESSION_LOG_LEGACY_STORES,
+} from './indexed-db-connection'
 
 type LogRow = { sessionId: string; seq: number; event: RecordEvent }
 
@@ -42,26 +45,6 @@ const transactionDone = (tx: IdbTransaction): Promise<void> =>
     tx.oncomplete = () => resolve()
     tx.onerror = () => reject(tx.error)
     tx.onabort = () => reject(tx.error)
-  })
-
-const openDatabase = (factory: IdbFactory): Promise<IdbDatabase> =>
-  new Promise((resolve, reject) => {
-    const request = factory.open(SESSION_LOG_DB, SESSION_LOG_STRUCTURE_VERSION)
-    request.onupgradeneeded = () => {
-      const db = request.result
-      for (const legacy of SESSION_LOG_LEGACY_STORES) {
-        if (db.objectStoreNames.contains(legacy)) db.deleteObjectStore(legacy)
-      }
-      if (!db.objectStoreNames.contains(SESSION_LOG_EVENTS_STORE)) {
-        db.createObjectStore(SESSION_LOG_EVENTS_STORE, { keyPath: ['sessionId', 'seq'] })
-      }
-      if (!db.objectStoreNames.contains(SESSION_LOG_SNAPSHOTS_STORE)) {
-        db.createObjectStore(SESSION_LOG_SNAPSHOTS_STORE, { keyPath: 'sessionId' })
-      }
-    }
-    request.onsuccess = () => resolve(request.result)
-    request.onerror = () => reject(request.error)
-    request.onblocked = () => reject(new Error('session log blocked'))
   })
 
 const rowsOf = (value: unknown): readonly LogRow[] => {
@@ -124,6 +107,8 @@ export function createIndexedDbSessionLog(args: {
       ? undefined
       : keyRanges.bound([sessionId, 0], [sessionId, Number.MAX_SAFE_INTEGER])
 
+  const database = factory === undefined ? undefined : createSessionLogDatabase(factory)
+
   const withDatabase = async <T>({
     fallback,
     use,
@@ -131,16 +116,8 @@ export function createIndexedDbSessionLog(args: {
     fallback: T
     use: (db: IdbDatabase) => Promise<T>
   }): Promise<T> => {
-    if (factory === undefined) return fallback
-    const db = await openDatabase(factory).catch(() => undefined)
-    if (db === undefined) return fallback
-    try {
-      return await use(db)
-    } catch {
-      return fallback
-    } finally {
-      db.close()
-    }
+    if (database === undefined) return fallback
+    return use(await database())
   }
 
   const readRange = (params: {
@@ -231,7 +208,12 @@ export function createIndexedDbSessionLog(args: {
           const tx = db.transaction(SESSION_LOG_SNAPSHOTS_STORE, 'readonly')
           const raw = await requestDone(tx.objectStore(SESSION_LOG_SNAPSHOTS_STORE).get(sessionId))
           const loaded = logSnapshotOf(raw)
-          if (raw !== undefined && loaded === undefined) {
+          const headOnly =
+            typeof raw === 'object' &&
+            raw !== null &&
+            'snapshot' in raw &&
+            raw.snapshot === undefined
+          if (raw !== undefined && !headOnly && loaded === undefined) {
             const cleanup = db.transaction(SESSION_LOG_SNAPSHOTS_STORE, 'readwrite')
             cleanup.objectStore(SESSION_LOG_SNAPSHOTS_STORE).delete(sessionId)
           }
