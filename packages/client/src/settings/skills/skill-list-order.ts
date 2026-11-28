@@ -39,7 +39,7 @@ export function ariaSortOf({
   key: ESkillSortKey
 }): 'ascending' | 'descending' | 'none' {
   if (sort === null || sort.key !== key) return 'none'
-  return sort.direction
+  return sort.direction === ESortDirection.Ascending ? 'ascending' : 'descending'
 }
 
 export function orderSkills({

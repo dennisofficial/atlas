@@ -5,8 +5,12 @@ import type { SkillSummary } from '@dltech/atlas-wire/web'
 
 import { TableHead } from '@dltech/atlas-ui/components/table'
 
-import { relativeTimeOf } from '../data/shared/relative-time'
-import { ariaSortOf, type ESkillSortKey, type SkillSort } from './skill-list-order'
+import {
+  ariaSortOf,
+  type ESkillSortKey,
+  type SkillSort,
+  skillUsageViewOf,
+} from '@dltech/atlas-client/settings'
 
 export function SortableHead({
   label,
@@ -40,19 +44,15 @@ export function SortableHead({
 }
 
 export function UsageCell({ skill, now }: { skill: SkillSummary; now: number }) {
-  if (skill.usagePending) {
-    return <span className="text-xs text-muted-foreground">—</span>
-  }
-  if (skill.usage.usedCount30d === 0) {
-    return <span className="text-xs text-muted-foreground">Never used</span>
+  const { usageLabel, lastUsedLabel } = skillUsageViewOf({ skill, now })
+  if (skill.usagePending || skill.usage.usedCount30d === 0) {
+    return <span className="text-xs text-muted-foreground">{usageLabel}</span>
   }
   return (
     <div className="flex flex-col gap-0.5">
-      <span className="font-mono text-xs tabular-nums">Used {skill.usage.usedCount30d}× · 30d</span>
-      {skill.usage.lastUsedAt === null ? null : (
-        <span className="text-xs text-muted-foreground">
-          last used {relativeTimeOf({ iso: skill.usage.lastUsedAt, now })}
-        </span>
+      <span className="font-mono text-xs tabular-nums">{usageLabel}</span>
+      {lastUsedLabel === null ? null : (
+        <span className="text-xs text-muted-foreground">{lastUsedLabel}</span>
       )}
     </div>
   )
